@@ -660,13 +660,13 @@ function AppInner() {
   const upLiv = (id, livId) => {
     const mem = teamMembers.find(m=>m.id===livId);
     const livName = mem?.nom || livId;
-    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:livName,livreur_id:livId,status:"en_camino"}:x));
+    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:livName,livreur_id:livId}:x));
     const order = orders.find(x=>x.id===id);
     if(order) {
       addToast(`${order.client} assigné à ${livName} 🏍️`, "🏍️", G.green);
       if(livId===currentUser.id) setTimeout(()=>setNewAssignment(order),500);
     }
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId,status:"en_camino"},SERVICE_KEY_CONST).catch(e=>console.error("upLiv error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId},SERVICE_KEY_CONST).catch(e=>console.error("upLiv error:",e));
   };
   const upClo = (id, clId) => {
     const mem = teamMembers.find(m=>m.id===clId);
@@ -1037,7 +1037,7 @@ function AppInner() {
                 {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
               </select>
             )}
-            {o.livreur&&o.status==="en_camino"&&(
+            {o.livreur&&(o.status==="confirmado"||o.status==="en_camino")&&(
               <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
                 style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
                 <option value="">🔄 Changer livreur...</option>
@@ -1092,15 +1092,15 @@ function AppInner() {
               );
             })()}
 
-            {/* Étape: confirmado → livreur vient chercher */}
+            {/* Étape: confirmado → livreur accepte la livraison */}
             {o.status==="confirmado"&&(
               <>
                 <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600}}>
-                  📋 Étape 1 — Va chercher le colis chez l'Admin
+                  📋 Étape 1 — Accepter la livraison
                 </div>
                 <button onClick={()=>upSt(o.id,"livreur_en_route")}
                   style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:`0 4px 12px ${G.green}44`}}>
-                  <span style={{fontSize:20}}>🏍️</span> Je pars chercher le colis
+                  <span style={{fontSize:20}}>✅</span> Accepter le colis
                 </button>
                 {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"7px 0",fontSize:12,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Appeler le client avant</a>}
               </>
