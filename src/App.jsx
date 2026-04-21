@@ -629,6 +629,7 @@ function AppInner() {
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDate,   setFilterDate]   = useState("all");
   const [filterLivreur, setFilterLivreur] = useState("all");
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
@@ -781,7 +782,7 @@ function AppInner() {
         const [ords, prods, msgs, mems] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, SERVICE_KEY_CONST),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, SERVICE_KEY_CONST),
-          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=50`, "GET", null, SERVICE_KEY_CONST),
+          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=500`, "GET", null, SERVICE_KEY_CONST),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`, "GET", null, SERVICE_KEY_CONST),
         ]);
         if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id})));
@@ -1895,13 +1896,17 @@ function AppInner() {
   // ── Filtered orders ──
   const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
   const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id) : allOrders;
+  const YESTERDAY = new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const WEEK_AGO  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
   const filteredOrders = baseOrders.filter(o=>{
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
-    const matchStatus = filterStatus==="all" || 
+    const matchStatus = filterStatus==="all" ||
       (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
     const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
-    return matchSearch && matchStatus && matchLivreur;
+    const d = o.created_at?.slice(0,10)||"";
+    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_AGO);
+    return matchSearch && matchStatus && matchLivreur && matchDate;
   });
 
   return (
@@ -2256,6 +2261,30 @@ function AppInner() {
         {/* ── COMMANDES / LIVRAISONS ── */}
         {(tab==="commandes"||tab==="livraisons")&&(
           <div>
+
+            {/* Filtres date */}
+            <div style={{display:"flex",gap:6,marginBottom:8}}>
+              {[
+                {k:"today",    l:"Aujourd'hui", icon:"📅"},
+                {k:"yesterday",l:"Hier",         icon:"⏪"},
+                {k:"week",     l:"Semaine",      icon:"📆"},
+                {k:"all",      l:"Tout",         icon:"🗂️"},
+              ].map(d=>{
+                const active = filterDate===d.k;
+                const cnt = d.k==="today" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===TODAY).length
+                          : d.k==="yesterday" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===YESTERDAY).length
+                          : d.k==="week" ? baseOrders.filter(o=>o.created_at?.slice(0,10)>=WEEK_AGO).length
+                          : baseOrders.length;
+                return (
+                  <button key={d.k} onClick={()=>setFilterDate(d.k)}
+                    style={{flex:1,background:active?G.green:"#F4F4F4",color:active?G.white:G.gray,border:"none",borderRadius:10,padding:"7px 4px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
+                    <span style={{fontSize:14}}>{d.icon}</span>
+                    <span>{d.l}</span>
+                    <span style={{fontSize:10,opacity:0.8}}>{cnt}</span>
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Filtres statut — toujours visibles */}
             {(()=>{
