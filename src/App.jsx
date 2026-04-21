@@ -1025,6 +1025,7 @@ function AppInner() {
   });
   const tCA   = calcProd.reduce((a,x)=>a+x.ca,0);
   const tBen  = calcProd.reduce((a,x)=>a+x.ben,0);
+  const caJour= orders.filter(o=>o.status==="entregado"&&o.created_at?.slice(0,10)===TODAY).reduce((a,o)=>a+o.price,0);
   const tCamv = calcProd.reduce((a,x)=>a+x.camv,0);
   const tFrais= calcProd.reduce((a,x)=>a+x.frais,0);
   const tPub  = calcProd.reduce((a,x)=>a+x.pub,0);
@@ -2004,8 +2005,9 @@ function AppInner() {
               <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>{settings.boutique} · {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:12}}>
                 <div>
-                  <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>BÉNÉFICE DU JOUR</div>
-                  <div style={{fontSize:30,fontWeight:700,color:tBen>=0?G.gold:"#FCA5A5",marginTop:2}}>{fmt(tBen)} <span style={{fontSize:14}}>FCFA</span></div>
+                  <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>CA DU JOUR</div>
+                  <div style={{fontSize:30,fontWeight:700,color:G.gold,marginTop:2}}>{fmt(caJour)} <span style={{fontSize:14}}>FCFA</span></div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: {fmt(tBen)} FCFA</div>
                 </div>
                 <button onClick={()=>setTab("compta")} style={{background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                   Voir Compta →
@@ -2829,8 +2831,9 @@ function AppInner() {
             {/* Rapport mensuel */}
             <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:16,padding:18,color:G.white}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:600,letterSpacing:1,marginBottom:6}}>RAPPORT — {new Date(selMonth+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase()}</div>
-              <div style={{fontSize:32,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:4}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>FCFA</span></div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>Bénéfice net · Marge: {pct(tMarge)}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontWeight:700,letterSpacing:1,marginBottom:2}}>BÉNÉFICE NET</div>
+              <div style={{fontSize:36,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:2}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>FCFA</span></div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.6)"}}>Marge: {pct(tMarge)} · CA: {fmt(tCA)} FCFA</div>
               <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
                 {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Frais",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
                   <div key={i}><div style={{fontSize:12,fontWeight:700,color:i===0?"rgba(255,255,255,0.9)":G.gold}}>{s.v} F</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{s.l}</div></div>
@@ -3660,9 +3663,15 @@ function AppInner() {
 
       {/* ── MODAL: Paramètres ── */}
       {showSettings&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:18}}>⚙️ Paramètres</div>
+        <div onClick={()=>setShowSettings(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
+              <div style={{width:40,height:4,borderRadius:2,background:G.grayLight}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <div style={{fontWeight:700,fontSize:16,color:G.green}}>⚙️ Paramètres</div>
+              <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+            </div>
 
             {/* Compte */}
             <div style={{marginBottom:18}}>
@@ -3809,9 +3818,15 @@ function AppInner() {
 
       {/* ── MODAL: Changer de plan ── */}
       {showPlanModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>Changer de plan</div>
+        <div onClick={()=>setShowPlanModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
+              <div style={{width:40,height:4,borderRadius:2,background:G.grayLight}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontWeight:800,fontSize:16,color:G.dark}}>Changer de plan</div>
+              <button onClick={()=>setShowPlanModal(false)} style={{background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+            </div>
             <div style={{fontSize:12,color:G.gray,marginBottom:18}}>Choisis le plan adapté à ton équipe</div>
             <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
               {PLANS.map(p=>{
