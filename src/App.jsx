@@ -75,6 +75,38 @@ const KpiCard = ({ label, value, sub, col = "indigo" }) => {
   );
 };
 
+// ── Utilidad: exportar array a CSV y descargarlo ──────────────────────────
+const exportCSV = (rows, filename) => {
+  if (!rows.length) return;
+  const keys = Object.keys(rows[0]);
+  const csv = [
+    keys.join(';'),
+    ...rows.map(r => keys.map(k => `"${String(r[k] ?? '').replace(/"/g, '""')}"`).join(';')),
+  ].join('\n');
+  const a = Object.assign(document.createElement('a'), {
+    href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })),
+    download: filename,
+  });
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+
+// ── Notificaciones toast ──────────────────────────────────────────────────
+function ToastContainer({ toasts }) {
+  const bg = { success:'bg-green-500', error:'bg-red-500', info:'bg-indigo-500', warning:'bg-yellow-500' };
+  if (!toasts.length) return null;
+  return (
+    <div className="fixed top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none w-72">
+      {toasts.map(t => (
+        <div key={t.id} className={`${bg[t.type] || bg.info} text-white px-4 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-2`}>
+          <span className="mt-0.5">{t.icon || '🔔'}</span>
+          <span>{t.msg}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Login() {
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
@@ -131,7 +163,7 @@ function Login() {
   );
 }
 
-function Sidebar({ role, view, setView, usr, onLogout }) {
+function Sidebar({ role, view, setView, usr, onLogout, pendingCount = 0 }) {
   const nav = {
     admin:   [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"orders",label:"Commandes",icon:"orders"},{id:"stock",label:"Stock",icon:"stock"},{id:"compta",label:"Compta",icon:"compta"},{id:"clients",label:"Clients",icon:"clients"}],
     closer:  [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"new_order",label:"Nouvelle commande",icon:"plus"},{id:"orders",label:"Mes commandes",icon:"orders"}],
@@ -155,7 +187,13 @@ function Sidebar({ role, view, setView, usr, onLogout }) {
         {nav[role].map(item => (
           <button key={item.id} onClick={() => setView(item.id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${view === item.id ? "bg-indigo-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
-            <IC n={item.icon} c="w-4 h-4 flex-shrink-0" />{item.label}
+            <IC n={item.icon} c="w-4 h-4 flex-shrink-0" />
+            <span className="flex-1 text-left">{item.label}</span>
+            {item.id === 'orders' && pendingCount > 0 && (
+              <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                {pendingCount > 9 ? '9+' : pendingCount}
+              </span>
+            )}
           </button>
         ))}
       </nav>
@@ -225,7 +263,16 @@ function OrdersView({ orders, products, setOrderStatus, role, filterCloser }) {
   rows = [...rows].sort((a,b)=>b.date.localeCompare(a.date));
   return (
     <div className="p-6 space-y-4">
-      <div><h1 className="text-2xl font-bold text-gray-800">Commandes</h1><p className="text-gray-500 text-sm mt-1">{rows.length} commande(s)</p></div>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div><h1 className="text-2xl font-bold text-gray-800">Commandes</h1><p className="text-gray-500 text-sm mt-1">{rows.length} commande(s)</p></div>
+        <button onClick={() => exportCSV(rows.map(o => {
+          const p = products.find(x => x.id === o.prodId);
+          return { 'Référence':o.id,'Client':o.client,'Téléphone':o.phone||'','Produit':p?.name||'','Quantité':o.qty,'Prix (FCFA)':o.price,'Ville':o.city,'Statut':STATUSES[o.status]?.label||o.status,'Closer':o.closer||'','Livreur':o.livreur||'','Date':o.date,'Pub (FCFA)':o.adSpend };
+        }), `commandes-${new Date().toISOString().slice(0,10)}.csv`)}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all">
+          ⬇ Exporter CSV
+        </button>
+      </div>
       <div className="flex gap-3 flex-wrap">
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Rechercher..."
           className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-32 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
@@ -381,7 +428,13 @@ function ComptaView({ orders, setOrders, products }) {
   const totAds=prodStats.reduce((s,p)=>s+p.ads,0);
   return (
     <div className="p-6 space-y-6">
-      <div><h1 className="text-2xl font-bold text-gray-800">Comptabilité</h1><p className="text-gray-500 text-sm mt-1">Analyse de rentabilité</p></div>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div><h1 className="text-2xl font-bold text-gray-800">Comptabilité</h1><p className="text-gray-500 text-sm mt-1">Analyse de rentabilité</p></div>
+        <button onClick={() => exportCSV(prodStats.map(p => ({'Produit':p.name,'Commandes livrées':p.cnt,'CA (FCFA)':p.rev,'Coûts+Livr. (FCFA)':p.cost,'Pub (FCFA)':p.ads,'Marge (FCFA)':p.mg,'Marge %':p.mgPct+'%'})), `compta-${new Date().toISOString().slice(0,10)}.csv`)}
+          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all">
+          ⬇ Exporter CSV
+        </button>
+      </div>
       <div className="grid grid-cols-3 gap-4">
         <KpiCard label="Revenus" value={`${(totRev/1000).toFixed(0)}K F`} col="indigo" />
         <KpiCard label="Dépense pub" value={`${(totAds/1000).toFixed(0)}K F`} col="yellow" />
@@ -664,6 +717,14 @@ export default function Teamly() {
   const [view, setView] = useState("dashboard");
   const [products, setProducts] = useState(PRODUCTS);
   const [orders, setOrders] = useState(INIT_ORDERS);
+  const [toasts, setToasts] = useState([]);
+  const toastRef = useRef(null);
+  const addToast = (msg, type = 'info', icon = '🔔') => {
+    const id = Date.now() + Math.random();
+    setToasts(p => [...p, { id, msg, type, icon }]);
+    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4500);
+  };
+  toastRef.current = addToast;
 
   // Sesión persistente: restaurar login al recargar la página
   useEffect(() => {
@@ -695,13 +756,26 @@ export default function Teamly() {
     load();
 
     // Realtime: pedidos
+    const STATUS_TOASTS = {
+      delivered: { type: 'success', icon: '✅', msg: (r) => `Livré: ${r.client} · ${r.city}` },
+      returned:  { type: 'error',   icon: '↩️', msg: (r) => `Retour: ${r.client} · ${r.city}` },
+      shipped:   { type: 'info',    icon: '🚚', msg: (r) => `Expédié: ${r.client} → ${r.livreur || '?'}` },
+      confirmed: { type: 'info',    icon: '📞', msg: (r) => `Confirmé: ${r.client} · ${r.city}` },
+    };
     const ordChannel = supabase
       .channel('orders-realtime')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' },
-        ({ new: row }) => setOrders(prev => [fromDb(row), ...prev])
+        ({ new: row }) => {
+          setOrders(prev => [fromDb(row), ...prev]);
+          toastRef.current(`📦 Nouveau: ${row.client} · ${row.city}`, 'info', '📦');
+        }
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' },
-        ({ new: row }) => setOrders(prev => prev.map(o => o.id === row.id ? fromDb(row) : o))
+        ({ new: row }) => {
+          setOrders(prev => prev.map(o => o.id === row.id ? fromDb(row) : o));
+          const t = STATUS_TOASTS[row.status];
+          if (t) toastRef.current(t.msg(row), t.type, t.icon);
+        }
       )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'orders' },
         ({ old: row }) => setOrders(prev => prev.filter(o => o.id !== row.id))
@@ -712,7 +786,10 @@ export default function Teamly() {
     const prodChannel = supabase
       .channel('products-realtime')
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' },
-        ({ new: row }) => setProducts(prev => prev.map(p => p.id === row.id ? row : p))
+        ({ new: row }) => {
+          setProducts(prev => prev.map(p => p.id === row.id ? row : p));
+          if (row.stock <= 5) toastRef.current(`⚠️ Stock bas: ${row.name} (${row.stock} restants)`, 'warning', '⚠️');
+        }
       )
       .subscribe();
 
@@ -761,9 +838,13 @@ export default function Teamly() {
     return null;
   };
 
+  const pendingCount = orders.filter(o => ['pending', 'confirmed'].includes(o.status)).length;
+
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar role={role} view={view} setView={setView} usr={usr} onLogout={async ()=>{ await supabase.auth.signOut(); }} />
+      <ToastContainer toasts={toasts} />
+      <Sidebar role={role} view={view} setView={setView} usr={usr} pendingCount={pendingCount}
+        onLogout={async () => { await supabase.auth.signOut(); }} />
       <main className="flex-1 overflow-y-auto">{renderView()}</main>
     </div>
   );
