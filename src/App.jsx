@@ -75,15 +75,21 @@ const KpiCard = ({ label, value, sub, col = "indigo" }) => {
   );
 };
 
-function Login({ onLogin }) {
-  const [sel, setSel] = useState(null);
-  const [usr, setUsr] = useState("");
-  const usersMap = { admin: ["Admin Principal"], closer: CLOSERS, livreur: LIVREURS };
-  const roles = [
-    { id:"admin",   label:"Admin",   desc:"Gestion complète",       icon:"compta" },
-    { id:"closer",  label:"Closer",  desc:"Saisie des commandes",   icon:"orders" },
-    { id:"livreur", label:"Livreur", desc:"Gestion des livraisons", icon:"delivery" },
-  ];
+function Login() {
+  const [email, setEmail]       = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError]       = useState("");
+  const [loading, setLoading]   = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email || !password) return;
+    setLoading(true);
+    setError("");
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) setError(err.message === "Invalid login credentials" ? "Email ou mot de passe incorrect" : err.message);
+    setLoading(false);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -92,36 +98,34 @@ function Login({ onLogin }) {
             <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center"><span className="text-indigo-700 font-black text-lg">T</span></div>
             <span className="text-white text-3xl font-black">Teamly</span>
           </div>
-          <p className="text-indigo-300 text-sm">Plateforme e-commerce COD</p>
+          <p className="text-indigo-300 text-sm">Plateforme e-commerce COD · Sénégal</p>
         </div>
-        {!sel ? (
-          <div className="space-y-3">
-            <p className="text-white/70 text-center text-sm mb-4">Choisissez votre rôle</p>
-            {roles.map(r => (
-              <button key={r.id} onClick={() => { setSel(r.id); setUsr(usersMap[r.id][0]); }}
-                className="w-full bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl p-4 flex items-center gap-4 transition-all text-left">
-                <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center"><IC n={r.icon} c="w-5 h-5 text-white" /></div>
-                <div><p className="text-white font-semibold">{r.label}</p><p className="text-indigo-300 text-xs">{r.desc}</p></div>
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white/10 border border-white/20 rounded-xl p-6 space-y-4">
-            <button onClick={() => setSel(null)} className="text-indigo-300 text-sm hover:text-white">← Retour</button>
-            <p className="text-white font-semibold">Sélectionnez votre compte</p>
-            <div className="space-y-2">
-              {usersMap[sel].map(u => (
-                <button key={u} onClick={() => setUsr(u)}
-                  className={`w-full px-4 py-2.5 rounded-lg text-sm text-left transition-all ${usr === u ? "bg-indigo-500 text-white" : "bg-white/10 text-white hover:bg-white/20"}`}>
-                  {u}
-                </button>
-              ))}
+        <div className="bg-white/10 border border-white/20 rounded-2xl p-6 space-y-4">
+          {error && (
+            <div className="bg-red-500/20 border border-red-400/30 text-red-200 rounded-lg px-3 py-2.5 text-sm flex items-center gap-2">
+              <span>⚠️</span> {error}
             </div>
-            <button onClick={() => onLogin(sel, usr)} className="w-full bg-indigo-500 hover:bg-indigo-400 text-white font-semibold py-3 rounded-xl transition-all">
-              Connexion →
-            </button>
+          )}
+          <div>
+            <label className="text-indigo-200 text-xs font-medium mb-1.5 block">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              placeholder="admin@teamly.sn"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
           </div>
-        )}
+          <div>
+            <label className="text-indigo-200 text-xs font-medium mb-1.5 block">Mot de passe</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && handleSubmit()}
+              placeholder="••••••••"
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+          </div>
+          <button onClick={handleSubmit} disabled={!email || !password || loading}
+            className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all mt-2">
+            {loading ? "Connexion en cours..." : "Se connecter →"}
+          </button>
+        </div>
+        <p className="text-white/30 text-center text-xs mt-6">Accès réservé à l'équipe Teamly</p>
       </div>
     </div>
   );
@@ -661,7 +665,24 @@ export default function Teamly() {
   const [products, setProducts] = useState(PRODUCTS);
   const [orders, setOrders] = useState(INIT_ORDERS);
 
-  // Carga inicial + suscripciones en tiempo real
+  // Sesión persistente: restaurar login al recargar la página
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) loadProfile(session.user.id);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) loadProfile(session.user.id);
+      else { setRole(null); setUsr(null); }
+    });
+    return () => subscription.unsubscribe();
+  }, []); // eslint-disable-line
+
+  const loadProfile = async (userId) => {
+    const { data } = await supabase.from('profiles').select('role, name').eq('id', userId).single();
+    if (data) { setRole(data.role); setUsr(data.name); setView('dashboard'); }
+  };
+
+  // Carga inicial de datos + suscripciones en tiempo real
   useEffect(() => {
     async function load() {
       const [{ data: ord }, { data: prod }] = await Promise.all([
@@ -718,7 +739,7 @@ export default function Teamly() {
     await supabase.from('products').update({ stock }).eq('id', id);
   };
 
-  if (!role) return <Login onLogin={(r,u)=>{ setRole(r); setUsr(u); setView("dashboard"); }} />;
+  if (!role) return <Login />;
 
   const renderView = () => {
     if (role==="admin") {
@@ -742,7 +763,7 @@ export default function Teamly() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar role={role} view={view} setView={setView} usr={usr} onLogout={()=>{ setRole(null); setUsr(null); setView("dashboard"); }} />
+      <Sidebar role={role} view={view} setView={setView} usr={usr} onLogout={async ()=>{ await supabase.auth.signOut(); }} />
       <main className="flex-1 overflow-y-auto">{renderView()}</main>
     </div>
   );
