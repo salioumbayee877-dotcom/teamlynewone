@@ -58,9 +58,9 @@ const STATUS = {
   pendiente:        {label:"En attente",        color:"#F0A500",bg:"#FFF8E7"},
   confirmado:       {label:"Client confirmé ✅", color:"#2E8B57",bg:"#E8F5EE"},
   livreur_en_route: {label:"Livreur en route 🏍️",color:"#7C3AED",bg:"#EDE9FE"},
-  colis_pris:       {label:"Colis récupéré 📦",  color:"#2563EB",bg:"#DBEAFE"},
-  en_camino:        {label:"Vers le client 🚀",  color:"#0284C7",bg:"#E0F2FE"},
-  chez_client:      {label:"Chez le client 📍",  color:"#D97706",bg:"#FEF3C7"},
+  colis_pris:       {label:"Colis en main 📦",         color:"#2563EB",bg:"#DBEAFE"},
+  en_camino:        {label:"Vers le client 🚀",        color:"#0284C7",bg:"#E0F2FE"},
+  chez_client:      {label:"Livreur chez le client 📍",color:"#D97706",bg:"#FEF3C7"},
   entregado:        {label:"✅ Encaissé",          color:"#1A5C38",bg:"#D1FAE5"},
   rechazado:        {label:"Rejeté",             color:"#DC2626",bg:"#FEE2E2"},
   no_contesta:      {label:"Absent",             color:"#6B7280",bg:"#F3F4F6"},
@@ -420,7 +420,19 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
                 </button>
               ))}
             </div>
-            {newOrder.livreur&&<div style={{fontSize:11,color:G.green,marginTop:4,fontWeight:600}}>✅ Assigné à {newOrder.livreur} — statut "En route" automatique</div>}
+            {newOrder.livreur&&(
+              <div style={{marginTop:10}}>
+                <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>📋 Statut de la livraison</div>
+                <select value={newOrder.deliveryStatus||"confirmado"} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
+                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:12,color:G.dark,background:G.white,boxSizing:"border-box"}}>
+                  <option value="confirmado">🔔 Aller récupérer le colis (défaut)</option>
+                  <option value="livreur_en_route">🏍️ En route pour récupérer</option>
+                  <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
+                  <option value="en_camino">🚀 En route vers le client</option>
+                  <option value="chez_client">📍 Livreur chez le client</option>
+                </select>
+              </div>
+            )}
           </div>
         )}
 
@@ -580,7 +592,7 @@ function AppInner() {
   const [showAddBundle,setShowAddBundle] = useState(false);
   const [noteModal,setNoteModal] = useState(null);
   const [noteText,setNoteText]   = useState("");
-  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:""});
+  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:""});
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
@@ -648,7 +660,7 @@ function AppInner() {
 
   // ── actions ──
   const upSt = (id,s) => {
-    const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route vers toi 🏍️",colis_pris:"Colis récupéré 📦",en_camino:"En route vers le client 🚀",chez_client:"Arrivé chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
+    const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
     setOrders(o=>o.map(x=>{
@@ -852,15 +864,24 @@ function AppInner() {
     }
     const tempId = "tmp_" + Date.now();
     const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:newOrder.livreur?"en_camino":"confirmado",livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
+    const deliveryStatus = newOrder.livreur ? (newOrder.deliveryStatus||"confirmado") : "confirmado";
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
     setOrders(o=>[...o,order]);
     if(orgId) {
       sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false},SERVICE_KEY_CONST)
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
-          if(saved?.id) {
-            // Replace temp id with real UUID from Supabase
-            setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
+          if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
+          // Envoyer notification au livreur selon le statut choisi
+          if(newOrder.livreur && orgId) {
+            const NOTIF_MSG = {
+              confirmado:       "🔔 Nouveau colis — Aller récupérer chez l'Admin",
+              livreur_en_route: "🏍️ Tu es en route pour récupérer le colis",
+              colis_pris:       "📦 Colis en main — Partir vers le client",
+              en_camino:        "🚀 Livraison directe — En route vers le client",
+              chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
+            };
+            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} FCFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}},SERVICE_KEY_CONST).catch(()=>{});
           }
         })
         .catch(e=>console.error("addOrder Supabase error:",e));
@@ -882,7 +903,7 @@ function AppInner() {
       setShowWA(true);
     }
 
-    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:""});
+    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:""});
     setShowAdd(false);
   };
 
