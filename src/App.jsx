@@ -29,13 +29,13 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
   }
 };
 
-const sbAuth = async (email, password, type="login") => {
+const sbAuth = async (email, password, type="login", captchaToken=null) => {
   try {
     const endpoint = type==="login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup";
     const res = await fetch(`${SB_URL}${endpoint}`, {
       method: "POST",
       headers: {"Content-Type":"application/json","apikey":SB_KEY},
-      body: JSON.stringify({email, password}),
+      body: JSON.stringify({email, password, ...(captchaToken?{captchaToken}:{})}),
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error_description||data.msg||"Email ou mot de passe incorrect");
@@ -743,6 +743,24 @@ function AppInner() {
     }
   },[role]);
 
+  // hCaptcha render when login form appears
+  useEffect(()=>{
+    if(authStep!=="login") return;
+    const tryRender = () => {
+      const el = document.getElementById("h-captcha-login");
+      if(el && window.hcaptcha && captchaWidgetId.current===null) {
+        captchaWidgetId.current = window.hcaptcha.render(el, {
+          sitekey:"f82e9ec2-0a46-4988-bad6-a27ed75c3664",
+          callback:(token)=>setCaptchaToken(token),
+          "expired-callback":()=>setCaptchaToken(null),
+          theme:"light",
+        });
+      }
+    };
+    const t = setTimeout(tryRender, 400);
+    return ()=>clearTimeout(t);
+  },[authStep]);
+
   // Save tab to localStorage when it changes
   useEffect(()=>{
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
@@ -1379,6 +1397,8 @@ function AppInner() {
   });
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  const captchaWidgetId = useRef(null);
   const [org, setOrg]             = useState(null);
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
@@ -1478,10 +1498,12 @@ function AppInner() {
                 </div>
               ))}
               {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+              <div id="h-captcha-login" style={{margin:"8px 0"}}/>
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
+                if(!captchaToken){setAuthError("Complète la vérification anti-robot d'abord");return;}
                 setAuthError(""); setAuthLoading(true);
-                sbAuth(authForm.email, authForm.password, "login")
+                sbAuth(authForm.email, authForm.password, "login", captchaToken)
                   .then(async(data)=>{
                     const tok = data.access_token;
                     setSbToken(tok);
@@ -1520,7 +1542,12 @@ function AppInner() {
                         } else { setAuthError("Erreur création profil — réessaie"); }
                       } catch(e) { setAuthError("Profil introuvable — " + e.message); }
                     }
-                  }).catch(e=>{setAuthError(e.message||"Email ou mot de passe incorrect");setAuthLoading(false);});
+                  }).catch(e=>{
+                    setAuthError(e.message||"Email ou mot de passe incorrect");
+                    setAuthLoading(false);
+                    setCaptchaToken(null);
+                    if(window.hcaptcha&&captchaWidgetId.current!==null){window.hcaptcha.reset(captchaWidgetId.current);}
+                  });
               }} disabled={authLoading} style={{background:authLoading?"#A0845C":G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"not-allowed":"pointer",marginTop:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {authLoading?(
                   <>
