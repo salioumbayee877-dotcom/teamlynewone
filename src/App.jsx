@@ -672,6 +672,14 @@ function AppInner() {
     }
     if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId},SERVICE_KEY_CONST).catch(e=>console.error("upLiv error:",e));
   };
+  const upLivDirect = (id, livId) => {
+    const mem = teamMembers.find(m=>m.id===livId);
+    const livName = mem?.nom || (livId===currentUser.id ? currentUser.nom : livId);
+    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:livName,livreur_id:livId,status:"en_camino"}:x));
+    const order = orders.find(x=>x.id===id);
+    if(order) addToast(`${order.client} ajouté à la tournée de ${livName} 🚀`,"🚀","#0284C7");
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId,status:"en_camino"},SERVICE_KEY_CONST).catch(e=>console.error("upLivDirect error:",e));
+  };
   const upClo = (id, clId) => {
     const mem = teamMembers.find(m=>m.id===clId);
     const clName = mem?.nom || (clId===currentUser.id ? currentUser.nom : clId);
@@ -805,12 +813,13 @@ function AppInner() {
   useEffect(()=>{
     if(role!=="livreur") return;
     const myName = currentUser.nom;
+    const myId   = currentUser.id;
     if(prevOrdersRef.current===null) { prevOrdersRef.current=orders; return; }
     const prev = prevOrdersRef.current;
     const newlyAssigned = orders.find(o=>
-      o.livreur===myName &&
-      o.status==="en_camino" &&
-      !prev.find(p=>p.id===o.id&&p.livreur===myName)
+      (o.livreur===myName||o.livreur_id===myId) &&
+      o.status==="confirmado" &&
+      !prev.find(p=>p.id===o.id&&(p.livreur===myName||p.livreur_id===myId))
     );
     if(newlyAssigned && (!newAssignment || newAssignment.id!==newlyAssigned.id)) {
       setNewAssignment(newlyAssigned);
@@ -1035,11 +1044,26 @@ function AppInner() {
               </button>
             )}
             {(o.closer||role==="admin")&&o.status!=="entregado"&&o.status!=="rechazado"&&!o.livreur&&(
-              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
-                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
-                <option value="">🏍️ Assigner un livreur...</option>
-                {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
-              </select>
+              <>
+                <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
+                  style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
+                  <option value="">🏍️ Assigner un livreur...</option>
+                  {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
+                </select>
+                {(()=>{
+                  const ACTIVE=["livreur_en_route","colis_pris","en_camino","chez_client"];
+                  const livActifIds=[...new Set(orders.filter(x=>ACTIVE.includes(x.status)&&x.livreur_id).map(x=>x.livreur_id))];
+                  const livActifs=teamMembers.filter(m=>m.role==="livreur"&&livActifIds.includes(m.id));
+                  if(!livActifs.length) return null;
+                  return (
+                    <select onChange={e=>e.target.value&&upLivDirect(o.id,e.target.value)} defaultValue=""
+                      style={{border:`1px solid #93C5FD`,borderRadius:8,padding:"6px 10px",fontSize:12,color:"#1D4ED8",background:"#EFF6FF"}}>
+                      <option value="">🚀 Ajouter à une tournée active...</option>
+                      {livActifs.map(m=><option key={m.id} value={m.id}>🏍️ {m.nom} — en route</option>)}
+                    </select>
+                  );
+                })()}
+              </>
             )}
             {o.livreur&&(o.status==="confirmado"||o.status==="en_camino")&&(
               <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
@@ -1196,10 +1220,8 @@ function AppInner() {
               if(!prev) return null;
               return (
                 <button onClick={()=>{
-                  if(window.confirm("Corriger l'étape ? Cette action est enregistrée.")) {
-                    upSt(o.id, prev.s);
-                    addToast("Étape corrigée ✏️","✏️",G.gray);
-                  }
+                  upSt(o.id, prev.s);
+                  addToast("Étape corrigée ✏️","✏️",G.gray);
                 }}
                   style={{width:"100%",background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",padding:"5px 0",textDecoration:"underline dotted",marginTop:2}}>
                   ✏️ {prev.l}
@@ -2079,17 +2101,17 @@ function AppInner() {
               </div>
             ))}
 
-            {/* Nouveau colis depuis orders */}
-            {myLiv.filter(o=>o.status==="confirmado").map(o=>(
-              <div key={o.id} style={{background:"linear-gradient(135deg,#F0A500,#D97706)",borderRadius:14,padding:16,display:"flex",gap:12,alignItems:"center"}}>
-                <div style={{fontSize:28}}>🔔</div>
+            {/* Colis en attente d'acceptation */}
+            {myLiv.filter(o=>o.status==="confirmado").length>0&&(
+              <div style={{background:"#FFF8E7",border:"1px solid #FDE68A",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:20}}>🔔</span>
                 <div style={{flex:1}}>
-                  <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Nouveau colis !</div>
-                  <div style={{fontSize:13,color:"rgba(255,255,255,0.9)",marginTop:2}}>{o.client} — {o.address}</div>
-                  <div style={{fontSize:14,fontWeight:800,color:"#FFF",marginTop:4}}>{fmt(o.price)} FCFA</div>
+                  <div style={{fontWeight:700,fontSize:13,color:"#92400E"}}>{myLiv.filter(o=>o.status==="confirmado").length} colis à accepter</div>
+                  <div style={{fontSize:11,color:"#92400E",marginTop:1}}>Va dans Livraisons pour accepter</div>
                 </div>
+                <button onClick={()=>setTab("livraisons")} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Voir →</button>
               </div>
-            ))}
+            )}
 
             {/* ── BLOC TOURNÉE — colis à récupérer ── */}
             {aRecuperer.length>0&&(
@@ -2404,7 +2426,7 @@ function AppInner() {
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
               {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
                 const name=m.nom;
-                const active = orders.filter(o=>o.livreur_id===m.id&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
+                const active = orders.filter(o=>o.livreur_id===m.id&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
                 const pos = livreurPositions[name];
                 const livreurs=teamMembers.filter(x=>x.role==="livreur");
                 return (
@@ -3036,8 +3058,7 @@ function AppInner() {
             ...products.filter(p=>p.stock<5).map(p=>({key:`stock_${p.id}`,type:"stock",icon:"📦",title:"Stock bas",body:`${p.name} — ${p.stock} restants`,color:G.red,bg:"#FEE2E2",id:p.id,time:"maintenant"})),
           ];
           const NOTIFS_LIVREUR = [
-            ...myLiv.filter(o=>o.status==="confirmado").map(o=>({key:`new_${o.id}`,type:"newOrder",icon:"🔔",title:"Nouveau pedido",body:`${o.client} · ${o.address}`,color:G.gold,bg:"#FFF8E7",id:o.id,phone:o.phone,price:o.price,time:"nouveau"})),
-            ...myLiv.filter(o=>o.status==="en_camino"||o.status==="colis_pris").map(o=>({key:`enc_${o.id}`,type:"encours",icon:"🚀",title:"En cours",body:`${o.client} · ${o.address}`,color:G.blue,bg:"#DBEAFE",id:o.id,phone:o.phone,price:o.price,time:"en cours"})),
+            ...myLiv.filter(o=>o.status==="en_camino"||o.status==="colis_pris"||o.status==="livreur_en_route").map(o=>({key:`enc_${o.id}`,type:"encours",icon:"🚀",title:"En cours",body:`${o.client} · ${o.address}`,color:G.blue,bg:"#DBEAFE",id:o.id,phone:o.phone,price:o.price,time:"en cours"})),
           ];
 
           const allNotifs = role==="livreur" ? NOTIFS_LIVREUR : NOTIFS_ADMIN;
@@ -3730,11 +3751,11 @@ function AppInner() {
             {/* Actions */}
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <button onClick={()=>{
-                upSt(newAssignment.id,"en_camino");
-                addToast("En route vers "+newAssignment.client+" 🏍️","🏍️",G.green);
+                upSt(newAssignment.id,"livreur_en_route");
+                addToast("Livraison acceptée — Va récupérer le colis 🏍️","🏍️",G.green);
                 setNewAssignment(null);
               }} style={{background:G.green,color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:17,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-                <span style={{fontSize:22}}>✅</span> Accepter & Partir
+                <span style={{fontSize:22}}>✅</span> Accepter le colis
               </button>
               <button onClick={()=>{
                 // Refus — remet la commande sans livreur
