@@ -63,8 +63,8 @@ const Badge = ({ status }) => {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>;
 };
 
-const KpiCard = ({ label, value, sub, col = "indigo" }) => {
-  const bg = { indigo:"bg-indigo-500", green:"bg-green-500", yellow:"bg-yellow-500", red:"bg-red-500" };
+const KpiCard = ({ label, value, sub, col = "green" }) => {
+  const bg = { green:"bg-emerald-500", indigo:"bg-emerald-500", yellow:"bg-yellow-500", red:"bg-red-500" };
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
       <div className={`w-7 h-7 rounded-lg ${bg[col]} mb-3`} />
@@ -93,7 +93,7 @@ const exportCSV = (rows, filename) => {
 
 // ── Notificaciones toast ──────────────────────────────────────────────────
 function ToastContainer({ toasts }) {
-  const bg = { success:'bg-green-500', error:'bg-red-500', info:'bg-indigo-500', warning:'bg-yellow-500' };
+  const bg = { success:'bg-emerald-500', error:'bg-red-500', info:'bg-emerald-600', warning:'bg-yellow-500' };
   if (!toasts.length) return null;
   return (
     <div className="fixed top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none w-72">
@@ -123,14 +123,14 @@ function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-900 to-emerald-800 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-1">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center"><span className="text-indigo-700 font-black text-lg">T</span></div>
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center"><span className="text-emerald-700 font-black text-lg">T</span></div>
             <span className="text-white text-3xl font-black">Teamly</span>
           </div>
-          <p className="text-indigo-300 text-sm">Plateforme e-commerce COD · Sénégal</p>
+          <p className="text-emerald-300 text-sm">Plateforme e-commerce COD · Sénégal</p>
         </div>
         <div className="bg-white/10 border border-white/20 rounded-2xl p-6 space-y-4">
           {error && (
@@ -139,21 +139,21 @@ function Login() {
             </div>
           )}
           <div>
-            <label className="text-indigo-200 text-xs font-medium mb-1.5 block">Email</label>
+            <label className="text-emerald-200 text-xs font-medium mb-1.5 block">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
               placeholder="admin@teamly.sn"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
           </div>
           <div>
-            <label className="text-indigo-200 text-xs font-medium mb-1.5 block">Mot de passe</label>
+            <label className="text-emerald-200 text-xs font-medium mb-1.5 block">Mot de passe</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
               placeholder="••••••••"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400" />
+              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
           </div>
           <button onClick={handleSubmit} disabled={!email || !password || loading}
-            className="w-full bg-indigo-500 hover:bg-indigo-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all mt-2">
+            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all mt-2">
             {loading ? "Connexion en cours..." : "Se connecter →"}
           </button>
         </div>
@@ -169,12 +169,12 @@ function Sidebar({ role, view, setView, usr, onLogout, pendingCount = 0 }) {
     closer:  [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"new_order",label:"Nouvelle commande",icon:"plus"},{id:"orders",label:"Mes commandes",icon:"orders"}],
     livreur: [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"deliveries",label:"Mes livraisons",icon:"delivery"}],
   };
-  const rCol = { admin:"from-indigo-600 to-purple-600", closer:"from-blue-600 to-cyan-600", livreur:"from-emerald-600 to-teal-600" };
+  const rCol = { admin:"from-emerald-600 to-green-600", closer:"from-emerald-500 to-teal-500", livreur:"from-green-600 to-emerald-600" };
   const rLbl = { admin:"Admin", closer:"Closer", livreur:"Livreur" };
   return (
     <div className="w-52 bg-gray-900 flex flex-col h-screen flex-shrink-0">
       <div className="p-4 border-b border-gray-800 flex items-center gap-2">
-        <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center"><span className="text-white font-black text-sm">T</span></div>
+        <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center"><span className="text-white font-black text-sm">T</span></div>
         <span className="text-white font-black text-lg">Teamly</span>
       </div>
       <div className="p-3 border-b border-gray-800">
@@ -186,7 +186,7 @@ function Sidebar({ role, view, setView, usr, onLogout, pendingCount = 0 }) {
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
         {nav[role].map(item => (
           <button key={item.id} onClick={() => setView(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${view === item.id ? "bg-indigo-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${view === item.id ? "bg-emerald-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
             <IC n={item.icon} c="w-4 h-4 flex-shrink-0" />
             <span className="flex-1 text-left">{item.label}</span>
             {item.id === 'orders' && pendingCount > 0 && (
@@ -239,7 +239,7 @@ function AdminDashboard({ orders, products }) {
             return (
               <div key={o.id} className="px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center text-indigo-600 text-xs font-bold">{o.client[0]}</div>
+                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 text-xs font-bold">{o.client[0]}</div>
                   <div><p className="text-sm font-medium text-gray-800">{o.client}</p><p className="text-xs text-gray-400">{p?.name} · {o.city}</p></div>
                 </div>
                 <div className="text-right"><p className="text-sm font-semibold text-gray-800">{o.price.toLocaleString()} F</p><Badge status={o.status} /></div>
@@ -275,9 +275,9 @@ function OrdersView({ orders, products, setOrderStatus, role, filterCloser }) {
       </div>
       <div className="flex gap-3 flex-wrap">
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Rechercher..."
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-32 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-32 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
         <select value={flt} onChange={e=>setFlt(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
           <option value="all">Tous les statuts</option>
           {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
         </select>
@@ -307,7 +307,7 @@ function OrdersView({ orders, products, setOrderStatus, role, filterCloser }) {
                     <td className="px-4 py-3 text-gray-600">{o.city}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-800">{o.price.toLocaleString()} F</td>
                     <td className="px-4 py-3 text-center"><Badge status={o.status} /></td>
-                    {role==="admin" && <td className="px-4 py-3 text-center"><button onClick={()=>setEditO(o)} className="text-indigo-400 hover:text-indigo-600"><IC n="edit" c="w-4 h-4" /></button></td>}
+                    {role==="admin" && <td className="px-4 py-3 text-center"><button onClick={()=>setEditO(o)} className="text-emerald-400 hover:text-emerald-600"><IC n="edit" c="w-4 h-4" /></button></td>}
                   </tr>
                 );
               })}
@@ -334,13 +334,13 @@ function EditModal({ order, onClose, onSave }) {
         <div className="p-5 space-y-4">
           <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Statut</label>
-            <select value={st} onChange={e=>setSt(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <select value={st} onChange={e=>setSt(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
               {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
             </select>
           </div>
           <div>
             <label className="text-xs text-gray-500 font-medium mb-1 block">Livreur assigné</label>
-            <select value={lv} onChange={e=>setLv(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <select value={lv} onChange={e=>setLv(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
               <option value="">Non assigné</option>
               {LIVREURS.map(l=><option key={l} value={l}>{l}</option>)}
             </select>
@@ -348,7 +348,7 @@ function EditModal({ order, onClose, onSave }) {
         </div>
         <div className="p-5 flex gap-3">
           <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50">Annuler</button>
-          <button onClick={()=>onSave(order.id, st, lv||null)} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-indigo-700">Enregistrer</button>
+          <button onClick={()=>onSave(order.id, st, lv||null)} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-700">Enregistrer</button>
         </div>
       </div>
     </div>
@@ -385,13 +385,13 @@ function StockView({ products, setProducts, onSaveStock }) {
                     <p className={`text-xl font-bold px-3 py-1 rounded-lg ${lc[lvl]}`}>{p.stock}</p>
                     <p className="text-xs text-gray-400 mt-1">unités</p>
                   </div>
-                  <button onClick={()=>{ setEditId(p.id); setVal(String(p.stock)); }} className="text-indigo-400 hover:text-indigo-600 p-1"><IC n="edit" c="w-4 h-4" /></button>
+                  <button onClick={()=>{ setEditId(p.id); setVal(String(p.stock)); }} className="text-emerald-400 hover:text-emerald-600 p-1"><IC n="edit" c="w-4 h-4" /></button>
                 </div>
               </div>
               {editId===p.id && (
                 <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2 items-center">
-                  <input type="number" value={val} onChange={e=>setVal(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-                  <button onClick={()=>{ (onSaveStock||((id,s)=>setProducts(ps=>ps.map(x=>x.id===id?{...x,stock:s}:x))))(p.id,Number(val)); setEditId(null); }} className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-indigo-700">Sauvegarder</button>
+                  <input type="number" value={val} onChange={e=>setVal(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
+                  <button onClick={()=>{ (onSaveStock||((id,s)=>setProducts(ps=>ps.map(x=>x.id===id?{...x,stock:s}:x))))(p.id,Number(val)); setEditId(null); }} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700">Sauvegarder</button>
                   <button onClick={()=>setEditId(null)} className="text-gray-400 text-sm hover:text-gray-600">Annuler</button>
                 </div>
               )}
@@ -441,7 +441,7 @@ function ComptaView({ orders, setOrders, products }) {
         <KpiCard label="Marge nette" value={`${(totMg/1000).toFixed(0)}K F`} sub={`${totRev>0?((totMg/totRev)*100).toFixed(1):0}%`} col="green" />
       </div>
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-indigo-50"><h2 className="font-bold text-indigo-800">📦 Point Produit</h2></div>
+        <div className="p-4 border-b border-gray-100 bg-emerald-50"><h2 className="font-bold text-emerald-800">📦 Point Produit</h2></div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
@@ -489,7 +489,7 @@ function ComptaView({ orders, setOrders, products }) {
               <div key={o.id} className="px-4 py-2.5 flex items-center justify-between gap-4">
                 <div className="flex-1 min-w-0"><span className="text-xs font-mono text-gray-400">{o.id}</span><span className="text-sm text-gray-700 ml-2">{o.client}</span><span className="text-xs text-gray-400 ml-2 hidden sm:inline">{p?.name}</span></div>
                 <div className="flex items-center gap-2">
-                  <input type="number" value={v} onChange={e=>setAse(ed=>({...ed,[o.id]:e.target.value}))} className="border border-gray-200 rounded-lg px-2 py-1 text-sm w-20 text-right focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                  <input type="number" value={v} onChange={e=>setAse(ed=>({...ed,[o.id]:e.target.value}))} className="border border-gray-200 rounded-lg px-2 py-1 text-sm w-20 text-right focus:outline-none focus:ring-2 focus:ring-emerald-300" />
                   <span className="text-xs text-gray-400">F</span>
                   {ase[o.id]!==undefined && <button onClick={()=>save(o.id,v)} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600">✓</button>}
                 </div>
@@ -548,7 +548,7 @@ function CloserDashboard({ orders, usr, products }) {
         <KpiCard label="En attente" value={pnd.length} col="yellow" />
         <KpiCard label="CA généré" value={`${(rev/1000).toFixed(0)}K F`} col="indigo" />
       </div>
-      <div className="bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-5 text-white">
+      <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-5 text-white">
         <p className="text-blue-100 text-sm">Taux de conversion</p>
         <p className="text-4xl font-black mt-1">{rate}%</p>
         <div className="mt-3 bg-white/20 rounded-full h-2">
@@ -592,11 +592,11 @@ function NewOrderView({ products, closer, addOrder }) {
       {ok && <div className="bg-green-100 border border-green-200 text-green-700 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm"><IC n="check" c="w-4 h-4" /> Commande enregistrée !</div>}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Nom client *</label><input value={f.client} onChange={e=>set("client",e.target.value)} placeholder="Mamadou Diallo" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" /></div>
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Téléphone *</label><input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="77 000 0000" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" /></div>
+          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Nom client *</label><input value={f.client} onChange={e=>set("client",e.target.value)} placeholder="Mamadou Diallo" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
+          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Téléphone *</label><input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="77 000 0000" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
         </div>
         <div><label className="text-xs text-gray-500 font-medium mb-1 block">Produit</label>
-          <select value={f.prodId} onChange={e=>{set("prodId",e.target.value);set("isBundle",false);set("qty",1);}} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          <select value={f.prodId} onChange={e=>{set("prodId",e.target.value);set("isBundle",false);set("qty",1);}} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
             {products.map(p=><option key={p.id} value={p.id}>{p.name} — {p.price.toLocaleString()} F</option>)}
           </select>
         </div>
@@ -608,23 +608,23 @@ function NewOrderView({ products, closer, addOrder }) {
             </button>
           </div>
         )}
-        {!eff && <div><label className="text-xs text-gray-500 font-medium mb-1 block">Quantité</label><input type="number" min="1" value={f.qty} onChange={e=>set("qty",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" /></div>}
+        {!eff && <div><label className="text-xs text-gray-500 font-medium mb-1 block">Quantité</label><input type="number" min="1" value={f.qty} onChange={e=>set("qty",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>}
         <div className="grid grid-cols-2 gap-3">
           <div><label className="text-xs text-gray-500 font-medium mb-1 block">Ville</label>
-            <select value={f.city} onChange={e=>set("city",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <select value={f.city} onChange={e=>set("city",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
               {CITIES.map(c=><option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div><label className="text-xs text-gray-500 font-medium mb-1 block">Paiement</label>
-            <select value={f.pay} onChange={e=>set("pay",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <select value={f.pay} onChange={e=>set("pay",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
               <option value="cod">Paiement à la livraison</option>
               <option value="wave">Wave</option>
               <option value="orange">Orange Money</option>
             </select>
           </div>
         </div>
-        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Dépense pub attribuée (FCFA)</label><input type="number" value={f.adSpend} onChange={e=>set("adSpend",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" /></div>
-        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Note (optionnel)</label><input value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Instruction spéciale..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" /></div>
+        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Dépense pub attribuée (FCFA)</label><input type="number" value={f.adSpend} onChange={e=>set("adSpend",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
+        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Note (optionnel)</label><input value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Instruction spéciale..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
         <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100">
           <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Aperçu marge en temps réel</p>
           {[["Prix de vente",price.toLocaleString()+" F","text-gray-800"],["Coût produit","−"+(prod.cost*qty).toLocaleString()+" F","text-red-400"],["Livraison","−"+DELIVERY_COST.toLocaleString()+" F","text-red-400"],["Pub","−"+Number(f.adSpend).toLocaleString()+" F","text-yellow-500"]].map(([l,v,c])=>(
@@ -635,7 +635,7 @@ function NewOrderView({ products, closer, addOrder }) {
             <span className={`font-black text-lg ${margin>=0?"text-green-600":"text-red-500"}`}>{margin.toLocaleString()} F <span className="text-sm">({mgPct}%)</span></span>
           </div>
         </div>
-        <button onClick={submit} disabled={!f.client||!f.phone} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
+        <button onClick={submit} disabled={!f.client||!f.phone} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
           Enregistrer la commande
         </button>
       </div>
@@ -678,7 +678,7 @@ function LivreurDeliveries({ orders, usr, updSt }) {
       <div><h1 className="text-2xl font-bold text-gray-800">Mes livraisons</h1><p className="text-gray-500 text-sm mt-1">{mine.length} commande(s)</p></div>
       <div className="flex gap-2 flex-wrap">
         {[["all","Toutes"],["shipped","Expédiées"],["delivered","Livrées"],["returned","Retours"]].map(([k,v])=>(
-          <button key={k} onClick={()=>setFlt(k)} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${flt===k?"bg-indigo-600 text-white":"bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{v}</button>
+          <button key={k} onClick={()=>setFlt(k)} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${flt===k?"bg-emerald-600 text-white":"bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{v}</button>
         ))}
       </div>
       <div className="space-y-3">
@@ -698,7 +698,7 @@ function DelivCard({ order, updSt }) {
           <p className="font-semibold text-gray-800 mt-1">{order.client}</p>
           <p className="text-sm text-gray-500">{order.phone} · {order.city}</p>
         </div>
-        <p className="font-bold text-indigo-600">{order.price.toLocaleString()} F</p>
+        <p className="font-bold text-emerald-600">{order.price.toLocaleString()} F</p>
       </div>
       <div className="text-xs text-gray-400 mb-3">💳 Paiement à la livraison{order.note&&` · 📝 ${order.note}`}</div>
       {order.status==="shipped" && (
