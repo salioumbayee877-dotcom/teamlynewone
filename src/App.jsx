@@ -1,851 +1,4057 @@
-import { useState, useEffect, useRef } from "react";
-import { supabase, fromDb, toDb } from './lib/supabase';
+﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+// ── Supabase REST client (no SDK needed) ──────────────────────────────────
+const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
+const SERVICE_KEY_CONST = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo";
 
-const PRODUCTS = [
-  { id: 1, name: "Bouton de volant", sku: "BV-001", price: 8500, cost: 2200, stock: 45, bundles: [{ qty: 2, price: 15000 }] },
-  { id: 2, name: "Organisateur bijoux", sku: "OB-002", price: 6000, cost: 1500, stock: 30, bundles: [{ qty: 3, price: 15000 }] },
-  { id: 3, name: "Vernis à ongles (set)", sku: "VN-003", price: 4500, cost: 1200, stock: 80, bundles: [{ qty: 4, price: 16000 }] },
-  { id: 4, name: "Ceinture LED", sku: "CL-004", price: 7000, cost: 1800, stock: 20, bundles: [] },
+const sbHeaders = (token) => ({
+  "Content-Type":  "application/json",
+  "apikey":        SB_KEY,
+  "Authorization": `Bearer ${token||SB_KEY}`,
+  "Prefer":        "return=representation",
+});
+
+const sbFetch = async (path, method="GET", body=null, token=null) => {
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+      method,
+      headers: sbHeaders(token),
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if(!res.ok) { const e=await res.text(); throw new Error(e); }
+    return method==="DELETE" ? null : res.json();
+  } catch(e) {
+    console.error("sbFetch error:", path, e.message);
+    throw e;
+  }
+};
+
+const sbAuth = async (email, password, type="login") => {
+  try {
+    const endpoint = type==="login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup";
+    const res = await fetch(`${SB_URL}${endpoint}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","apikey":SB_KEY},
+      body: JSON.stringify({email, password}),
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error_description||data.msg||"Email ou mot de passe incorrect");
+    return data;
+  } catch(e) {
+    if(e.message.includes("fetch")) throw new Error("Pas de connexion internet");
+    throw e;
+  }
+};
+
+
+const G = {
+  green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
+  gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
+  grayLight:"#F4F4F4",white:"#FFFFFF",red:"#DC2626",blue:"#2563EB",
+};
+const fmt = n => Number(n||0).toLocaleString("fr-FR");
+const pct = n => (Number(n||0)*100).toFixed(1)+"%";
+const TODAY = new Date().toISOString().split("T")[0];
+const FRAIS_LIV = 1500;
+
+const STATUS = {
+  pendiente:        {label:"En attente",        color:"#F0A500",bg:"#FFF8E7"},
+  confirmado:       {label:"Client confirmé ✅", color:"#2E8B57",bg:"#E8F5EE"},
+  livreur_en_route: {label:"Livreur en route 🏍️",color:"#7C3AED",bg:"#EDE9FE"},
+  colis_pris:       {label:"Colis récupéré 📦",  color:"#2563EB",bg:"#DBEAFE"},
+  en_camino:        {label:"Vers le client 🚀",  color:"#0284C7",bg:"#E0F2FE"},
+  chez_client:      {label:"Chez le client 📍",  color:"#D97706",bg:"#FEF3C7"},
+  entregado:        {label:"✅ Encaissé",          color:"#1A5C38",bg:"#D1FAE5"},
+  rechazado:        {label:"Rejeté",             color:"#DC2626",bg:"#FEE2E2"},
+  no_contesta:      {label:"Absent",             color:"#6B7280",bg:"#F3F4F6"},
+  reprogramar:      {label:"Reporter",           color:"#7C3AED",bg:"#EDE9FE"},
+};
+
+const INIT_PRODUCTS = [
+  {id:1,name:"Chaussures Nike",cost:7000, price:25000,stock:42,fraisLiv:1500,niche:"Mode & Chaussures",
+   bundles:[
+     {id:1,label:"Pack 2",type:"quantite",qte:2,qteOfferte:0,prixVente:40000,livraisonOfferte:false},
+     {id:2,label:"Buy 2 Get 1",type:"bxgyf",  qte:2,qteOfferte:1,prixVente:36000,livraisonOfferte:false},
+   ]},
+  {id:2,name:"Sac à main",     cost:5000, price:18000,stock:28,fraisLiv:1500,niche:"Mode & Chaussures",
+   bundles:[
+     {id:1,label:"Pack 3",type:"quantite",qte:3,qteOfferte:0,prixVente:45000,livraisonOfferte:true},
+   ]},
+  {id:3,name:"Montre Casio",   cost:9000, price:32000,stock:15,fraisLiv:2000,niche:"Électronique",
+   bundles:[]},
 ];
-const CLOSERS = ["Fatou Ba", "Ibrahima Sow", "Aminata Diallo", "Serigne Mbaye"];
-const LIVREURS = ["Moussa Fall", "Cheikh Ndiaye", "Omar Sarr"];
-const CITIES = ["Dakar", "Pikine", "Guédiawaye", "Rufisque", "Thiès", "Mbour", "Ziguinchor"];
-const DELIVERY_COST = 1500;
-const STATUSES = {
-  pending:   { label: "En attente",  color: "bg-yellow-100 text-yellow-700" },
-  confirmed: { label: "Confirmé",    color: "bg-blue-100 text-blue-700" },
-  shipped:   { label: "Expédié",     color: "bg-purple-100 text-purple-700" },
-  delivered: { label: "Livré",       color: "bg-green-100 text-green-700" },
-  returned:  { label: "Retourné",    color: "bg-orange-100 text-orange-700" },
-  cancelled: { label: "Annulé",      color: "bg-red-100 text-red-700" },
-};
 
-const mkO = (id, client, phone, prodId, qty, city, status, closer, livreur, date, adSpend, isBundle) => {
-  const p = PRODUCTS.find(x => x.id === prodId);
-  const b = isBundle && p.bundles[0];
-  const price = b ? b.price : p.price * qty;
-  return { id: `CMD-${String(id).padStart(3,"0")}`, client, phone, prodId, qty: b ? b.qty : qty, price, city, status, closer, livreur, date, adSpend, isBundle: !!b, note: "" };
-};
+const INIT_BUNDLES = [
+  {id:1,name:"Pack 2 Chaussures",   type:"quantite",  produits:[{nom:"Chaussures Nike",qte:2}],            qteOfferte:0,remisePct:0, prixVente:40000,livraisonOfferte:false,venduAuj:3,rejetAuj:1},
+  {id:2,name:"Buy 2 Get 1 Free Sac",type:"bxgyf",     produits:[{nom:"Sac à main",     qte:2}],            qteOfferte:1,remisePct:0, prixVente:36000,livraisonOfferte:false,venduAuj:2,rejetAuj:0},
+  {id:3,name:"Kit Montre + Sac",    type:"kit",        produits:[{nom:"Montre Casio",qte:1},{nom:"Sac à main",qte:1}],qteOfferte:0,remisePct:0,prixVente:42000,livraisonOfferte:true, venduAuj:1,rejetAuj:0},
+  {id:4,name:"Pack 3 remise 15%",   type:"remise_pct", produits:[{nom:"Chaussures Nike",qte:3}],            qteOfferte:0,remisePct:15,prixVente:63750,livraisonOfferte:false,venduAuj:2,rejetAuj:1},
+];
 
 const INIT_ORDERS = [
-  mkO(1,"Mamadou Diallo","77 231 4512",1,1,"Dakar","delivered","Fatou Ba","Moussa Fall","2026-04-14",800,false),
-  mkO(2,"Awa Ndiaye","78 456 7890",2,1,"Pikine","delivered","Ibrahima Sow","Cheikh Ndiaye","2026-04-14",600,false),
-  mkO(3,"Ousmane Faye","76 123 9988",1,2,"Dakar","delivered","Fatou Ba","Moussa Fall","2026-04-15",900,true),
-  mkO(4,"Mariama Bâ","77 888 1234",3,4,"Thiès","shipped","Aminata Diallo","Omar Sarr","2026-04-16",500,true),
-  mkO(5,"Ibou Thiam","78 321 6543",2,1,"Dakar","confirmed","Serigne Mbaye",null,"2026-04-17",400,false),
-  mkO(6,"Rokhaya Seck","77 999 0012",4,1,"Mbour","pending","Fatou Ba",null,"2026-04-18",700,false),
-  mkO(7,"Abdou Cissé","76 777 3456",1,1,"Rufisque","returned","Ibrahima Sow","Cheikh Ndiaye","2026-04-16",800,false),
-  mkO(8,"Ndeye Diop","77 543 2109",3,1,"Dakar","pending","Aminata Diallo",null,"2026-04-18",300,false),
-  mkO(9,"Lamine Koné","78 112 3344",2,1,"Guédiawaye","confirmed","Fatou Ba",null,"2026-04-19",550,false),
-  mkO(10,"Coumba Gaye","77 654 3210",1,1,"Dakar","delivered","Serigne Mbaye","Omar Sarr","2026-04-19",650,false),
+  {id:1, client:"Moussa Diallo", phone:"771234567",address:"Médina, Dakar",   product:"Chaussures Nike",   price:25000,status:"confirmado", livreur:"Ibou",   closer:"Aminata",note:"",isBundle:false},
+  {id:2, client:"Fatou Ndiaye",  phone:"781234567",address:"Plateau, Dakar",  product:"Sac à main",        price:18000,status:"en_camino",  livreur:"Mamadou",closer:"Binta",  note:"",isBundle:false},
+  {id:3, client:"Amadou Sow",    phone:"701234567",address:"Parcelles, Dakar",product:"Montre Casio",      price:32000,status:"pendiente",  livreur:null,     closer:null,     note:"",isBundle:false},
+  {id:4, client:"Aïssatou Diop", phone:"761234567",address:"Yoff, Dakar",     product:"Chaussures Nike",   price:25000,status:"entregado",  livreur:"Ibou",   closer:"Aminata",note:"",isBundle:false},
+  {id:5, client:"Omar Ba",       phone:"771234568",address:"Ngor, Dakar",     product:"Sac à main",        price:18000,status:"rechazado",  livreur:"Cheikh", closer:"Binta",  note:"Absent",isBundle:false},
+  {id:6, client:"Rokhaya Seck",  phone:"781234569",address:"Ouakam, Dakar",   product:"Pack 2 Chaussures", price:40000,status:"entregado",  livreur:"Ibou",   closer:"Aminata",note:"",isBundle:true},
+  {id:7, client:"Moussa Diallo", phone:"771234567",address:"Médina, Dakar",   product:"Sac à main",        price:18000,status:"entregado",  livreur:"Mamadou",closer:"Aminata",note:"",isBundle:false},
+  {id:8, client:"Moussa Diallo", phone:"771234567",address:"Médina, Dakar",   product:"Montre Casio",      price:32000,status:"rechazado",  livreur:"Ibou",   closer:"Aminata",note:"",isBundle:false},
+  {id:9, client:"Omar Ba",       phone:"771234568",address:"Ngor, Dakar",     product:"Chaussures Nike",   price:25000,status:"rechazado",  livreur:"Cheikh", closer:"Binta",  note:"Ne répond pas",isBundle:false},
+  {id:10,client:"Fatou Ndiaye",  phone:"781234567",address:"Plateau, Dakar",  product:"Chaussures Nike",   price:25000,status:"entregado",  livreur:"Mamadou",closer:"Binta",  note:"",isBundle:false},
 ];
-let oCnt = INIT_ORDERS.length + 1;
 
-const IC = ({ n, c = "w-5 h-5" }) => {
-  const d = {
-    dashboard: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
-    orders:    "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
-    stock:     "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
-    compta:    "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z",
-    delivery:  "M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0",
-    plus:      "M12 4v16m8-8H4",
-    logout:    "M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
-    check:     "M5 13l4 4L19 7",
-    x:         "M6 18L18 6M6 6l12 12",
-    edit:      "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
-    clients:   "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
-  };
-  return <svg xmlns="http://www.w3.org/2000/svg" className={c} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={d[n]} /></svg>;
-};
+const INIT_CHAT = [
+  {from:"Admin",   text:"Bon matin team!",      time:"09:00"},
+  {from:"Aminata", text:"Commande #3 confirmée.",time:"09:10"},
+  {from:"Ibou",    text:"Commande #1 livrée ✓", time:"09:45"},
+];
 
-const Badge = ({ status }) => {
-  const s = STATUSES[status] || STATUSES.pending;
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${s.color}`}>{s.label}</span>;
-};
+const LIVREURS_DATA = []; // static fallback
+const CLOSERS_DATA  = []; // static fallback
+const LIVREURS = LIVREURS_DATA.map(x=>x.name);
+const CLOSERS  = CLOSERS_DATA.map(x=>x.name);
 
-const KpiCard = ({ label, value, sub, col = "green" }) => {
-  const bg = { green:"bg-emerald-500", indigo:"bg-emerald-500", yellow:"bg-yellow-500", red:"bg-red-500" };
+function ToastContainer({toasts}) {
+  if(!toasts||toasts.length===0) return null;
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className={`w-7 h-7 rounded-lg ${bg[col]} mb-3`} />
-      <p className="text-2xl font-bold text-gray-800">{value}</p>
-      <p className="text-sm text-gray-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
-    </div>
-  );
-};
-
-// ── Utilidad: exportar array a CSV y descargarlo ──────────────────────────
-const exportCSV = (rows, filename) => {
-  if (!rows.length) return;
-  const keys = Object.keys(rows[0]);
-  const csv = [
-    keys.join(';'),
-    ...rows.map(r => keys.map(k => `"${String(r[k] ?? '').replace(/"/g, '""')}"`).join(';')),
-  ].join('\n');
-  const a = Object.assign(document.createElement('a'), {
-    href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' })),
-    download: filename,
-  });
-  a.click();
-  URL.revokeObjectURL(a.href);
-};
-
-// ── Notificaciones toast ──────────────────────────────────────────────────
-function ToastContainer({ toasts }) {
-  const bg = { success:'bg-emerald-500', error:'bg-red-500', info:'bg-emerald-600', warning:'bg-yellow-500' };
-  if (!toasts.length) return null;
-  return (
-    <div className="fixed top-4 right-4 z-[400] flex flex-col gap-2 pointer-events-none w-72">
-      {toasts.map(t => (
-        <div key={t.id} className={`${bg[t.type] || bg.info} text-white px-4 py-3 rounded-xl shadow-xl text-sm font-medium flex items-start gap-2`}>
-          <span className="mt-0.5">{t.icon || '🔔'}</span>
-          <span>{t.msg}</span>
+    <div style={{position:"fixed",top:70,right:12,zIndex:999,display:"flex",flexDirection:"column",gap:8,maxWidth:300}}>
+      {toasts.map(t=>(
+        <div key={t.id} style={{background:G.white,borderRadius:12,padding:"10px 14px",boxShadow:"0 4px 20px rgba(0,0,0,0.15)",borderLeft:`4px solid ${t.color||G.green}`,display:"flex",alignItems:"center",gap:8,animation:"slideIn 0.3s ease"}}>
+          <span style={{fontSize:20,flexShrink:0}}>{t.icon}</span>
+          <span style={{fontSize:13,fontWeight:600,color:G.dark}}>{t.msg}</span>
         </div>
       ))}
+      <style>{`@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}`}</style>
     </div>
   );
 }
 
-function Login() {
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
+function BarChart({data, height=130}) {
+  if(!data||data.length===0) return null;
+  const maxVal = Math.max(...data.map(d=>Math.max(d.v1||0,d.v2||0)),1);
+  const w = 100/data.length;
+  return (
+    <svg viewBox={"0 0 100 "+height} style={{width:"100%",height,display:"block"}} preserveAspectRatio="none">
+      {data.map((d,i)=>{
+        const bh1=(d.v1/maxVal)*(height-20);
+        const bh2=(d.v2/maxVal)*(height-20);
+        const x=i*w+w*0.08;
+        return (
+          <g key={i}>
+            <rect x={x} y={height-20-bh1} width={w*0.38} height={bh1} fill="#1A5C38" rx="1" opacity="0.85"/>
+            {d.v2!==undefined&&<rect x={x+w*0.42} y={height-20-bh2} width={w*0.38} height={bh2} fill="#F0A500" rx="1" opacity="0.85"/>}
+            <text x={x+w*0.38} y={height-5} textAnchor="middle" fontSize="4" fill="#6B7280">{d.label}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
 
-  const handleSubmit = async () => {
-    if (!email || !password) return;
-    setLoading(true);
-    setError("");
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) setError(err.message === "Invalid login credentials" ? "Email ou mot de passe incorrect" : err.message);
-    setLoading(false);
-  };
+function SC({icon,label,value,color=G.dark,bg=G.white}) {
+  return (
+    <div style={{background:bg,borderRadius:12,padding:"11px 12px",flex:1,minWidth:0,boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+      <div style={{fontSize:18}}>{icon}</div>
+      <div style={{fontSize:20,fontWeight:700,color,marginTop:3}}>{value}</div>
+      <div style={{fontSize:11,color:G.gray,marginTop:1}}>{label}</div>
+    </div>
+  );
+}
+
+function ST({children}) {
+  return <div style={{fontWeight:700,fontSize:13,color:G.green,letterSpacing:0.5,marginBottom:9,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>{children}</div>;
+}
+
+function Tbl({headers,rows,align}) {
+  return (
+    <div style={{overflowX:"auto"}}>
+      <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+        <thead>
+          <tr style={{background:G.greenLight}}>
+            {headers.map((h,i)=><th key={i} style={{padding:"7px 8px",textAlign:align?.[i]||"left",color:G.green,fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row,i)=>(
+            <tr key={i} style={{background:i%2===0?G.white:"#F9F9F9",borderBottom:`1px solid ${G.grayLight}`}}>
+              {row.map((cell,j)=><td key={j} style={{padding:"7px 8px",textAlign:align?.[j]||"left",whiteSpace:"nowrap"}}>{cell}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function bundleCout(b, products) {
+  return b.produits.reduce((acc,p) => {
+    const prod = products.find(x=>x.name===p.nom);
+    const qr = b.type==="bxgyf" ? (p.qte+(b.qteOfferte||0)) : p.qte;
+    return acc + (prod?prod.cost:0)*qr;
+  }, 0);
+}
+
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = {error:null}; }
+  static getDerivedStateFromError(e) { return {error:e}; }
+  render() {
+    if(this.state.error) return (
+      <div style={{padding:24,background:"#1A5C38",minHeight:"100vh",color:"white",fontFamily:"sans-serif"}}>
+        <div style={{fontSize:24,marginBottom:16}}>⚠️ Erreur Teamly</div>
+        <div style={{background:"rgba(255,255,255,0.1)",borderRadius:12,padding:16,fontSize:12,wordBreak:"break-all",marginBottom:16}}>
+          {this.state.error.message}
+        </div>
+        <button onClick={()=>{localStorage.clear();window.location.reload();}} 
+          style={{background:"#F0A500",color:"#000",border:"none",borderRadius:10,padding:"12px 24px",fontWeight:700,cursor:"pointer"}}>
+          🔄 Réinitialiser et recommencer
+        </button>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+
+
+function MapView({positions, role}) {
+  const containerRef = useRef(null);
+  const stateRef     = useRef({map:null, markers:{}, loaded:false});
+
+  useEffect(()=>{
+    // Load CSS
+    if(!document.getElementById("leaflet-css")) {
+      const l = document.createElement("link");
+      l.id="leaflet-css"; l.rel="stylesheet";
+      l.href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css";
+      document.head.appendChild(l);
+    }
+
+    const setupMap = () => {
+      if(!containerRef.current || stateRef.current.map) return;
+      const L = window.L;
+      if(!L) return;
+      const center = role==="livreur" ? [14.6928,-17.4467] : [14.7167,-17.4677];
+      const map = L.map(containerRef.current, {zoomControl:true, scrollWheelZoom:false, attributionControl:false})
+                   .setView(center, 13);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+      stateRef.current.map = map;
+      stateRef.current.loaded = true;
+      // Add initial markers
+      Object.entries(positions).forEach(([name,pos])=>{
+        if(!pos || pos.lat===undefined) return;
+        const icon = L.divIcon({
+          html:`<div style="background:#1A5C38;color:#F0A500;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🏍️</div>`,
+          className:"", iconSize:[34,34], iconAnchor:[17,17]
+        });
+        stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon}).addTo(map).bindPopup(`<b>${name}</b>`);
+      });
+    };
+
+    if(window.L) {
+      setTimeout(setupMap, 150);
+    } else {
+      const s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+      s.onload = () => setTimeout(setupMap, 150);
+      document.head.appendChild(s);
+    }
+
+    return () => {
+      if(stateRef.current.map) {
+        try { stateRef.current.map.remove(); } catch(e){}
+        stateRef.current = {map:null, markers:{}, loaded:false};
+      }
+    };
+  }, []);
+
+  // Update markers when positions change
+  useEffect(()=>{
+    const {map, markers, loaded} = stateRef.current;
+    if(!loaded || !map || !window.L) return;
+    const L = window.L;
+    Object.entries(positions).forEach(([name,pos])=>{
+      if(!pos || pos.lat===undefined) return;
+      if(markers[name]) {
+        markers[name].setLatLng([pos.lat, pos.lng]);
+      } else {
+        const icon = L.divIcon({
+          html:`<div style="background:#1A5C38;color:#F0A500;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🏍️</div>`,
+          className:"", iconSize:[34,34], iconAnchor:[17,17]
+        });
+        markers[name] = L.marker([pos.lat,pos.lng],{icon}).addTo(map).bindPopup(`<b>${name}</b>`);
+      }
+    });
+  }, [positions]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-900 to-emerald-800 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-1">
-            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center"><span className="text-emerald-700 font-black text-lg">T</span></div>
-            <span className="text-white text-3xl font-black">Teamly</span>
-          </div>
-          <p className="text-emerald-300 text-sm">Plateforme e-commerce COD · Sénégal</p>
-        </div>
-        <div className="bg-white/10 border border-white/20 rounded-2xl p-6 space-y-4">
-          {error && (
-            <div className="bg-red-500/20 border border-red-400/30 text-red-200 rounded-lg px-3 py-2.5 text-sm flex items-center gap-2">
-              <span>⚠️</span> {error}
+    <div ref={containerRef} style={{height:260, width:"100%", borderRadius:12, overflow:"hidden", background:"#E8F4F8"}}/>
+  );
+}
+
+function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly"}) {
+  const [showWAPreview, setShowWAPreview] = useState(false);
+  const prod = products.find(p=>p.name===newOrder.product);
+  const qty  = parseInt(newOrder.qty||1);
+  const disc = parseFloat(newOrder.discount||0);
+  const basePrice = prod ? prod.price * qty : 0;
+  const bundleSelected = prod?.bundles?.find(b=>String(b.id)===newOrder.bundle);
+  const finalPrice = bundleSelected ? bundleSelected.prixVente : (disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice);
+  const margeTotal = prod ? finalPrice - prod.cost*qty - (prod.fraisLiv||FRAIS_LIV) : 0;
+  const clientSuggestions = newOrder.phone?.length>=3
+    ? [...new Map(orders.filter(o=>o.phone?.includes(newOrder.phone)||o.client?.toLowerCase().includes((newOrder.phone||"").toLowerCase())).map(o=>[o.phone,o])).values()].slice(0,3)
+    : [];
+  const TN={quantite:"Pack Qté",bxgyf:"Buy X Get Y",kit:"Kit"};
+  const TL={quantite:"#2563EB",bxgyf:"#7C3AED",kit:"#D97706"};
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+      <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+        <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouvelle commande confirmée</div>
+        <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📱 Téléphone *</div>
+          <input type="text" value={newOrder.phone||""} onChange={e=>setNewOrder({...newOrder,phone:e.target.value})} placeholder="77 123 45 67"
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {clientSuggestions.length>0&&(
+            <div style={{marginTop:4,display:"flex",flexDirection:"column",gap:3}}>
+              {clientSuggestions.map((o,i)=>{
+                const cO=orders.filter(x=>x.phone===o.phone);
+                const sc=cO.length>0?Math.round(cO.filter(x=>x.status==="entregado").length/cO.length*100):0;
+                return <button key={i} onClick={()=>setNewOrder({...newOrder,phone:o.phone,client:o.client,address:o.address})}
+                  style={{background:G.greenLight,border:`1px solid ${G.greenMid}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
+                  <div><span style={{fontSize:12,fontWeight:600,color:G.green}}>{o.client}</span><span style={{fontSize:11,color:G.gray}}> · {o.phone}</span></div>
+                  <span>{sc>=80?"🟢":sc>=50?"🟡":"🔴"} {sc}%</span>
+                </button>;
+              })}
             </div>
           )}
-          <div>
-            <label className="text-emerald-200 text-xs font-medium mb-1.5 block">Email</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSubmit()}
-              placeholder="admin@teamly.sn"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-          <div>
-            <label className="text-emerald-200 text-xs font-medium mb-1.5 block">Mot de passe</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => e.key === "Enter" && handleSubmit()}
-              placeholder="••••••••"
-              className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" />
-          </div>
-          <button onClick={handleSubmit} disabled={!email || !password || loading}
-            className="w-full bg-emerald-500 hover:bg-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all mt-2">
-            {loading ? "Connexion en cours..." : "Se connecter →"}
-          </button>
         </div>
-        <p className="text-white/30 text-center text-xs mt-6">Accès réservé à l'équipe Teamly</p>
-      </div>
-    </div>
-  );
-}
-
-function Sidebar({ role, view, setView, usr, onLogout, pendingCount = 0 }) {
-  const nav = {
-    admin:   [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"orders",label:"Commandes",icon:"orders"},{id:"stock",label:"Stock",icon:"stock"},{id:"compta",label:"Compta",icon:"compta"},{id:"clients",label:"Clients",icon:"clients"}],
-    closer:  [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"new_order",label:"Nouvelle commande",icon:"plus"},{id:"orders",label:"Mes commandes",icon:"orders"}],
-    livreur: [{id:"dashboard",label:"Dashboard",icon:"dashboard"},{id:"deliveries",label:"Mes livraisons",icon:"delivery"}],
-  };
-  const rCol = { admin:"from-emerald-600 to-green-600", closer:"from-emerald-500 to-teal-500", livreur:"from-green-600 to-emerald-600" };
-  const rLbl = { admin:"Admin", closer:"Closer", livreur:"Livreur" };
-  return (
-    <div className="w-52 bg-gray-900 flex flex-col h-screen flex-shrink-0">
-      <div className="p-4 border-b border-gray-800 flex items-center gap-2">
-        <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center"><span className="text-white font-black text-sm">T</span></div>
-        <span className="text-white font-black text-lg">Teamly</span>
-      </div>
-      <div className="p-3 border-b border-gray-800">
-        <div className={`bg-gradient-to-r ${rCol[role]} rounded-lg p-3`}>
-          <p className="text-white/70 text-xs">{rLbl[role]}</p>
-          <p className="text-white text-sm font-semibold truncate">{usr}</p>
-        </div>
-      </div>
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {nav[role].map(item => (
-          <button key={item.id} onClick={() => setView(item.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${view === item.id ? "bg-emerald-600 text-white" : "text-gray-400 hover:bg-gray-800 hover:text-white"}`}>
-            <IC n={item.icon} c="w-4 h-4 flex-shrink-0" />
-            <span className="flex-1 text-left">{item.label}</span>
-            {item.id === 'orders' && pendingCount > 0 && (
-              <span className="bg-red-500 text-white text-xs font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
-                {pendingCount > 9 ? '9+' : pendingCount}
-              </span>
-            )}
-          </button>
-        ))}
-      </nav>
-      <div className="p-3 border-t border-gray-800">
-        <button onClick={onLogout} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all">
-          <IC n="logout" c="w-4 h-4" />Déconnexion
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function AdminDashboard({ orders, products }) {
-  const dlv = orders.filter(o => o.status === "delivered");
-  const pnd = orders.filter(o => ["pending","confirmed","shipped"].includes(o.status));
-  const rev = dlv.reduce((s,o) => s+o.price, 0);
-  const costs = dlv.reduce((s,o) => { const p=products.find(x=>x.id===o.prodId); return s+(p?p.cost*o.qty:0)+DELIVERY_COST+o.adSpend; },0);
-  const margin = rev - costs;
-  const bad = orders.filter(o=>["returned","cancelled"].includes(o.status)).length;
-  const rate = dlv.length+bad > 0 ? (dlv.length/(dlv.length+bad)*100).toFixed(0) : 0;
-  const recent = [...orders].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-  return (
-    <div className="p-6 space-y-6">
-      <div><h1 className="text-2xl font-bold text-gray-800">Dashboard</h1><p className="text-gray-500 text-sm mt-1">Vue d'ensemble de l'activité</p></div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Chiffre d'affaires" value={`${(rev/1000).toFixed(0)}K F`} sub="Commandes livrées" col="indigo" />
-        <KpiCard label="Marge nette" value={`${(margin/1000).toFixed(0)}K F`} sub={`${rev>0?((margin/rev)*100).toFixed(0):0}% du CA`} col="green" />
-        <KpiCard label="En cours" value={pnd.length} sub="À traiter" col="yellow" />
-        <KpiCard label="Taux livraison" value={`${rate}%`} sub="Livrées / Total" col="indigo" />
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {Object.entries(STATUSES).map(([k]) => (
-          <div key={k} className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 flex items-center justify-between">
-            <Badge status={k} /><span className="font-bold text-gray-800">{orders.filter(o=>o.status===k).length}</span>
+        {[{key:"client",label:"👤 Nom client",ph:"Moussa Diallo"},{key:"address",label:"📍 Adresse",ph:"Médina, Dakar"}].map(f=>(
+          <div key={f.key} style={{marginBottom:9}}>
+            <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+            <input type="text" value={newOrder[f.key]||""} onChange={e=>setNewOrder({...newOrder,[f.key]:e.target.value})} placeholder={f.ph}
+              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           </div>
         ))}
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100"><h2 className="font-semibold text-gray-800">Commandes récentes</h2></div>
-        <div className="divide-y divide-gray-50">
-          {recent.map(o => {
-            const p = products.find(x=>x.id===o.prodId);
-            return (
-              <div key={o.id} className="px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 text-xs font-bold">{o.client[0]}</div>
-                  <div><p className="text-sm font-medium text-gray-800">{o.client}</p><p className="text-xs text-gray-400">{p?.name} · {o.city}</p></div>
-                </div>
-                <div className="text-right"><p className="text-sm font-semibold text-gray-800">{o.price.toLocaleString()} F</p><Badge status={o.status} /></div>
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Produit *</div>
+          <select value={newOrder.product||""} onChange={e=>setNewOrder({...newOrder,product:e.target.value,bundle:"",qty:"1",discount:""})}
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
+            <option value="">Sélectionner un produit...</option>
+            {products.map(p=><option key={p.id} value={p.name}>{p.name} — {fmt(p.price)} FCFA · stock: {p.stock}</option>)}
+          </select>
+        </div>
+        {prod&&!bundleSelected&&(
+          <div style={{display:"flex",gap:8,marginBottom:10}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🔢 Quantité</div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <button onClick={()=>setNewOrder(p=>({...p,qty:String(Math.max(1,parseInt(p.qty||1)-1))}))} style={{background:G.grayLight,border:"none",borderRadius:6,width:32,height:36,cursor:"pointer",fontSize:18,fontWeight:700}}>−</button>
+                <div style={{flex:1,textAlign:"center",fontSize:18,fontWeight:700,background:G.white,border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"5px 0"}}>{qty}</div>
+                <button onClick={()=>setNewOrder(p=>({...p,qty:String(parseInt(p.qty||1)+1)}))} style={{background:G.greenLight,border:"none",borderRadius:6,width:32,height:36,cursor:"pointer",fontSize:18,fontWeight:700,color:G.green}}>+</button>
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OrdersView({ orders, products, setOrderStatus, role, filterCloser }) {
-  const [flt, setFlt] = useState("all");
-  const [q, setQ] = useState("");
-  const [editO, setEditO] = useState(null);
-  let rows = orders;
-  if (filterCloser) rows = rows.filter(o=>o.closer===filterCloser);
-  if (flt !== "all") rows = rows.filter(o=>o.status===flt);
-  if (q) rows = rows.filter(o=>o.client.toLowerCase().includes(q.toLowerCase())||o.id.includes(q));
-  rows = [...rows].sort((a,b)=>b.date.localeCompare(a.date));
-  return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div><h1 className="text-2xl font-bold text-gray-800">Commandes</h1><p className="text-gray-500 text-sm mt-1">{rows.length} commande(s)</p></div>
-        <button onClick={() => exportCSV(rows.map(o => {
-          const p = products.find(x => x.id === o.prodId);
-          return { 'Référence':o.id,'Client':o.client,'Téléphone':o.phone||'','Produit':p?.name||'','Quantité':o.qty,'Prix (FCFA)':o.price,'Ville':o.city,'Statut':STATUSES[o.status]?.label||o.status,'Closer':o.closer||'','Livreur':o.livreur||'','Date':o.date,'Pub (FCFA)':o.adSpend };
-        }), `commandes-${new Date().toISOString().slice(0,10)}.csv`)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all">
-          ⬇ Exporter CSV
-        </button>
-      </div>
-      <div className="flex gap-3 flex-wrap">
-        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Rechercher..."
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm flex-1 min-w-32 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
-        <select value={flt} onChange={e=>setFlt(e.target.value)}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-          <option value="all">Tous les statuts</option>
-          {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-        </select>
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">Réf</th>
-                <th className="px-4 py-3 text-left">Client</th>
-                <th className="px-4 py-3 text-left">Produit</th>
-                <th className="px-4 py-3 text-left">Ville</th>
-                <th className="px-4 py-3 text-right">Prix</th>
-                <th className="px-4 py-3 text-center">Statut</th>
-                {role==="admin" && <th className="px-4 py-3 text-center">Action</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {rows.map(o => {
-                const p = products.find(x=>x.id===o.prodId);
-                return (
-                  <tr key={o.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-400">{o.id}</td>
-                    <td className="px-4 py-3"><div className="font-medium text-gray-800">{o.client}</div><div className="text-xs text-gray-400">{o.phone}</div></td>
-                    <td className="px-4 py-3"><div className="text-gray-700">{p?.name}</div>{o.isBundle && <span className="text-xs bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded">Bundle ×{o.qty}</span>}</td>
-                    <td className="px-4 py-3 text-gray-600">{o.city}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-800">{o.price.toLocaleString()} F</td>
-                    <td className="px-4 py-3 text-center"><Badge status={o.status} /></td>
-                    {role==="admin" && <td className="px-4 py-3 text-center"><button onClick={()=>setEditO(o)} className="text-emerald-400 hover:text-emerald-600"><IC n="edit" c="w-4 h-4" /></button></td>}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          {rows.length===0 && <div className="text-center py-12 text-gray-400 text-sm">Aucune commande trouvée</div>}
-        </div>
-      </div>
-      {editO && <EditModal order={editO} onClose={()=>setEditO(null)} onSave={(id,st,lv)=>{ setOrderStatus(id,st,lv); setEditO(null); }} />}
-    </div>
-  );
-}
-
-function EditModal({ order, onClose, onSave }) {
-  const [st, setSt] = useState(order.status);
-  const [lv, setLv] = useState(order.livreur||"");
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-bold text-gray-800">Modifier {order.id}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><IC n="x" c="w-5 h-5" /></button>
-        </div>
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Statut</label>
-            <select value={st} onChange={e=>setSt(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-              {Object.entries(STATUSES).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
-            </select>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💸 Réduction %</div>
+              <div style={{position:"relative"}}>
+                <input type="number" min="0" max="100" value={newOrder.discount||""} onChange={e=>setNewOrder({...newOrder,discount:e.target.value})} placeholder="0"
+                  style={{width:"100%",border:`1.5px solid ${disc>0?"#FCA5A5":G.grayLight}`,borderRadius:8,padding:"8px 28px 8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:13,color:G.gray}}>%</span>
+              </div>
+              {disc>0&&<div style={{fontSize:10,color:G.red,marginTop:2}}>−{fmt(Math.round(basePrice*disc/100))} FCFA</div>}
+            </div>
           </div>
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">Livreur assigné</label>
-            <select value={lv} onChange={e=>setLv(e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-              <option value="">Non assigné</option>
-              {LIVREURS.map(l=><option key={l} value={l}>{l}</option>)}
-            </select>
+        )}
+        {prod&&(
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:11,color:G.gray,marginBottom:6,fontWeight:600}}>🎁 Option bundle</div>
+            <button onClick={()=>setNewOrder({...newOrder,bundle:""})}
+              style={{width:"100%",background:!newOrder.bundle?G.greenLight:"#F9F9F9",border:`2px solid ${!newOrder.bundle?G.green:G.grayLight}`,borderRadius:10,padding:"9px 14px",cursor:"pointer",textAlign:"left",marginBottom:5,display:"flex",justifyContent:"space-between"}}>
+              <div><div style={{fontWeight:600,fontSize:13,color:!newOrder.bundle?G.green:G.gray}}>📦 Sans bundle</div><div style={{fontSize:11,color:G.gray}}>Qté et réduction libres</div></div>
+              {!newOrder.bundle&&<span style={{color:G.green}}>✓</span>}
+            </button>
+            {(prod.bundles||[]).length>0?(prod.bundles||[]).map(b=>{
+              const qr=b.type==="bxgyf"?(b.qte+(b.qteOfferte||0)):b.qte,cout=prod.cost*qr,fl=b.livraisonOfferte?0:(prod.fraisLiv||FRAIS_LIV),m=b.prixVente-cout-fl,isSel=newOrder.bundle===String(b.id);
+              return <button key={b.id} onClick={()=>setNewOrder({...newOrder,bundle:String(b.id),qty:"1",discount:""})}
+                style={{width:"100%",background:isSel?"#FFF8E7":"#F9F9F9",border:`2px solid ${isSel?G.gold:G.grayLight}`,borderRadius:10,padding:"9px 14px",cursor:"pointer",textAlign:"left",marginBottom:5,display:"flex",justifyContent:"space-between"}}>
+                <div>
+                  <div style={{display:"flex",gap:5,marginBottom:2}}>
+                    <span style={{fontWeight:700,fontSize:13,color:isSel?G.gold:G.dark}}>{b.label}</span>
+                    <span style={{background:"#F3F4F6",color:TL[b.type]||"#666",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{TN[b.type]||b.type}</span>
+                    {b.livraisonOfferte&&<span style={{background:G.greenLight,color:G.green,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🚚</span>}
+                  </div>
+                  <div style={{fontSize:11,color:G.gray}}>{b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · marge: <strong style={{color:m>=0?G.green:G.red}}>{fmt(m)} FCFA</strong></div>
+                </div>
+                <div style={{fontWeight:700,fontSize:14,color:isSel?G.gold:G.gray,whiteSpace:"nowrap",marginLeft:8}}>{fmt(b.prixVente)} FCFA</div>
+              </button>;
+            }):<div style={{background:G.grayLight,borderRadius:10,padding:"8px 12px",fontSize:11,color:G.gray,textAlign:"center"}}>Aucun bundle — <span style={{color:G.green,fontWeight:600}}>à créer dans Stock</span></div>}
           </div>
-        </div>
-        <div className="p-5 flex gap-3">
-          <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50">Annuler</button>
-          <button onClick={()=>onSave(order.id, st, lv||null)} className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-semibold hover:bg-emerald-700">Enregistrer</button>
-        </div>
-      </div>
-    </div>
-  );
-}
+        )}
+        {prod&&(
+          <div style={{background:margeTotal>=0?G.greenLight:"#FEE2E2",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <span style={{fontSize:13,color:G.gray,fontWeight:600}}>💰 Prix COD</span>
+              <span style={{fontSize:24,fontWeight:700,color:G.green}}>{fmt(finalPrice)} FCFA</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{fontSize:11,color:G.gray}}>Marge estimée</span>
+              <span style={{fontSize:13,fontWeight:700,color:margeTotal>=0?G.green:G.red}}>{fmt(margeTotal)} FCFA</span>
+            </div>
+            {qty>1&&!bundleSelected&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>×{qty}{disc>0?` · −${disc}%`:""}</div>}
+          </div>
+        )}
+        {/* Assigner livreur */}
+        {livreurs.length>0&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>🏍️ Assigner un livreur <span style={{fontWeight:400}}>(optionnel)</span></div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              <button onClick={()=>setNewOrder({...newOrder,livreur:""})}
+                style={{background:!newOrder.livreur?G.grayLight:G.white,color:G.gray,border:`1.5px solid ${!newOrder.livreur?"#9CA3AF":G.grayLight}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
+                Pas encore
+              </button>
+              {livreurs.map(l=>(
+                <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l})}
+                  style={{background:newOrder.livreur===l?G.greenLight:G.white,color:newOrder.livreur===l?G.green:G.gray,border:`1.5px solid ${newOrder.livreur===l?G.green:G.grayLight}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:newOrder.livreur===l?700:400,cursor:"pointer"}}>
+                  🏍️ {l}
+                </button>
+              ))}
+            </div>
+            {newOrder.livreur&&<div style={{fontSize:11,color:G.green,marginTop:4,fontWeight:600}}>✅ Assigné à {newOrder.livreur} — statut "En route" automatique</div>}
+          </div>
+        )}
 
-function StockView({ products, setProducts, onSaveStock }) {
-  const [editId, setEditId] = useState(null);
-  const [val, setVal] = useState("");
-  return (
-    <div className="p-6 space-y-4">
-      <div><h1 className="text-2xl font-bold text-gray-800">Stock</h1><p className="text-gray-500 text-sm mt-1">{products.length} produits</p></div>
-      <div className="grid gap-4">
-        {products.map(p => {
-          const lvl = p.stock>20?"green":p.stock>5?"yellow":"red";
-          const lc = {green:"bg-green-100 text-green-700",yellow:"bg-yellow-100 text-yellow-700",red:"bg-red-100 text-red-700"};
+        {/* WhatsApp — Aperçu + Template éditable */}
+        {(()=>{
+          const hasData = newOrder.client||newOrder.phone||newOrder.product;
+          const previewMsg = waTemplate
+            .replace(/{client}/g, newOrder.client||"[Nom client]")
+            .replace(/{produit}/g, newOrder.product||"[Produit]")
+            .replace(/{prix}/g, prod?(prod.price*parseInt(newOrder.qty||1)).toLocaleString("fr-FR"):"[Prix]")
+            .replace(/{adresse}/g, newOrder.address||"[Adresse]")
+            .replace(/{boutique}/g, boutique||"Teamly")
+            .replace(/{livreur}/g, newOrder.livreur||"notre livreur");
           return (
-            <div key={p.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-gray-800">{p.name}</h3>
-                    <span className="text-xs text-gray-400 font-mono">{p.sku}</span>
-                  </div>
-                  <div className="flex gap-4 text-sm text-gray-500 flex-wrap">
-                    <span>Prix: <strong className="text-gray-800">{p.price.toLocaleString()} F</strong></span>
-                    <span>Coût: <strong className="text-gray-800">{p.cost.toLocaleString()} F</strong></span>
-                    <span>Marge: <strong className="text-green-600">{(((p.price-p.cost)/p.price)*100).toFixed(0)}%</strong></span>
-                  </div>
-                  {p.bundles.length>0 && <div className="mt-2 flex gap-2 flex-wrap">{p.bundles.map((b,i)=><span key={i} className="bg-purple-100 text-purple-600 text-xs px-2 py-0.5 rounded-full">Bundle ×{b.qty} → {b.price.toLocaleString()} F</span>)}</div>}
+            <div style={{marginBottom:12}}>
+              {/* Toggle aperçu */}
+              <button onClick={()=>setShowWAPreview(v=>!v)}
+                style={{width:"100%",background:"#FFF8E7",border:"1px solid #FDE68A",borderRadius:10,padding:"8px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <span style={{fontSize:16}}>💬</span>
+                  <span style={{fontSize:12,fontWeight:700,color:"#92400E"}}>Message WhatsApp</span>
+                  {hasData&&<span style={{background:"#FDE68A",borderRadius:6,padding:"1px 7px",fontSize:10,color:"#92400E",fontWeight:700}}>Aperçu ✓</span>}
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-center">
-                    <p className={`text-xl font-bold px-3 py-1 rounded-lg ${lc[lvl]}`}>{p.stock}</p>
-                    <p className="text-xs text-gray-400 mt-1">unités</p>
+                <span style={{fontSize:12,color:G.gray}}>{showWAPreview?"▲":"▼"}</span>
+              </button>
+
+              {showWAPreview&&(
+                <div style={{background:"#F9F9F9",borderRadius:"0 0 10px 10px",border:"1px solid #FDE68A",borderTop:"none",padding:14}}>
+
+                  {/* Aperçu du message tel qu'il sera envoyé */}
+                  <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:8}}>📱 APERÇU DU MESSAGE</div>
+                  <div style={{background:G.white,borderRadius:10,padding:12,marginBottom:12,border:"1px solid #E5E7EB",fontFamily:"monospace",fontSize:12,color:"#111",lineHeight:1.6,whiteSpace:"pre-wrap",maxHeight:140,overflowY:"auto"}}>
+                    {previewMsg}
                   </div>
-                  <button onClick={()=>{ setEditId(p.id); setVal(String(p.stock)); }} className="text-emerald-400 hover:text-emerald-600 p-1"><IC n="edit" c="w-4 h-4" /></button>
-                </div>
-              </div>
-              {editId===p.id && (
-                <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2 items-center">
-                  <input type="number" value={val} onChange={e=>setVal(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm w-24 focus:outline-none focus:ring-2 focus:ring-emerald-300" />
-                  <button onClick={()=>{ (onSaveStock||((id,s)=>setProducts(ps=>ps.map(x=>x.id===id?{...x,stock:s}:x))))(p.id,Number(val)); setEditId(null); }} className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-emerald-700">Sauvegarder</button>
-                  <button onClick={()=>setEditId(null)} className="text-gray-400 text-sm hover:text-gray-600">Annuler</button>
+
+                  {/* Variables disponibles */}
+                  <div style={{fontSize:10,color:G.gray,marginBottom:8}}>
+                    Variables disponibles : <span style={{color:"#7C3AED",fontWeight:600}}>{"{client}"} {"{produit}"} {"{prix}"} {"{adresse}"} {"{boutique}"} {"{livreur}"}</span>
+                  </div>
+
+                  {/* Éditeur de template */}
+                  <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:5}}>✏️ MODIFIER LE MESSAGE</div>
+                  <textarea value={waTemplate} onChange={e=>setWaTemplate&&setWaTemplate(e.target.value)}
+                    style={{width:"100%",border:"1.5px solid #FDE68A",borderRadius:8,padding:10,fontSize:12,outline:"none",minHeight:110,resize:"vertical",boxSizing:"border-box",fontFamily:"monospace",lineHeight:1.5}}/>
+                  <button onClick={()=>setWaTemplate&&setWaTemplate(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`)}
+                    style={{marginTop:6,background:"none",border:"none",color:G.gray,fontSize:10,cursor:"pointer",padding:0,textDecoration:"underline"}}>
+                    Réinitialiser le message par défaut
+                  </button>
                 </div>
               )}
             </div>
           );
-        })}
+        })()}
+
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>addOrder(false)} style={{flex:1,background:G.greenLight,color:G.green,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>Ajouter</button>
+          <button onClick={()=>addOrder(true)} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>+ WhatsApp 📲</button>
+        </div>
+        <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:G.gray,padding:10,cursor:"pointer",fontSize:13}}>Annuler</button>
       </div>
     </div>
   );
 }
 
-function ComptaView({ orders, setOrders, products }) {
-  const [ase, setAse] = useState({});
-  const dlv = orders.filter(o=>o.status==="delivered");
-  const save = (id, v) => { setOrders(os=>os.map(x=>x.id===id?{...x,adSpend:Number(v)}:x)); setAse(e=>{const n={...e};delete n[id];return n;}); };
-  const prodStats = products.map(p => {
-    const po = dlv.filter(o=>o.prodId===p.id);
-    const rev = po.reduce((s,o)=>s+o.price,0);
-    const cost = po.reduce((s,o)=>s+p.cost*o.qty+DELIVERY_COST,0);
-    const ads = po.reduce((s,o)=>s+o.adSpend,0);
-    const mg = rev-cost-ads;
-    return {...p, cnt:po.length, rev, cost, ads, mg, mgPct:rev>0?(mg/rev*100).toFixed(1):0};
-  }).filter(p=>p.cnt>0);
-  const getWk = d => { const dt=new Date(d); const j1=new Date(dt.getFullYear(),0,1); return Math.ceil((((dt-j1)/86400000)+j1.getDay()+1)/7); };
-  const wkData = {};
-  dlv.forEach(o => {
-    const k=`Sem. ${getWk(o.date)}`;
-    if(!wkData[k]) wkData[k]={rev:0,cost:0,ads:0,cnt:0};
-    const p=products.find(x=>x.id===o.prodId);
-    wkData[k].rev+=o.price; wkData[k].cost+=(p?p.cost*o.qty:0)+DELIVERY_COST; wkData[k].ads+=o.adSpend; wkData[k].cnt++;
-  });
-  const totRev=prodStats.reduce((s,p)=>s+p.rev,0);
-  const totMg=prodStats.reduce((s,p)=>s+p.mg,0);
-  const totAds=prodStats.reduce((s,p)=>s+p.ads,0);
+function TourneeBlock({orders, onConfirm, G, fmt, mode="recuperer"}) {
+  const [selected, setSelected] = useState(()=>new Set(orders.map(o=>o.id)));
+  const [confirmed, setConfirmed] = useState(false);
+  const toggle = (id) => setSelected(s=>{ const n=new Set(s); n.has(id)?n.delete(id):n.add(id); return n; });
+  const total = orders.filter(o=>selected.has(o.id)).reduce((a,o)=>a+o.price,0);
+
+  const isLivrer = mode==="livrer";
+  const bgGrad   = isLivrer ? "linear-gradient(135deg,#0284C7,#1D4ED8)" : "linear-gradient(135deg,#1A5C38,#0D3D25)";
+  const accent   = isLivrer ? "#60A5FA" : "#F0A500";
+  const title    = isLivrer ? "🚀 Partir vers les clients" : "📦 Tournée du jour";
+  const subtitle = isLivrer ? `${orders.length} colis récupérés — prêts à livrer` : `${orders.length} colis à récupérer chez l'Admin`;
+  const btnLabel = (n) => isLivrer ? `🚀 Je pars vers ${n} client${n>1?"s":""}` : `🏍️ Je pars récupérer ${n} colis`;
+  const confirmedMsg = isLivrer ? "En route vers les clients !" : "Tournée confirmée !";
+  const confirmedSub = isLivrer ? `${selected.size} livraisons en cours` : `${selected.size} colis — partez récupérer`;
+  const confirmedIcon = isLivrer ? "🚀" : "🏍️";
+
+  if(confirmed) return (
+    <div style={{background:isLivrer?"#DBEAFE":G.greenLight,borderRadius:16,padding:18,textAlign:"center",border:`2px solid ${isLivrer?"#60A5FA":G.green}`}}>
+      <div style={{fontSize:36,marginBottom:8}}>{confirmedIcon}</div>
+      <div style={{fontWeight:800,fontSize:16,color:isLivrer?G.blue:G.green}}>{confirmedMsg}</div>
+      <div style={{fontSize:12,color:G.gray,marginTop:4}}>{confirmedSub}</div>
+    </div>
+  );
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div><h1 className="text-2xl font-bold text-gray-800">Comptabilité</h1><p className="text-gray-500 text-sm mt-1">Analyse de rentabilité</p></div>
-        <button onClick={() => exportCSV(prodStats.map(p => ({'Produit':p.name,'Commandes livrées':p.cnt,'CA (FCFA)':p.rev,'Coûts+Livr. (FCFA)':p.cost,'Pub (FCFA)':p.ads,'Marge (FCFA)':p.mg,'Marge %':p.mgPct+'%'})), `compta-${new Date().toISOString().slice(0,10)}.csv`)}
-          className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all">
-          ⬇ Exporter CSV
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="Revenus" value={`${(totRev/1000).toFixed(0)}K F`} col="indigo" />
-        <KpiCard label="Dépense pub" value={`${(totAds/1000).toFixed(0)}K F`} col="yellow" />
-        <KpiCard label="Marge nette" value={`${(totMg/1000).toFixed(0)}K F`} sub={`${totRev>0?((totMg/totRev)*100).toFixed(1):0}%`} col="green" />
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-emerald-50"><h2 className="font-bold text-emerald-800">📦 Point Produit</h2></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr><th className="px-4 py-3 text-left">Produit</th><th className="px-4 py-3 text-right">Cmds</th><th className="px-4 py-3 text-right">CA</th><th className="px-4 py-3 text-right">Coûts</th><th className="px-4 py-3 text-right">Pub</th><th className="px-4 py-3 text-right">Marge</th><th className="px-4 py-3 text-right">%</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {prodStats.map(p=>(
-                <tr key={p.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-800">{p.name}</td>
-                  <td className="px-4 py-3 text-right text-gray-600">{p.cnt}</td>
-                  <td className="px-4 py-3 text-right">{p.rev.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-red-500">{p.cost.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-yellow-600">{p.ads.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-green-600">{p.mg.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right"><span className={`font-bold ${p.mgPct>=20?"text-green-600":p.mgPct>=0?"text-yellow-600":"text-red-500"}`}>{p.mgPct}%</span></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    <div style={{background:bgGrad,borderRadius:16,padding:18}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div>
+          <div style={{fontWeight:800,fontSize:16,color:accent}}>{title}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:2}}>{subtitle}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:18,fontWeight:700,color:accent}}>{fmt(total)}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>FCFA total</div>
         </div>
       </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100 bg-purple-50"><h2 className="font-bold text-purple-800">📅 Point Hebdomadaire</h2></div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr><th className="px-4 py-3 text-left">Semaine</th><th className="px-4 py-3 text-right">Cmds</th><th className="px-4 py-3 text-right">CA</th><th className="px-4 py-3 text-right">Coûts+Livr.</th><th className="px-4 py-3 text-right">Pub</th><th className="px-4 py-3 text-right">Marge</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {Object.entries(wkData).map(([wk,d])=>{
-                const m=d.rev-d.cost-d.ads;
-                return <tr key={wk} className="hover:bg-gray-50"><td className="px-4 py-3 font-medium text-gray-800">{wk}</td><td className="px-4 py-3 text-right text-gray-600">{d.cnt}</td><td className="px-4 py-3 text-right">{d.rev.toLocaleString()}</td><td className="px-4 py-3 text-right text-red-500">{d.cost.toLocaleString()}</td><td className="px-4 py-3 text-right text-yellow-600">{d.ads.toLocaleString()}</td><td className={`px-4 py-3 text-right font-semibold ${m>=0?"text-green-600":"text-red-500"}`}>{m.toLocaleString()}</td></tr>;
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100"><h2 className="font-semibold text-gray-800">Modifier dépense pub</h2><p className="text-xs text-gray-400 mt-0.5">Seule saisie manuelle dans la Compta</p></div>
-        <div className="divide-y divide-gray-50 max-h-56 overflow-y-auto">
-          {dlv.map(o=>{
-            const p=products.find(x=>x.id===o.prodId);
-            const v=ase[o.id]!==undefined?ase[o.id]:o.adSpend;
-            return (
-              <div key={o.id} className="px-4 py-2.5 flex items-center justify-between gap-4">
-                <div className="flex-1 min-w-0"><span className="text-xs font-mono text-gray-400">{o.id}</span><span className="text-sm text-gray-700 ml-2">{o.client}</span><span className="text-xs text-gray-400 ml-2 hidden sm:inline">{p?.name}</span></div>
-                <div className="flex items-center gap-2">
-                  <input type="number" value={v} onChange={e=>setAse(ed=>({...ed,[o.id]:e.target.value}))} className="border border-gray-200 rounded-lg px-2 py-1 text-sm w-20 text-right focus:outline-none focus:ring-2 focus:ring-emerald-300" />
-                  <span className="text-xs text-gray-400">F</span>
-                  {ase[o.id]!==undefined && <button onClick={()=>save(o.id,v)} className="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600">✓</button>}
+
+      {/* Sélectionner tout */}
+      <button onClick={()=>selected.size===orders.length?setSelected(new Set()):setSelected(new Set(orders.map(o=>o.id)))}
+        style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:8,padding:"5px 12px",color:"rgba(255,255,255,0.7)",fontSize:11,cursor:"pointer",textAlign:"left",fontWeight:600,marginBottom:8,width:"100%"}}>
+        {selected.size===orders.length?"☑️ Tout désélectionner":"☐ Tout sélectionner"}
+      </button>
+
+      {/* Liste */}
+      <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:14}}>
+        {orders.map((o)=>{
+          const isSel = selected.has(o.id);
+          return (
+            <div key={o.id} onClick={()=>toggle(o.id)}
+              style={{background:isSel?"rgba(255,255,255,0.15)":"rgba(255,255,255,0.05)",borderRadius:12,padding:"11px 14px",cursor:"pointer",border:`1.5px solid ${isSel?accent+"99":"rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",gap:10,transition:"all 0.15s"}}>
+              <div style={{width:22,height:22,borderRadius:6,background:isSel?accent:"rgba(255,255,255,0.15)",border:`2px solid ${isSel?accent:"rgba(255,255,255,0.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {isSel&&<span style={{fontSize:12,color:"#1A1A1A",fontWeight:800}}>✓</span>}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#FFF"}}>{o.client}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                  📍 {o.address} · 📦 {o.product}
                 </div>
               </div>
-            );
-          })}
-        </div>
+              <div style={{fontWeight:700,fontSize:13,color:accent,flexShrink:0}}>{fmt(o.price)}F</div>
+            </div>
+          );
+        })}
       </div>
+
+      {/* Bouton confirmer */}
+      <button
+        disabled={selected.size===0}
+        onClick={()=>{ onConfirm([...selected]); setConfirmed(true); }}
+        style={{width:"100%",background:selected.size>0?accent:"rgba(255,255,255,0.2)",color:selected.size>0?"#1A1A1A":"rgba(255,255,255,0.4)",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:selected.size>0?"pointer":"not-allowed",transition:"all 0.2s"}}>
+        {selected.size===0 ? "Sélectionne au moins un" : btnLabel(selected.size)}
+      </button>
     </div>
   );
 }
 
-function ClientsView({ orders }) {
-  const map = {};
-  orders.forEach(o=>{
-    if(!map[o.client]) map[o.client]={name:o.client,phone:o.phone,total:0,delivered:0,returned:0,orders:0};
-    map[o.client].orders++; map[o.client].total+=o.price;
-    if(o.status==="delivered") map[o.client].delivered++;
-    if(o.status==="returned") map[o.client].returned++;
+function AppInner() {
+  const [role,setRole] = useState(null);
+  const [orders,setOrders]   = useState([]);
+  const [products,setProducts] = useState([]);
+  const [bundles,setBundles] = useState(INIT_BUNDLES);
+  const [chat,setChat]       = useState([]);
+  const [chatMsg,setChatMsg] = useState("");
+  const [tab,setTab]         = useState(()=>{
+    try { return localStorage.getItem("teamly_tab")||"dashboard"; } catch(e){ return "dashboard"; }
   });
-  const list = Object.values(map).map(c=>({...c,score:c.orders>0?Math.round(c.delivered/c.orders*100):0})).sort((a,b)=>b.score-a.score);
-  return (
-    <div className="p-6 space-y-4">
-      <div><h1 className="text-2xl font-bold text-gray-800">Clients</h1><p className="text-gray-500 text-sm mt-1">Score de fiabilité COD</p></div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
-              <tr><th className="px-4 py-3 text-left">Client</th><th className="px-4 py-3 text-right">Cmds</th><th className="px-4 py-3 text-right">Livrées</th><th className="px-4 py-3 text-right">Retours</th><th className="px-4 py-3 text-right">CA</th><th className="px-4 py-3 text-center">Score</th></tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {list.map(c=>{
-                const cc=c.score>=80?"bg-green-100 text-green-700":c.score>=50?"bg-yellow-100 text-yellow-700":"bg-red-100 text-red-700";
-                return <tr key={c.name} className="hover:bg-gray-50"><td className="px-4 py-3"><div className="font-medium text-gray-800">{c.name}</div><div className="text-xs text-gray-400">{c.phone}</div></td><td className="px-4 py-3 text-right text-gray-600">{c.orders}</td><td className="px-4 py-3 text-right text-green-600">{c.delivered}</td><td className="px-4 py-3 text-right text-red-500">{c.returned}</td><td className="px-4 py-3 text-right font-semibold">{c.total.toLocaleString()} F</td><td className="px-4 py-3 text-center"><span className={`px-3 py-1 rounded-full text-xs font-bold ${cc}`}>{c.score}%</span></td></tr>;
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
+  const [comptaView,setComptaView] = useState("produits");
+  const [showAdd,setShowAdd] = useState(false);
+  const [showWA,setShowWA]   = useState(false);
+  const [waUrl,setWaUrl]     = useState("");
+  const [showAddProd,setShowAddProd]   = useState(false);
+  const [showAddBundle,setShowAddBundle] = useState(false);
+  const [noteModal,setNoteModal] = useState(null);
+  const [noteText,setNoteText]   = useState("");
+  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:""});
+  const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
+  const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
+  const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
+  const [adSpend,setAdSpend]           = useState({});
+  const [livraisonsEchouees,setLivraisonsEchouees] = useState({});
+  const [cashRemis,setCashRemis]       = useState("");
+  const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
+  const [dateFrom,setDateFrom]         = useState("");
+  const [dateTo,setDateTo]             = useState("");
+  const [newAssignment,setNewAssignment] = useState(null);
+  const [showGpsPrompt,setShowGpsPrompt] = useState(false);
+  const [confirmModal,setConfirmModal]   = useState(null);
+  const [sbToken,setSbToken]             = useState(null);  // JWT token
+  const [orgId,setOrgId]                 = useState(null);
+  const [sbReady,setSbReady]             = useState(false);
+  const [currentUser,setCurrentUser]     = useState({nom:"",email:"",role:"admin"});
+  const [teamMembers,setTeamMembers]     = useState([]);
+  const [dbNotifs,setDbNotifs]           = useState([]); // from Supabase notifications table
+  const [appLoading,setAppLoading]       = useState(()=>{
+    try {
+      // If this is an invite link, don't show loading - show join form directly
+      const params = new URLSearchParams(window.location.search);
+      if(params.get("org") && params.get("role")) return false;
+      return !!localStorage.getItem("teamly_token");
+    } catch(e){ return false; }
+  });
+  const [debugVisible, setDebugVisible] = useState(true);
+  const [sbError,setSbError]             = useState(null);
+  const prevOrdersRef                  = useRef(null);
+  const [gestionMode,setGestionMode]   = useState(null); // null | "solo" | "delegue"
+  const [remise,setRemise]     = useState({});
+  const [selDate,setSelDate]   = useState(TODAY);
+  const [selMonth,   setSelMonth]       = useState(new Date().toISOString().slice(0,7));
+  const [showClientDetail, setShowClientDetail] = useState(null);
+  const [searchQuery, setSearchQuery]   = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterLivreur, setFilterLivreur] = useState("all");
+  const [showSearch, setShowSearch]     = useState(false);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [editOrder, setEditOrder]       = useState(null);
+  const [showArchived, setShowArchived]   = useState(false);
+  const [orderDetail, setOrderDetail]     = useState(null);
+  const [dismissedNotifs,setDismissedNotifs] = useState(new Set());
+  const [isRecording,setIsRecording]       = useState(false);
+  const [audioChunks,setAudioChunks]       = useState([]);
+  const mediaRecorderRef                   = useRef(null);
+  const audioTimerRef                      = useRef(null);
+  const [recordSecs,setRecordSecs]         = useState(0);
+  const [dragIdx,setDragIdx]               = useState(null);
+  const [showNotifSettings,setShowNotifSettings] = useState(false);
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false});
+  const [showSettings, setShowSettings] = useState(false);
+  const [stockAjout, setStockAjout]     = useState({});
+  const [editProd,   setEditProd]       = useState(null);
+  const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
+  const [gpsActive, setGpsActive]     = useState(false);
+  const [gpsPos, setGpsPos]           = useState(null);
+  const [gpsError, setGpsError]       = useState("");
+  const [livreurPositions, setLivreurPositions] = useState({
+    "Ibou":    {lat:14.7167, lng:-17.4677, name:"Ibou",    order:"Commande #4 — Yoff"},
+    "Mamadou": {lat:14.7255, lng:-17.4530, name:"Mamadou", order:"Commande #2 — Plateau"},
+    "Cheikh":  {lat:14.6953, lng:-17.4439, name:"Cheikh",  order:"Commande #5 — Ngor"},
+  });
+  const gpsWatchRef = useRef(null);
 
-function CloserDashboard({ orders, usr, products }) {
-  const mine = orders.filter(o=>o.closer===usr);
-  const dlv = mine.filter(o=>o.status==="delivered");
-  const pnd = mine.filter(o=>["pending","confirmed"].includes(o.status));
-  const rev = dlv.reduce((s,o)=>s+o.price,0);
-  const rate = mine.length>0?(dlv.length/mine.length*100).toFixed(0):0;
-  return (
-    <div className="p-6 space-y-6">
-      <div><h1 className="text-2xl font-bold text-gray-800">Bonjour, {usr.split(" ")[0]} 👋</h1><p className="text-gray-500 text-sm mt-1">Tableau de bord closer</p></div>
-      <div className="grid grid-cols-2 gap-4">
-        <KpiCard label="Total commandes" value={mine.length} col="indigo" />
-        <KpiCard label="Livrées" value={dlv.length} col="green" />
-        <KpiCard label="En attente" value={pnd.length} col="yellow" />
-        <KpiCard label="CA généré" value={`${(rev/1000).toFixed(0)}K F`} col="indigo" />
-      </div>
-      <div className="bg-gradient-to-br from-emerald-500 to-green-600 rounded-2xl p-5 text-white">
-        <p className="text-blue-100 text-sm">Taux de conversion</p>
-        <p className="text-4xl font-black mt-1">{rate}%</p>
-        <div className="mt-3 bg-white/20 rounded-full h-2">
-          <div className="bg-white rounded-full h-2 transition-all" style={{width:`${rate}%`}} />
-        </div>
-      </div>
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="p-4 border-b border-gray-100"><h2 className="font-semibold text-gray-800">Commandes récentes</h2></div>
-        <div className="divide-y divide-gray-50">
-          {[...mine].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(o=>{
-            const p=products.find(x=>x.id===o.prodId);
-            return <div key={o.id} className="px-4 py-3 flex items-center justify-between"><div><p className="text-sm font-medium text-gray-800">{o.client}</p><p className="text-xs text-gray-400">{p?.name}</p></div><div className="text-right"><p className="text-sm font-semibold">{o.price.toLocaleString()} F</p><Badge status={o.status} /></div></div>;
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NewOrderView({ products, closer, addOrder }) {
-  const [f, setF] = useState({ client:"", phone:"", prodId:products[0].id, qty:1, city:CITIES[0], isBundle:false, adSpend:500, note:"", pay:"cod" });
-  const [ok, setOk] = useState(false);
-  const set = (k,v) => setF(x=>({...x,[k]:v}));
-  const prod = products.find(p=>p.id===Number(f.prodId));
-  const bnd = prod?.bundles[0];
-  const eff = f.isBundle && bnd;
-  const qty = eff ? bnd.qty : Number(f.qty);
-  const price = eff ? bnd.price : prod.price*qty;
-  const cost = prod.cost*qty + DELIVERY_COST;
-  const margin = price - cost - Number(f.adSpend);
-  const mgPct = price>0?((margin/price)*100).toFixed(1):0;
-  const submit = () => {
-    if(!f.client||!f.phone) return;
-    addOrder({ id:`CMD-${String(oCnt++).padStart(3,"0")}`, client:f.client, phone:f.phone, prodId:Number(f.prodId), qty, price, city:f.city, status:"pending", closer, livreur:null, date:new Date().toISOString().split("T")[0], adSpend:Number(f.adSpend), isBundle:!!eff, note:f.note });
-    setF({ client:"", phone:"", prodId:products[0].id, qty:1, city:CITIES[0], isBundle:false, adSpend:500, note:"", pay:"cod" });
-    setOk(true); setTimeout(()=>setOk(false),3000);
+  // ── actions ──
+  const upSt = (id,s) => {
+    const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route vers toi 🏍️",colis_pris:"Colis récupéré 📦",en_camino:"En route vers le client 🚀",chez_client:"Arrivé chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
+    const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
+    const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
+    setOrders(o=>o.map(x=>{
+      if(x.id!==id) return x;
+      if(s==="entregado"&&x.status!=="entregado") {
+        setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:Math.max(0,pr.stock-1)}:pr));
+      }
+      return {...x,status:s};
+    }));
+    const order = orders.find(x=>x.id===id);
+    if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
+    // Save to Supabase
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upSt error:",e));
   };
-  return (
-    <div className="p-6 max-w-lg">
-      <div className="mb-6"><h1 className="text-2xl font-bold text-gray-800">Nouvelle commande</h1><p className="text-gray-500 text-sm mt-1">Saisir les informations client</p></div>
-      {ok && <div className="bg-green-100 border border-green-200 text-green-700 rounded-xl p-3 mb-4 flex items-center gap-2 text-sm"><IC n="check" c="w-4 h-4" /> Commande enregistrée !</div>}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Nom client *</label><input value={f.client} onChange={e=>set("client",e.target.value)} placeholder="Mamadou Diallo" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Téléphone *</label><input value={f.phone} onChange={e=>set("phone",e.target.value)} placeholder="77 000 0000" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
+  const upLiv = (id,l) => {
+    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:l,status:"en_camino"}:x));
+    const order = orders.find(x=>x.id===id);
+    if(order) {
+      addToast(`${order.client} assigné à ${l} 🏍️`, "🏍️", G.green);
+      if(l===currentUser.nom) setTimeout(()=>setNewAssignment(order),500);
+    }
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:l,status:"en_camino"},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upLiv error:",e));
+  };
+  const upClo = (id,cl) => {
+    setOrders(o=>o.map(x=>x.id===id?{...x,closer:cl}:x));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:cl},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upClo error:",e));
+  };
+  const addToast = (msg, icon="ℹ️", color=G.green) => {
+    const id = Date.now();
+    setToasts(t=>[...t,{id,msg,icon,color}]);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
+  };
+
+  // Show GPS prompt when livreur first logs in
+  useEffect(()=>{
+    if(role==="livreur" && !gpsActive) {
+      const t = setTimeout(()=>setShowGpsPrompt(true), 800);
+      return ()=>clearTimeout(t);
+    }
+  },[role]);
+
+  // Save tab to localStorage when it changes
+  useEffect(()=>{
+    try { localStorage.setItem("teamly_tab", tab); } catch(e){}
+  },[tab]);
+
+  // ── Restore session from localStorage on startup ───────────────────────
+  useEffect(()=>{
+    try {
+      // If this is an invite link, ignore any saved session
+      const inviteCheck = new URLSearchParams(window.location.search);
+      if(inviteCheck.get("org") && inviteCheck.get("role")) {
+        setAppLoading(false);
+        return; // Don't restore session - show join form
+      }
+
+      const tok   = localStorage.getItem("teamly_token");
+      const email = localStorage.getItem("teamly_email");
+      const savedOrg = localStorage.getItem("teamly_org");
+      if(!tok || !email) { setAppLoading(false); return; }
+      setSbToken(tok);
+      if(savedOrg) setOrgId(savedOrg);
+      sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET",null,tok)
+        .then(async profiles=>{
+          if(profiles&&profiles.length>0){
+            const p=profiles[0];
+            setOrgId(p.org_id);
+            setSbReady(true);
+            try {
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,tok);
+              const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
+              const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
+              setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
+            } catch(e){}
+            setCurrentUser({nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
+            setRole(p.role||"admin");
+            setTab("dashboard");
+            setAppLoading(false);
+          } else {
+            localStorage.removeItem("teamly_token");
+            localStorage.removeItem("teamly_email");
+            setAppLoading(false);
+          }
+        })
+        .catch(()=>{
+          localStorage.removeItem("teamly_token");
+          localStorage.removeItem("teamly_email");
+          setAppLoading(false);
+        });
+    } catch(e) { 
+      console.log("Session restore error:", e.message);
+      setAppLoading(false);
+    }
+  },[]);
+
+  // ── Supabase: sync data when connected ──────────────────────────────────
+  useEffect(()=>{
+    if(!sbReady||!orgId) return; // sbToken not needed - using service key
+    const load = async() => {
+      try {
+        const [ords, prods, msgs] = await Promise.all([
+          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
+          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
+          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=50`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
+        ]);
+        if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv})));
+        if(prods) setProducts(prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial})));
+        if(msgs)  setChat(msgs.map(m=>({from:m.from_user,text:m.text,audio:m.audio,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})));
+      } catch(e) { console.error("Supabase load error:", e.message, e); }
+    };
+    load();
+    // Poll every 5 seconds for "realtime" effect
+    const interval = setInterval(load, 2000);
+    return ()=>clearInterval(interval);
+  },[sbReady, orgId]);
+
+  // Show new notifications as toasts
+  const prevNotifsRef = useRef([]);
+  useEffect(()=>{
+    if(!dbNotifs.length) return;
+    const prev = prevNotifsRef.current;
+    const newOnes = dbNotifs.filter(n => !prev.find(p => p.id === n.id));
+    newOnes.forEach(n => {
+      const icon = n.type==="nouveau_colis"?"🔔":n.type==="delivered"?"✅":n.type==="rejected"?"❌":n.type==="low_stock"?"⚠️":n.type==="livraison_directe"?"🚀":"📦";
+      const color = n.type==="delivered"?"#10B981":n.type==="rejected"?"#EF4444":n.type==="low_stock"?"#EF4444":"#F0A500";
+      addToast(n.title, icon, color);
+    });
+    prevNotifsRef.current = dbNotifs;
+  },[dbNotifs]);
+
+  // Debug log
+  useEffect(()=>{
+    if(orgId) console.log("✅ Teamly connected — orgId:", orgId, "role:", role, "sbReady:", sbReady);
+    else console.log("⚠️ No orgId — sbReady:", sbReady, "sbToken:", !!sbToken);
+  },[orgId, role, sbReady, sbToken]);
+
+  // Supabase persist helpers
+  const sbSave = async (table, data) => {
+    if(!sbToken||!orgId) return;
+    try { await sbFetch(table, "POST", {...data, org_id:orgId}, sbToken); } 
+    catch(e) { console.error("sbSave error:", e.message); }
+  };
+  const sbUpdate = async (table, id, data) => {
+    if(!sbToken||!orgId) return;
+    try { await sbFetch(`${table}?id=eq.${id}`, "PATCH", data, sbToken); }
+    catch(e) { console.error("sbUpdate error:", e.message); }
+  };
+
+  // ── Detect new orders assigned to livreur
+  useEffect(()=>{
+    if(role!=="livreur") return;
+    const myName = currentUser.nom;
+    if(prevOrdersRef.current===null) { prevOrdersRef.current=orders; return; }
+    const prev = prevOrdersRef.current;
+    const newlyAssigned = orders.find(o=>
+      o.livreur===myName &&
+      o.status==="en_camino" &&
+      !prev.find(p=>p.id===o.id&&p.livreur===myName)
+    );
+    if(newlyAssigned && (!newAssignment || newAssignment.id!==newlyAssigned.id)) {
+      setNewAssignment(newlyAssigned);
+    }
+    prevOrdersRef.current = orders;
+  },[orders, role]);
+
+  const prendre = id => {
+    const name = currentUser.nom || (role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+    upClo(id,name);
+    addToast(`Pris en charge par ${name}`, "✋", G.gold);
+  };
+
+  const addOrder = wa => {
+    const prod  = products.find(x=>x.name===newOrder.product);
+    const bund  = prod?.bundles?.find(b=>String(b.id)===newOrder.bundle);
+    const qty   = parseInt(newOrder.qty||1);
+    const disc  = parseFloat(newOrder.discount||0);
+    let price, productLabel;
+    if(bund) {
+      price = bund.prixVente;
+      productLabel = `${prod.name} — ${bund.label}`;
+    } else if(prod) {
+      const basePrice = prod.price * qty;
+      price = disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice;
+      productLabel = qty>1 ? `${prod.name} ×${qty}${disc>0?` (−${disc}%)`:""}` : prod.name;
+    } else {
+      price = 0; productLabel = "";
+    }
+    const tempId = "tmp_" + Date.now();
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:newOrder.livreur?"en_camino":"confirmado",livreur:newOrder.livreur||null,closer:role==="closer"?currentUser.nom:null,note:"",isBundle:!!bund};
+    setOrders(o=>[...o,order]);
+    if(orgId) {
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,closer:order.closer||null,note:order.note||"",is_bundle:order.isBundle||false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+        .then(res=>{
+          const saved = Array.isArray(res)?res[0]:res;
+          if(saved?.id) {
+            // Replace temp id with real UUID from Supabase
+            setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
+          }
+        })
+        .catch(e=>console.error("addOrder Supabase error:",e));
+    }
+
+    if(wa) {
+      const phone = newOrder.phone.replace(/\s+/g,"").replace(/^00/,"").replace(/^\+/,"");
+      const phoneWA = phone.startsWith("221") ? phone : `221${phone}`;
+      // Use editable template — replace variables
+      const msg = waTemplate
+        .replace(/{client}/g, newOrder.client||"")
+        .replace(/{produit}/g, productLabel)
+        .replace(/{prix}/g, Number(price).toLocaleString("fr-FR"))
+        .replace(/{adresse}/g, newOrder.address||"")
+        .replace(/{boutique}/g, settings.boutique||"Teamly")
+        .replace(/{livreur}/g, newOrder.livreur||"notre livreur");
+      const url = `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
+      setWaUrl(url);
+      setShowWA(true);
+    }
+
+    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:""});
+    setShowAdd(false);
+  };
+
+  const [prodErrors, setProdErrors]     = useState({});
+  const [bundleErrors, setBundleErrors] = useState({});
+
+  const addProduct = () => {
+    // Validation
+    const errors = {};
+    if(!newProd.name)    errors.name     = true;
+    if(!newProd.cost)    errors.cost     = true;
+    if(!newProd.price)   errors.price    = true;
+    if(!newProd.stock && newProd.stock!=="0") errors.stock = true;
+    if(!newProd.fraisLiv) errors.fraisLiv = true;
+    if(!newProd.niche)   errors.niche    = true;
+    if(Object.keys(errors).length>0) { setProdErrors(errors); return; }
+    setProdErrors({});
+    const tempProdId = "tmp_" + Date.now();
+    const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:parseInt(newProd.fraisLiv)||1500,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
+    setProducts(p=>[...p,newProduct]);
+    if(orgId) { console.log("Saving product to org:", orgId);
+      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,niche:newProduct.niche,archived:false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+        .then(res=>{
+          const saved=Array.isArray(res)?res[0]:res;
+          if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
+          else console.error("addProduct: no id returned", res);
+        }).catch(e=>console.error("addProduct error:",e.message));
+    }
+    setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
+    setNewBundleForm({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
+    setShowAddProd(false);
+  };
+
+  const addBundle = () => {
+    if(!newBundle.name||!newBundle.prodNom||!newBundle.prixVente) return;
+    setBundles(p=>[...p,{id:p.length+1,name:newBundle.name,type:newBundle.type,produits:[{nom:newBundle.prodNom,qte:parseInt(newBundle.prodQte||2)}],qteOfferte:parseInt(newBundle.qteOfferte||0),remisePct:parseFloat(newBundle.remisePct||0),prixVente:parseInt(newBundle.prixVente),livraisonOfferte:newBundle.livraisonOfferte,venduAuj:0,rejetAuj:0}]);
+    setNewBundle({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
+    setShowAddBundle(false);
+  };
+
+  const sendChat = () => {
+    if(!chatMsg.trim()) return;
+    const name=currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+    const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    const msg = {from:name,role,text:chatMsg,time:now,audio:false};
+    setChat(p=>[...p,msg]);
+    setChatMsg("");
+    // Save to Supabase
+    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:name,role,text:chatMsg,audio:false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+      .catch(e=>console.error("sendChat error:",e.message));
+  };
+
+  // ── stats ──
+  const livres  = orders.filter(o=>o.status==="entregado").length;
+  const rejetes = orders.filter(o=>o.status==="rechazado").length;
+  const enRoute = orders.filter(o=>o.status==="en_camino").length;
+  const revenus = orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
+  const taux    = orders.length>0?Math.round(livres/orders.length*100):0;
+  const myLiv   = orders.filter(o=>o.livreur===currentUser.nom);
+  const myClo   = role==="closer" ? orders : orders.filter(o=>o.closer===currentUser.nom);
+
+  // ── compta par produit ──
+  const calcProd = products.map(prod=>{
+    const op      = orders.filter(o=>o.product?.startsWith(prod.name));
+    const nLiv    = op.filter(o=>o.status==="entregado").length;
+    const nRej    = op.filter(o=>o.status==="rechazado").length; // info seulement — pas dans la formule
+    const ca      = nLiv*prod.price;
+    const camv    = nLiv*prod.cost;
+    const frais   = nLiv*(prod.fraisLiv||FRAIS_LIV);
+    const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
+    const pub     = parseFloat(adSpend[prod.id]||0);
+    const ben     = ca-camv-frais-echouees-pub; // rejets exclus de la formule
+    const marge   = ca>0?ben/ca:0;
+    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge};
+  });
+  const tCA   = calcProd.reduce((a,x)=>a+x.ca,0);
+  const tBen  = calcProd.reduce((a,x)=>a+x.ben,0);
+  const tCamv = calcProd.reduce((a,x)=>a+x.camv,0);
+  const tFrais= calcProd.reduce((a,x)=>a+x.frais,0);
+  const tPub  = calcProd.reduce((a,x)=>a+x.pub,0);
+  const tMarge= tCA>0?tBen/tCA:0;
+
+  // ── OCard ──
+  const OCard = ({o,showPrendre=false}) => {
+    const st=STATUS[o.status]||STATUS.pendiente;
+    const clientOrders = orders.filter(x=>x.phone===o.phone);
+    const cScore = clientOrders.length>0?Math.round(clientOrders.filter(x=>x.status==="entregado").length/clientOrders.length*100):null;
+    const cBadge = cScore===null?null:cScore>=80?"🟢":cScore>=50?"🟡":"🔴";
+    return (
+      <div style={{background:G.white,borderRadius:13,boxShadow:"0 1px 5px rgba(0,0,0,0.06)",borderLeft:`4px solid ${st.color}`,marginBottom:10,overflow:"hidden"}}>
+
+        {/* Zone cliquable — info client → ouvre détail */}
+        <div onClick={()=>setOrderDetail(o)} style={{padding:"13px 13px 10px",cursor:"pointer",userSelect:"none"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client} {cBadge&&<span style={{fontSize:12}}>{cBadge}</span>}</div>
+              <div style={{fontSize:12,color:G.dark,fontWeight:600,marginTop:2}}>📦 {o.product}</div>
+              <div style={{fontSize:11,color:G.gray,marginTop:1}}>📍 {o.address} · 📱 {o.phone}</div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
+              <div style={{background:st.bg,color:st.color,borderRadius:20,padding:"4px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</div>
+              {o.isBundle&&<div style={{background:"#FFF8E7",color:G.gold,borderRadius:6,padding:"2px 6px",fontSize:10,fontWeight:700}}>🎁 Bundle</div>}
+              <div style={{fontWeight:800,color:G.green,fontSize:15}}>{fmt(o.price)} F</div>
+            </div>
+          </div>
         </div>
-        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Produit</label>
-          <select value={f.prodId} onChange={e=>{set("prodId",e.target.value);set("isBundle",false);set("qty",1);}} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-            {products.map(p=><option key={p.id} value={p.id}>{p.name} — {p.price.toLocaleString()} F</option>)}
-          </select>
+
+        {/* Actions zone — pas de propagation vers détail */}
+        <div onClick={e=>e.stopPropagation()} style={{padding:"0 13px 13px"}}>
+
+        {/* Produit + Prix — ligne séparatrice */}
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,display:"none"}}>
+          <span style={{fontSize:13,color:G.dark}}>{o.product}</span>
+          <span style={{fontWeight:700,color:G.green,fontSize:14}}>{fmt(o.price)} FCFA</span>
         </div>
-        {bnd && (
-          <div className="flex items-center justify-between bg-purple-50 rounded-xl p-3">
-            <div><p className="text-sm font-medium text-purple-800">Bundle disponible</p><p className="text-xs text-purple-600">{bnd.qty} unités pour {bnd.price.toLocaleString()} F</p></div>
-            <button onClick={()=>set("isBundle",!f.isBundle)} className={`w-12 h-6 rounded-full transition-all relative ${f.isBundle?"bg-purple-500":"bg-gray-200"}`}>
-              <div className="w-5 h-5 bg-white rounded-full shadow absolute top-0.5 transition-all" style={{left:f.isBundle?"26px":"2px"}} />
-            </button>
+
+        {/* Barre progression tracking — pour admin/closer */}
+        {role!=="livreur"&&(()=>{
+          const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
+          const icons=["✅","🏍️","📦","🚀","📍","✓"];
+          const cur=steps.indexOf(o.status);
+          if(cur<0) return null;
+          return (
+            <div style={{display:"flex",alignItems:"center",marginBottom:8}}>
+              {icons.map((ico,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
+                  <div style={{width:20,height:20,borderRadius:"50%",background:i<cur?G.green:i===cur?"#FFF":G.grayLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${i<cur?"#6EE7B7":i===cur?G.green:"#E5E7EB"}`,boxShadow:i===cur?`0 0 0 3px ${G.green}33`:undefined}}>
+                    <span style={{fontSize:9,filter:i>cur?"grayscale(1) opacity(0.4)":"none"}}>{ico}</span>
+                  </div>
+                  {i<5&&<div style={{flex:1,height:2,background:i<cur?G.green:G.grayLight}}/>}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* Chaîne Admin/Closer → Livreur */}
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
+          {o.closer ? (
+            <span style={{background:G.greenLight,color:G.green,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600}}>📞 {o.closer}</span>
+          ) : (
+            <span style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:11}}>📞 Sans closer</span>
+          )}
+          {(o.closer||o.livreur)&&<span style={{fontSize:10,color:G.gray}}>→</span>}
+          {o.livreur ? (
+            <span style={{background:"#EFF6FF",color:G.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600}}>🏍️ {o.livreur}</span>
+          ) : (
+            <span style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:11}}>🏍️ Sans livreur</span>
+          )}
+        </div>
+
+        {o.note&&<div style={{fontSize:11,color:G.gray,background:G.grayLight,borderRadius:6,padding:"3px 8px",marginBottom:8}}>📝 {o.note}</div>}
+
+        {/* Admin / Closer — bouton petit + assignation */}
+        {showPrendre&&(role==="admin"||role==="closer")&&(
+          <div style={{display:"flex",flexDirection:"column",gap:5}}>
+            {!o.closer&&(
+              <button onClick={()=>prendre(o.id)}
+                style={{alignSelf:"flex-start",background:"#FFF8E7",color:G.gold,border:`1px solid #FDE68A`,borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                ✋ Prendre en charge
+              </button>
+            )}
+            {(o.closer||role==="admin")&&o.status!=="entregado"&&o.status!=="rechazado"&&!o.livreur&&(
+              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
+                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
+                <option value="">🏍️ Assigner un livreur...</option>
+                {LIVREURS.map(l=><option key={l}>{l}</option>)}
+              </select>
+            )}
+            {o.livreur&&o.status==="en_camino"&&(
+              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
+                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
+                <option value="">🔄 Changer livreur...</option>
+                {LIVREURS.filter(l=>l!==o.livreur).map(l=><option key={l}>{l}</option>)}
+              </select>
+            )}
           </div>
         )}
-        {!eff && <div><label className="text-xs text-gray-500 font-medium mb-1 block">Quantité</label><input type="number" min="1" value={f.qty} onChange={e=>set("qty",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>}
-        <div className="grid grid-cols-2 gap-3">
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Ville</label>
-            <select value={f.city} onChange={e=>set("city",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-              {CITIES.map(c=><option key={c} value={c}>{c}</option>)}
-            </select>
+
+
+        {/* Livreur — statut final bloqué (entregado / rechazado) */}
+        {role==="livreur"&&(o.status==="entregado"||o.status==="rechazado")&&(
+          <div style={{marginTop:8,background:o.status==="entregado"?G.greenLight:"#FEF2F2",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:18}}>{o.status==="entregado"?"✅":"❌"}</span>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:o.status==="entregado"?G.green:G.red}}>
+                {o.status==="entregado"?"Livraison terminée — Cash encaissé":"Rejeté — Colis retourné"}
+              </div>
+              <div style={{fontSize:10,color:G.gray,marginTop:1}}>
+                🔒 Statut final — Contacte l'Admin pour toute correction
+              </div>
+            </div>
           </div>
-          <div><label className="text-xs text-gray-500 font-medium mb-1 block">Paiement</label>
-            <select value={f.pay} onChange={e=>set("pay",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">
-              <option value="cod">Paiement à la livraison</option>
-              <option value="wave">Wave</option>
-              <option value="orange">Orange Money</option>
-            </select>
+        )}
+
+        {/* Livreur — tracking complet 6 étapes */}
+        {role==="livreur"&&o.status!=="entregado"&&o.status!=="rechazado"&&(
+          <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:8}}>
+
+            {/* Barre de progression visuelle */}
+            {(()=>{
+              const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
+              const cur=steps.indexOf(o.status);
+              return (
+                <div style={{display:"flex",alignItems:"center",gap:0,marginBottom:4}}>
+                  {["✅","🏍️","📦","🚀","📍","✓"].map((ico,i)=>{
+                    const isEntregado=o.status==="entregado";
+                    const done = isEntregado || i<cur;
+                    const active = !isEntregado && i===cur;
+                    const bg = done ? G.green : active ? "#F0A500" : G.grayLight;
+                    const tc = done || active ? G.white : "#9CA3AF";
+                    return (
+                      <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
+                        <div style={{width:26,height:26,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?13:10,color:tc,flexShrink:0,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`,fontWeight:800,boxShadow:active?"0 0 0 3px rgba(240,165,0,0.25)":done?"0 0 0 2px rgba(26,92,56,0.15)":"none"}}>
+                          {i===5?"✓":ico}
+                        </div>
+                        {i<5&&<div style={{flex:1,height:3,background:done?G.green:G.grayLight,borderRadius:2}}/>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* Étape: confirmado → livreur vient chercher */}
+            {o.status==="confirmado"&&(
+              <>
+                <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600}}>
+                  📋 Étape 1 — Va chercher le colis chez l'Admin
+                </div>
+                <button onClick={()=>upSt(o.id,"livreur_en_route")}
+                  style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:`0 4px 12px ${G.green}44`}}>
+                  <span style={{fontSize:20}}>🏍️</span> Je pars chercher le colis
+                </button>
+                {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"7px 0",fontSize:12,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Appeler le client avant</a>}
+              </>
+            )}
+
+            {/* Étape: livreur en route → arrive chez admin */}
+            {o.status==="livreur_en_route"&&(
+              <>
+                <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600}}>
+                  🏍️ Étape 2 — En route vers l'Admin pour récupérer
+                </div>
+                <button onClick={()=>upSt(o.id,"colis_pris")}
+                  style={{width:"100%",background:"#7C3AED",color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:20}}>📦</span> J'ai récupéré le colis
+                </button>
+              </>
+            )}
+
+            {/* Étape: colis pris → partir vers client */}
+            {o.status==="colis_pris"&&(
+              <>
+                <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600}}>
+                  📦 Étape 3 — Colis en main, pars vers le client
+                </div>
+                <button onClick={()=>upSt(o.id,"en_camino")}
+                  style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:20}}>🚀</span> Je pars vers le client
+                </button>
+                {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"7px 0",fontSize:12,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Prévenir le client</a>}
+              </>
+            )}
+
+            {/* Étape: en route → arrivé chez client */}
+            {o.status==="en_camino"&&(
+              <>
+                <div style={{background:"#E0F2FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#0284C7",fontWeight:600}}>
+                  🚀 Étape 4 — En route vers {o.client}
+                </div>
+                <button onClick={()=>upSt(o.id,"chez_client")}
+                  style={{width:"100%",background:"#0284C7",color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:20}}>📍</span> Je suis arrivé chez le client
+                </button>
+              </>
+            )}
+
+            {/* Étape finale: chez client → résultat */}
+            {o.status==="chez_client"&&(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#D97706",fontWeight:600}}>
+                  📍 Étape 5 — Vous êtes chez {o.client}. Comment ça s'est passé ?
+                </div>
+                <button onClick={()=>upSt(o.id,"entregado")}
+                  style={{width:"100%",background:"#D1FAE5",color:"#1A5C38",border:"2px solid #6EE7B7",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  <span style={{fontSize:22}}>✅</span> Livré — Cash encaissé
+                </button>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+                  <button onClick={()=>upSt(o.id,"rechazado")} style={{background:"#FEE2E2",color:"#DC2626",border:"2px solid #FCA5A5",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                    <span style={{fontSize:18}}>❌</span><span>Rejeté</span>
+                  </button>
+                  <button onClick={()=>upSt(o.id,"no_contesta")} style={{background:"#F3F4F6",color:"#6B7280",border:"2px solid #D1D5DB",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                    <span style={{fontSize:18}}>📵</span><span>Absent</span>
+                  </button>
+                  <button onClick={()=>upSt(o.id,"reprogramar")} style={{background:"#EDE9FE",color:"#7C3AED",border:"2px solid #C4B5FD",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                    <span style={{fontSize:18}}>🔄</span><span>Reporter</span>
+                  </button>
+                </div>
+                {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"6px 0",fontSize:11,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Rappeler le client</a>}
+              </div>
+            )}
+
+            {/* Statuts bloqués */}
+            {!["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)&&(
+              <button onClick={()=>upSt(o.id,"en_camino")} style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+                🔄 Reprendre la livraison
+              </button>
+            )}
+
+            {/* Bouton correction — revenir étape précédente */}
+            {(()=>{
+              const PREV = {
+                "livreur_en_route": {s:"confirmado",         l:"← Annuler le départ"},
+                "colis_pris":       {s:"livreur_en_route",   l:"← Colis pas encore pris"},
+                "en_camino":        {s:"colis_pris",         l:"← Pas encore parti vers le client"},
+                "chez_client":      {s:"en_camino",          l:"← Pas encore chez le client"},
+                "no_contesta":      {s:"chez_client",        l:"← Retenter la livraison"},
+                "reprogramar":      {s:"chez_client",        l:"← Retenter la livraison"},
+              };
+              const prev = PREV[o.status];
+              if(!prev) return null;
+              return (
+                <button onClick={()=>{
+                  if(window.confirm("Corriger l'étape ? Cette action est enregistrée.")) {
+                    upSt(o.id, prev.s);
+                    addToast("Étape corrigée ✏️","✏️",G.gray);
+                  }
+                }}
+                  style={{width:"100%",background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",padding:"5px 0",textDecoration:"underline dotted",marginTop:2}}>
+                  ✏️ {prev.l}
+                </button>
+              );
+            })()}
+          </div>
+        )}
+
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:7}}>
+          <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note);}} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:0}}>
+            📝 {o.note?"Modifier note":"Ajouter note"}
+          </button>
+          {role==="admin"&&(
+            <button onClick={()=>setEditOrder({...o})} style={{background:G.grayLight,border:"none",borderRadius:6,padding:"3px 10px",fontSize:11,color:G.dark,cursor:"pointer",fontWeight:600}}>
+              ✏️ Modifier
+            </button>
+          )}
+        </div>
+        </div>{/* end actions zone */}
+      </div>
+    );
+  };
+
+  // ── Auth / Onboarding state ──
+  const [authStep, setAuthStep]   = useState(()=>{
+    // Auto-detect invite link on first load
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("org") && params.get("role")) return "join";
+    return "login";
+  });
+  const [authMode, setAuthMode]   = useState("login"); // login | register
+  const [authForm, setAuthForm]   = useState(()=>{
+    const params = new URLSearchParams(window.location.search);
+    const org  = params.get("org")  || "";
+    const role = params.get("role") || "";
+    const tok  = params.get("token")|| "";
+    return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",
+      inviteOrg:org, inviteRole:role, inviteToken:tok,
+      inviteUrl: org ? window.location.href : ""
+    };
+  });
+  const [authError, setAuthError] = useState("");
+  const [org, setOrg]             = useState(null);
+  const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
+
+  const PLANS = [
+    {key:"starter",  name:"Essentiel", price:"7.500",  color:G.green,    bg:G.greenLight,  features:["0 à 100 commandes/mois","1 Closer + 2 Livreurs max","Gestion commandes COD","Chat interne"]}, 
+    {key:"pro",      name:"Pro",      price:"15.000", color:G.blue,     bg:"#EFF6FF",     features:["100 à 1.000 commandes/mois","Tout Essentiel +","Comptabilité avancée","Analytics & rapports"]}, 
+    {key:"business", name:"Business", price:"Sur devis", color:"#7C3AED",  bg:"#EDE9FE",     features:["+1.000 commandes/mois","Tout Pro +","Multi-boutiques","Support prioritaire"]}, 
+  ];
+
+  const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
+
+  const handleRegister = () => {
+    if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.nom||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
+    if(authForm.password.length<6) { setAuthError("Mot de passe: 6 caractères minimum"); return; }
+    setAuthError("");
+    sbAuth(authForm.email, authForm.password, "register")
+      .then(async(data)=>{
+        const tok=data.access_token; setSbToken(tok);
+        const orgRes=await sbFetch("organizations","POST",{name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+        const orgData=Array.isArray(orgRes)?orgRes[0]:orgRes;
+        if(orgData?.id){
+          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.nom||"Admin",phone:authForm.phone||"",email:authForm.email,role:"admin"},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+          // Set REAL UUID - critical for invite links
+          setOrgId(orgData.id);
+          setSbReady(true);
+          setCurrentUser({nom:authForm.nom,email:authForm.email,role:"admin"});
+          setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
+          setOrg({id:orgData.id,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
+          try{localStorage.setItem("teamly_org",orgData.id);}catch(e){}
+          setAuthStep("plan"); // Move to plan AFTER org is created
+        } else {
+          setAuthError("Erreur création boutique — réessaie");
+        }
+      }).catch(e=>setAuthError(e.message||"Erreur inscription — email déjà utilisé ?"));
+  };
+
+  const handlePlan = (plan) => {
+    setOrg(o=>({...o,plan}));
+    setAuthStep("gestion"); // New step: choose closer mode
+  };
+
+  const handleGestion = (mode) => {
+    setGestionMode(mode);
+    // orgId is the REAL UUID set after Supabase registration
+    const realOrgId = orgId || org?.id || "";
+    const closerToken  = genToken();
+    const livreurToken = genToken();
+    setInviteLink({
+      closer:  `https://admirable-gingersnap-0038d8.netlify.app?org=${realOrgId}&role=closer&token=${closerToken}`,
+      livreur: `https://admirable-gingersnap-0038d8.netlify.app?org=${realOrgId}&role=livreur&token=${livreurToken}`,
+    });
+    setAuthStep("invite");
+  };
+
+  // ── Login screen ──
+  if(appLoading) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1A5C38"}}>
+      <div style={{fontSize:32,fontFamily:"Georgia,serif",color:"#F0A500",fontWeight:700,marginBottom:20}}>Teamly</div>
+      <div style={{width:36,height:36,border:"3px solid rgba(255,255,255,0.2)",borderTop:"3px solid #F0A500",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+
+  if(!role) return (
+    <div style={{minHeight:"100vh",background:`linear-gradient(155deg,${G.green} 0%,#0D3D25 100%)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",fontFamily:"Georgia,serif",padding:24,overflowY:"auto"}}>
+
+      {/* Logo */}
+      <div style={{marginBottom:32,textAlign:"center"}}>
+        <div style={{fontSize:52,fontWeight:700,color:G.gold,letterSpacing:3,textShadow:"0 4px 20px rgba(0,0,0,0.4)"}}>Teamly</div>
+        <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,marginTop:6,fontFamily:"sans-serif",letterSpacing:2}}>GESTION DE COMMANDES · WEST AFRICA</div>
+      </div>
+
+      {/* ── ÉTAPE 1: Login / Register ── */}
+      {(authStep==="login")&&(
+        <div style={{width:"100%",maxWidth:360}}>
+          {/* Toggle */}
+          <div style={{display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:12,padding:3,gap:3,marginBottom:20}}>
+            {[{k:"login",l:"Se connecter"},{k:"register",l:"Créer un compte"}].map(m=>(
+              <button key={m.k} onClick={()=>setAuthMode(m.k)}
+                style={{flex:1,padding:"9px 0",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"sans-serif",background:authMode===m.k?G.gold:"none",color:authMode===m.k?G.dark:"rgba(255,255,255,0.7)"}}>
+                {m.l}
+              </button>
+            ))}
+          </div>
+
+          {/* Login */}
+          {authMode==="login"&&(
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {[{key:"email",label:"📧 Email",ph:"vous@boutique.sn",type:"email"},{key:"password",label:"🔒 Mot de passe",ph:"••••••••",type:"password"}].map(f=>(
+                <div key={f.key}>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
+                  <input type={f.type} value={authForm[f.key]} onChange={e=>setAuthForm(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                    style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+                </div>
+              ))}
+              {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+              <button onClick={async()=>{
+                if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
+                setAuthError("");
+                sbAuth(authForm.email, authForm.password, "login")
+                  .then(async(data)=>{
+                    const tok = data.access_token;
+                    setSbToken(tok);
+                    const profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,tok);
+                    if(profiles&&profiles.length>0){
+                      const p=profiles[0];
+                      setOrgId(p.org_id);
+                      setSbReady(true);
+                      // Load org name
+                      const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,tok);
+                      const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
+                      const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
+                      setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
+                      setCurrentUser({nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
+                      setRole(p.role||"admin");
+                      setTab("dashboard");
+                      try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
+                    } else {
+                      // Profile missing — create org + profile automatically
+                      try {
+                        const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},tok);
+                        const orgData = Array.isArray(org)?org[0]:org;
+                        if(orgData) {
+                          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},tok);
+                          setOrgId(orgData.id); setSbReady(true);
+                          setRole("admin"); setTab("dashboard");
+                          try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
+                        } else { setAuthError("Erreur création profil — réessaie"); }
+                      } catch(e) { setAuthError("Profil introuvable — " + e.message); }
+                    }
+                  }).catch(e=>setAuthError(e.message||"Email ou mot de passe incorrect"));
+              }} style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4,fontFamily:"sans-serif"}}>
+                Se connecter →
+              </button>
+              <div style={{textAlign:"center",marginTop:6}}>
+                <button onClick={async()=>{
+                  if(!authForm.email){setAuthError("Entre ton email d'abord");return;}
+                  try{
+                    const r=await fetch(`${SB_URL}/auth/v1/recover`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({email:authForm.email})});
+                    if(r.ok) setAuthError("✅ Email de récupération envoyé !");
+                    else setAuthError("Erreur — vérifie ton email");
+                  }catch(e){setAuthError("Erreur réseau");}
+                }} style={{background:"none",border:"none",color:"rgba(255,255,255,0.45)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif",textDecoration:"underline"}}>
+                  Mot de passe oublié ?
+                </button>
+              </div>
+              <div style={{textAlign:"center",marginTop:4}}>
+                <span style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Tu as un lien d'invitation ? </span>
+                <button onClick={()=>setAuthStep("join")} style={{background:"none",border:"none",color:G.gold,fontSize:11,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>Rejoindre une équipe</button>
+              </div>
+            </div>
+          )}
+
+          {/* Register */}
+          {authMode==="register"&&(
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {[
+                {key:"boutique",  label:"🏪 Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
+                {key:"nom",       label:"👤 Ton prénom & nom *",     ph:"Cheikh Diallo",      type:"text",     ac:"name"},
+                {key:"email",     label:"📧 Email *",                ph:"vous@boutique.sn",   type:"email",    ac:"email"},
+                {key:"phone",     label:"📱 Téléphone *",            ph:"77 123 45 67",       type:"tel",      ac:"tel"},
+                {key:"password",  label:"🔒 Mot de passe *",         ph:"6 caractères min",   type:"password", ac:"new-password"},
+              ].map(f=>(
+                <div key={f.key}>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
+                  <input 
+                    type={f.type}
+                    autoComplete={f.ac}
+                    name={f.key}
+                    value={authForm[f.key]||""}
+                    onChange={e=>setAuthForm(p=>({...p,[f.key]:e.target.value}))}
+                    placeholder={f.ph}
+                    style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+                </div>
+              ))}
+              {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+              <button onClick={handleRegister}
+                style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4,fontFamily:"sans-serif"}}>
+                Créer mon compte →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── ÉTAPE 2: Choix du plan ── */}
+      {authStep==="plan"&&(
+        <div style={{width:"100%",maxWidth:380}}>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Bienvenue, {authForm.boutique} 👋</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Choisis ton plan pour commencer</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {PLANS.map(p=>(
+              <button key={p.key} onClick={()=>handlePlan(p.key)}
+                style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.18)",borderRadius:14,padding:"16px 18px",cursor:"pointer",textAlign:"left",width:"100%"}}
+                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
+                onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                  <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>{p.name}</div>
+                  <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.price} <span style={{fontSize:10,opacity:0.7}}>FCFA/mois</span></div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                  {p.features.map((f,i)=>(
+                    <div key={i} style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontFamily:"sans-serif"}}>✓ {f}</div>
+                  ))}
+                </div>
+              </button>
+            ))}
+            <div style={{textAlign:"center",marginTop:4}}>
+              <button onClick={()=>handlePlan("starter")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>Essayer gratuitement 14 jours →</button>
+            </div>
           </div>
         </div>
-        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Dépense pub attribuée (FCFA)</label><input type="number" value={f.adSpend} onChange={e=>set("adSpend",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
-        <div><label className="text-xs text-gray-500 font-medium mb-1 block">Note (optionnel)</label><input value={f.note} onChange={e=>set("note",e.target.value)} placeholder="Instruction spéciale..." className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300" /></div>
-        <div className="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">Aperçu marge en temps réel</p>
-          {[["Prix de vente",price.toLocaleString()+" F","text-gray-800"],["Coût produit","−"+(prod.cost*qty).toLocaleString()+" F","text-red-400"],["Livraison","−"+DELIVERY_COST.toLocaleString()+" F","text-red-400"],["Pub","−"+Number(f.adSpend).toLocaleString()+" F","text-yellow-500"]].map(([l,v,c])=>(
-            <div key={l} className="flex justify-between text-sm"><span className="text-gray-500">{l}</span><span className={`font-semibold ${c}`}>{v}</span></div>
+      )}
+
+      {/* ── ÉTAPE 2b: Mode gestion closer ── */}
+      {authStep==="gestion"&&(
+        <div style={{width:"100%",maxWidth:380}}>
+          <div style={{textAlign:"center",marginBottom:28}}>
+            <div style={{fontSize:32,marginBottom:8}}>📞</div>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Qui confirme les commandes ?</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Le Closer appelle les clients, confirme les commandes et assigne les livreurs</div>
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {/* Option 1: Je gère moi-même */}
+            <button onClick={()=>handleGestion("solo")}
+              style={{background:"rgba(255,255,255,0.08)",border:"2px solid rgba(240,165,0,0.5)",borderRadius:16,padding:"20px 18px",cursor:"pointer",textAlign:"left",width:"100%"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(240,165,0,0.15)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                <span style={{fontSize:28}}>⚡</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>Gestion autonome</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Je gère moi-même les confirmations</div>
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                {["✓ Tu es à la fois Admin et Closer","✓ Idéal pour démarrer seul","✓ Accès complet à tout le tableau de bord"].map((f,i)=>(
+                  <div key={i} style={{fontSize:11,color:"rgba(255,255,255,0.65)",fontFamily:"sans-serif"}}>{f}</div>
+                ))}
+              </div>
+            </button>
+
+            {/* Option 2: Je délègue à un Closer */}
+            <button onClick={()=>handleGestion("delegue")}
+              style={{background:"rgba(255,255,255,0.08)",border:"2px solid rgba(59,130,246,0.5)",borderRadius:16,padding:"20px 18px",cursor:"pointer",textAlign:"left",width:"100%"}}
+              onMouseEnter={e=>e.currentTarget.style.background="rgba(59,130,246,0.1)"}
+              onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                <span style={{fontSize:28}}>👥</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:16,color:"#93C5FD",fontFamily:"sans-serif"}}>Déléguer à un Closer</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Un membre de l'équipe gère les confirmations</div>
+                </div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                {["✓ Tu invites un Closer dédié","✓ Idéal si tu as une équipe","✓ Tu gardes la vue Admin complète"].map((f,i)=>(
+                  <div key={i} style={{fontSize:11,color:"rgba(255,255,255,0.65)",fontFamily:"sans-serif"}}>{f}</div>
+                ))}
+              </div>
+            </button>
+          </div>
+
+          <div style={{textAlign:"center",marginTop:16}}>
+            <button onClick={()=>setAuthStep("plan")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── ÉTAPE 3: Inviter l'équipe ── */}
+      {authStep==="invite"&&(
+        <div style={{width:"100%",maxWidth:380}}>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:40,marginBottom:8}}>🎉</div>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Compte créé !</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>
+              {gestionMode==="solo" ? "Invite ton livreur pour commencer" : "Invite ton équipe en envoyant ces liens par WhatsApp"}
+            </div>
+          </div>
+
+          {/* Badge mode choisi */}
+          <div style={{background:gestionMode==="solo"?"rgba(240,165,0,0.15)":"rgba(59,130,246,0.15)",borderRadius:10,padding:"8px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8,border:`1px solid ${gestionMode==="solo"?"rgba(240,165,0,0.3)":"rgba(59,130,246,0.3)"}`}}>
+            <span style={{fontSize:16}}>{gestionMode==="solo"?"⚡":"👥"}</span>
+            <div style={{fontSize:12,color:gestionMode==="solo"?G.gold:"#93C5FD",fontWeight:600,fontFamily:"sans-serif"}}>
+              {gestionMode==="solo" ? "Mode Gestion autonome — tu es Admin + Closer" : "Mode Délégué — tu invites un Closer dédié"}
+            </div>
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {/* Closer — seulement si mode délégué */}
+            {gestionMode==="delegue"&&(
+              <div style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(59,130,246,0.3)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:15,color:"#93C5FD",fontFamily:"sans-serif"}}>📞 Closer</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2,fontFamily:"sans-serif"}}>Confirme les commandes et assigne les livreurs</div>
+                  </div>
+                </div>
+                <div style={{background:"rgba(0,0,0,0.3)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:"monospace",wordBreak:"break-all"}}>{inviteLink.closer}</div>
+                <div style={{display:"flex",gap:6,marginBottom:12}}>
+                  <button onClick={()=>navigator.clipboard?.writeText(inviteLink.closer).then(()=>alert("Lien copié !"))}
+                    style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
+                    📋 Copier
+                  </button>
+                  <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Closer.\n\nClique ici:\n${inviteLink.closer}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
+                    style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
+                    📲 WhatsApp
+                  </button>
+                </div>
+
+                {/* Accès comptabilité pour le Closer */}
+                <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
+                  <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600,fontFamily:"sans-serif",marginBottom:10}}>
+                    🔐 Accès du Closer
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
+                    <div>
+                      <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Revenus, bénéfices, CA par produit</div>
+                    </div>
+                    <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                      style={{background:settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                      <div style={{position:"absolute",top:3,left:settings.closerCompta?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
+                    </button>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
+                    <div>
+                      <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>🛍️ Modifier les produits</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Accès au stock et aux produits</div>
+                    </div>
+                    <div style={{background:"#22C55E",border:"none",borderRadius:20,width:46,height:26,position:"relative",flexShrink:0}}>
+                      <div style={{position:"absolute",top:3,left:22,width:20,height:20,background:G.white,borderRadius:"50%",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
+                    </div>
+                  </div>
+                  {settings.closerCompta&&(
+                    <div style={{background:"rgba(34,197,94,0.15)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(34,197,94,0.3)"}}>
+                      <div style={{fontSize:11,color:"#86EFAC",fontFamily:"sans-serif"}}>✅ Le Closer verra un onglet Compta dans son dashboard</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Livreur — toujours visible */}
+            <div style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 16px",border:`1px solid ${G.greenMid}50`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:15,color:"#6EE7B7",fontFamily:"sans-serif"}}>🏍️ Livreur</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2,fontFamily:"sans-serif"}}>Effectue les livraisons et met à jour les statuts</div>
+                </div>
+              </div>
+              <div style={{background:"rgba(0,0,0,0.3)",borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:"monospace",wordBreak:"break-all"}}>{inviteLink.livreur}</div>
+              <div style={{display:"flex",gap:6}}>
+                <button onClick={()=>navigator.clipboard?.writeText(inviteLink.livreur).then(()=>alert("Lien copié !"))}
+                  style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
+                  📋 Copier
+                </button>
+                <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Livreur.\n\nClique ici:\n${inviteLink.livreur}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
+                  style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
+                  📲 WhatsApp
+                </button>
+              </div>
+            </div>
+
+            {/* Option gestion autonome (si mode délégué, rappeler l'option) */}
+            {gestionMode==="delegue"&&(
+              <div style={{background:"rgba(240,165,0,0.1)",borderRadius:14,padding:"12px 16px",border:"1px solid rgba(240,165,0,0.3)"}}>
+                <div style={{fontWeight:700,fontSize:13,color:G.gold,fontFamily:"sans-serif",marginBottom:4}}>⚡ Gestion autonome</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:10,fontFamily:"sans-serif"}}>Tu peux aussi gérer les confirmations toi-même en attendant ton Closer.</div>
+                <button onClick={()=>{setGestionMode("solo");}}
+                  style={{width:"100%",background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
+                  ✅ Je gère moi-même les confirmations
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button onClick={()=>{setRole("admin");setTab("dashboard");}}
+            style={{width:"100%",background:G.gold,color:G.dark,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer",marginTop:16,fontFamily:"sans-serif"}}>
+            Accéder à mon Dashboard →
+          </button>
+          <div style={{textAlign:"center",marginTop:10}}>
+            <button onClick={()=>setAuthStep("gestion")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── ÉTAPE JOIN: Rejoindre une équipe ── */}
+      {authStep==="join"&&(
+        <div style={{width:"100%",maxWidth:360}}>
+          <div style={{textAlign:"center",marginBottom:20}}>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Rejoindre une équipe</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Complète ton profil pour commencer</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+            {/* Lien d'invitation */}
+            <div style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.15)"}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6}}>🔗 Lien d'invitation</div>
+              <input type="text" placeholder="teamly.app/join?org=ABC&role=closer..." value={authForm.inviteUrl||""}
+                onChange={e=>setAuthForm(p=>({...p,inviteUrl:e.target.value}))}
+                style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"9px 12px",fontSize:11,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
+              {/* Détecter le rôle depuis le lien */}
+              {(authForm.inviteRole||authForm.inviteUrl)&&(
+                <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:12,fontFamily:"sans-serif"}}>
+                  {(authForm.inviteRole==="closer"||authForm.inviteUrl?.includes("role=closer"))
+                    ?<span style={{color:"#93C5FD",fontWeight:700}}>📞 Tu rejoins en tant que <strong>Closer</strong></span>
+                    :(authForm.inviteRole==="livreur"||authForm.inviteUrl?.includes("role=livreur"))
+                    ?<span style={{color:"#6EE7B7",fontWeight:700}}>🏍️ Tu rejoins en tant que <strong>Livreur</strong></span>
+                    :<span style={{color:"rgba(255,255,255,0.5)"}}>Lien d'invitation détecté</span>
+                  }
+                </div>
+              )}
+            </div>
+
+            {/* Séparateur */}
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif",fontWeight:600,letterSpacing:0.5}}>MON PROFIL</div>
+
+            {/* Champs profil complets */}
+            {[
+              {key:"nom",      label:"👤 Prénom & Nom *",       ph:"Ibou Diallo",          type:"text",     ac:"name"},
+              {key:"phone",    label:"📱 Numéro de téléphone *", ph:"77 123 45 67",         type:"tel",      ac:"tel"},
+              {key:"email",    label:"📧 Email *",               ph:"ibou@exemple.com",     type:"email",    ac:"email"},
+              {key:"adresse",  label:"📍 Quartier / Zone *",     ph:"Médina, Dakar",        type:"text",     ac:"street-address"},
+              {key:"password", label:"🔒 Mot de passe *",        ph:"6 caractères minimum", type:"password", ac:"new-password"},
+            ].map(f=>(
+              <div key={f.key}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
+                <input
+                  type={f.type}
+                  name={f.key}
+                  autoComplete={f.ac}
+                  value={authForm[f.key]||""}
+                  onChange={e=>{const v=e.target.value; setAuthForm(p=>({...p,[f.key]:v}));}}
+                  placeholder={f.ph}
+                  style={{width:"100%",background:"rgba(255,255,255,0.1)",border:`1px solid rgba(255,255,255,${authForm[f.key]?"0.4":"0.15"})`,borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+              </div>
+            ))}
+
+            {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif",background:"rgba(220,38,38,0.15)",borderRadius:8,padding:"8px 12px"}}>{authError}</div>}
+
+            <button onClick={()=>{
+              const missing = [];
+              if(!authForm.nom?.trim()) missing.push("Nom");
+              if(!authForm.phone?.trim()) missing.push("Téléphone");
+              if(!authForm.email?.trim()) missing.push("Email");
+              if(!authForm.adresse?.trim()) missing.push("Adresse");
+              if(!authForm.password?.trim()) missing.push("Mot de passe");
+              if(missing.length>0){ setAuthError("Champs manquants: "+missing.join(", ")); return; }
+              if(authForm.password.length<6){setAuthError("Mot de passe trop court (6 min)");return;}
+              const url = authForm.inviteUrl||"";
+              const roleFromUrl = url.includes("role=closer")?"closer":url.includes("role=livreur")?"livreur":"livreur";
+              setAuthError("");
+              // Register with Supabase
+              // Re-read URL params fresh to avoid stale state
+              const freshParams = new URLSearchParams(window.location.search);
+              const freshOrg   = freshParams.get("org")  || authForm.inviteOrg || "";
+              const freshRole  = freshParams.get("role") || authForm.inviteRole || "";
+              const detectedRole = freshRole || (url.includes("role=closer")?"closer":"livreur");
+              const detectedOrg  = freshOrg;
+              console.log("Join: detectedOrg=", detectedOrg, "detectedRole=", detectedRole);
+              // Validate it's a UUID
+              const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(detectedOrg);
+              if(!isValidUUID) { 
+                setAuthError(`Lien invalide (org="${detectedOrg}") — demande un nouveau lien à l'Admin`); 
+                return; 
+              }
+              sbAuth(authForm.email, authForm.password, "register")
+                .then(async(data)=>{
+                  const tok=data.access_token;
+                  setSbToken(tok);
+                  // Create profile in Supabase
+                  await sbFetch("profiles","POST",{
+                    id:data.user.id,
+                    org_id:detectedOrg,
+                    nom:(authForm.nom||"").trim(),
+                    phone:(authForm.phone||"").trim(),
+                    email:(authForm.email||"").trim(),
+                    adresse:(authForm.adresse||"").trim(),
+                    role:detectedRole
+                  },"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                  // Set state
+                  setCurrentUser({nom:authForm.nom,email:authForm.email,role:detectedRole});
+                  setOrgId(detectedOrg);
+                  setSbReady(true);
+                  // Save session
+                  try {
+                    localStorage.setItem("teamly_token",tok);
+                    localStorage.setItem("teamly_email",authForm.email);
+                    localStorage.setItem("teamly_org",detectedOrg);
+                  } catch(e){}
+                  setRole(detectedRole);
+                  setTab(detectedRole==="livreur"?"livraisons":"dashboard");
+                  if(window.history) window.history.replaceState({},"",window.location.pathname);
+                  // Force reload to ensure clean state
+                  setTimeout(()=>window.location.reload(), 300);
+                })
+                .catch(e=>setAuthError(e.message||"Erreur inscription"));
+            }} style={{background:G.gold,color:G.dark,border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"sans-serif",marginTop:4}}>
+              Rejoindre l'équipe →
+            </button>
+
+            <div style={{textAlign:"center"}}>
+              <button onClick={()=>setAuthStep("login")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+
+  const tabDefBase = {
+    admin:   [{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"commandes",icon:"📦",l:"Commandes"},{k:"compta",icon:"📊",l:"Compta"},{k:"tracking",icon:"📍",l:"Livreurs"},{k:"clients",icon:"👤",l:"Clients"},{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"},{k:"stock",icon:"🛍️",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"commandes",icon:"📦",l:"Commandes"},{k:"tracking",icon:"📍",l:"Livreurs"},{k:"clients",icon:"👤",l:"Clients"},{k:"stock",icon:"🛍️",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"📊",l:"Compta"}]:[]),{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"}],
+    livreur: [{k:"livraisons",icon:"🏍️",l:"Livraisons"},{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"position",icon:"📍",l:"Ma Position"},{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"}],
+  };
+  const tabDef = tabDefBase;
+  const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"}`,livreur:`🏍️ ${currentUser.nom||"Livreur"}`};
+  const canEditStock  = role==="admin" || role==="closer";
+  const canEditOrders = role==="admin" || role==="closer";
+  const canSeeCompta  = role==="admin" || (role==="closer" && settings.closerCompta);
+
+
+
+  // ── Notifications ──
+  // Alerts — séparées par rôle
+  const adminAlerts = [
+    // Commandes sans livreur
+    ...orders.filter(o=>!o.livreur&&o.status==="confirmado").map(o=>({type:"sans_livreur",msg:`${o.client} — sans livreur`,sub:"Assigne un livreur pour cette commande",id:o.id,color:"#F0A500",bg:"#FFF8E7",icon:"🏍️",phone:o.phone})),
+    // Livrées récemment
+    ...orders.filter(o=>o.status==="entregado").slice(-3).map(o=>({type:"livre",msg:`${o.client} — Livré ✅`,sub:`${Number(o.price).toLocaleString("fr-FR")} FCFA encaissé`,id:o.id,color:G.green,bg:G.greenLight,icon:"✅",phone:o.phone})),
+    // Rejetées
+    ...orders.filter(o=>o.status==="rechazado").map(o=>({type:"rejet",msg:`${o.client} — Rejeté ❌`,sub:"Relancer le client ou clôturer",id:o.id,color:G.red,bg:"#FEE2E2",icon:"❌",phone:o.phone})),
+    // Stock bas
+    ...products.filter(p=>p.stock<5).map(p=>({type:"stock",msg:`Stock bas: ${p.name}`,sub:`${p.stock} unités restantes`,id:p.id,color:G.red,bg:"#FEE2E2",icon:"📦"})),
+  ];
+  const livreurAlerts = [
+    ...myLiv.filter(o=>o.status==="colis_pris").map(o=>({type:"recuperer",msg:`📦 ${o.client}`,sub:`Prêt à livrer — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.green,bg:G.greenLight,icon:"📦"})),
+    ...myLiv.filter(o=>o.status==="en_camino").map(o=>({type:"pedido",msg:`🚀 ${o.client}`,sub:`En route — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#0284C7",bg:"#EFF6FF",icon:"🚀"})),
+    ...myLiv.filter(o=>o.status==="confirmado").map(o=>({type:"nouveau",msg:`🔔 Nouveau colis : ${o.client}`,sub:`${o.product} — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.gold,bg:"#FFF8E7",icon:"🔔"})),
+    ...myLiv.filter(o=>o.status==="livreur_en_route").map(o=>({type:"route",msg:`🏍️ ${o.client}`,sub:`Je pars récupérer — ${o.address}`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#7C3AED",bg:"#EDE9FE",icon:"🏍️"})),
+  ];
+  const alerts = role==="livreur" ? livreurAlerts : adminAlerts;
+  const alertCount = alerts.length + dbNotifs.length;
+
+  // ── Filtered orders ──
+  const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
+  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur===currentUser.nom) : allOrders;
+  const filteredOrders = baseOrders.filter(o=>{
+    const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
+    const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
+    const matchStatus = filterStatus==="all" || 
+      (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
+    const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
+    return matchSearch && matchStatus && matchLivreur;
+  });
+
+  return (
+    <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
+
+      {/* Sidebar overlay */}
+      {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
+
+      {/* Sidebar */}
+      <div style={{position:"fixed",top:0,left:0,bottom:0,width:260,background:G.green,zIndex:201,transform:sidebarOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.28s ease",display:"flex",flexDirection:"column",boxShadow:"4px 0 20px rgba(0,0,0,0.3)"}}>
+        {/* Sidebar header */}
+        <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
+          <div style={{color:G.gold,fontWeight:700,fontSize:26,fontFamily:"Georgia,serif",letterSpacing:1}}>Teamly</div>
+          <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,marginTop:2}}>{rlabel[role]}</div>
+          <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"5px 10px",display:"inline-block"}}>
+            <span style={{fontSize:10,color:G.gold,fontWeight:700}}>{settings.boutique}</span>
+          </div>
+        </div>
+
+        {/* Nav links */}
+        <div style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
+          {tabDef[role].map(t=>(
+            <button key={t.k} onClick={()=>{setTab(t.k);setSidebarOpen(false);}}
+              style={{width:"100%",background:tab===t.k?"rgba(240,165,0,0.2)":"none",border:"none",borderLeft:`3px solid ${tab===t.k?G.gold:"transparent"}`,padding:"13px 20px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12}}>
+              <span style={{fontSize:18}}>{t.icon}</span>
+              <span style={{fontSize:14,fontWeight:tab===t.k?700:400,color:tab===t.k?G.gold:G.white}}>{t.l}</span>
+              {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{alertCount}</span>}
+            </button>
           ))}
-          <div className="border-t border-gray-200 pt-2 flex justify-between items-end">
-            <span className="font-bold text-gray-800">Marge nette</span>
-            <span className={`font-black text-lg ${margin>=0?"text-green-600":"text-red-500"}`}>{margin.toLocaleString()} F <span className="text-sm">({mgPct}%)</span></span>
+        </div>
+
+        {/* Bottom actions */}
+        <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",gap:6}}>
+          {role==="admin"&&(
+            <button onClick={()=>{setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+              ⚙️ <span>Paramètres</span>
+            </button>
+          )}
+          <button onClick={()=>{
+            try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_email");}catch(e){}
+            setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setChat([]);
+          }} style={{background:"rgba(220,38,38,0.15)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:"#FCA5A5",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+            🚪 <span>Déconnexion</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <div style={{background:G.green,padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4}}>
+            <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
+            <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
+            <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
+          </button>
+          <div>
+            <div style={{color:G.gold,fontWeight:700,fontSize:20,fontFamily:"Georgia,serif",letterSpacing:1}}>Teamly</div>
+            <div style={{color:"rgba(255,255,255,0.5)",fontSize:10}}>{rlabel[role]}</div>
           </div>
         </div>
-        <button onClick={submit} disabled={!f.client||!f.phone} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold py-3 rounded-xl transition-all">
-          Enregistrer la commande
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LivreurDashboard({ orders, usr, updSt }) {
-  const mine = orders.filter(o=>o.livreur===usr);
-  const ship = mine.filter(o=>o.status==="shipped");
-  const dlv = mine.filter(o=>o.status==="delivered");
-  const ret = mine.filter(o=>o.status==="returned");
-  return (
-    <div className="p-6 space-y-6">
-      <div><h1 className="text-2xl font-bold text-gray-800">Bonjour, {usr.split(" ")[0]} 👋</h1><p className="text-gray-500 text-sm mt-1">Vos livraisons</p></div>
-      <div className="grid grid-cols-3 gap-4">
-        <KpiCard label="À livrer" value={ship.length} col="yellow" />
-        <KpiCard label="Livrées" value={dlv.length} col="green" />
-        <KpiCard label="Retours" value={ret.length} col="red" />
-      </div>
-      {ship.length>0 ? (
-        <div className="space-y-3">
-          <h2 className="font-semibold text-gray-800">À livrer maintenant</h2>
-          {ship.map(o=><DelivCard key={o.id} order={o} updSt={updSt} />)}
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          {(role==="admin"||role==="closer")&&tab==="commandes"&&(
+            <button onClick={()=>setShowAdd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Commande</button>
+          )}
+          {role==="admin"&&tab==="stock"&&(
+            <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Produit</button>
+          )}
+          <button onClick={()=>setShowSearch(s=>!s)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",color:G.white,fontSize:15}}>🔍</button>
+          <div style={{position:"relative"}}>
+            <button onClick={()=>setTab("notifications")} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",color:G.white,fontSize:15}}>🔔</button>
+            {alertCount>0&&<div style={{position:"absolute",top:-4,right:-4,background:G.red,color:G.white,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{alertCount}</div>}
+          </div>
         </div>
-      ) : (
-        <div className="bg-green-50 border border-green-100 rounded-xl p-6 text-center">
-          <p className="text-2xl mb-2">✅</p><p className="font-semibold text-green-700">Toutes les livraisons sont à jour !</p>
+      </div>
+
+      {/* Search bar */}
+      {showSearch&&(
+        <div style={{background:G.white,padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,display:"flex",flexDirection:"column",gap:8}}>
+          <input autoFocus value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔍 Rechercher client, téléphone, produit..."
+            style={{width:"100%",border:`1.5px solid ${G.green}`,borderRadius:10,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+
+          {role==="admin"&&(
+            <div style={{display:"flex",gap:6,overflowX:"auto"}}>
+              {["all",...LIVREURS].map(l=>(
+                <button key={l} onClick={()=>setFilterLivreur(l)}
+                  style={{background:filterLivreur===l?G.greenMid:"#F4F4F4",color:filterLivreur===l?G.white:G.gray,border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
+                  {l==="all"?"Tous livreurs":"🏍️ "+l}
+                </button>
+              ))}
+            </div>
+          )}
+          {(searchQuery||filterStatus!=="all"||filterLivreur!=="all")&&(
+            <div style={{fontSize:11,color:G.gray}}>{filteredOrders.length} résultat{filteredOrders.length!==1?"s":""} trouvé{filteredOrders.length!==1?"s":""}</div>
+          )}
+        </div>
+      )}
+
+
+      <div style={{padding:14,paddingBottom:40}}>
+
+        {/* ── ADMIN DASHBOARD ── */}
+        {tab==="dashboard"&&role==="admin"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Salutation */}
+            <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:G.white}}>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Bonjour, {settings.nom} 👋</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>{settings.boutique} · {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:12}}>
+                <div>
+                  <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>BÉNÉFICE DU JOUR</div>
+                  <div style={{fontSize:30,fontWeight:700,color:tBen>=0?G.gold:"#FCA5A5",marginTop:2}}>{fmt(tBen)} <span style={{fontSize:14}}>FCFA</span></div>
+                </div>
+                <button onClick={()=>setTab("compta")} style={{background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  Voir Compta →
+                </button>
+              </div>
+            </div>
+
+            {/* KPIs */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <SC icon="📦" label="Total commandes" value={orders.length}/>
+              <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight}/>
+              <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2"/>
+              <SC icon="🏍️" label="En route" value={enRoute} color={G.blue} bg="#EFF6FF"/>
+            </div>
+
+            {/* Taux */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:12,fontWeight:700,color:G.dark}}>Taux de livraison</span>
+                <span style={{fontSize:14,fontWeight:700,color:taux>=60?G.green:G.red}}>{taux}%</span>
+              </div>
+              <div style={{background:G.grayLight,borderRadius:4,height:8}}>
+                <div style={{background:taux>=60?G.green:G.red,borderRadius:4,height:8,width:`${taux}%`,transition:"width 0.5s"}}/>
+              </div>
+            </div>
+
+            {/* CA par produit — visuel */}
+            {calcProd.filter(x=>x.ca>0).length>0&&(
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <ST>💰 CA PAR PRODUIT</ST>
+                {calcProd.filter(x=>x.ca>0).sort((a,b)=>b.ca-a.ca).map(({prod,ca,nLiv,ben},i)=>{
+                  const maxCA = Math.max(...calcProd.map(x=>x.ca),1);
+                  const pctBar = Math.round(ca/maxCA*100);
+                  return (
+                    <div key={i} style={{marginBottom:10}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{fontSize:12,fontWeight:600,color:G.dark}}>{prod.name}</span>
+                        <div style={{textAlign:"right"}}>
+                          <span style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(ca)} FCFA</span>
+                          <span style={{fontSize:10,color:G.gray,marginLeft:6}}>({nLiv} livrées)</span>
+                        </div>
+                      </div>
+                      <div style={{background:G.grayLight,borderRadius:4,height:8}}>
+                        <div style={{background:G.green,borderRadius:4,height:8,width:`${pctBar}%`,transition:"width 0.5s"}}/>
+                      </div>
+                      <div style={{fontSize:10,color:ben>=0?G.greenMid:G.red,marginTop:2}}>Bénéfice: {fmt(ben)} FCFA</div>
+                    </div>
+                  );
+                })}
+                <div style={{background:G.greenLight,borderRadius:10,padding:"8px 12px",marginTop:6,display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontSize:12,fontWeight:700,color:G.green}}>CA Total</span>
+                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(tCA)} FCFA</span>
+                </div>
+              </div>
+            )}
+
+            {/* Actions rapides */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>⚡ ACTIONS RAPIDES</ST>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {[
+                  {icon:"📦",label:"+ Commande",action:()=>setShowAdd(true),bg:G.greenLight,color:G.green},
+                  {icon:"📦",label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
+                  {icon:"👤",label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
+                  {icon:"🗺️",label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
+                ].map((a,i)=>(
+                  <button key={i} onClick={a.action} style={{background:a.bg,border:"none",borderRadius:10,padding:"12px 8px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+                    <span style={{fontSize:22}}>{a.icon}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Alertes urgentes — seulement sans livreur, rejetées, stock bas */}
+            {(()=>{
+              const urgentAlerts = adminAlerts.filter(a=>a.type!=="livre");
+              return urgentAlerts.length>0?(
+                <div style={{background:"#FEF2F2",borderRadius:14,padding:14,border:"1px solid #FCA5A5"}}>
+                  <ST>⚠️ ALERTES ({urgentAlerts.length})</ST>
+                  {urgentAlerts.slice(0,3).map((a,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<2?"1px solid #FEE2E2":"none"}}>
+                      <div style={{fontSize:12,color:G.dark}}>{a.icon} {a.msg}</div>
+                      <button onClick={()=>setTab("commandes")} style={{background:"none",border:`1px solid ${a.color}`,borderRadius:6,padding:"3px 8px",fontSize:10,color:a.color,cursor:"pointer"}}>Voir</button>
+                    </div>
+                  ))}
+                </div>
+              ):null;
+            })()}
+
+            {/* Commandes récentes */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontWeight:700,fontSize:13,color:G.green}}>📋 COMMANDES RÉCENTES</div>
+                <button onClick={()=>setTab("commandes")} style={{background:"none",border:"none",color:G.green,fontSize:11,cursor:"pointer",fontWeight:600}}>Voir tout →</button>
+              </div>
+              {orders.slice(0,4).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return(
+                <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{o.client}</div>
+                    <div style={{fontSize:11,color:G.gray}}>{o.product}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(o.price)} F</div>
+                    <span style={{background:st.bg,color:st.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:600}}>{st.label}</span>
+                  </div>
+                </div>
+              );})}
+            </div>
+
+            {/* Perf équipe */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>👥 PERFORMANCE ÉQUIPE</ST>
+              <Tbl headers={["Nom","Rôle","Cmd","Livrées","Rejetées"]} align={["left","left","right","right","right"]}
+                rows={[...CLOSERS.map(c=>{const all=orders.filter(o=>o.closer===c);return [c,"📞",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];}),
+                       ...LIVREURS.map(l=>{const all=orders.filter(o=>o.livreur===l);return [l,"🏍️",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];})]}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── CLOSER DASHBOARD ── */}
+        {tab==="dashboard"&&role==="closer"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:"flex",gap:8}}><SC icon="📦" label="Mes commandes" value={myClo.length}/><SC icon="✅" label="Livrées" value={myClo.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/></div>
+            <div style={{display:"flex",gap:8}}><SC icon="❌" label="Rejetées" value={myClo.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/><SC icon="⏳" label="En attente" value={myClo.filter(o=>o.status==="pendiente").length} color={G.gold} bg="#FFF8E7"/></div>
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>🔥 À TRAITER EN PRIORITÉ</ST>
+              {myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status)).length===0?<div style={{fontSize:13,color:G.gray}}>Rien ✓</div>:myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status)).map(o=>{const st=STATUS[o.status];return <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}><div><div style={{fontSize:13,fontWeight:600}}>{o.client}</div><div style={{fontSize:11,color:G.gray}}>📱 {o.phone}</div></div><span style={{background:st.bg,color:st.color,borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:600}}>{st.label}</span></div>;})}
+            </div>
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>🏍️ LIVREURS</ST>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{LIVREURS.map(l=>{const busy=orders.filter(o=>o.livreur===l&&o.status==="en_camino").length;return <div key={l} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {l} {busy>0?`(${busy} en route)`:"· Dispo"}</div>;})}</div>
+            </div>
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>📋 MES COMMANDES</ST>
+              <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
+                rows={myClo.map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── LIVREUR DASHBOARD ── */}
+        {tab==="dashboard"&&role==="livreur"&&(()=>{
+          const aRecuperer = myLiv.filter(o=>o.status==="confirmado"||o.status==="livreur_en_route");
+          const aLivrer    = myLiv.filter(o=>o.status==="colis_pris");
+          const enRoute    = myLiv.filter(o=>o.status==="en_camino"||o.status==="chez_client");
+          return (
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Alertes Supabase temps réel */}
+            {dbNotifs.slice(0,3).map(n=>(
+              <div key={n.id} style={{background:"linear-gradient(135deg,#F0A500,#D97706)",borderRadius:14,padding:14,display:"flex",gap:12,alignItems:"center"}}>
+                <div style={{fontSize:26,flexShrink:0}}>{n.type==="nouveau_colis"?"🔔":n.type==="livraison_directe"?"🚀":"📦"}</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>{n.title}</div>
+                  <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",marginTop:2}}>{n.body}</div>
+                </div>
+                <button onClick={()=>{
+                  sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true},SERVICE_KEY_CONST);
+                  setDbNotifs(p=>p.filter(x=>x.id!==n.id));
+                }} style={{background:"rgba(0,0,0,0.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#FFF",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
+              </div>
+            ))}
+
+            {/* Nouveau colis depuis orders */}
+            {myLiv.filter(o=>o.status==="confirmado").map(o=>(
+              <div key={o.id} style={{background:"linear-gradient(135deg,#F0A500,#D97706)",borderRadius:14,padding:16,display:"flex",gap:12,alignItems:"center"}}>
+                <div style={{fontSize:28}}>🔔</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Nouveau colis !</div>
+                  <div style={{fontSize:13,color:"rgba(255,255,255,0.9)",marginTop:2}}>{o.client} — {o.address}</div>
+                  <div style={{fontSize:14,fontWeight:800,color:"#FFF",marginTop:4}}>{fmt(o.price)} FCFA</div>
+                </div>
+              </div>
+            ))}
+
+            {/* ── BLOC TOURNÉE — colis à récupérer ── */}
+            {aRecuperer.length>0&&(
+              <TourneeBlock
+                orders={aRecuperer}
+                mode="recuperer"
+                onConfirm={(ids)=>{
+                  ids.forEach(id=>upSt(id,"livreur_en_route"));
+                  addToast(`${ids.length} colis — Je pars récupérer 🏍️`,"🏍️",G.green);
+                }}
+                G={G} fmt={fmt}
+              />
+            )}
+
+            {/* ── BLOC DÉPART CLIENTS — colis récupérés, prêt à livrer ── */}
+            {aLivrer.length>0&&(
+              <TourneeBlock
+                orders={aLivrer}
+                mode="livrer"
+                onConfirm={(ids)=>{
+                  ids.forEach(id=>upSt(id,"en_camino"));
+                  addToast(`${ids.length} colis — En route vers les clients 🚀`,"🚀","#0284C7");
+                }}
+                G={G} fmt={fmt}
+              />
+            )}
+
+            {myLiv.length===0&&orders.length>0&&(
+              <div style={{background:"#FFF8E7",borderRadius:12,padding:14,fontSize:12,color:"#92400E",border:"1px solid #FDE68A"}}>
+                ⚠️ Aucune livraison assignée à <strong>{currentUser.nom}</strong>. Demande à l'Admin de t'assigner des commandes.
+              </div>
+            )}
+            <div style={{display:"flex",gap:8}}><SC icon="📦" label="Assignées" value={myLiv.length}/><SC icon="✅" label="Livrées" value={myLiv.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/></div>
+            <div style={{display:"flex",gap:8}}><SC icon="🏍️" label="En route" value={myLiv.filter(o=>o.status==="en_camino").length} color={G.blue} bg="#EFF6FF"/><SC icon="❌" label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/></div>
+            <div style={{background:G.greenLight,borderRadius:14,padding:18,textAlign:"center"}}>
+              <div style={{fontSize:11,color:G.gray,fontWeight:700,letterSpacing:1}}>CASH COLLECTÉ</div>
+              <div style={{fontSize:28,fontWeight:700,color:G.green,marginTop:4}}>{fmt(myLiv.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0))} FCFA</div>
+            </div>
+            {myLiv.filter(o=>o.status==="en_camino").length>0&&(
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <ST>🚀 EN COURS</ST>
+                {myLiv.filter(o=>o.status==="en_camino").map(o=>(
+                  <div key={o.id} style={{padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <div style={{fontWeight:700,fontSize:14}}>{o.client}</div>
+                    <div style={{fontSize:12,color:G.gray}}>📍 {o.address} · 📱 {o.phone}</div>
+                    <div style={{fontSize:13,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} FCFA</div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>📋 MES LIVRAISONS</ST>
+              <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
+                rows={myLiv.map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
+              />
+            </div>
+          </div>
+          );
+        })()}
+
+        {/* ── COMMANDES / LIVRAISONS ── */}
+        {(tab==="commandes"||tab==="livraisons")&&(
+          <div>
+
+            {/* Filtres statut — toujours visibles */}
+            {(()=>{
+              const FILTERS = [
+                {k:"all",      l:"Tous",      count:null},
+                {k:"confirmado",l:"✅ Confirmé",count:null},
+                {k:"livraison",l:"🏍️ En livraison",count:null},
+                {k:"entregado",l:"✓ Livré",   count:null},
+                {k:"rechazado",l:"❌ Rejeté", count:null},
+                {k:"no_contesta",l:"📵 Absent",count:null},
+                {k:"reprogramar",l:"🔄 Reporter",count:null},
+              ];
+              const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
+              const getCount = k => {
+                if(k==="all") return baseOrders.length;
+                if(k==="livraison") return baseOrders.filter(o=>LIVRAISON_STATUTS.includes(o.status)).length;
+                return baseOrders.filter(o=>o.status===k).length;
+              };
+              return (
+                <>
+                  <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:2}}>
+                    {FILTERS.map(s=>{
+                      const cnt = getCount(s.k);
+                      const active = filterStatus===s.k || (s.k==="livraison"&&LIVRAISON_STATUTS.includes(filterStatus));
+                      return (
+                        <button key={s.k}
+                          onClick={()=>{
+                            if(s.k==="livraison") setFilterStatus("livraison");
+                            else setFilterStatus(s.k);
+                          }}
+                          style={{background:active?G.green:"#F4F4F4",color:active?G.white:G.gray,border:"none",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,display:"flex",alignItems:"center",gap:4}}>
+                          {s.l}
+                          {cnt>0&&<span style={{background:active?"rgba(255,255,255,0.25)":"rgba(0,0,0,0.1)",borderRadius:10,padding:"1px 5px",fontSize:10}}>{cnt}</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {filterStatus!=="all"&&(
+                    <div style={{fontSize:11,color:G.gray,marginBottom:6}}>
+                      {filteredOrders.length} résultat{filteredOrders.length!==1?"s":""} ·{" "}
+                      <button onClick={()=>setFilterStatus("all")} style={{background:"none",border:"none",color:G.green,fontSize:11,cursor:"pointer",padding:0,textDecoration:"underline"}}>tout voir</button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+            {filteredOrders.length===0&&(
+              <div style={{textAlign:"center",padding:40,color:G.gray}}>
+                <div style={{fontSize:32,marginBottom:8}}>🔍</div>
+                <div style={{fontSize:14,fontWeight:600}}>Aucun résultat</div>
+                <div style={{fontSize:12,marginTop:4}}>Modifie ta recherche ou tes filtres</div>
+              </div>
+            )}
+            {filteredOrders.map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+          </div>
+        )}
+
+        {/* ── CLIENTS — Historique ── */}
+        {tab==="clients"&&(role==="admin"||role==="closer")&&(()=>{
+          // Build client list
+          const clientMap = {};
+          orders.forEach(o=>{
+            if(!clientMap[o.phone]) clientMap[o.phone]={name:o.client,phone:o.phone,address:o.address,orders:[]};
+            clientMap[o.phone].orders.push(o);
+          });
+          const clients = Object.values(clientMap).map(c=>{
+            const total   = c.orders.length;
+            const livres  = c.orders.filter(o=>o.status==="entregado").length;
+            const rejetes = c.orders.filter(o=>o.status==="rechazado").length;
+            const ca      = c.orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
+            const score   = total===0?0:Math.round(livres/total*100);
+            const fiabilite = score>=80?"🟢 Fiable":score>=50?"🟡 Moyen":"🔴 Risqué";
+            const fColor  = score>=80?G.green:score>=50?G.gold:G.red;
+            const fBg     = score>=80?G.greenLight:score>=50?"#FFF8E7":"#FEE2E2";
+            return {...c,total,livres,rejetes,ca,score,fiabilite,fColor,fBg};
+          }).sort((a,b)=>b.ca-a.ca);
+
+          // Export CSV — défini après clients
+          const exportCSV = () => {
+            const header = ["Nom client","Téléphone","Adresse","Produit","Date","Heure"];
+            const rows = orders.filter(o=>!o.archived).map(o=>{
+              const d = o.created_at ? new Date(o.created_at) : null;
+              return [
+                o.client||"",
+                o.phone||"",
+                o.address||"",
+                o.product||"",
+                d ? d.toLocaleDateString("fr-FR") : "",
+                d ? d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : ""
+              ];
+            });
+            const csv = [header,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\n");
+            const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href=url; a.download="commandes_teamly_"+new Date().toISOString().split("T")[0]+".csv";
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+          };
+
+          const selected = showClientDetail ? clients.find(c=>c.phone===showClientDetail) : null;
+
+          return (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+              {/* Header + Export */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontWeight:700,fontSize:15,color:G.dark}}>👤 Clients</div>
+                <button onClick={exportCSV}
+                  style={{background:G.green,color:G.white,border:"none",borderRadius:9,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+                  ⬇️ Exporter Excel
+                </button>
+              </div>
+
+              {/* Stats globales clients */}
+              <div style={{display:"flex",gap:8}}>
+                <SC icon="👤" label="Clients uniques" value={clients.length}/>
+                <SC icon="🟢" label="Clients fiables" value={clients.filter(c=>c.score>=80).length} color={G.green} bg={G.greenLight}/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <SC icon="🟡" label="Clients moyens" value={clients.filter(c=>c.score>=50&&c.score<80).length} color={G.gold} bg="#FFF8E7"/>
+                <SC icon="🔴" label="Clients risqués" value={clients.filter(c=>c.score<50).length} color={G.red} bg="#FEE2E2"/>
+              </div>
+
+              {/* Détail client sélectionné */}
+              {selected&&(
+                <div style={{background:G.white,borderRadius:14,padding:16,border:`2px solid ${selected.fColor}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:16,color:G.dark}}>{selected.name}</div>
+                      <div style={{fontSize:12,color:G.gray,marginTop:2}}>📱 {selected.phone}</div>
+                      <div style={{fontSize:12,color:G.gray}}>📍 {selected.address}</div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
+                      <span style={{background:selected.fBg,color:selected.fColor,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>{selected.fiabilite}</span>
+                      <button onClick={()=>setShowClientDetail(null)} style={{background:G.grayLight,border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,cursor:"pointer",color:G.gray}}>✕ Fermer</button>
+                    </div>
+                  </div>
+                  {/* Score visuel */}
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                      <span style={{fontSize:11,color:G.gray}}>Score de fiabilité</span>
+                      <span style={{fontSize:12,fontWeight:700,color:selected.fColor}}>{selected.score}%</span>
+                    </div>
+                    <div style={{background:G.grayLight,borderRadius:4,height:8}}>
+                      <div style={{background:selected.fColor,borderRadius:4,height:8,width:`${selected.score}%`,transition:"width 0.5s"}}/>
+                    </div>
+                  </div>
+                  {/* Stats */}
+                  <div style={{display:"flex",gap:8,marginBottom:12}}>
+                    {[{l:"Commandes",v:selected.total,c:G.dark},{l:"Livrées",v:selected.livres,c:G.green},{l:"Rejetées",v:selected.rejetes,c:G.red},{l:"CA total",v:`${fmt(selected.ca)}F`,c:G.green}].map((s,i)=>(
+                      <div key={i} style={{flex:1,background:G.grayLight,borderRadius:8,padding:"7px 4px",textAlign:"center"}}>
+                        <div style={{fontSize:14,fontWeight:700,color:s.c}}>{s.v}</div>
+                        <div style={{fontSize:9,color:G.gray,marginTop:1}}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Historique commandes */}
+                  <ST>📋 Historique commandes</ST>
+                  {selected.orders.map(o=>{
+                    const st=STATUS[o.status]||STATUS.pendiente;
+                    return (
+                      <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:G.dark}}>{o.product}</div>
+                          {o.note&&<div style={{fontSize:10,color:G.gray}}>📝 {o.note}</div>}
+                        </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(o.price)} F</div>
+                          <span style={{background:st.bg,color:st.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:600}}>{st.label}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Liste clients */}
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <ST>👤 TOUS LES CLIENTS</ST>
+                {clients.map(c=>(
+                  <button key={c.phone} onClick={()=>setShowClientDetail(showClientDetail===c.phone?null:c.phone)}
+                    style={{width:"100%",background:showClientDetail===c.phone?c.fBg:G.white,border:`1px solid ${showClientDetail===c.phone?c.fColor:G.grayLight}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",textAlign:"left",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{c.name}</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {c.phone} · {c.total} commande{c.total>1?"s":""}</div>
+                      <div style={{fontSize:11,marginTop:2}}>
+                        <span style={{color:G.green}}>✅ {c.livres}</span>
+                        <span style={{color:G.gray}}> · </span>
+                        <span style={{color:G.red}}>❌ {c.rejetes}</span>
+                        <span style={{color:G.gray}}> · </span>
+                        <span style={{color:G.green,fontWeight:600}}>{fmt(c.ca)} FCFA</span>
+                      </div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      <span style={{background:c.fBg,color:c.fColor,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,display:"block",marginBottom:4}}>{c.fiabilite}</span>
+                      <span style={{fontSize:10,color:G.gray}}>{c.score}% fiable</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Table récap */}
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <ST>📊 TABLEAU CLIENTS</ST>
+                <Tbl
+                  headers={["Client","Cmds","Livrées","Rejetées","CA","Score"]}
+                  align={["left","right","right","right","right","right"]}
+                  rows={clients.map(c=>[
+                    <span style={{fontWeight:600,fontSize:11}}>{c.name}</span>,
+                    c.total,
+                    <span style={{color:G.green,fontWeight:700}}>{c.livres}</span>,
+                    <span style={{color:c.rejetes>0?G.red:G.gray,fontWeight:700}}>{c.rejetes}</span>,
+                    <span style={{color:G.green,fontWeight:600}}>{fmt(c.ca)} F</span>,
+                    <span style={{background:c.fBg,color:c.fColor,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>{c.score}%</span>,
+                  ])}
+                />
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── LIVREURS / CARTE ── */}
+        {tab==="tracking"&&(role==="admin"||role==="closer")&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Statuts livreurs */}
+            <div style={{display:"flex",gap:8}}>
+              <div style={{flex:1,background:G.greenLight,borderRadius:12,padding:"11px 12px",textAlign:"center"}}>
+                <div style={{fontSize:22,fontWeight:700,color:G.green}}>{orders.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length}</div>
+                <div style={{fontSize:11,color:G.gray}}>Livraisons actives</div>
+              </div>
+              <div style={{flex:1,background:"#EFF6FF",borderRadius:12,padding:"11px 12px",textAlign:"center"}}>
+                <div style={{fontSize:22,fontWeight:700,color:G.blue}}>{[...new Set(orders.filter(o=>o.livreur&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).map(o=>o.livreur))].length}</div>
+                <div style={{fontSize:11,color:G.gray}}>Livreurs actifs</div>
+              </div>
+            </div>
+
+            {/* Carte Leaflet — prioritaire */}
+            <div style={{background:G.white,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
+              <div style={{padding:"12px 14px",borderBottom:`1px solid ${G.grayLight}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontWeight:700,fontSize:13,color:G.green}}>📍 Positions en temps réel</div>
+                <div style={{fontSize:11,color:G.gray,background:"#FEF3C7",borderRadius:6,padding:"2px 8px"}}>Démo simulée</div>
+              </div>
+              <MapView positions={livreurPositions} role="admin"/>
+            </div>
+
+            {/* Liste livreurs avec leurs livraisons actives */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+              {LIVREURS.map((name,i)=>{
+                const active = orders.filter(o=>o.livreur===name&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
+                const pos = livreurPositions[name];
+                return (
+                  <div key={i} style={{padding:"10px 0",borderBottom:i<LIVREURS.length-1?`1px solid ${G.grayLight}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:active.length>0?6:0}}>
+                      <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🏍️ {name}</div>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        {pos?<div style={{width:8,height:8,borderRadius:"50%",background:G.green}}/>:<div style={{width:8,height:8,borderRadius:"50%",background:"#D1D5DB"}}/>}
+                        <span style={{fontSize:11,fontWeight:600,color:pos?G.green:G.gray}}>{pos?"GPS actif":"Hors ligne"}</span>
+                        {active.length>0&&<span style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:700}}>{active.length} livr.</span>}
+                      </div>
+                    </div>
+                    {active.map((o,j)=>(
+                      <div key={j} style={{background:G.grayLight,borderRadius:8,padding:"6px 10px",fontSize:11,color:G.dark,marginBottom:3}}>
+                        <span style={{fontWeight:600}}>{o.client}</span>
+                        <span style={{color:G.gray}}> · {STATUS[o.status]?.label||o.status}</span>
+                        <span style={{float:"right",fontWeight:700,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── MA POSITION — Livreur ── */}
+        {tab==="position"&&role==="livreur"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Bouton partager position réelle */}
+            <button onClick={()=>{
+              if(!navigator.geolocation){alert("GPS non disponible sur cet appareil");return;}
+              navigator.geolocation.getCurrentPosition(
+                (pos)=>{
+                  setGpsPos({lat:pos.coords.latitude, lng:pos.coords.longitude});
+                  setLivreurPositions(p=>({...p,[currentUser.nom]:{lat:pos.coords.latitude,lng:pos.coords.longitude,name:currentUser.nom,order:"En livraison"}}));
+                  addToast("📍 Position partagée avec l'Admin !","📍",G.green);
+                },
+                ()=>alert("Impossible d'obtenir votre position. Activez le GPS.")
+              );
+            }} style={{background:G.green,color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+              📍 Partager ma position maintenant
+            </button>
+
+            {/* Explication GPS */}
+            <div style={{background:"#EFF6FF",borderRadius:12,padding:"12px 14px",border:"1px solid #BFDBFE",fontSize:11,color:"#1D4ED8"}}>
+              <div style={{fontWeight:700,marginBottom:4}}>📱 Comment ça fonctionne</div>
+              <div style={{lineHeight:1.6}}>
+                1. Sur votre <strong>téléphone</strong>, appuyez sur "Démarrer le GPS"<br/>
+                2. Autorisez la localisation quand le navigateur demande<br/>
+                3. L'Admin voit votre position sur sa carte en temps réel<br/>
+                <span style={{color:"#3B82F6",fontStyle:"italic"}}>⚠️ Le GPS est bloqué dans l'aperçu Claude — fonctionne sur Chrome/Safari mobile</span>
+              </div>
+            </div>
+
+            {/* Bouton GPS */}
+            <div style={{background:G.white,borderRadius:14,padding:20,textAlign:"center"}}>
+              <div style={{fontSize:44,marginBottom:10}}>{gpsActive?"📡":"📍"}</div>
+              <div style={{fontWeight:700,fontSize:16,color:G.dark,marginBottom:6}}>
+                {gpsActive?"GPS Actif ✅":"GPS Inactif"}
+              </div>
+              <div style={{fontSize:12,color:G.gray,marginBottom:16,lineHeight:1.5}}>
+                {gpsActive?"L'Admin peut voir ta position en temps réel":"Active le GPS pendant tes livraisons"}
+              </div>
+              {gpsError&&(
+                <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:11,color:G.red,textAlign:"left"}}>
+                  ⚠️ {gpsError}
+                </div>
+              )}
+              {gpsPos&&(
+                <div style={{background:G.greenLight,borderRadius:10,padding:"8px 12px",marginBottom:14,fontSize:12,color:G.green,fontWeight:600}}>
+                  📍 {gpsPos.lat.toFixed(5)}°, {gpsPos.lng.toFixed(5)}° · ±{gpsPos.accuracy}m
+                </div>
+              )}
+              <button onClick={()=>{
+                if(gpsActive) {
+                  try { if(gpsWatchRef.current) navigator.geolocation.clearWatch(gpsWatchRef.current); } catch(e){}
+                  setGpsActive(false); setGpsPos(null); setGpsError("");
+                } else {
+                  if(!navigator?.geolocation) { setGpsError("GPS non disponible — utilisez Chrome ou Safari sur votre téléphone"); return; }
+                  setGpsError("");
+                  try {
+                    gpsWatchRef.current = navigator.geolocation.watchPosition(
+                      pos => {
+                        const {latitude:lat,longitude:lng,accuracy} = pos.coords;
+                        setGpsPos({lat,lng,accuracy:Math.round(accuracy)});
+                        setLivreurPositions(p=>({...p,"Ibou":{lat,lng,name:"Ibou",order:"En livraison"}}));
+                      },
+                      err => {
+                        const msgs={1:"Accès refusé — autorisez la localisation dans votre navigateur",2:"Signal GPS faible",3:"Délai dépassé — réessayez"};
+                        setGpsError(msgs[err.code]||"Erreur GPS");
+                        setGpsActive(false);
+                      },
+                      {enableHighAccuracy:true,timeout:15000,maximumAge:10000}
+                    );
+                    setGpsActive(true);
+                  } catch(e) { setGpsError("GPS non disponible dans cet environnement"); }
+                }
+              }} style={{width:"100%",background:gpsActive?"#DC2626":G.green,color:G.white,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+                {gpsActive?"⏹️ Arrêter le GPS":"▶️ Activer le GPS"}
+              </button>
+            </div>
+
+            {/* Carte position livreur */}
+            {gpsPos&&(
+              <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
+                <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green}}>📍 Ta position actuelle</div>
+                <MapView positions={{"Ibou":{...gpsPos,name:"Ibou",order:"Ma position"}}} role="livreur"/>
+              </div>
+            )}
+
+            {/* Livraisons en cours */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📦 MES LIVRAISONS</div>
+              {myLiv.filter(o=>["en_camino","chez_client","colis_pris"].includes(o.status)).length===0
+                ?<div style={{fontSize:13,color:G.gray,textAlign:"center",padding:"16px 0"}}>Aucune livraison en cours</div>
+                :myLiv.filter(o=>["en_camino","chez_client","colis_pris"].includes(o.status)).map(o=>(
+                  <div key={o.id} style={{padding:"9px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <div style={{fontWeight:700,fontSize:13}}>{o.client}</div>
+                    <div style={{fontSize:11,color:G.gray}}>📍 {o.address}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} FCFA</div>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        )}
+
+
+        {/* ── ÉQUIPE ── */}
+        {tab==="equipe"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Vue simplifiée pour le Livreur — contacts équipe */}
+            {role==="livreur"&&(
+              <>
+                <div style={{background:G.greenLight,borderRadius:12,padding:"10px 14px",fontSize:12,color:G.green,fontWeight:600}}>
+                  👥 Les contacts de ton équipe
+                </div>
+
+                {/* Admin */}
+                <div style={{background:G.white,borderRadius:14,padding:14}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>👑 ADMIN</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:14,color:G.dark}}>👑 {settings.nom||"Admin"}</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {settings.whatsapp||"—"}</div>
+                      <div style={{fontSize:10,color:G.gold,marginTop:2,fontWeight:600}}>Responsable de la boutique</div>
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <a href={`tel:+${settings.whatsapp||""}`}
+                        style={{background:"#FFF8E7",color:G.gold,borderRadius:10,padding:"8px 12px",fontSize:13,textDecoration:"none",fontWeight:700,border:`1px solid ${G.gold}`}}>
+                        📞
+                      </a>
+                      <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer"
+                        style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 12px",fontSize:13,textDecoration:"none",fontWeight:700}}>
+                        💬
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Closers */}
+                <div style={{background:G.white,borderRadius:14,padding:14}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📞 CLOSERS</div>
+                  {teamMembers.filter(m=>m.role==="closer").map((m,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.name}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
+                      </div>
+                      <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
+                        📞 Appeler
+                      </a>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Livreurs */}
+                <div style={{background:G.white,borderRadius:14,padding:14}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+                  {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>(
+                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:m.name==="Ibou"?G.green:G.dark}}>
+                          🏍️ {m.name} {m.name==="Ibou"&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
+                        </div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
+                      </div>
+                      {m.name!=="Ibou"&&(
+                        <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
+                          📞 Appeler
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* Admin/Closer — full view with stats + actions */}
+            {(role==="admin"||role==="closer")&&(
+              <>
+            {/* Admin card */}
+            <div style={{background:`linear-gradient(135deg,${G.green},${G.greenDark||"#0D3D25"})`,borderRadius:14,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:15,color:G.gold}}>👑 {settings.nom||"Admin"}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginTop:3}}>📱 {settings.whatsapp}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>Responsable boutique · Admin</div>
+              </div>
+              <a href={`tel:+${settings.whatsapp}`}
+                style={{background:"rgba(255,255,255,0.15)",color:G.white,borderRadius:10,padding:"9px 14px",fontSize:14,textDecoration:"none",fontWeight:700}}>
+                📞
+              </a>
+            </div>
+
+            {/* Closers */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📞 CLOSERS</div>
+              {teamMembers.filter(m=>m.role==="closer").map((m,i)=>{
+                const all=orders.filter(o=>o.closer===m.name);
+                return(
+                  <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.name}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
+                      </div>
+                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                        <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
+                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.name} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
+                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"},{l:"Total",v:all.length,c:G.gray,bg:G.grayLight}].map(s=>(
+                        <div key={s.l} style={{flex:1,background:s.bg,borderRadius:8,padding:"6px 0",textAlign:"center"}}>
+                          <div style={{fontSize:16,fontWeight:700,color:s.c}}>{s.v}</div>
+                          <div style={{fontSize:10,color:G.gray}}>{s.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Livreurs */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+              {LIVREURS_DATA.map((m,i)=>{
+                const all=orders.filter(o=>o.livreur===m.name);
+                const gains=all.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
+                return(
+                  <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {m.name}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
+                      </div>
+                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                        <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
+                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.name} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
+                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
+                      </div>
+                    </div>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} FCFA encaissés</div>
+                    <div style={{display:"flex",gap:6}}>
+                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"En route",v:all.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length,c:G.blue,bg:"#EFF6FF"},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"}].map(s=>(
+                        <div key={s.l} style={{flex:1,background:s.bg,borderRadius:8,padding:"6px 0",textAlign:"center"}}>
+                          <div style={{fontSize:16,fontWeight:700,color:s.c}}>{s.v}</div>
+                          <div style={{fontSize:10,color:G.gray}}>{s.l}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Inviter */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>➕ INVITER UN MEMBRE</div>
+              <div style={{display:"flex",gap:8}}>
+                {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                  <button key={r.role} onClick={()=>{
+                    const token=Math.random().toString(36).substring(2,10).toUpperCase();
+                    const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                    const msg=`Bonjour ! Rejoins mon équipe sur Teamly.\n\nClique ici:\n${link}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
+                  }} style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    {r.label} 📲
+                  </button>
+                ))}
+              </div>
+            </div>
+            </>
+            )} {/* end admin/closer */}
+          </div>
+        )}
+
+        {/* ── COMPTA ── */}
+        {tab==="compta"&&canSeeCompta&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+
+            {/* Sélecteurs — Jour / Mois / Plage */}
+            <div style={{background:G.white,borderRadius:12,padding:"12px 14px"}}>
+              <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:10}}>📅 PÉRIODE D'ANALYSE</div>
+              <div style={{display:"flex",gap:6,marginBottom:8}}>
+                {[{k:"jour",l:"Jour"},{k:"mois",l:"Mois"},{k:"plage",l:"Plage"}].map(t=>{
+                  const active=(t.k==="jour"&&selDate!=="plage"&&selDate!=="mois")||(t.k===selDate);
+                  return <button key={t.k} onClick={()=>setSelDate(t.k==="jour"?TODAY:t.k)} style={{flex:1,background:active?G.green:G.grayLight,color:active?G.white:G.gray,border:"none",borderRadius:8,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>{t.l}</button>;
+                })}
+              </div>
+              {selDate==="plage"&&<div style={{display:"flex",gap:8,alignItems:"center"}}><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{flex:1,border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/><span style={{fontSize:11,color:G.gray}}>→</span><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{flex:1,border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/></div>}
+              {selDate==="mois"&&<input type="month" value={selMonth} onChange={e=>setSelMonth(e.target.value)} style={{width:"100%",border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/>}
+              {selDate!=="plage"&&selDate!=="mois"&&<input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)} style={{width:"100%",border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/>}
+            </div>
+
+            {/* Rapport mensuel */}
+            <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:16,padding:18,color:G.white}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:600,letterSpacing:1,marginBottom:6}}>RAPPORT — {new Date(selMonth+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase()}</div>
+              <div style={{fontSize:32,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:4}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>FCFA</span></div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.7)"}}>Bénéfice net · Marge: {pct(tMarge)}</div>
+              <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
+                {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Frais",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
+                  <div key={i}><div style={{fontSize:12,fontWeight:700,color:i===0?"rgba(255,255,255,0.9)":G.gold}}>{s.v} F</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{s.l}</div></div>
+                ))}
+              </div>
+            </div>
+
+
+
+            <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",border:"1px solid #BFDBFE",fontSize:11,color:"#3B82F6"}}>
+              ℹ️ CA, CAMV et frais calculés automatiquement. Saisis uniquement pub et livraisons échouées.
+            </div>
+
+            {calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>(
+              <div key={prod.id} style={{background:G.white,borderRadius:14,padding:15,borderLeft:`4px solid ${ben>=0?G.green:G.red}`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{prod.name}</div>
+                    <div style={{display:"flex",gap:6,marginTop:3}}>
+                      <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>{prod.niche||prod.categorie}</span>
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:10,color:G.gray}}>Frais livr.</div>
+                    <div style={{fontSize:12,fontWeight:600,color:G.gray}}>{fmt(prod.fraisLiv||FRAIS_LIV)} F/cmd</div>
+                  </div>
+                </div>
+
+                {[
+                  {l:"Commandes livrées",        v:nLiv,                c:G.green},
+                  {l:"Chiffre d'Affaires",        v:`${fmt(ca)} FCFA`,  c:G.dark},
+                  {l:"CAMV (coût produits)",      v:`${fmt(camv)} FCFA`,c:G.dark},
+                  {l:"Frais livraison (livrés)",  v:`${fmt(frais)} FCFA`,c:G.dark},
+                ].map((r,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <span style={{fontSize:12,color:G.gray}}>{r.l}</span>
+                    <span style={{fontSize:12,fontWeight:700,color:r.c}}>{r.v}</span>
+                  </div>
+                ))}
+
+                {/* Rejetées — info seulement, pas dans la formule */}
+                {nRej>0&&(
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <div>
+                      <span style={{fontSize:12,color:G.gray}}>Commandes rejetées</span>
+                      <div style={{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}}>💡 Info seulement — produit récupéré, non calculé</div>
+                    </div>
+                    <span style={{background:"#FEE2E2",color:G.red,borderRadius:8,padding:"2px 10px",fontSize:12,fontWeight:700}}>{nRej}</span>
+                  </div>
+                )}
+
+                {/* Pub du jour */}
+                <div style={{marginTop:10,marginBottom:8}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>📣 Pub du jour (FCFA)</div>
+                  <input type="number" value={adSpend[prod.id]||""} onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
+                    style={{width:"100%",border:`2px solid ${G.gold}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                </div>
+
+                {/* Livraisons échouées — champ manuel */}
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>🚫 Livraisons échouées — frais supplémentaires (FCFA)
+                    <span style={{fontSize:10,color:"#9CA3AF",marginLeft:4}}>ex: re-livraisons, frais retour...</span>
+                  </div>
+                  <input type="number" value={livraisonsEchouees[prod.id]||""} onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
+                    style={{width:"100%",border:`2px solid ${G.red}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600,background:livraisonsEchouees[prod.id]?"#FFF5F5":G.white}}/>
+                  {livraisonsEchouees[prod.id]&&(
+                    <div style={{fontSize:11,color:G.red,marginTop:3}}>
+                      💡 Frais échoués déduits du bénéfice: <strong>−{fmt(parseInt(livraisonsEchouees[prod.id]||0))} FCFA</strong>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{background:ben>=0?G.greenLight:"#FEE2E2",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontSize:10,color:G.gray,fontWeight:700}}>BÉNÉFICE NET</div>
+                    <div style={{fontSize:22,fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)} FCFA</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:10,color:G.gray}}>Marge</div>
+                    <div style={{fontSize:18,fontWeight:700,color:ben>=0?G.green:G.red}}>{pct(marge)}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {/* 💵 Cash remis par les livreurs */}
+            <div style={{background:G.white,borderRadius:14,padding:16,border:`2px solid ${G.green}`}}>
+              <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4}}>💵 Cash remis par les livreurs</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Montant total reçu en main propre de tes livreurs aujourd'hui. La différence avec le CA = argent manquant.</div>
+              <input type="number" value={cashRemis} onChange={e=>setCashRemis(e.target.value)} placeholder="0"
+                style={{width:"100%",border:`2px solid ${G.green}`,borderRadius:10,padding:"12px 14px",fontSize:18,outline:"none",boxSizing:"border-box",fontWeight:700,color:G.dark}}/>
+              {cashRemis&&(()=>{
+                const recu  = parseInt(cashRemis||0);
+                const theo  = calcProd.reduce((a,x)=>a+x.ca,0); // = tCA: somme CA de tous les produits livrés
+                const diff  = theo - recu;
+                return (
+                  <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                      <span style={{fontSize:12,color:G.gray}}>CA théorique (commandes livrées)</span>
+                      <span style={{fontSize:13,fontWeight:700,color:G.dark}}>{fmt(theo)} FCFA</span>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                      <span style={{fontSize:12,color:G.gray}}>Cash effectivement reçu</span>
+                      <span style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(recu)} FCFA</span>
+                    </div>
+                    <div style={{background:diff===0?G.greenLight:diff>0?"#FEE2E2":"#FEF9C3",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:diff===0?G.green:diff>0?G.red:"#854D0E"}}>
+                          {diff===0?"✅ Tout est en ordre":diff>0?"⚠️ Montant manquant":"💡 Excédent"}
+                        </div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>
+                          {diff===0?"Les livreurs ont tout remis":diff>0?"À vérifier avec les livreurs":"Vérifier les commandes"}
+                        </div>
+                      </div>
+                      <div style={{fontSize:20,fontWeight:700,color:diff===0?G.green:diff>0?G.red:"#854D0E"}}>
+                        {diff===0?"✓":`${diff>0?"-":"+"}${fmt(Math.abs(diff))} F`}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Total du jour */}
+            <div style={{background:tBen>=0?G.green:"#7F1D1D",borderRadius:14,padding:20,textAlign:"center"}}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:1}}>BÉNÉFICE NET TOTAL DU JOUR</div>
+              <div style={{fontSize:34,fontWeight:700,color:G.white,marginTop:6}}>{fmt(tBen)} FCFA</div>
+              <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:10,flexWrap:"wrap"}}>
+                {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Livr.",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
+                  <div key={i} style={{textAlign:"center"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:G.white}}>{s.v}</div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:8,fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Marge globale: {pct(tMarge)}</div>
+            </div>
+
+            {/* TABLE EN BAS */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>📊 TABLEAU RÉCAP PAR PRODUIT</ST>
+              <Tbl
+                headers={["Produit","Niche","Livrés","CA","Pub","Bénéfice","Marge"]}
+                align={["left","left","right","right","right","right","right"]}
+                rows={calcProd.map(({prod,nLiv,ca,pub,ben,marge})=>[
+                  <span style={{fontWeight:600,fontSize:11}}>{prod.name}</span>,
+                  <span style={{fontSize:10,color:G.gray}}>{prod.niche||prod.categorie}</span>,
+                  <span style={{color:G.green,fontWeight:700}}>{nLiv}</span>,
+                  fmt(ca),
+                  fmt(pub),
+                  <span style={{fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)}</span>,
+                  <span style={{fontWeight:700,color:ben>=0?G.green:G.red}}>{pct(marge)}</span>,
+                ])}
+              />
+            </div>
+
+          </div>
+        )}
+
+        {/* ── STOCK ── */}
+        {tab==="stock"&&(canEditStock)&&(
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:15,color:G.dark}}>📦 Gestion des produits</div>
+                <div style={{fontSize:11,color:G.gray,marginTop:2}}>Stock = initial − commandes livrées (automatique)</div>
+              </div>
+              {role==="admin"&&<button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:9,padding:"8px 12px",fontSize:12,fontWeight:700,color:G.dark,cursor:"pointer"}}>+ Produit</button>}
+            </div>
+
+            {/* Alerte stock bas */}
+            {products.filter(p=>p.stock<5).length>0&&(
+              <div style={{background:"#FEF2F2",borderRadius:12,padding:"10px 14px",border:`1px solid #FCA5A5`}}>
+                <div style={{fontSize:12,color:G.red,fontWeight:700}}>⚠️ Stock bas !</div>
+                {products.filter(p=>p.stock<5).map(p=><div key={p.id} style={{fontSize:11,color:G.red}}>· {p.name} : {p.stock} restants</div>)}
+              </div>
+            )}
+
+            {products.map(prod=>{
+              const nLiv = orders.filter(o=>o.product?.startsWith(prod.name)&&o.status==="entregado").length;
+              const nRej = orders.filter(o=>o.product?.startsWith(prod.name)&&o.status==="rechazado").length;
+              const stockInitial = prod.stockInitial||prod.stock+nLiv;
+              const stockReel    = Math.max(0, stockInitial - nLiv);
+              const pct100 = stockInitial>0?Math.round(stockReel/stockInitial*100):0;
+              const qty = stockAjout[prod.id]||"";
+              const stockColor = stockReel<5?G.red:stockReel<15?G.gold:G.green;
+
+              return (
+                <div key={prod.id} style={{background:G.white,borderRadius:14,padding:15,borderLeft:`4px solid ${stockColor}`,boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+
+                  {/* Header: nom + actions */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:15,color:G.dark,marginBottom:2}}>{prod.name}</div>
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                        <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>🎯 {prod.niche||prod.categorie||"—"}</span>
+                        <span style={{background:stockReel<5?"#FEE2E2":stockReel<15?"#FFF8E7":G.greenLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:stockColor,fontWeight:600}}>
+                          {stockReel} restants
+                        </span>
+                        {stockReel<5&&<span style={{background:"#FEE2E2",borderRadius:6,padding:"2px 7px",fontSize:10,color:G.red,fontWeight:700}}>⚠️ Stock bas</span>}
+                      </div>
+                    </div>
+                    {/* Boutons modifier/supprimer */}
+                    <div style={{display:"flex",gap:5,marginLeft:8,flexShrink:0}}>
+                      <button onClick={()=>setEditProd({...prod, nLiv, stockReel})}
+                        style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        ✏️ Modifier
+                      </button>
+                      {/* 🗑️ supprimé de la carte — supprimer via le modal ✏️ Modifier */}
+                    </div>
+                  </div>
+
+                  {/* Barre stock — discrète */}
+                  <div style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                      <span style={{fontSize:10,color:G.gray}}>Stock: {stockReel} / {stockInitial}</span>
+                      <span style={{fontSize:10,color:stockColor,fontWeight:600}}>{pct100}%</span>
+                    </div>
+                    <div style={{background:G.grayLight,borderRadius:4,height:5,overflow:"hidden"}}>
+                      <div style={{background:stockColor,height:5,width:`${pct100}%`,borderRadius:4,transition:"width 0.4s"}}/>
+                    </div>
+                  </div>
+
+                  {/* Métriques compactes */}
+                  <div style={{display:"flex",gap:6,marginBottom:12}}>
+                    {[
+                      {l:"Livrés",   v:nLiv,    c:G.green},
+                      {l:"Coût",     v:`${fmt(prod.cost)}F`,  c:G.gray},
+                      {l:"Vente",    v:`${fmt(prod.price)}F`, c:G.dark},
+                      {l:"Marge/u",  v:`${fmt(prod.price-prod.cost-(prod.fraisLiv||FRAIS_LIV))}F`, c:G.greenMid},
+                    ].map((s,i)=>(
+                      <div key={i} style={{flex:1,background:G.grayLight,borderRadius:8,padding:"5px 3px",textAlign:"center"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:s.c}}>{s.v}</div>
+                        <div style={{fontSize:9,color:G.gray}}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Bundles */}
+                  {(prod.bundles||[]).length>0&&(
+                    <div style={{marginBottom:10,display:"flex",gap:5,flexWrap:"wrap"}}>
+                      {prod.bundles.map(b=><span key={b.id} style={{background:"#FFF8E7",color:G.gold,borderRadius:7,padding:"2px 8px",fontSize:10,fontWeight:600}}>🎁 {b.label} — {fmt(b.prixVente)}F</span>)}
+                    </div>
+                  )}
+
+                  {/* Ajouter stock */}
+                  <div style={{background:G.greenLight,borderRadius:9,padding:"9px 12px"}}>
+                    <div style={{fontSize:11,color:G.green,fontWeight:700,marginBottom:6}}>➕ Ajouter du stock</div>
+                    <div style={{display:"flex",gap:7,alignItems:"center"}}>
+                      <input type="number" min="1" value={qty}
+                        onChange={e=>setStockAjout(p=>({...p,[prod.id]:e.target.value}))}
+                        placeholder="Quantité..."
+                        style={{flex:1,border:`1.5px solid ${G.green}`,borderRadius:7,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                      <button onClick={()=>{
+                        const q=parseInt(qty||0);
+                        if(q<=0) return;
+                        setProducts(p=>p.map(x=>x.id===prod.id?{...x,stockInitial:(x.stockInitial||x.stock+nLiv)+q,stock:x.stock+q}:x));
+                        if(!String(prod.id).startsWith("tmp_")) sbFetch(`products?id=eq.${prod.id}`,"PATCH",{stock:prod.stock+q,stock_initial:(prod.stockInitial||prod.stock+nLiv)+q},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                        setStockAjout(p=>({...p,[prod.id]:""}));
+                      }} style={{background:G.green,color:G.white,border:"none",borderRadius:7,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap"}}>
+                        ✅ OK
+                      </button>
+                    </div>
+                    {qty&&parseInt(qty)>0&&(
+                      <div style={{fontSize:10,color:G.green,marginTop:4}}>→ Nouveau total: <strong>{stockReel+parseInt(qty)}</strong> unités</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Tableau récap */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <ST>📋 RÉCAP STOCK GLOBAL</ST>
+              <Tbl headers={["Produit","Restants","Livrés","Coût","Vente","Marge"]} align={["left","right","right","right","right","right"]}
+                rows={products.map(p=>{
+                  const nL=orders.filter(o=>o.product?.startsWith(p.name)&&o.status==="entregado").length;
+                  const si=p.stockInitial||p.stock+nL;
+                  const sr=Math.max(0,si-nL);
+                  return [p.name,<span style={{fontWeight:700,color:sr<5?G.red:G.green}}>{sr}</span>,<span style={{color:G.greenMid,fontWeight:600}}>{nL}</span>,`${fmt(p.cost)}F`,`${fmt(p.price)}F`,<span style={{color:G.green,fontWeight:700}}>{fmt(p.price-p.cost-p.fraisLiv)}F</span>];
+                })}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── NOTIFICATIONS ── */}
+        {tab==="notifications"&&(()=>{
+          // Build grouped notifications
+          const NOTIFS_ADMIN = [
+            ...orders.filter(o=>o.status==="confirmado"&&!o.livreur).map(o=>({key:`noLiv_${o.id}`,type:"noLiv",icon:"🏍️",title:"Sans livreur",body:o.client,color:"#F0A500",bg:"#FFF8E7",id:o.id,phone:o.phone,time:"à l'instant"})),
+            ...orders.filter(o=>o.status==="entregado").slice(-5).map(o=>({key:`liv_${o.id}`,type:"livre",icon:"✅",title:"Encaissé",body:`${o.client} — ${Number(o.price).toLocaleString("fr-FR")} FCFA`,color:G.green,bg:"#D1FAE5",id:o.id,phone:o.phone,time:"aujourd'hui"})),
+            ...orders.filter(o=>o.status==="rechazado").map(o=>({key:`rej_${o.id}`,type:"rejet",icon:"❌",title:"Commande rejetée",body:o.client,color:G.red,bg:"#FEE2E2",id:o.id,phone:o.phone,time:"aujourd'hui"})),
+            ...orders.filter(o=>["no_contesta","reprogramar"].includes(o.status)).map(o=>({key:`ret_${o.id}`,type:"retour",icon:"🔄",title:"À retenter",body:o.client,color:"#7C3AED",bg:"#EDE9FE",id:o.id,phone:o.phone,time:"aujourd'hui"})),
+            ...products.filter(p=>p.stock<5).map(p=>({key:`stock_${p.id}`,type:"stock",icon:"📦",title:"Stock bas",body:`${p.name} — ${p.stock} restants`,color:G.red,bg:"#FEE2E2",id:p.id,time:"maintenant"})),
+          ];
+          const NOTIFS_LIVREUR = [
+            ...myLiv.filter(o=>o.status==="confirmado").map(o=>({key:`new_${o.id}`,type:"newOrder",icon:"🔔",title:"Nouveau pedido",body:`${o.client} · ${o.address}`,color:G.gold,bg:"#FFF8E7",id:o.id,phone:o.phone,price:o.price,time:"nouveau"})),
+            ...myLiv.filter(o=>o.status==="en_camino"||o.status==="colis_pris").map(o=>({key:`enc_${o.id}`,type:"encours",icon:"🚀",title:"En cours",body:`${o.client} · ${o.address}`,color:G.blue,bg:"#DBEAFE",id:o.id,phone:o.phone,price:o.price,time:"en cours"})),
+          ];
+
+          const allNotifs = role==="livreur" ? NOTIFS_LIVREUR : NOTIFS_ADMIN;
+
+          // Group by type
+          const grouped = {};
+          allNotifs.forEach(n=>{
+            if(!grouped[n.type]) grouped[n.type]=[];
+            grouped[n.type].push(n);
+          });
+
+
+          const visible = allNotifs.filter(n=>!dismissedNotifs.has(n.key));
+
+          return (
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+
+            {/* Header barre */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div style={{fontWeight:700,fontSize:16,color:G.dark}}>
+                Notifications
+                {visible.length>0&&<span style={{background:G.red,color:G.white,borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:700,marginLeft:8}}>{visible.length}</span>}
+              </div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                {visible.length>0&&(
+                  <button onClick={()=>setDismissedNotifs(new Set(allNotifs.map(n=>n.key)))}
+                    style={{background:"none",border:"none",color:G.gray,fontSize:12,cursor:"pointer",textDecoration:"underline"}}>
+                    Tout effacer
+                  </button>
+                )}
+                <button onClick={()=>setShowNotifSettings(v=>!v)}
+                  style={{background:showNotifSettings?G.green:G.grayLight,color:showNotifSettings?G.white:G.gray,border:"none",borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:16}}>
+                  ⚙️
+                </button>
+              </div>
+            </div>
+
+            {/* Panneau paramètres */}
+            {showNotifSettings&&(
+              <div style={{background:G.white,borderRadius:14,padding:14,marginBottom:14,border:`1px solid ${G.grayLight}`}}>
+                <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>Paramètres notifications</div>
+                {(role==="livreur"?[
+                  {key:"notifLivre",   label:"✅ Livraison confirmée"},
+                  {key:"notifRejet",   label:"❌ Commande rejetée"},
+                  {key:"notifRetour",  label:"🔄 À retenter"},
+                  {key:"notifChat",    label:"💬 Nouveau message"},
+                ]:[
+                  {key:"notifSansLivreur", label:"🏍️ Sans livreur"},
+                  {key:"notifRejet",       label:"❌ Commande rejetée"},
+                  {key:"notifLivre",       label:"✅ Commande encaissée"},
+                  {key:"notifRetour",      label:"🔄 À retenter"},
+                  {key:"notifChat",        label:"💬 Nouveau message"},
+                  {key:"notifStock",       label:"📦 Stock bas"},
+                ]).map(n=>(
+                  <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <span style={{fontSize:13,color:G.dark}}>{n.label}</span>
+                    <button onClick={()=>setSettings(s=>({...s,[n.key]:!s[n.key]}))}
+                      style={{background:settings[n.key]?G.green:G.grayLight,border:"none",borderRadius:20,width:40,height:22,cursor:"pointer",position:"relative",flexShrink:0}}>
+                      <div style={{position:"absolute",top:2,left:settings[n.key]?20:2,width:18,height:18,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Liste notifications */}
+            {visible.length===0?(
+              <div style={{textAlign:"center",padding:"40px 0",color:G.gray}}>
+                <div style={{fontSize:44,marginBottom:10}}>🔔</div>
+                <div style={{fontSize:15,fontWeight:700,color:G.dark}}>Aucune notification</div>
+                <div style={{fontSize:12,marginTop:4}}>Tout est à jour ✅</div>
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {Object.entries(grouped).map(([type,items])=>{
+                  const first=items[0];
+                  const count=items.length;
+                  const isGrouped=count>1;
+                  const notDismissed=items.filter(n=>!dismissedNotifs.has(n.key));
+                  if(notDismissed.length===0) return null;
+                  return (
+                    <div key={type} style={{background:G.white,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+                      {/* Group header */}
+                      <div style={{background:first.bg,padding:"12px 14px",display:"flex",alignItems:"center",gap:10,borderLeft:`4px solid ${first.color}`}}>
+                        <span style={{fontSize:22,flexShrink:0}}>{first.icon}</span>
+                        <div style={{flex:1}}>
+                          <div style={{fontWeight:700,fontSize:14,color:G.dark}}>
+                            {first.title}
+                            {notDismissed.length>1&&<span style={{background:first.color,color:G.white,borderRadius:20,padding:"1px 8px",fontSize:11,fontWeight:700,marginLeft:6}}>{notDismissed.length}</span>}
+                          </div>
+                        </div>
+                        <button onClick={()=>setDismissedNotifs(d=>new Set([...d,...notDismissed.map(n=>n.key)]))}
+                          style={{background:"none",border:"none",color:"#9CA3AF",fontSize:18,cursor:"pointer",padding:"2px 6px"}}>
+                          ×
+                        </button>
+                      </div>
+                      {/* Items */}
+                      {notDismissed.map((n,i)=>(
+                        <div key={n.key} style={{padding:"10px 14px",borderBottom:i<notDismissed.length-1?`1px solid ${G.grayLight}`:"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.body}</div>
+                            {n.price&&<div style={{fontSize:12,color:G.green,fontWeight:700,marginTop:1}}>{Number(n.price).toLocaleString("fr-FR")} FCFA</div>}
+                            <div style={{fontSize:10,color:G.gray,marginTop:1}}>{n.time}</div>
+                          </div>
+                          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                            {n.phone&&<a href={`tel:+221${n.phone.replace(/\s+/g,"")}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 8px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                            <button onClick={()=>setDismissedNotifs(d=>new Set([...d,n.key]))}
+                              style={{background:"none",border:"none",color:"#D1D5DB",fontSize:16,cursor:"pointer",padding:"2px 6px"}}>
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          );
+        })()}
+        {/* ── CHAT ── */}
+        {tab==="chat"&&(
+          <div style={{display:"flex",flexDirection:"column",gap:0}}>
+            {/* Info banner */}
+            <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#3B82F6",display:"flex",gap:6,alignItems:"center"}}>
+              <span>💡</span>
+              <span>Chat local — fonctionne en temps réel avec Supabase en production</span>
+            </div>
+            {/* Messages */}
+            <div style={{minHeight:300,maxHeight:400,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12,padding:"4px 0"}}>
+              {chat.map((msg,i)=>{
+                const myName=role==="admin"?"Admin":role==="closer"?"Aminata":"Ibou";
+                const isMe=msg.from===myName;
+                return(
+                  <div key={i} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
+                    <div style={{maxWidth:"78%",background:isMe?G.green:G.white,color:isMe?G.white:G.dark,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"9px 13px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+                      {!isMe&&<div style={{fontSize:10,fontWeight:700,color:G.gold,marginBottom:3}}>{msg.from}</div>}
+                      {msg.audio?(
+                        <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.15)",borderRadius:8,padding:"6px 10px"}}>
+                          <span style={{fontSize:18}}>🎤</span>
+                          <div style={{flex:1}}>
+                            <div style={{height:3,background:"rgba(255,255,255,0.4)",borderRadius:2,marginBottom:3}}>
+                              <div style={{width:"60%",height:3,background:isMe?G.gold:G.green,borderRadius:2}}/>
+                            </div>
+                            <div style={{fontSize:10,opacity:0.7}}>0:08</div>
+                          </div>
+                          <span style={{fontSize:14}}>▶️</span>
+                        </div>
+                      ):(
+                        msg.audio ? (
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            {msg.audioUrl
+                              ? <audio controls src={msg.audioUrl} style={{height:32,maxWidth:160}}/>
+                              : <><span style={{fontSize:16}}>🎤</span><span style={{fontSize:13}}>{msg.text}</span></>
+                            }
+                          </div>
+                        ) : (
+                          <div style={{fontSize:13,lineHeight:1.4}}>{msg.text}</div>
+                        )
+                      )}
+                      <div style={{fontSize:10,opacity:0.5,marginTop:3,textAlign:"right"}}>{msg.time}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Input */}
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <button
+                onMouseDown={async()=>{
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+                    const mr = new MediaRecorder(stream);
+                    const chunks = [];
+                    mr.ondataavailable = e => chunks.push(e.data);
+                    mr.onstop = () => {
+                      const blob = new Blob(chunks, {type:"audio/webm"});
+                      const url  = URL.createObjectURL(blob);
+                      const secs = recordSecs;
+                      const myName=role==="admin"?settings.nom||"Admin":role==="closer"?"Closer":"Livreur";
+                      const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+                      setChat(p=>[...p,{from:myName,text:`🎤 Message vocal (0:${String(secs).padStart(2,"0")})`,time:now,audio:true,audioUrl:url}]);
+                      if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:`🎤 Message vocal (0:${String(secs).padStart(2,"0")})`,audio:true},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                      stream.getTracks().forEach(t=>t.stop());
+                      setIsRecording(false);
+                      setRecordSecs(0);
+                      clearInterval(audioTimerRef.current);
+                    };
+                    mr.start();
+                    mediaRecorderRef.current = mr;
+                    setIsRecording(true);
+                    setRecordSecs(0);
+                    audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
+                  } catch(e) {
+                    alert("Microphone non disponible");
+                  }
+                }}
+                onMouseUp={()=>{ if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); }}
+                onTouchStart={async(e)=>{
+                  e.preventDefault();
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+                    const mr = new MediaRecorder(stream);
+                    const chunks = [];
+                    mr.ondataavailable = ev => chunks.push(ev.data);
+                    mr.onstop = () => {
+                      const blob = new Blob(chunks,{type:"audio/webm"});
+                      const url = URL.createObjectURL(blob);
+                      const myName=role==="admin"?settings.nom||"Admin":role==="closer"?"Closer":"Livreur";
+                      const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+                      setChat(p=>[...p,{from:myName,text:`🎤 Message vocal (0:${String(recordSecs).padStart(2,"0")})`,time:now,audio:true,audioUrl:url}]);
+                      stream.getTracks().forEach(t=>t.stop());
+                      setIsRecording(false); setRecordSecs(0);
+                      clearInterval(audioTimerRef.current);
+                    };
+                    mr.start();
+                    mediaRecorderRef.current = mr;
+                    setIsRecording(true); setRecordSecs(0);
+                    audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
+                  } catch(e) { alert("Microphone non disponible"); }
+                }}
+                onTouchEnd={()=>{ if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); }}
+                style={{background:isRecording?"#FEE2E2":"#F3F4F6",border:isRecording?"2px solid #EF4444":"none",borderRadius:"50%",width:40,height:40,cursor:"pointer",fontSize:18,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}
+                title="Maintenir pour enregistrer">
+                {isRecording?<span style={{fontSize:11,fontWeight:700,color:"#EF4444"}}>0:{String(recordSecs).padStart(2,"0")}</span>:"🎤"}
+              </button>
+              <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
+                onKeyDown={e=>e.key==="Enter"&&sendChat()}
+                placeholder="Écrire un message..."
+                style={{flex:1,border:`1.5px solid ${G.grayLight}`,borderRadius:24,padding:"11px 16px",fontSize:13,outline:"none",background:G.white}}/>
+              <button onClick={sendChat}
+                style={{background:chatMsg.trim()?G.green:G.grayLight,border:"none",borderRadius:"50%",width:44,height:44,cursor:"pointer",color:chatMsg.trim()?G.gold:G.gray,fontSize:18,flexShrink:0,transition:"background 0.2s"}}>
+                ➤
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── MODAL: Ajouter commande ── */}
+      {showAdd&&<OrderModal
+        products={products} orders={orders} newOrder={newOrder} setNewOrder={setNewOrder}
+        addOrder={addOrder} onClose={()=>setShowAdd(false)} G={G} fmt={fmt} FRAIS_LIV={FRAIS_LIV}
+        livreurs={teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom).filter(Boolean)} waTemplate={waTemplate} setWaTemplate={setWaTemplate}
+        boutique={settings.boutique}
+      />}
+
+      {/* ── MODAL: Ajouter produit ── */}
+      {showAddProd&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouveau produit</div>
+
+            <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:11,color:G.blue,fontWeight:600}}>
+              ✅ Champs obligatoires pour le tracking automatique
+            </div>
+
+            {/* Error summary */}
+            {Object.keys(prodErrors).length>0&&(
+              <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",gap:8,alignItems:"center"}}>
+                <span style={{fontSize:18}}>🔴</span>
+                <div>
+                  <div style={{fontSize:12,color:G.red,fontWeight:700}}>Champs manquants</div>
+                  <div style={{fontSize:11,color:G.red}}>Remplis les champs en rouge pour continuer</div>
+                </div>
+              </div>
+            )}
+
+            {[
+              {key:"name",      label:"📦 Nom du produit *",             ph:"Chaussures Nike",  type:"text",   req:true},
+              {key:"cost",      label:"💰 Prix de revient (FCFA) *",     ph:"7000",             type:"number", req:true},
+              {key:"price",     label:"💰 Prix de vente (FCFA) *",       ph:"25000",            type:"number", req:true},
+              {key:"stock",     label:"📦 Stock initial *",              ph:"50",               type:"number", req:true},
+              {key:"fraisLiv",  label:"🏍️ Frais livraison/cmd (FCFA) *", ph:"1500",             type:"number", req:true},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:9,position:"relative"}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                  {prodErrors[f.key]&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
+                  <div style={{fontSize:11,color:prodErrors[f.key]?G.red:G.dark,fontWeight:600}}>{f.label}</div>
+                </div>
+                <input type={f.type} value={newProd[f.key]||""}
+                  onChange={e=>{setNewProd({...newProd,[f.key]:e.target.value});if(prodErrors[f.key])setProdErrors(p=>({...p,[f.key]:false}));}}
+                  placeholder={f.ph}
+                  style={{width:"100%",border:`2px solid ${prodErrors[f.key]?G.red:"#93C5FD"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors[f.key]?"#FFF5F5":G.white}}/>
+              </div>
+            ))}
+
+            {/* Niche avec suggestions */}
+            <div style={{marginBottom:12}}>
+              <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                {prodErrors.niche&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block"}}/>}
+                <div style={{fontSize:11,color:prodErrors.niche?G.red:G.dark,fontWeight:600}}>🎯 Niche de produit *</div>
+              </div>
+              <input type="text" value={newProd.niche||""}
+                onChange={e=>{setNewProd({...newProd,niche:e.target.value});if(prodErrors.niche)setProdErrors(p=>({...p,niche:false}));}}
+                placeholder="Mode, Beauté, Électronique..."
+                style={{width:"100%",border:`2px solid ${prodErrors.niche?G.red:"#93C5FD"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.niche?"#FFF5F5":G.white}}/>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:7}}>
+                {["Mode & Vêtements","Chaussures","Beauté & Cosmétiques","Électronique","Téléphones","Maison & Déco","Sport & Fitness","Santé","Enfants & Jouets","Montres & Bijoux","Alimentation"].filter(n=>!newProd.niche||n.toLowerCase().includes((newProd.niche||"").toLowerCase())).slice(0,8).map(n=>(
+                  <button key={n} onClick={()=>{setNewProd(p=>({...p,niche:n}));setProdErrors(p=>({...p,niche:false}));}}
+                    style={{background:newProd.niche===n?G.green:G.grayLight,color:newProd.niche===n?G.white:G.dark,border:"none",borderRadius:20,padding:"4px 10px",fontSize:11,cursor:"pointer",fontWeight:newProd.niche===n?700:400}}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {newProd.cost&&newProd.price&&(
+              <div style={{background:G.greenLight,borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <div style={{fontSize:11,color:G.gray,fontWeight:700,marginBottom:4}}>APERÇU MARGE / UNITÉ</div>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <span style={{fontSize:12,color:G.gray}}>Après livraison</span>
+                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))} FCFA &nbsp;({pct(parseInt(newProd.price||0)>0?(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))/parseInt(newProd.price||0):0)})</span>
+                </div>
+              </div>
+            )}
+
+            {/* ── SECTION BUNDLES ── */}
+            <div style={{borderTop:`2px dashed ${G.grayLight}`,paddingTop:16,marginTop:4}}>
+              <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4}}>🎁 Bundles de ce produit</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Optionnel — à ajouter si vous proposez des offres groupées pour ce produit.</div>
+
+              {/* Bundles déjà ajoutés */}
+              {(newProd.bundles||[]).length>0&&(
+                <div style={{marginBottom:12}}>
+                  {newProd.bundles.map((b,i)=>{
+                    const qr=b.type==="bxgyf"?(b.qte+(b.qteOfferte||0)):b.qte;
+                    const cout=(parseInt(newProd.cost)||0)*qr;
+                    const fl=b.livraisonOfferte?0:parseInt(newProd.fraisLiv||1500);
+                    const m=b.prixVente-cout-fl;
+                    const TN={quantite:"Pack Qté",bxgyf:"Buy X Get Y",kit:"Kit"};
+                    return (
+                      <div key={i} style={{background:G.grayLight,borderRadius:10,padding:"10px 12px",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                        <div>
+                          <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{b.label} <span style={{fontSize:10,color:G.gray,fontWeight:400}}>({TN[b.type]||b.type})</span></div>
+                          <div style={{fontSize:11,color:G.gray,marginTop:2}}>
+                            {b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · {fmt(b.prixVente)} FCFA
+                            {b.livraisonOfferte?" · 🚚 offerte":""}
+                          </div>
+                          <div style={{fontSize:11,fontWeight:600,color:m>=0?G.green:G.red,marginTop:2}}>Marge: {fmt(m)} FCFA</div>
+                        </div>
+                        <button onClick={()=>setNewProd(p=>({...p,bundles:p.bundles.filter((_,j)=>j!==i)}))}
+                          style={{background:"none",border:"none",color:G.red,fontSize:18,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Formulaire ajout bundle */}
+              <div style={{background:"#FFF8E7",borderRadius:12,padding:"12px 14px",border:`1px solid #FDE68A`}}>
+                <div style={{fontSize:12,fontWeight:700,color:G.gold,marginBottom:10}}>+ Ajouter un bundle</div>
+
+                {/* Nom / Label */}
+                <div style={{marginBottom:8}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                    {bundleErrors.label&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
+                    <div style={{fontSize:11,color:bundleErrors.label?G.red:G.gray,fontWeight:bundleErrors.label?700:400}}>Nom / Label *</div>
+                  </div>
+                  <input type="text" value={newBundleForm.label}
+                    onChange={e=>{setNewBundleForm(p=>({...p,label:e.target.value}));if(bundleErrors.label)setBundleErrors(p=>({...p,label:false}));}}
+                    placeholder="Pack 2, Buy 2 Get 1..."
+                    style={{width:"100%",border:`1.5px solid ${bundleErrors.label?G.red:"#FDE68A"}`,borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:bundleErrors.label?"#FFF5F5":"#FFF8E7"}}/>
+                </div>
+
+                {/* Type */}
+                <div style={{marginBottom:8}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Type</div>
+                  <div style={{display:"flex",gap:5}}>
+                    {[{k:"quantite",l:"📦 Pack Qté"},{k:"bxgyf",l:"🎁 Buy X Get Y"}].map(t=>(
+                      <button key={t.k} onClick={()=>setNewBundleForm(p=>({...p,type:t.k}))}
+                        style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${newBundleForm.type===t.k?G.gold:"#FDE68A"}`,cursor:"pointer",background:newBundleForm.type===t.k?"#FEF3C7":"#FFF8E7",fontWeight:600,fontSize:11,color:newBundleForm.type===t.k?G.gold:G.gray}}>
+                        {t.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Quantités + Prix */}
+                <div style={{display:"flex",gap:8,marginBottom:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{newBundleForm.type==="bxgyf"?"Qté achetée":"Qté bundle"}</div>
+                    <input type="number" min="2" value={newBundleForm.qte}
+                      onChange={e=>setNewBundleForm(p=>({...p,qte:e.target.value}))} placeholder="2"
+                      style={{width:"100%",border:`1.5px solid #FDE68A`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  </div>
+                  {newBundleForm.type==="bxgyf"&&(
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:11,color:G.gray,marginBottom:3}}>Qté offerte</div>
+                      <input type="number" min="1" value={newBundleForm.qteOfferte}
+                        onChange={e=>setNewBundleForm(p=>({...p,qteOfferte:e.target.value}))} placeholder="1"
+                        style={{width:"100%",border:`1.5px solid #FDE68A`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                  )}
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
+                      {bundleErrors.prixVente&&<span style={{width:7,height:7,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
+                      <div style={{fontSize:11,color:bundleErrors.prixVente?G.red:G.gray,fontWeight:bundleErrors.prixVente?700:400}}>Prix vente (FCFA) *</div>
+                    </div>
+                    <input type="number" value={newBundleForm.prixVente}
+                      onChange={e=>{setNewBundleForm(p=>({...p,prixVente:e.target.value}));if(bundleErrors.prixVente)setBundleErrors(p=>({...p,prixVente:false}));}}
+                      placeholder="40000"
+                      style={{width:"100%",border:`2px solid ${bundleErrors.prixVente?G.red:G.gold}`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box",fontWeight:600,background:bundleErrors.prixVente?"#FFF5F5":G.white}}/>
+                  </div>
+                </div>
+
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <input type="checkbox" id="livbund" checked={newBundleForm.livraisonOfferte} onChange={e=>setNewBundleForm(p=>({...p,livraisonOfferte:e.target.checked}))} style={{width:16,height:16,cursor:"pointer"}}/>
+                  <label htmlFor="livbund" style={{fontSize:12,color:G.dark,cursor:"pointer"}}>🚚 Livraison offerte avec ce bundle</label>
+                </div>
+
+                {/* Aperçu marge */}
+                {newBundleForm.prixVente&&newProd.cost&&(()=>{
+                  const qr=newBundleForm.type==="bxgyf"?(parseInt(newBundleForm.qte||2)+parseInt(newBundleForm.qteOfferte||1)):parseInt(newBundleForm.qte||2);
+                  const c=(parseInt(newProd.cost)||0)*qr;
+                  const fl=newBundleForm.livraisonOfferte?0:parseInt(newProd.fraisLiv||1500);
+                  const m=parseInt(newBundleForm.prixVente||0)-c-fl;
+                  return <div style={{fontSize:12,color:m>=0?G.green:G.red,fontWeight:600,marginBottom:8}}>Marge estimée: {fmt(m)} FCFA ({pct(parseInt(newBundleForm.prixVente||0)>0?m/parseInt(newBundleForm.prixVente):0)})</div>;
+                })()}
+
+                {/* Erreur bundle */}
+                {(bundleErrors.label||bundleErrors.prixVente)&&(
+                  <div style={{background:"#FEE2E2",borderRadius:8,padding:"7px 10px",marginBottom:8,display:"flex",gap:6,alignItems:"center"}}>
+                    <span style={{fontSize:14}}>🔴</span>
+                    <div style={{fontSize:11,color:G.red,fontWeight:600}}>
+                      {bundleErrors.label&&bundleErrors.prixVente?"Nom et Prix vente requis":bundleErrors.label?"Nom / Label requis":"Prix de vente requis"}
+                    </div>
+                  </div>
+                )}
+
+                <button onClick={()=>{
+                  const errs = {};
+                  if(!newBundleForm.label)     errs.label     = true;
+                  if(!newBundleForm.prixVente) errs.prixVente = true;
+                  if(Object.keys(errs).length>0) { setBundleErrors(errs); return; }
+                  setBundleErrors({});
+                  const nb={id:(newProd.bundles||[]).length+1,label:newBundleForm.label,type:newBundleForm.type,qte:parseInt(newBundleForm.qte||2),qteOfferte:parseInt(newBundleForm.qteOfferte||0),prixVente:parseInt(newBundleForm.prixVente),livraisonOfferte:newBundleForm.livraisonOfferte};
+                  setNewProd(p=>({...p,bundles:[...(p.bundles||[]),nb]}));
+                  setNewBundleForm({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
+                }} style={{width:"100%",background:G.gold,color:G.dark,border:"none",borderRadius:9,padding:"9px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                  ✅ Ajouter ce bundle
+                </button>
+              </div>
+            </div>
+
+            <div style={{marginTop:14,display:"flex",gap:8}}>
+              <button onClick={addProduct} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+                Enregistrer le produit
+              </button>
+              <button onClick={()=>{setShowAddProd(false);setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});setProdErrors({});}} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Créer bundel ── */}
+      {showAddBundle&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>🎁 Créer un bundel</div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>Nom du bundel</div>
+              <input type="text" value={newBundle.name} onChange={e=>setNewBundle(p=>({...p,name:e.target.value}))} placeholder="Pack 2 Chaussures"
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Type de bundel</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {[{k:"quantite",l:"📦 Quantité",d:"2u = prix réduit"},{k:"bxgyf",l:"🎁 Buy X Get Y",d:"X achetés + Y offerts"},{k:"kit",l:"🧰 Kit",d:"Produits différents"},{k:"remise_pct",l:"💸 Remise %",d:"% sur le total"}].map(t=>(
+                  <button key={t.k} onClick={()=>setNewBundle(p=>({...p,type:t.k}))}
+                    style={{flex:1,minWidth:100,padding:"8px 6px",borderRadius:9,border:`2px solid ${newBundle.type===t.k?G.green:G.grayLight}`,cursor:"pointer",background:newBundle.type===t.k?G.greenLight:G.white,textAlign:"center"}}>
+                    <div style={{fontSize:12,fontWeight:700,color:newBundle.type===t.k?G.green:G.dark}}>{t.l}</div>
+                    <div style={{fontSize:10,color:G.gray}}>{t.d}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>Produit principal</div>
+              <select value={newBundle.prodNom} onChange={e=>setNewBundle(p=>({...p,prodNom:e.target.value}))}
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
+                <option value="">Sélectionner...</option>
+                {products.map(p=><option key={p.id} value={p.name}>{p.name} (coût: {fmt(p.cost)} F)</option>)}
+              </select>
+            </div>
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{newBundle.type==="bxgyf"?"Quantité achetée (X)":"Quantité dans le bundel"}</div>
+              <input type="number" min="1" value={newBundle.prodQte} onChange={e=>setNewBundle(p=>({...p,prodQte:e.target.value}))} placeholder="2"
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+            </div>
+            {newBundle.type==="bxgyf"&&<div style={{marginBottom:10}}><div style={{fontSize:11,color:G.gray,marginBottom:3}}>Quantité offerte (Y)</div><input type="number" min="1" value={newBundle.qteOfferte} onChange={e=>setNewBundle(p=>({...p,qteOfferte:e.target.value}))} placeholder="1" style={{width:"100%",border:`1.5px solid #EDE9FE`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>}
+            {newBundle.type==="remise_pct"&&<div style={{marginBottom:10}}><div style={{fontSize:11,color:G.gray,marginBottom:3}}>Remise % appliquée</div><input type="number" min="0" max="100" value={newBundle.remisePct} onChange={e=>setNewBundle(p=>({...p,remisePct:e.target.value}))} placeholder="15" style={{width:"100%",border:`1.5px solid #FEE2E2`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Prix de vente bundel (FCFA)</div>
+              <input type="number" value={newBundle.prixVente} onChange={e=>setNewBundle(p=>({...p,prixVente:e.target.value}))} placeholder="40000"
+                style={{width:"100%",border:`2px solid ${G.gold}`,borderRadius:8,padding:"9px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,padding:"10px 12px",background:G.grayLight,borderRadius:10}}>
+              <input type="checkbox" id="livoff2" checked={newBundle.livraisonOfferte} onChange={e=>setNewBundle(p=>({...p,livraisonOfferte:e.target.checked}))} style={{width:18,height:18,cursor:"pointer"}}/>
+              <label htmlFor="livoff2" style={{fontSize:13,color:G.dark,cursor:"pointer",fontWeight:500}}>🚚 Livraison offerte avec ce bundel</label>
+            </div>
+            {newBundle.prixVente&&newBundle.prodNom&&(()=>{
+              const prod=products.find(p=>p.name===newBundle.prodNom);
+              if(!prod) return null;
+              const qr=newBundle.type==="bxgyf"?(parseInt(newBundle.prodQte||2)+parseInt(newBundle.qteOfferte||1)):parseInt(newBundle.prodQte||2);
+              const c=prod.cost*qr,fl=newBundle.livraisonOfferte?0:FRAIS_LIV,m=parseInt(newBundle.prixVente||0)-c-fl;
+              return <div style={{background:m>=0?G.greenLight:"#FEE2E2",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
+                <div style={{fontSize:11,color:G.gray,fontWeight:700}}>APERÇU MARGE</div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><span style={{fontSize:12,color:G.gray}}>Coût ({qr} unités)</span><span style={{fontWeight:700}}>{fmt(c)} FCFA</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:G.gray}}>Frais livraison</span><span style={{fontWeight:700}}>{newBundle.livraisonOfferte?"Offerte":fmt(fl)+" FCFA"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",paddingTop:6,borderTop:`1px solid ${m>=0?"#BBF7D0":"#FCA5A5"}`,marginTop:4}}><span style={{fontSize:13,fontWeight:700}}>Marge nette</span><span style={{fontSize:16,fontWeight:700,color:m>=0?G.green:G.red}}>{fmt(m)} FCFA ({pct(parseInt(newBundle.prixVente||0)>0?m/parseInt(newBundle.prixVente):0)})</span></div>
+              </div>;
+            })()}
+            <button onClick={addBundle} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>Créer le bundel</button>
+            <button onClick={()=>setShowAddBundle(false)} style={{width:"100%",background:"none",border:"none",color:G.gray,padding:8,cursor:"pointer",fontSize:13}}>Annuler</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Paramètres ── */}
+      {showSettings&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:18}}>⚙️ Paramètres</div>
+
+            {/* Compte */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON COMPTE</div>
+              {[
+                {key:"nom",      label:"👤 Ton nom",           ph:"Admin"},
+                {key:"boutique", label:"🏪 Nom de la boutique", ph:settings.boutique||"Ma Boutique Dakar"},
+                {key:"whatsapp", label:"📱 Numéro WhatsApp",    ph:"221 77 123 45 67"},
+              ].map(f=>(
+                <div key={f.key} style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                  <input type="text" value={settings[f.key]} onChange={e=>setSettings(s=>({...s,[f.key]:e.target.value}))} placeholder={f.ph}
+                    style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+              ))}
+            </div>
+
+            {/* Plan */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PLAN</div>
+              <div style={{background:G.greenLight,borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14,color:G.green}}>{settings.plan==="starter"?"🟢 Essentiel":settings.plan==="pro"?"🔵 Pro":"🟣 Business"}</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:2}}>{settings.plan==="starter"?"7.500":settings.plan==="pro"?"15.000":"Sur devis"} FCFA/mois</div>
+                </div>
+                <button style={{background:G.green,color:G.white,border:"none",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Changer</button>
+              </div>
+            </div>
+
+            {/* Équipe */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON ÉQUIPE</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {[...CLOSERS_DATA.map(c=>({nom:c.name,phone:c.phone,role:"closer",icon:"📞"})),...LIVREURS_DATA.map(l=>({nom:l.name,phone:l.phone,role:"livreur",icon:"🏍️"}))].map((m,i)=>(
+                  <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:G.grayLight,borderRadius:10,padding:"9px 12px"}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600}}>{m.icon} {m.nom}</div>
+                      {m.phone&&<div style={{fontSize:11,color:G.gray,marginTop:1}}>📱 {m.phone}</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                      <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
+                      <button onClick={()=>setConfirmModal({
+                        msg:`Retirer ${m.nom} de l'équipe ?`,
+                        sub:"Le membre perdra l'accès immédiatement.",
+                        danger:true,
+                        onConfirm:()=>addToast(`${m.nom} retiré de l'équipe`,"✅",G.green)
+                      })} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>
+                        🗑️
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:10,display:"flex",gap:6}}>
+                {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                  <button key={r.role} onClick={()=>{
+                    const token = Math.random().toString(36).substring(2,10).toUpperCase();
+                    const link = `https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                    const msg = `Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`;
+                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
+                  }} style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                    {r.label} 📲
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Permissions Closer */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>ACCÈS CLOSER</div>
+              {[
+                {key:"closerCompta", label:"📊 Accès Comptabilité", desc:"Le Closer peut voir les revenus et bénéfices"},
+              ].map(n=>(
+                <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.label}</div>
+                    <div style={{fontSize:11,color:G.gray,marginTop:1}}>{n.desc}</div>
+                  </div>
+                  <button onClick={()=>setSettings(s=>({...s,[n.key]:!s[n.key]}))}
+                    style={{background:settings[n.key]?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0}}>
+                    <div style={{position:"absolute",top:2,left:settings[n.key]?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Déconnexion */}
+            <button onClick={()=>{setShowSettings(false);setRole(null);}}
+              style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
+              🚪 Se déconnecter
+            </button>
+            <button onClick={()=>setShowSettings(false)} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              ✅ Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: GPS Prompt Livreur ── */}
+      {showGpsPrompt&&role==="livreur"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:28,width:"100%",maxWidth:480}}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:52,marginBottom:10}}>📍</div>
+              <div style={{fontWeight:800,fontSize:18,color:G.dark,marginBottom:6}}>Activer le GPS ?</div>
+              <div style={{fontSize:13,color:G.gray,lineHeight:1.6}}>
+                L'Admin peut suivre vos livraisons en temps réel.<br/>
+                Votre position ne sera partagée que pendant les livraisons.
+              </div>
+            </div>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={()=>{
+                setShowGpsPrompt(false);
+                setTab("position");
+              }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                <span style={{fontSize:20}}>📍</span> Activer le GPS
+              </button>
+              <button onClick={()=>setShowGpsPrompt(false)}
+                style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:14,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+                Plus tard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Nouvelle livraison assignée (Livreur) ── */}
+      {newAssignment&&role==="livreur"&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:G.white,borderRadius:"24px 24px 0 0",padding:28,width:"100%",maxWidth:480,boxShadow:"0 -8px 40px rgba(0,0,0,0.3)"}}>
+            {/* Header */}
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+              <div style={{background:G.greenLight,borderRadius:"50%",width:52,height:52,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>
+                📦
+              </div>
+              <div>
+                <div style={{fontWeight:800,fontSize:18,color:G.dark}}>Nouvelle livraison !</div>
+                <div style={{fontSize:12,color:G.gray,marginTop:2}}>Une commande vient de t'être assignée</div>
+              </div>
+            </div>
+
+            {/* Détails commande */}
+            <div style={{background:G.grayLight,borderRadius:14,padding:"14px 16px",marginBottom:20}}>
+              <div style={{fontWeight:700,fontSize:16,color:G.dark,marginBottom:10}}>{newAssignment.client}</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:14}}>📍</span>
+                  <span style={{fontSize:13,color:G.dark}}>{newAssignment.address}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:14}}>📱</span>
+                  <span style={{fontSize:13,color:G.dark}}>{newAssignment.phone}</span>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:14}}>📦</span>
+                  <span style={{fontSize:13,color:G.dark}}>{newAssignment.product}</span>
+                </div>
+              </div>
+              <div style={{background:G.green,borderRadius:10,padding:"10px 14px",marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Montant COD</span>
+                <span style={{fontSize:24,fontWeight:800,color:G.gold}}>{Number(newAssignment.price).toLocaleString("fr-FR")} FCFA</span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={()=>{
+                upSt(newAssignment.id,"en_camino");
+                addToast("En route vers "+newAssignment.client+" 🏍️","🏍️",G.green);
+                setNewAssignment(null);
+              }} style={{background:G.green,color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:17,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+                <span style={{fontSize:22}}>✅</span> Accepter & Partir
+              </button>
+              <button onClick={()=>{
+                // Refus — remet la commande sans livreur
+                setOrders(o=>o.map(x=>x.id===newAssignment.id?{...x,livreur:null,status:"confirmado"}:x));
+                addToast("Livraison refusée","❌",G.red);
+                setNewAssignment(null);
+              }} style={{background:G.redLight,color:G.red,border:"none",borderRadius:14,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                Refuser cette livraison
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: WhatsApp ── */}
+      {showWA&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:G.white,borderRadius:20,padding:24,maxWidth:320,width:"100%"}}>
+            <div style={{fontSize:40,textAlign:"center",marginBottom:10}}>📲</div>
+            <div style={{fontWeight:700,fontSize:15,textAlign:"center",marginBottom:4}}>Envoyer le message</div>
+            <div style={{fontSize:12,color:G.gray,textAlign:"center",marginBottom:20}}>Choisissez comment envoyer la confirmation au client</div>
+
+            {/* Option 1 — Ouvrir WhatsApp */}
+            <a href={waUrl} target="_blank" rel="noreferrer"
+              style={{display:"flex",alignItems:"center",gap:10,background:"#25D366",color:G.white,borderRadius:12,padding:"13px 16px",textDecoration:"none",fontWeight:700,fontSize:14,marginBottom:10}}>
+              <span style={{fontSize:22}}>💬</span>
+              <div>
+                <div>Ouvrir WhatsApp</div>
+                <div style={{fontSize:10,fontWeight:400,opacity:0.85}}>Ouvre l'app sur votre téléphone</div>
+              </div>
+            </a>
+
+            {/* Option 2 — Copier le message */}
+            <button onClick={()=>{
+              const text = new URL(waUrl).searchParams.get("text")||"";
+              navigator.clipboard?.writeText(decodeURIComponent(text))
+                .then(()=>alert("✅ Message copié ! Colle-le dans WhatsApp."))
+                .catch(()=>alert("Copie manuelle:\n\n"+decodeURIComponent(new URL(waUrl).searchParams.get("text")||"")));
+            }} style={{width:"100%",background:"#F0FDF4",color:G.green,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:10}}>
+              📋 Copier le message
+            </button>
+
+            <button onClick={()=>setShowWA(false)}
+              style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:10,fontSize:13,cursor:"pointer"}}>
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Modifier commande ── */}
+      {editOrder&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16}}>✏️ Modifier la commande #{editOrder.id}</div>
+
+            {[
+              {key:"client",  label:"👤 Nom client",  ph:"Moussa Diallo",    type:"text"},
+              {key:"phone",   label:"📱 Téléphone",    ph:"77 123 45 67",     type:"text"},
+              {key:"address", label:"📍 Adresse",      ph:"Médina, Dakar",    type:"text"},
+              {key:"product", label:"📦 Produit",      ph:"Chaussures Nike",  type:"text"},
+              {key:"price",   label:"💰 Prix COD (FCFA)", ph:"25000",         type:"number"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            ))}
+
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                {Object.entries(STATUS).map(([k,v])=>(
+                  <button key={k} onClick={()=>setEditOrder(p=>({...p,status:k}))}
+                    style={{background:editOrder.status===k?v.bg:"#F4F4F4",color:editOrder.status===k?v.color:G.gray,border:`2px solid ${editOrder.status===k?v.color:G.grayLight}`,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{marginBottom:12}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Livreur</div>
+              <select value={editOrder.livreur||""} onChange={e=>setEditOrder(p=>({...p,livreur:e.target.value||null}))}
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
+                <option value="">Sans livreur</option>
+                {LIVREURS.map(l=><option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📝 Note</div>
+              <textarea value={editOrder.note||""} onChange={e=>setEditOrder(p=>({...p,note:e.target.value}))} placeholder="Note optionnelle..."
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:10,fontSize:13,outline:"none",minHeight:60,resize:"none",boxSizing:"border-box"}}/>
+            </div>
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{
+                setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...editOrder,price:parseInt(editOrder.price)||x.price}:x));
+                setEditOrder(null);
+              }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                ✅ Enregistrer
+              </button>
+              <button onClick={()=>setConfirmModal({
+                  msg:"Supprimer cette commande définitivement ?",
+                  sub:"Cette action est irréversible.",
+                  danger:true,
+                  onConfirm:()=>{ setOrders(o=>o.filter(x=>x.id!==editOrder.id)); setEditOrder(null); }
+                })} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"12px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                🗑️
+              </button>
+              <button onClick={()=>setEditOrder(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Modifier produit ── */}
+      {editProd&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:4}}>✏️ Modifier le produit</div>
+            <div style={{fontSize:11,color:G.gray,marginBottom:16}}>{editProd.name}</div>
+
+            {[
+              {key:"name",     label:"📦 Nom du produit *",           type:"text",   ph:"Chaussures Nike"},
+              {key:"cost",     label:"💰 Prix de revient (FCFA) *",   type:"number", ph:"7000"},
+              {key:"price",    label:"💰 Prix de vente (FCFA) *",     type:"number", ph:"25000"},
+              {key:"fraisLiv", label:"🏍️ Frais livraison (FCFA) *",  type:"number", ph:"1500"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                <input type={f.type} value={editProd[f.key]||""} onChange={e=>setEditProd(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            ))}
+
+            {/* Niche */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🎯 Niche de produit *</div>
+              <input type="text" value={editProd.niche||""} onChange={e=>setEditProd(p=>({...p,niche:e.target.value}))} placeholder="Mode, Beauté..."
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:6}}>
+                {["Mode & Vêtements","Chaussures","Beauté & Cosmétiques","Électronique","Téléphones","Maison & Déco","Sport & Fitness","Santé","Enfants & Jouets","Montres & Bijoux","Alimentation"].filter(n=>!editProd.niche||n.toLowerCase().includes((editProd.niche||"").toLowerCase())).slice(0,8).map(n=>(
+                  <button key={n} onClick={()=>setEditProd(p=>({...p,niche:n}))}
+                    style={{background:editProd.niche===n?G.green:G.grayLight,color:editProd.niche===n?G.white:G.dark,border:"none",borderRadius:20,padding:"3px 10px",fontSize:11,cursor:"pointer"}}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Stock direct */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Ajuster stock actuel</div>
+              <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                <input type="number" min="0" value={editProd.stock||0} onChange={e=>setEditProd(p=>({...p,stock:e.target.value,stockInitial:e.target.value}))}
+                  style={{flex:1,border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                <span style={{fontSize:11,color:G.gray}}>unités</span>
+              </div>
+            </div>
+
+            {/* Aperçu marge */}
+            {editProd.cost&&editProd.price&&(
+              <div style={{background:G.greenLight,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:12,color:G.gray}}>Marge / unité</span>
+                <span style={{fontSize:14,fontWeight:700,color:G.green}}>
+                  {fmt(parseInt(editProd.price||0)-parseInt(editProd.cost||0)-(parseInt(editProd.fraisLiv||1500)))} FCFA
+                </span>
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{
+                setProducts(p=>p.map(x=>x.id===editProd.id?{
+                  ...x,
+                  name:editProd.name||x.name,
+                  cost:parseInt(editProd.cost)||x.cost,
+                  price:parseInt(editProd.price)||x.price,
+                  fraisLiv:parseInt(editProd.fraisLiv)||x.fraisLiv,
+                  niche:editProd.niche||x.niche,
+                  stock:parseInt(editProd.stock)||x.stock,
+                  stockInitial:parseInt(editProd.stock)||x.stockInitial,
+                }:x));
+                setEditProd(null);
+              }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                ✅ Enregistrer
+              </button>
+              <button onClick={()=>{
+                setConfirmModal({
+                  msg:`Supprimer "${editProd.name}" ?`,
+                  sub:"Stock et historique supprimés définitivement.",
+                  danger:true,
+                  onConfirm:()=>{ 
+                    setProducts(p=>p.filter(x=>x.id!==editProd.id));
+                    if(!String(editProd.id).startsWith("tmp_")) sbFetch(`products?id=eq.${editProd.id}`,"PATCH",{archived:true},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                    setEditProd(null);
+                  }
+                })
+  }} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"12px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                🗑️ Supprimer
+              </button>
+              <button onClick={()=>setEditProd(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Détail commande ── */}
+      {orderDetail&&(()=>{
+        const o=orderDetail;
+        const st=STATUS[o.status]||STATUS.pendiente;
+        const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
+        const icons=["✅","🏍️","📦","🚀","📍","✓"];
+        const cur=steps.indexOf(o.status);
+        const isEntregado=o.status==="entregado";
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOrderDetail(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+              <div style={{width:40,height:4,background:G.grayLight,borderRadius:2,margin:"0 auto 20px"}}/>
+              <div style={{background:st.bg,borderRadius:14,padding:16,textAlign:"center",marginBottom:16,border:`2px solid ${st.color}`}}>
+                <div style={{fontSize:32,marginBottom:4}}>{isEntregado?"✅":o.status==="rechazado"?"❌":o.status==="en_camino"?"🚀":o.status==="chez_client"?"📍":"📦"}</div>
+                <div style={{fontSize:18,fontWeight:800,color:st.color}}>{st.label}</div>
+                {isEntregado&&<div style={{fontSize:13,color:G.green,marginTop:4,fontWeight:600}}>💵 Cash encaissé</div>}
+              </div>
+              {cur>=0&&(
+                <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
+                  {icons.map((ico,i)=>{
+                    const done=isEntregado||i<cur; const active=!isEntregado&&i===cur;
+                    return (
+                      <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
+                        <div style={{width:30,height:30,borderRadius:"50%",background:done?G.green:active?"#F0A500":G.grayLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?14:11,color:done||active?G.white:"#9CA3AF",flexShrink:0,fontWeight:800,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`}}>
+                          {i===5?"✓":ico}
+                        </div>
+                        {i<5&&<div style={{flex:1,height:3,background:done?G.green:G.grayLight,borderRadius:2}}/>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{marginBottom:14}}>
+                <div style={{fontWeight:800,fontSize:20,color:G.dark,marginBottom:8}}>{o.client}</div>
+                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,textDecoration:"none"}}>
+                  <span style={{fontSize:16}}>📱</span><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
+                </a>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{o.address}</span>
+                </div>
+              </div>
+              <div style={{background:G.greenLight,borderRadius:12,padding:"14px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontSize:11,color:G.gray}}>📦 Produit</div>
+                  <div style={{fontSize:15,fontWeight:700,color:G.dark,marginTop:2}}>{o.product}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:11,color:G.gray}}>Montant COD</div>
+                  <div style={{fontSize:24,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:14}}>
+                {o.closer&&<div style={{flex:1,background:"#EFF6FF",borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Closer</div><div style={{fontSize:13,fontWeight:700,color:G.blue}}>📞 {o.closer}</div></div>}
+                {o.livreur&&<div style={{flex:1,background:G.greenLight,borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Livreur</div><div style={{fontSize:13,fontWeight:700,color:G.green}}>🏍️ {o.livreur}</div></div>}
+              </div>
+              {o.note&&<div style={{background:"#FFF8E7",borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:13,color:G.dark}}>📝 {o.note}</div>}
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+                  style={{background:G.green,color:G.white,borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                  📞 Appeler le client
+                </a>
+                {(role==="admin"||(role==="closer"&&settings.closerModify))&&(
+                  <button onClick={()=>{setOrderDetail(null);setEditOrder({...o});}}
+                    style={{width:"100%",background:"#EFF6FF",color:G.blue,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
+                    ✏️ Modifier la commande
+                  </button>
+                )}
+                {role==="admin"&&(
+                  <button onClick={()=>{setOrderDetail(null);setConfirmModal({msg:`Supprimer la commande de ${o.client} ?`,sub:"Action irréversible.",danger:true,onConfirm:()=>setOrders(p=>p.filter(x=>x.id!==o.id))});}}
+                    style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                    🗑️ Supprimer la commande
+                  </button>
+                )}
+                <button onClick={()=>setOrderDetail(null)}
+                  style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:12,padding:"13px 0",fontWeight:600,fontSize:14,cursor:"pointer"}}>
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── MODAL: Confirmation ── */}
+      {confirmModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{background:G.white,borderRadius:20,padding:28,maxWidth:320,width:"100%",textAlign:"center"}}>
+            <div style={{fontSize:44,marginBottom:12}}>{confirmModal.danger?"🗑️":"❓"}</div>
+            <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:6}}>{confirmModal.msg}</div>
+            {confirmModal.sub&&<div style={{fontSize:12,color:G.gray,marginBottom:20}}>{confirmModal.sub}</div>}
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={()=>{confirmModal.onConfirm();setConfirmModal(null);}}
+                style={{background:confirmModal.danger?G.red:G.green,color:G.white,border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:15,cursor:"pointer"}}>
+                {confirmModal.danger?"Oui, supprimer":"Confirmer"}
+              </button>
+              <button onClick={()=>setConfirmModal(null)}
+                style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Note ── */}
+      {noteModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto"}}>
+            <div style={{fontWeight:700,fontSize:15,color:G.green,marginBottom:10}}>📝 Note commande</div>
+            <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Ex: Client demande livraison avant 14h..."
+              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:12,fontSize:13,outline:"none",minHeight:80,resize:"none",boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:8,marginTop:10}}>
+              <button onClick={()=>{setOrders(orders.map(o=>o.id===noteModal?{...o,note:noteText}:o));if(!String(noteModal).startsWith("tmp_"))sbFetch(`orders?id=eq.${noteModal}`,"PATCH",{note:noteText},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");setNoteModal(null);}} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,cursor:"pointer"}}>Sauvegarder</button>
+              <button onClick={()=>setNoteModal(null)} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer"}}>Annuler</button>
+            </div>
+          </div>
         </div>
       )}
     </div>
   );
 }
 
-function LivreurDeliveries({ orders, usr, updSt }) {
-  const [flt, setFlt] = useState("shipped");
-  const mine = orders.filter(o=>o.livreur===usr&&(flt==="all"||o.status===flt));
+export default function App() {
   return (
-    <div className="p-6 space-y-4">
-      <div><h1 className="text-2xl font-bold text-gray-800">Mes livraisons</h1><p className="text-gray-500 text-sm mt-1">{mine.length} commande(s)</p></div>
-      <div className="flex gap-2 flex-wrap">
-        {[["all","Toutes"],["shipped","Expédiées"],["delivered","Livrées"],["returned","Retours"]].map(([k,v])=>(
-          <button key={k} onClick={()=>setFlt(k)} className={`px-3 py-1.5 rounded-lg text-sm transition-all ${flt===k?"bg-emerald-600 text-white":"bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{v}</button>
-        ))}
-      </div>
-      <div className="space-y-3">
-        {mine.map(o=><DelivCard key={o.id} order={o} updSt={updSt} />)}
-        {mine.length===0 && <div className="text-center py-12 text-gray-400">Aucune livraison</div>}
-      </div>
-    </div>
-  );
-}
-
-function DelivCard({ order, updSt }) {
-  return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <div className="flex items-center gap-2"><span className="font-mono text-xs text-gray-400">{order.id}</span><Badge status={order.status} /></div>
-          <p className="font-semibold text-gray-800 mt-1">{order.client}</p>
-          <p className="text-sm text-gray-500">{order.phone} · {order.city}</p>
-        </div>
-        <p className="font-bold text-emerald-600">{order.price.toLocaleString()} F</p>
-      </div>
-      <div className="text-xs text-gray-400 mb-3">💳 Paiement à la livraison{order.note&&` · 📝 ${order.note}`}</div>
-      {order.status==="shipped" && (
-        <div className="flex gap-2">
-          <button onClick={()=>updSt(order.id,"delivered")} className="flex-1 bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1"><IC n="check" c="w-4 h-4" /> Livré ✓</button>
-          <button onClick={()=>updSt(order.id,"returned")} className="flex-1 bg-red-100 hover:bg-red-200 text-red-600 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1"><IC n="x" c="w-4 h-4" /> Retour</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function Teamly() {
-  const [role, setRole] = useState(null);
-  const [usr, setUsr] = useState(null);
-  const [view, setView] = useState("dashboard");
-  const [products, setProducts] = useState(PRODUCTS);
-  const [orders, setOrders] = useState(INIT_ORDERS);
-  const [toasts, setToasts] = useState([]);
-  const toastRef = useRef(null);
-  const addToast = (msg, type = 'info', icon = '🔔') => {
-    const id = Date.now() + Math.random();
-    setToasts(p => [...p, { id, msg, type, icon }]);
-    setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 4500);
-  };
-  toastRef.current = addToast;
-
-  // Sesión persistente: restaurar login al recargar la página
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) loadProfile(session.user.id);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) loadProfile(session.user.id);
-      else { setRole(null); setUsr(null); }
-    });
-    return () => subscription.unsubscribe();
-  }, []); // eslint-disable-line
-
-  const loadProfile = async (userId) => {
-    const { data } = await supabase.from('profiles').select('role, name').eq('id', userId).single();
-    if (data) { setRole(data.role); setUsr(data.name); setView('dashboard'); }
-  };
-
-  // Carga inicial de datos + suscripciones en tiempo real
-  useEffect(() => {
-    async function load() {
-      const [{ data: ord }, { data: prod }] = await Promise.all([
-        supabase.from('orders').select('*').order('date', { ascending: false }),
-        supabase.from('products').select('*').order('id'),
-      ]);
-      if (ord?.length)  setOrders(ord.map(fromDb));
-      if (prod?.length) setProducts(prod);
-    }
-    load();
-
-    // Realtime: pedidos
-    const STATUS_TOASTS = {
-      delivered: { type: 'success', icon: '✅', msg: (r) => `Livré: ${r.client} · ${r.city}` },
-      returned:  { type: 'error',   icon: '↩️', msg: (r) => `Retour: ${r.client} · ${r.city}` },
-      shipped:   { type: 'info',    icon: '🚚', msg: (r) => `Expédié: ${r.client} → ${r.livreur || '?'}` },
-      confirmed: { type: 'info',    icon: '📞', msg: (r) => `Confirmé: ${r.client} · ${r.city}` },
-    };
-    const ordChannel = supabase
-      .channel('orders-realtime')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' },
-        ({ new: row }) => {
-          setOrders(prev => [fromDb(row), ...prev]);
-          toastRef.current(`📦 Nouveau: ${row.client} · ${row.city}`, 'info', '📦');
-        }
-      )
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' },
-        ({ new: row }) => {
-          setOrders(prev => prev.map(o => o.id === row.id ? fromDb(row) : o));
-          const t = STATUS_TOASTS[row.status];
-          if (t) toastRef.current(t.msg(row), t.type, t.icon);
-        }
-      )
-      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'orders' },
-        ({ old: row }) => setOrders(prev => prev.filter(o => o.id !== row.id))
-      )
-      .subscribe();
-
-    // Realtime: productos (stock)
-    const prodChannel = supabase
-      .channel('products-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' },
-        ({ new: row }) => {
-          setProducts(prev => prev.map(p => p.id === row.id ? row : p));
-          if (row.stock <= 5) toastRef.current(`⚠️ Stock bas: ${row.name} (${row.stock} restants)`, 'warning', '⚠️');
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(ordChannel);
-      supabase.removeChannel(prodChannel);
-    };
-  }, []);
-
-  const updSt = async (id, st, lv) => {
-    setOrders(os => os.map(x => x.id === id ? { ...x, status: st, ...(lv !== undefined ? { livreur: lv } : {}) } : x));
-    const upd = { status: st };
-    if (lv !== undefined) upd.livreur = lv;
-    await supabase.from('orders').update(upd).eq('id', id);
-  };
-
-  const addOrder = async (o) => {
-    setOrders(prev => [o, ...prev]);
-    await supabase.from('orders').insert([toDb(o)]);
-  };
-
-  const saveStock = async (id, stock) => {
-    setProducts(ps => ps.map(x => x.id === id ? { ...x, stock } : x));
-    await supabase.from('products').update({ stock }).eq('id', id);
-  };
-
-  if (!role) return <Login />;
-
-  const renderView = () => {
-    if (role==="admin") {
-      if (view==="dashboard") return <AdminDashboard orders={orders} products={products} />;
-      if (view==="orders") return <OrdersView orders={orders} products={products} setOrderStatus={updSt} role="admin" />;
-      if (view==="stock") return <StockView products={products} setProducts={setProducts} onSaveStock={saveStock} />;
-      if (view==="compta") return <ComptaView orders={orders} setOrders={setOrders} products={products} />;
-      if (view==="clients") return <ClientsView orders={orders} />;
-    }
-    if (role==="closer") {
-      if (view==="dashboard") return <CloserDashboard orders={orders} usr={usr} products={products} />;
-      if (view==="new_order") return <NewOrderView products={products} closer={usr} addOrder={addOrder} />;
-      if (view==="orders") return <OrdersView orders={orders} products={products} setOrderStatus={()=>{}} role="closer" filterCloser={usr} />;
-    }
-    if (role==="livreur") {
-      if (view==="dashboard") return <LivreurDashboard orders={orders} usr={usr} updSt={updSt} />;
-      if (view==="deliveries") return <LivreurDeliveries orders={orders} usr={usr} updSt={updSt} />;
-    }
-    return null;
-  };
-
-  const pendingCount = orders.filter(o => ['pending', 'confirmed'].includes(o.status)).length;
-
-  return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <ToastContainer toasts={toasts} />
-      <Sidebar role={role} view={view} setView={setView} usr={usr} pendingCount={pendingCount}
-        onLogout={async () => { await supabase.auth.signOut(); }} />
-      <main className="flex-1 overflow-y-auto">{renderView()}</main>
-    </div>
+    <ErrorBoundary>
+      <AppInner />
+    </ErrorBoundary>
   );
 }
