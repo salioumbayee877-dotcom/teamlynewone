@@ -285,7 +285,9 @@ function MapView({positions, role}) {
   }, [positions]);
 
   return (
-    <div ref={containerRef} style={{height:260, width:"100%", borderRadius:12, overflow:"hidden", background:"#E8F4F8"}}/>
+    <div style={{position:"relative", isolation:"isolate", borderRadius:12, overflow:"hidden"}}>
+      <div ref={containerRef} style={{height:260, width:"100%", background:"#E8F4F8"}}/>
+    </div>
   );
 }
 
