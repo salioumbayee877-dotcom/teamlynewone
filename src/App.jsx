@@ -590,7 +590,7 @@ function AppInner() {
   const [sbToken,setSbToken]             = useState(null);  // JWT token
   const [orgId,setOrgId]                 = useState(null);
   const [sbReady,setSbReady]             = useState(false);
-  const [currentUser,setCurrentUser]     = useState({nom:"",email:"",role:"admin"});
+  const [currentUser,setCurrentUser]     = useState({id:"",nom:"",email:"",role:"admin"});
   const [teamMembers,setTeamMembers]     = useState([]);
   const [dbNotifs,setDbNotifs]           = useState([]); // from Supabase notifications table
   const [appLoading,setAppLoading]       = useState(()=>{
@@ -657,18 +657,22 @@ function AppInner() {
     // Save to Supabase
     if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upSt error:",e));
   };
-  const upLiv = (id,l) => {
-    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:l,status:"en_camino"}:x));
+  const upLiv = (id, livId) => {
+    const mem = teamMembers.find(m=>m.id===livId);
+    const livName = mem?.nom || livId;
+    setOrders(o=>o.map(x=>x.id===id?{...x,livreur:livName,livreur_id:livId,status:"en_camino"}:x));
     const order = orders.find(x=>x.id===id);
     if(order) {
-      addToast(`${order.client} assigné à ${l} 🏍️`, "🏍️", G.green);
-      if(l===currentUser.nom) setTimeout(()=>setNewAssignment(order),500);
+      addToast(`${order.client} assigné à ${livName} 🏍️`, "🏍️", G.green);
+      if(livId===currentUser.id) setTimeout(()=>setNewAssignment(order),500);
     }
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:l,status:"en_camino"},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upLiv error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId,status:"en_camino"},SERVICE_KEY_CONST).catch(e=>console.error("upLiv error:",e));
   };
-  const upClo = (id,cl) => {
-    setOrders(o=>o.map(x=>x.id===id?{...x,closer:cl}:x));
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:cl},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upClo error:",e));
+  const upClo = (id, clId) => {
+    const mem = teamMembers.find(m=>m.id===clId);
+    const clName = mem?.nom || clId;
+    setOrders(o=>o.map(x=>x.id===id?{...x,closer:clName,closer_id:clId}:x));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:clName,closer_id:clId},SERVICE_KEY_CONST).catch(e=>console.error("upClo error:",e));
   };
   const addToast = (msg, icon="ℹ️", color=G.green) => {
     const id = Date.now();
@@ -717,7 +721,7 @@ function AppInner() {
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
             } catch(e){}
-            setCurrentUser({nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
+            setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
             setRole(p.role||"admin");
             setTab("dashboard");
             setAppLoading(false);
@@ -743,14 +747,16 @@ function AppInner() {
     if(!sbReady||!orgId) return; // sbToken not needed - using service key
     const load = async() => {
       try {
-        const [ords, prods, msgs] = await Promise.all([
-          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
-          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
-          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=50`, "GET", null, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo"),
+        const [ords, prods, msgs, mems] = await Promise.all([
+          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, SERVICE_KEY_CONST),
+          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, SERVICE_KEY_CONST),
+          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=50`, "GET", null, SERVICE_KEY_CONST),
+          sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`, "GET", null, SERVICE_KEY_CONST),
         ]);
-        if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv})));
+        if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id})));
         if(prods) setProducts(prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial})));
         if(msgs)  setChat(msgs.map(m=>({from:m.from_user,text:m.text,audio:m.audio,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})));
+        if(mems)  setTeamMembers(mems);
       } catch(e) { console.error("Supabase load error:", e.message, e); }
     };
     load();
@@ -809,9 +815,8 @@ function AppInner() {
   },[orders, role]);
 
   const prendre = id => {
-    const name = currentUser.nom || (role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
-    upClo(id,name);
-    addToast(`Pris en charge par ${name}`, "✋", G.gold);
+    upClo(id, currentUser.id);
+    addToast(`Pris en charge par ${currentUser.nom}`, "✋", G.gold);
   };
 
   const addOrder = wa => {
@@ -831,10 +836,11 @@ function AppInner() {
       price = 0; productLabel = "";
     }
     const tempId = "tmp_" + Date.now();
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:newOrder.livreur?"en_camino":"confirmado",livreur:newOrder.livreur||null,closer:role==="closer"?currentUser.nom:null,note:"",isBundle:!!bund};
+    const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:newOrder.livreur?"en_camino":"confirmado",livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
     setOrders(o=>[...o,order]);
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,closer:order.closer||null,note:order.note||"",is_bundle:order.isBundle||false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false},SERVICE_KEY_CONST)
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) {
@@ -920,8 +926,8 @@ function AppInner() {
   const enRoute = orders.filter(o=>o.status==="en_camino").length;
   const revenus = orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
   const taux    = orders.length>0?Math.round(livres/orders.length*100):0;
-  const myLiv   = orders.filter(o=>o.livreur===currentUser.nom);
-  const myClo   = role==="closer" ? orders : orders.filter(o=>o.closer===currentUser.nom);
+  const myLiv   = orders.filter(o=>o.livreur_id===currentUser.id);
+  const myClo   = role==="closer" ? orders : orders.filter(o=>o.closer_id===currentUser.id);
 
   // ── compta par produit ──
   const calcProd = products.map(prod=>{
@@ -1028,14 +1034,14 @@ function AppInner() {
               <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
                 style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
                 <option value="">🏍️ Assigner un livreur...</option>
-                {LIVREURS.map(l=><option key={l}>{l}</option>)}
+                {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
               </select>
             )}
             {o.livreur&&o.status==="en_camino"&&(
               <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
                 style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
                 <option value="">🔄 Changer livreur...</option>
-                {LIVREURS.filter(l=>l!==o.livreur).map(l=><option key={l}>{l}</option>)}
+                {teamMembers.filter(m=>m.role==="livreur"&&m.id!==o.livreur_id).map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
               </select>
             )}
           </div>
@@ -1258,7 +1264,7 @@ function AppInner() {
           // Set REAL UUID - critical for invite links
           setOrgId(orgData.id);
           setSbReady(true);
-          setCurrentUser({nom:authForm.nom,email:authForm.email,role:"admin"});
+          setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:"admin"});
           setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
           setOrg({id:orgData.id,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
           try{localStorage.setItem("teamly_org",orgData.id);}catch(e){}
@@ -1346,7 +1352,7 @@ function AppInner() {
                       const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
                       const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
                       setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
-                      setCurrentUser({nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
+                      setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
                       setRole(p.role||"admin");
                       setTab("dashboard");
                       try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
@@ -1717,7 +1723,7 @@ function AppInner() {
                     role:detectedRole
                   },"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
                   // Set state
-                  setCurrentUser({nom:authForm.nom,email:authForm.email,role:detectedRole});
+                  setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:detectedRole});
                   setOrgId(detectedOrg);
                   setSbReady(true);
                   // Save session
@@ -1783,7 +1789,7 @@ function AppInner() {
 
   // ── Filtered orders ──
   const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
-  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur===currentUser.nom) : allOrders;
+  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id) : allOrders;
   const filteredOrders = baseOrders.filter(o=>{
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
@@ -1874,7 +1880,7 @@ function AppInner() {
 
           {role==="admin"&&(
             <div style={{display:"flex",gap:6,overflowX:"auto"}}>
-              {["all",...LIVREURS].map(l=>(
+              {["all",...teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom)].map(l=>(
                 <button key={l} onClick={()=>setFilterLivreur(l)}
                   style={{background:filterLivreur===l?G.greenMid:"#F4F4F4",color:filterLivreur===l?G.white:G.gray,border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
                   {l==="all"?"Tous livreurs":"🏍️ "+l}
@@ -2017,8 +2023,8 @@ function AppInner() {
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>👥 PERFORMANCE ÉQUIPE</ST>
               <Tbl headers={["Nom","Rôle","Cmd","Livrées","Rejetées"]} align={["left","left","right","right","right"]}
-                rows={[...CLOSERS.map(c=>{const all=orders.filter(o=>o.closer===c);return [c,"📞",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];}),
-                       ...LIVREURS.map(l=>{const all=orders.filter(o=>o.livreur===l);return [l,"🏍️",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];})]}
+                rows={[...teamMembers.filter(m=>m.role==="closer").map(m=>{const all=orders.filter(o=>o.closer_id===m.id);return [m.nom,"📞",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];}),
+                       ...teamMembers.filter(m=>m.role==="livreur").map(m=>{const all=orders.filter(o=>o.livreur_id===m.id);return [m.nom,"🏍️",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];})]}
               />
             </div>
           </div>
@@ -2035,7 +2041,7 @@ function AppInner() {
             </div>
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>🏍️ LIVREURS</ST>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{LIVREURS.map(l=>{const busy=orders.filter(o=>o.livreur===l&&o.status==="en_camino").length;return <div key={l} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {l} {busy>0?`(${busy} en route)`:"· Dispo"}</div>;})}</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{teamMembers.filter(m=>m.role==="livreur").map(m=>{const busy=orders.filter(o=>o.livreur_id===m.id&&o.status==="en_camino").length;return <div key={m.id} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {m.nom} {busy>0?`(${busy} en route)`:"· Dispo"}</div>;})}</div>
             </div>
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>📋 MES COMMANDES</ST>
@@ -2392,11 +2398,13 @@ function AppInner() {
             {/* Liste livreurs avec leurs livraisons actives */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
-              {LIVREURS.map((name,i)=>{
-                const active = orders.filter(o=>o.livreur===name&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
+              {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
+                const name=m.nom;
+                const active = orders.filter(o=>o.livreur_id===m.id&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
                 const pos = livreurPositions[name];
+                const livreurs=teamMembers.filter(x=>x.role==="livreur");
                 return (
-                  <div key={i} style={{padding:"10px 0",borderBottom:i<LIVREURS.length-1?`1px solid ${G.grayLight}`:"none"}}>
+                  <div key={i} style={{padding:"10px 0",borderBottom:i<livreurs.length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:active.length>0?6:0}}>
                       <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🏍️ {name}</div>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -2562,7 +2570,7 @@ function AppInner() {
                   {teamMembers.filter(m=>m.role==="closer").map((m,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.name}</div>
+                        <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.nom}</div>
                         <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
                       </div>
                       <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
@@ -2578,12 +2586,12 @@ function AppInner() {
                   {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13,color:m.name==="Ibou"?G.green:G.dark}}>
-                          🏍️ {m.name} {m.name==="Ibou"&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
+                        <div style={{fontWeight:700,fontSize:13,color:m.id===currentUser.id?G.green:G.dark}}>
+                          🏍️ {m.nom} {m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
                         </div>
                         <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
                       </div>
-                      {m.name!=="Ibou"&&(
+                      {m.id!==currentUser.id&&(
                         <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
                           📞 Appeler
                         </a>
@@ -2614,17 +2622,17 @@ function AppInner() {
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📞 CLOSERS</div>
               {teamMembers.filter(m=>m.role==="closer").map((m,i)=>{
-                const all=orders.filter(o=>o.closer===m.name);
+                const all=orders.filter(o=>o.closer_id===m.id);
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.name}</div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.nom}</div>
                         <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
-                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.name} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
+                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
                     </div>
@@ -2644,19 +2652,19 @@ function AppInner() {
             {/* Livreurs */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
-              {LIVREURS_DATA.map((m,i)=>{
-                const all=orders.filter(o=>o.livreur===m.name);
+              {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
+                const all=orders.filter(o=>o.livreur_id===m.id);
                 const gains=all.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {m.name}</div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {m.nom}</div>
                         <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
-                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.name} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
+                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
                     </div>
@@ -3576,7 +3584,7 @@ function AppInner() {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON ÉQUIPE</div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {[...CLOSERS_DATA.map(c=>({nom:c.name,phone:c.phone,role:"closer",icon:"📞"})),...LIVREURS_DATA.map(l=>({nom:l.name,phone:l.phone,role:"livreur",icon:"🏍️"}))].map((m,i)=>(
+                {teamMembers.map((m,i)=>({...m,icon:m.role==="closer"?"📞":"🏍️"})).map((m,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:G.grayLight,borderRadius:10,padding:"9px 12px"}}>
                     <div>
                       <div style={{fontSize:13,fontWeight:600}}>{m.icon} {m.nom}</div>
@@ -3802,7 +3810,7 @@ function AppInner() {
               <select value={editOrder.livreur||""} onChange={e=>setEditOrder(p=>({...p,livreur:e.target.value||null}))}
                 style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
                 <option value="">Sans livreur</option>
-                {LIVREURS.map(l=><option key={l} value={l}>{l}</option>)}
+                {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.nom}>{m.nom}</option>)}
               </select>
             </div>
 
