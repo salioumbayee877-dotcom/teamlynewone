@@ -54,6 +54,27 @@ const pct = n => (Number(n||0)*100).toFixed(1)+"%";
 const TODAY = new Date().toISOString().split("T")[0];
 const FRAIS_LIV = 1500;
 
+// ── SVG Icon set ────────────────────────────────────────────────────────────
+const NavIcon = ({name, size=20, color="#fff", active=false}) => {
+  const s = {width:size,height:size,display:"block"};
+  const p = {stroke:color,strokeWidth:1.7,fill:"none",strokeLinecap:"round",strokeLinejoin:"round"};
+  const icons = {
+    dashboard:    <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/><path {...p} d="M9 21V12h6v9"/></svg>,
+    commandes:    <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 2L2 7l10 5 10-5-10-5z"/><path {...p} d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>,
+    compta:       <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 3v18h18"/><path {...p} d="M7 16l4-4 4 4 4-8"/></svg>,
+    tracking:     <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.13.48 1.53 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7z"/><circle {...p} cx="12" cy="9" r="2.5"/></svg>,
+    clients:      <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="8" r="4"/><path {...p} d="M4 20c0-3.31 3.58-6 8-6s8 2.69 8 6"/></svg>,
+    chat:         <svg viewBox="0 0 24 24" style={s}><path {...p} d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line {...p} x1="8" y1="10" x2="16" y2="10"/><line {...p} x1="8" y1="14" x2="12" y2="14"/></svg>,
+    equipe:       <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="9" cy="7" r="4"/><path {...p} d="M2 20c0-3.31 3.13-6 7-6s7 2.69 7 6"/><path {...p} d="M19 8c1.66 0 3 1.34 3 3"/><path {...p} d="M22 20c0-2.21-1.34-4-3-4.5"/></svg>,
+    stock:        <svg viewBox="0 0 24 24" style={s}><path {...p} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line {...p} x1="3" y1="6" x2="21" y2="6"/><path {...p} d="M16 10a4 4 0 01-8 0"/></svg>,
+    livraisons:   <svg viewBox="0 0 24 24" style={s}><rect {...p} x="1" y="3" width="15" height="13" rx="1"/><path {...p} d="M16 8h4l3 4v5h-7V8z"/><circle {...p} cx="5.5" cy="18.5" r="2.5"/><circle {...p} cx="18.5" cy="18.5" r="2.5"/></svg>,
+    position:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><line {...p} x1="12" y1="2" x2="12" y2="6"/><line {...p} x1="12" y1="18" x2="12" y2="22"/><line {...p} x1="2" y1="12" x2="6" y2="12"/><line {...p} x1="18" y1="12" x2="22" y2="12"/></svg>,
+    notifications:<svg viewBox="0 0 24 24" style={s}><path {...p} d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path {...p} d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
+    settings:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><path {...p} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+  };
+  return icons[name]||<span style={{fontSize:size*0.7,lineHeight:1}}>{name}</span>;
+};
+
 const STATUS = {
   pendiente:        {label:"En attente",        color:"#F0A500",bg:"#FFF8E7"},
   confirmado:       {label:"Client confirmé ✅", color:"#2E8B57",bg:"#E8F5EE"},
@@ -735,39 +756,51 @@ function AppInner() {
         return; // Don't restore session - show join form
       }
 
-      const tok   = localStorage.getItem("teamly_token");
-      const email = localStorage.getItem("teamly_email");
+      const tok      = localStorage.getItem("teamly_token");
+      const email    = localStorage.getItem("teamly_email");
       const savedOrg = localStorage.getItem("teamly_org");
-      if(!tok || !email) { setAppLoading(false); return; }
-      setSbToken(tok);
-      if(savedOrg) setOrgId(savedOrg);
-      sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET",null,tok)
+      const savedRole= localStorage.getItem("teamly_role");
+      const savedId  = localStorage.getItem("teamly_userId");
+      const savedNom = localStorage.getItem("teamly_nom");
+      if(!email || !savedOrg) { setAppLoading(false); return; }
+      if(tok) setSbToken(tok);
+      // Restore immediately from cache so dashboard shows data while verifying
+      if(savedOrg && savedRole && savedId) {
+        setOrgId(savedOrg);
+        setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole});
+        setRole(savedRole);
+        setSbReady(true);
+        setAppLoading(false);
+      }
+      // Verify & refresh profile in background using SERVICE_KEY (bypasses expired JWT)
+      sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET",null,SERVICE_KEY_CONST)
         .then(async profiles=>{
           if(profiles&&profiles.length>0){
             const p=profiles[0];
             setOrgId(p.org_id);
             setSbReady(true);
             try {
-              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,tok);
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST);
               const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
+              if(orgs&&orgs[0]?.plan) setSettings(s=>({...s,plan:orgs[0].plan||s.plan}));
             } catch(e){}
             setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
             setRole(p.role||"admin");
-            setTab("dashboard");
+            // Persist fresh data
+            try {
+              localStorage.setItem("teamly_org",p.org_id);
+              localStorage.setItem("teamly_role",p.role||"admin");
+              localStorage.setItem("teamly_userId",p.id||"");
+              localStorage.setItem("teamly_nom",p.nom||"");
+            } catch(e){}
             setAppLoading(false);
-          } else {
-            localStorage.removeItem("teamly_token");
-            localStorage.removeItem("teamly_email");
+          } else if(!savedOrg) {
             setAppLoading(false);
           }
         })
-        .catch(()=>{
-          localStorage.removeItem("teamly_token");
-          localStorage.removeItem("teamly_email");
-          setAppLoading(false);
-        });
+        .catch(()=>{ setAppLoading(false); });
     } catch(e) { 
       console.log("Session restore error:", e.message);
       setAppLoading(false);
@@ -1461,7 +1494,14 @@ function AppInner() {
                       setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
                       setRole(p.role||"admin");
                       setTab("dashboard");
-                      try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
+                      try {
+                        localStorage.setItem("teamly_token", tok);
+                        localStorage.setItem("teamly_email", authForm.email);
+                        localStorage.setItem("teamly_org", p.org_id);
+                        localStorage.setItem("teamly_role", p.role||"admin");
+                        localStorage.setItem("teamly_userId", p.id||"");
+                        localStorage.setItem("teamly_nom", p.nom||"");
+                      } catch(e){}
                     } else {
                       // Profile missing — create org + profile automatically
                       try {
@@ -1860,9 +1900,9 @@ function AppInner() {
   );
 
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"commandes",icon:"📦",l:"Commandes"},{k:"compta",icon:"📊",l:"Compta"},{k:"tracking",icon:"📍",l:"Livreurs"},{k:"clients",icon:"👤",l:"Clients"},{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"},{k:"stock",icon:"🛍️",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"commandes",icon:"📦",l:"Commandes"},{k:"tracking",icon:"📍",l:"Livreurs"},{k:"clients",icon:"👤",l:"Clients"},{k:"stock",icon:"🛍️",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"📊",l:"Compta"}]:[]),{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"}],
-    livreur: [{k:"livraisons",icon:"🏍️",l:"Livraisons"},{k:"dashboard",icon:"🏠",l:"Dashboard"},{k:"position",icon:"📍",l:"Ma Position"},{k:"chat",icon:"💬",l:"Chat"},{k:"equipe",icon:"👥",l:"Équipe"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"position",icon:"position",l:"Ma Position"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
   };
   const tabDef = tabDefBase;
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"}`,livreur:`🏍️ ${currentUser.nom||"Livreur"}`};
@@ -1928,15 +1968,18 @@ function AppInner() {
 
         {/* Nav links */}
         <div style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
-          {tabDef[role].map(t=>(
+          {tabDef[role].map(t=>{
+            const isActive = tab===t.k;
+            return (
             <button key={t.k} onClick={()=>{setTab(t.k);setSidebarOpen(false);}}
-              style={{width:"100%",background:tab===t.k?"rgba(240,165,0,0.2)":"none",border:"none",borderLeft:`3px solid ${tab===t.k?G.gold:"transparent"}`,padding:"13px 20px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:12}}>
-              <span style={{fontSize:18}}>{t.icon}</span>
-              <span style={{fontSize:14,fontWeight:tab===t.k?700:400,color:tab===t.k?G.gold:G.white}}>{t.l}</span>
+              style={{width:"100%",background:isActive?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${isActive?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:14,transition:"background 0.15s"}}>
+              <NavIcon name={t.icon} size={20} color={isActive?G.gold:"rgba(255,255,255,0.7)"}/>
+              <span style={{fontSize:13,fontWeight:isActive?700:400,color:isActive?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.2}}>{t.l}</span>
               {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{alertCount}</span>}
               {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{chatUnread}</span>}
             </button>
-          ))}
+            );
+          })}
         </div>
 
         {/* Bottom actions */}
@@ -1975,9 +2018,13 @@ function AppInner() {
           {role==="admin"&&tab==="stock"&&(
             <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Produit</button>
           )}
-          <button onClick={()=>setShowSearch(s=>!s)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",color:G.white,fontSize:15}}>🔍</button>
+          <button onClick={()=>setShowSearch(s=>!s)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <svg viewBox="0 0 24 24" width={17} height={17} stroke="#fff" strokeWidth={2} fill="none" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+          </button>
           <div style={{position:"relative"}}>
-            <button onClick={()=>setTab("notifications")} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",color:G.white,fontSize:15}}>🔔</button>
+            <button onClick={()=>setTab("notifications")} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <NavIcon name="notifications" size={17} color="#fff"/>
+            </button>
             {alertCount>0&&<div style={{position:"absolute",top:-4,right:-4,background:G.red,color:G.white,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{alertCount}</div>}
           </div>
         </div>
