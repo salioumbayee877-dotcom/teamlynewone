@@ -670,7 +670,7 @@ function AppInner() {
   };
   const upClo = (id, clId) => {
     const mem = teamMembers.find(m=>m.id===clId);
-    const clName = mem?.nom || clId;
+    const clName = mem?.nom || (clId===currentUser.id ? currentUser.nom : clId);
     setOrders(o=>o.map(x=>x.id===id?{...x,closer:clName,closer_id:clId}:x));
     if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:clName,closer_id:clId},SERVICE_KEY_CONST).catch(e=>console.error("upClo error:",e));
   };
@@ -2643,8 +2643,6 @@ function AppInner() {
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         {m.id!==currentUser.id&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
                         {m.id!==currentUser.id&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
-                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
-                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -2676,8 +2674,6 @@ function AppInner() {
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
                         <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
-                        <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
-                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} FCFA encaissés</div>
