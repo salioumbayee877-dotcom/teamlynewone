@@ -1296,7 +1296,7 @@ function AppInner() {
     {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green,   bg:G.greenLight, icon:"🟢",
      features:["0 à 100 commandes/mois","3 membres max (Admin + équipe)","Toutes les fonctionnalités"]},
     {key:"pro",     name:"Pro",     price:"12.000", maxMembers:5, maxOrders:null, color:G.blue,    bg:"#EFF6FF",    icon:"🔵",
-     features:["Commandes illimitées","5 membres max","Toutes les fonctionnalités"]},
+     features:["0 à 200 commandes/mois","5 membres max","Toutes les fonctionnalités"]},
     {key:"scale",   name:"Scale",   price:"25.000", maxMembers:null,maxOrders:null,color:"#7C3AED",bg:"#EDE9FE",    icon:"🟣",
      features:["Commandes illimitées","Membres illimités","Support prioritaire"]},
   ];
