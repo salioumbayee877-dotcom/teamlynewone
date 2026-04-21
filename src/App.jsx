@@ -643,8 +643,9 @@ function AppInner() {
   const [recordSecs,setRecordSecs]         = useState(0);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false});
   const [showSettings, setShowSettings] = useState(false);
+  const [showPlanModal, setShowPlanModal] = useState(false);
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
@@ -1292,9 +1293,12 @@ function AppInner() {
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
   const PLANS = [
-    {key:"starter",  name:"Essentiel", price:"7.500",  color:G.green,    bg:G.greenLight,  features:["0 à 100 commandes/mois","1 Closer + 2 Livreurs max","Gestion commandes COD","Chat interne"]}, 
-    {key:"pro",      name:"Pro",      price:"15.000", color:G.blue,     bg:"#EFF6FF",     features:["100 à 1.000 commandes/mois","Tout Essentiel +","Comptabilité avancée","Analytics & rapports"]}, 
-    {key:"business", name:"Business", price:"Sur devis", color:"#7C3AED",  bg:"#EDE9FE",     features:["+1.000 commandes/mois","Tout Pro +","Multi-boutiques","Support prioritaire"]}, 
+    {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green,   bg:G.greenLight, icon:"🟢",
+     features:["0 à 100 commandes/mois","3 membres max (Admin + équipe)","Toutes les fonctionnalités"]},
+    {key:"pro",     name:"Pro",     price:"12.000", maxMembers:5, maxOrders:null, color:G.blue,    bg:"#EFF6FF",    icon:"🔵",
+     features:["Commandes illimitées","5 membres max","Toutes les fonctionnalités"]},
+    {key:"scale",   name:"Scale",   price:"25.000", maxMembers:null,maxOrders:null,color:"#7C3AED",bg:"#EDE9FE",    icon:"🟣",
+     features:["Commandes illimitées","Membres illimités","Support prioritaire"]},
   ];
 
   const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
@@ -1879,7 +1883,7 @@ function AppInner() {
 
         {/* Bottom actions */}
         <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",gap:6}}>
-          {role==="admin"&&(
+          {(role==="admin"||(role==="closer"&&settings.closerSettings))&&(
             <button onClick={()=>{setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
               ⚙️ <span>Paramètres</span>
             </button>
@@ -3625,16 +3629,45 @@ function AppInner() {
             </div>
 
             {/* Plan */}
-            <div style={{marginBottom:18}}>
-              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PLAN</div>
-              <div style={{background:G.greenLight,borderRadius:12,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontWeight:700,fontSize:14,color:G.green}}>{settings.plan==="starter"?"🟢 Essentiel":settings.plan==="pro"?"🔵 Pro":"🟣 Business"}</div>
-                  <div style={{fontSize:11,color:G.gray,marginTop:2}}>{settings.plan==="starter"?"7.500":settings.plan==="pro"?"15.000":"Sur devis"} FCFA/mois</div>
+            {(()=>{
+              const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+              const membersUsed = teamMembers.length + 1; // +1 for admin
+              const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+              return (
+                <div style={{marginBottom:18}}>
+                  <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PLAN</div>
+                  <div style={{background:curPlan.bg,borderRadius:12,padding:"14px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                      <div>
+                        <div style={{fontWeight:800,fontSize:15,color:curPlan.color}}>{curPlan.icon} {curPlan.name}</div>
+                        <div style={{fontSize:12,color:G.gray,marginTop:2}}>{curPlan.price} FCFA / mois</div>
+                      </div>
+                      <button onClick={()=>setShowPlanModal(true)}
+                        style={{background:curPlan.color,color:G.white,border:"none",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        Changer →
+                      </button>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      {curPlan.features.map((f,i)=>(
+                        <div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>
+                      ))}
+                    </div>
+                    <div style={{marginTop:10,background:"rgba(0,0,0,0.05)",borderRadius:8,padding:"8px 10px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:11,color:G.gray,fontWeight:600}}>Membres</span>
+                        <span style={{fontSize:11,fontWeight:700,color:atLimit?G.red:curPlan.color}}>{membersUsed} / {curPlan.maxMembers||"∞"}</span>
+                      </div>
+                      {curPlan.maxMembers&&(
+                        <div style={{background:"rgba(0,0,0,0.08)",borderRadius:4,height:5}}>
+                          <div style={{background:atLimit?G.red:curPlan.color,borderRadius:4,height:5,width:`${Math.min(100,membersUsed/curPlan.maxMembers*100)}%`,transition:"width 0.4s"}}/>
+                        </div>
+                      )}
+                      {atLimit&&<div style={{fontSize:10,color:G.red,marginTop:4,fontWeight:600}}>⚠️ Limite atteinte — passe au plan supérieur</div>}
+                    </div>
+                  </div>
                 </div>
-                <button style={{background:G.green,color:G.white,border:"none",borderRadius:8,padding:"7px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>Changer</button>
-              </div>
-            </div>
+              );
+            })()}
 
             {/* Équipe */}
             <div style={{marginBottom:18}}>
@@ -3660,25 +3693,42 @@ function AppInner() {
                   </div>
                 ))}
               </div>
-              <div style={{marginTop:10,display:"flex",gap:6}}>
-                {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                  <button key={r.role} onClick={()=>{
-                    const token = Math.random().toString(36).substring(2,10).toUpperCase();
-                    const link = `https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
-                    const msg = `Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
-                  }} style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                    {r.label} 📲
-                  </button>
-                ))}
-              </div>
+              {(()=>{
+                const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+                const membersUsed = teamMembers.length + 1;
+                const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+                return (
+                  <>
+                    {atLimit&&(
+                      <div style={{background:"#FEE2E2",borderRadius:8,padding:"8px 10px",marginTop:8,fontSize:11,color:G.red,fontWeight:600}}>
+                        ⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres) —{" "}
+                        <span onClick={()=>setShowPlanModal(true)} style={{textDecoration:"underline",cursor:"pointer"}}>Changer de plan →</span>
+                      </div>
+                    )}
+                    <div style={{marginTop:10,display:"flex",gap:6}}>
+                      {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                        <button key={r.role} onClick={()=>{
+                          if(atLimit){setShowPlanModal(true);return;}
+                          const token = Math.random().toString(36).substring(2,10).toUpperCase();
+                          const link = `https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                          const msg = `Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`;
+                          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
+                        }} style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                          {r.label} 📲
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
             {/* Permissions Closer */}
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>ACCÈS CLOSER</div>
               {[
-                {key:"closerCompta", label:"📊 Accès Comptabilité", desc:"Le Closer peut voir les revenus et bénéfices"},
+                {key:"closerCompta",    label:"📊 Accès Comptabilité",  desc:"Le Closer peut voir les revenus et bénéfices"},
+                {key:"closerSettings", label:"⚙️ Accès Paramètres",    desc:"Le Closer peut accéder aux paramètres et changer de plan"},
               ].map(n=>(
                 <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                   <div>
@@ -3700,6 +3750,48 @@ function AppInner() {
             </button>
             <button onClick={()=>setShowSettings(false)} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
               ✅ Enregistrer
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Changer de plan ── */}
+      {showPlanModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>Changer de plan</div>
+            <div style={{fontSize:12,color:G.gray,marginBottom:18}}>Choisis le plan adapté à ton équipe</div>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+              {PLANS.map(p=>{
+                const isCurrent = settings.plan===p.key;
+                return (
+                  <button key={p.key} onClick={()=>{
+                    setSettings(s=>({...s,plan:p.key}));
+                    if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key},SERVICE_KEY_CONST).catch(()=>{});
+                    setShowPlanModal(false);
+                    addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
+                  }} style={{background:isCurrent?p.bg:G.white,border:`2px solid ${isCurrent?p.color:G.grayLight}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",position:"relative"}}>
+                    {isCurrent&&<div style={{position:"absolute",top:12,right:12,background:p.color,color:"#FFF",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>ACTUEL</div>}
+                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                      <span style={{fontSize:22}}>{p.icon}</span>
+                      <div>
+                        <div style={{fontWeight:800,fontSize:15,color:p.color}}>{p.name}</div>
+                        <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{p.price} FCFA <span style={{fontSize:11,color:G.gray,fontWeight:400}}>/ mois</span></div>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                      {p.features.map((f,i)=><div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>)}
+                      <div style={{fontSize:11,color:p.color,fontWeight:700,marginTop:4}}>
+                        👥 {p.maxMembers?`${p.maxMembers} membres max`:"Membres illimités"} · 📦 {p.maxOrders?`${p.maxOrders} commandes/mois`:"Commandes illimitées"}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            <button onClick={()=>setShowPlanModal(false)}
+              style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              Annuler
             </button>
           </div>
         </div>
