@@ -1353,10 +1353,10 @@ function AppInner() {
                     } else {
                       // Profile missing — create org + profile automatically
                       try {
-                        const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},tok);
+                        const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},SERVICE_KEY_CONST);
                         const orgData = Array.isArray(org)?org[0]:org;
                         if(orgData) {
-                          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},tok);
+                          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},SERVICE_KEY_CONST);
                           setOrgId(orgData.id); setSbReady(true);
                           setRole("admin"); setTab("dashboard");
                           try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
