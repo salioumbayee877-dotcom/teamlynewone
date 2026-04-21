@@ -786,7 +786,14 @@ function AppInner() {
         if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id})));
         if(prods) setProducts(prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial})));
         if(msgs) {
-          const mapped = msgs.map(m=>({from:m.from_user,role:m.role,text:m.text,audio:m.audio,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}));
+          const mapped = msgs.map(m=>{
+            const t=m.text||"";
+            const isImg=t.startsWith("IMG:");
+            const isAud=t.startsWith("AUD:");
+            let audioUrl=null,dur="0:00";
+            if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
+            return {from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+          });
           setChat(prev => {
             if(mapped.length > prev.length && prev.length > 0) {
               const newCount = mapped.length - prev.length;
@@ -975,15 +982,22 @@ function AppInner() {
     const file = e.target.files?.[0];
     if(!file) return;
     const reader = new FileReader();
-    reader.onload = ev => sendChat("", {type:"image", text:ev.target.result});
+    reader.onload = ev => {
+      const data = ev.target.result;
+      sendChat("", {type:"image", text:"IMG:"+data, imgSrc:data});
+    };
     reader.readAsDataURL(file);
     e.target.value = "";
   };
 
   const sendAudioBlob = (blob, secs) => {
-    const url = URL.createObjectURL(blob);
     const dur = `0:${String(secs).padStart(2,"0")}`;
-    sendChat("", {audio:true, audioUrl:url, duration:dur, text:`🎤 ${dur}`});
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const b64 = ev.target.result;
+      sendChat("", {audio:true, audioUrl:b64, duration:dur, text:`AUD:${dur}|${b64}`});
+    };
+    reader.readAsDataURL(blob);
   };
 
   // ── stats ──
@@ -3296,7 +3310,7 @@ function AppInner() {
                     <div style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative"}}>
                       {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3}}>{msg.from}</div>}
                       {msg.type==="image"?(
-                        <img src={msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
+                        <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
                       ):msg.audio?(
                         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:160}}>
                           <button onClick={()=>{const a=new Audio(msg.audioUrl);a.play();}}
