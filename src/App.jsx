@@ -149,12 +149,13 @@ function BarChart({data, height=130}) {
   );
 }
 
-function SC({icon,label,value,color=G.dark,bg=G.white}) {
+function SC({icon,label,value,color=G.dark,bg=G.white,onClick}) {
   return (
-    <div style={{background:bg,borderRadius:12,padding:"11px 12px",flex:1,minWidth:0,boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+    <div onClick={onClick} style={{background:bg,borderRadius:12,padding:"11px 12px",flex:1,minWidth:0,boxShadow:"0 1px 4px rgba(0,0,0,0.05)",cursor:onClick?"pointer":"default",position:"relative"}}>
       <div style={{fontSize:18}}>{icon}</div>
       <div style={{fontSize:20,fontWeight:700,color,marginTop:3}}>{value}</div>
       <div style={{fontSize:11,color:G.gray,marginTop:1}}>{label}</div>
+      {onClick&&<div style={{position:"absolute",top:8,right:10,fontSize:10,color:G.gray}}>→</div>}
     </div>
   );
 }
@@ -307,8 +308,13 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
       <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
         <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouvelle commande confirmée</div>
         <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>👤 Nom client *</div>
+          <input type="text" value={newOrder.client||""} onChange={e=>setNewOrder({...newOrder,client:e.target.value})} placeholder="Moussa Diallo"
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📱 Téléphone *</div>
-          <input type="text" value={newOrder.phone||""} onChange={e=>setNewOrder({...newOrder,phone:e.target.value})} placeholder="77 123 45 67"
+          <input type="tel" inputMode="numeric" value={newOrder.phone||""} onChange={e=>setNewOrder({...newOrder,phone:e.target.value})} placeholder="77 123 45 67"
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
           {clientSuggestions.length>0&&(
             <div style={{marginTop:4,display:"flex",flexDirection:"column",gap:3}}>
@@ -324,13 +330,11 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             </div>
           )}
         </div>
-        {[{key:"client",label:"👤 Nom client",ph:"Moussa Diallo"},{key:"address",label:"📍 Adresse",ph:"Médina, Dakar"}].map(f=>(
-          <div key={f.key} style={{marginBottom:9}}>
-            <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
-            <input type="text" value={newOrder[f.key]||""} onChange={e=>setNewOrder({...newOrder,[f.key]:e.target.value})} placeholder={f.ph}
-              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-          </div>
-        ))}
+        <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse</div>
+          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder({...newOrder,address:e.target.value})} placeholder="Médina, Dakar"
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Produit *</div>
           <select value={newOrder.product||""} onChange={e=>setNewOrder({...newOrder,product:e.target.value,bundle:"",qty:"1",discount:""})}
@@ -1918,10 +1922,10 @@ function AppInner() {
 
             {/* KPIs */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              <SC icon="📦" label="Total commandes" value={orders.length}/>
-              <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight}/>
-              <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2"/>
-              <SC icon="🏍️" label="En route" value={enRoute} color={G.blue} bg="#EFF6FF"/>
+              <SC icon="📦" label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
+              <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
+              <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
+              <SC icon="🏍️" label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
             </div>
 
             {/* Taux */}
