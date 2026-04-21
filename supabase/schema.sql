@@ -46,6 +46,12 @@ CREATE POLICY "orders_all"   ON orders   FOR ALL TO anon, authenticated USING (t
 CREATE POLICY "products_all" ON products FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
 
 -- ============================================================
+-- Habilitar Realtime (necesario para suscripciones en tiempo real)
+-- ============================================================
+ALTER PUBLICATION supabase_realtime ADD TABLE orders;
+ALTER PUBLICATION supabase_realtime ADD TABLE products;
+
+-- ============================================================
 -- Datos iniciales de productos
 -- ============================================================
 INSERT INTO products (name, sku, price, cost, stock, bundles) VALUES

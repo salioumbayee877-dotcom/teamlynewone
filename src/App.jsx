@@ -661,7 +661,7 @@ export default function Teamly() {
   const [products, setProducts] = useState(PRODUCTS);
   const [orders, setOrders] = useState(INIT_ORDERS);
 
-  // Carga datos desde Supabase al montar (fallback a datos demo si falla)
+  // Carga inicial + suscripciones en tiempo real
   useEffect(() => {
     async function load() {
       const [{ data: ord }, { data: prod }] = await Promise.all([
@@ -672,6 +672,33 @@ export default function Teamly() {
       if (prod?.length) setProducts(prod);
     }
     load();
+
+    // Realtime: pedidos
+    const ordChannel = supabase
+      .channel('orders-realtime')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' },
+        ({ new: row }) => setOrders(prev => [fromDb(row), ...prev])
+      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' },
+        ({ new: row }) => setOrders(prev => prev.map(o => o.id === row.id ? fromDb(row) : o))
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'orders' },
+        ({ old: row }) => setOrders(prev => prev.filter(o => o.id !== row.id))
+      )
+      .subscribe();
+
+    // Realtime: productos (stock)
+    const prodChannel = supabase
+      .channel('products-realtime')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' },
+        ({ new: row }) => setProducts(prev => prev.map(p => p.id === row.id ? row : p))
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordChannel);
+      supabase.removeChannel(prodChannel);
+    };
   }, []);
 
   const updSt = async (id, st, lv) => {
