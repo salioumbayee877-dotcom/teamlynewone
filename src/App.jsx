@@ -642,6 +642,7 @@ function AppInner() {
   const audioTimerRef                      = useRef(null);
   const [recordSecs,setRecordSecs]         = useState(0);
   const [chatUnread,setChatUnread]         = useState(0);
+  const [selectedMsgId,setSelectedMsgId]  = useState(null);
   const chatBottomRef                      = useRef(null);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
@@ -792,7 +793,7 @@ function AppInner() {
             const isAud=t.startsWith("AUD:");
             let audioUrl=null,dur="0:00";
             if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
-            return {from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+            return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
           });
           setChat(prev => {
             if(mapped.length > prev.length && prev.length > 0) {
@@ -998,6 +999,13 @@ function AppInner() {
       sendChat("", {audio:true, audioUrl:b64, duration:dur, text:`AUD:${dur}|${b64}`});
     };
     reader.readAsDataURL(blob);
+  };
+
+  const deleteMsg = (id) => {
+    if(!id) return;
+    sbFetch(`messages?id=eq.${id}`,"DELETE",null,SERVICE_KEY_CONST).catch(()=>{});
+    setChat(p=>p.filter(m=>m.id!==id));
+    setSelectedMsgId(null);
   };
 
   // ── stats ──
@@ -3259,11 +3267,12 @@ function AppInner() {
           const startRecord = async() => {
             try {
               const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-              const mr = new MediaRecorder(stream);
+              const mime = ["audio/webm;codecs=opus","audio/webm","audio/mp4","audio/ogg"].find(t=>MediaRecorder.isTypeSupported(t))||"";
+              const mr = new MediaRecorder(stream, mime?{mimeType:mime}:{});
               const chunks = [];
               mr.ondataavailable = e => chunks.push(e.data);
               mr.onstop = () => {
-                sendAudioBlob(new Blob(chunks,{type:"audio/webm"}), recordSecs);
+                sendAudioBlob(new Blob(chunks,{type:mr.mimeType||"audio/webm"}), recordSecs);
                 stream.getTracks().forEach(t=>t.stop());
                 setIsRecording(false); setRecordSecs(0); clearInterval(audioTimerRef.current);
               };
@@ -3299,24 +3308,30 @@ function AppInner() {
                 </div>
               )}
               {chat.map((msg,i)=>{
+                // Skip garbled old messages (raw base64 without proper prefix)
+                if(!msg.type&&!msg.audio&&msg.text&&(msg.text.startsWith("data:")||(msg.text.length>400&&!/\s/.test(msg.text.slice(0,80))))) return null;
                 const isMe = msg.from===myName;
+                const canDel = isMe || role==="admin";
                 const prevFrom = i>0?chat[i-1].from:null;
                 const showAvatar = !isMe && msg.from!==prevFrom;
                 const rc = ROLE_COLOR[msg.role]||G.gray;
+                const isSelected = selectedMsgId===msg.id;
                 return (
-                  <div key={i} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",marginBottom:showAvatar&&!isMe?6:2,marginTop:showAvatar&&!isMe?6:0,paddingLeft:isMe?40:0,paddingRight:isMe?0:40}}>
+                  <div key={i} style={{display:"flex",flexDirection:"column",alignItems:isMe?"flex-end":"flex-start",marginBottom:showAvatar&&!isMe?6:2,marginTop:showAvatar&&!isMe?6:0}}>
+                    <div style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",paddingLeft:isMe?40:0,paddingRight:isMe?0:40,width:"100%"}}>
                     {!isMe&&(
                       <div style={{width:30,height:30,borderRadius:"50%",background:showAvatar?rc:"transparent",color:"#FFF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,flexShrink:0,alignSelf:"flex-end",marginRight:6}}>
                         {showAvatar?msg.from.charAt(0).toUpperCase():""}
                       </div>
                     )}
-                    <div style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative"}}>
+                    <div onClick={()=>msg.id&&canDel&&setSelectedMsgId(isSelected?null:msg.id)}
+                      style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative",cursor:msg.id&&canDel?"pointer":"default",outline:isSelected?"2px solid #EF4444":"none"}}>
                       {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3}}>{msg.from}</div>}
                       {msg.type==="image"?(
                         <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
                       ):msg.audio?(
                         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:160}}>
-                          <button onClick={()=>{const a=new Audio(msg.audioUrl);a.play();}}
+                          <button onClick={e=>{e.stopPropagation();if(!msg.audioUrl)return;const a=new Audio(msg.audioUrl);a.play().catch(()=>{});}}
                             style={{width:34,height:34,borderRadius:"50%",background:isMe?G.green:"#25D366",border:"none",color:"#FFF",fontSize:14,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
                           <div style={{flex:1}}>
                             <div style={{display:"flex",gap:2,alignItems:"flex-end",height:20,marginBottom:2}}>
@@ -3335,6 +3350,13 @@ function AppInner() {
                         {msg.time}{isMe&&" ✓✓"}
                       </div>
                     </div>
+                    </div>
+                    {isSelected&&msg.id&&(
+                      <button onClick={()=>deleteMsg(msg.id)}
+                        style={{marginTop:4,background:"#EF4444",color:"#FFF",border:"none",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        🗑️ Supprimer
+                      </button>
+                    )}
                   </div>
                 );
               })}
