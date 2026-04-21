@@ -641,6 +641,8 @@ function AppInner() {
   const mediaRecorderRef                   = useRef(null);
   const audioTimerRef                      = useRef(null);
   const [recordSecs,setRecordSecs]         = useState(0);
+  const [chatUnread,setChatUnread]         = useState(0);
+  const chatBottomRef                      = useRef(null);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false});
@@ -718,6 +720,7 @@ function AppInner() {
   // Save tab to localStorage when it changes
   useEffect(()=>{
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
+    if(tab==="chat") { setChatUnread(0); setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100); }
   },[tab]);
 
   // ── Restore session from localStorage on startup ───────────────────────
@@ -782,7 +785,16 @@ function AppInner() {
         ]);
         if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id})));
         if(prods) setProducts(prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial})));
-        if(msgs)  setChat(msgs.map(m=>({from:m.from_user,text:m.text,audio:m.audio,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})})));
+        if(msgs) {
+          const mapped = msgs.map(m=>({from:m.from_user,role:m.role,text:m.text,audio:m.audio,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}));
+          setChat(prev => {
+            if(mapped.length > prev.length && prev.length > 0) {
+              const newCount = mapped.length - prev.length;
+              setChatUnread(u => tab==="chat" ? 0 : u + newCount);
+            }
+            return mapped;
+          });
+        }
         if(mems)  setTeamMembers(mems);
       } catch(e) { console.error("Supabase load error:", e.message, e); }
     };
@@ -945,16 +957,33 @@ function AppInner() {
     setShowAddBundle(false);
   };
 
-  const sendChat = () => {
-    if(!chatMsg.trim()) return;
-    const name=currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
-    const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    const msg = {from:name,role,text:chatMsg,time:now,audio:false};
+  const myName = currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+
+  const sendChat = (textOverride, extra={}) => {
+    const txt = textOverride ?? chatMsg;
+    if(!txt && !extra.audio && !extra.type) return;
+    const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    const msg = {from:myName, role, text:txt||"", time:now, audio:false, ...extra};
     setChat(p=>[...p,msg]);
     setChatMsg("");
-    // Save to Supabase
-    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:name,role,text:chatMsg,audio:false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+    setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
+    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:msg.text,audio:!!extra.audio},SERVICE_KEY_CONST)
       .catch(e=>console.error("sendChat error:",e.message));
+  };
+
+  const sendPhoto = (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => sendChat("", {type:"image", text:ev.target.result});
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const sendAudioBlob = (blob, secs) => {
+    const url = URL.createObjectURL(blob);
+    const dur = `0:${String(secs).padStart(2,"0")}`;
+    sendChat("", {audio:true, audioUrl:url, duration:dur, text:`🎤 ${dur}`});
   };
 
   // ── stats ──
@@ -1877,6 +1906,7 @@ function AppInner() {
               <span style={{fontSize:18}}>{t.icon}</span>
               <span style={{fontSize:14,fontWeight:tab===t.k?700:400,color:tab===t.k?G.gold:G.white}}>{t.l}</span>
               {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{alertCount}</span>}
+              {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{chatUnread}</span>}
             </button>
           ))}
         </div>
@@ -3208,122 +3238,130 @@ function AppInner() {
           );
         })()}
         {/* ── CHAT ── */}
-        {tab==="chat"&&(
-          <div style={{display:"flex",flexDirection:"column",gap:0}}>
-            {/* Info banner */}
-            <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:11,color:"#3B82F6",display:"flex",gap:6,alignItems:"center"}}>
-              <span>💡</span>
-              <span>Chat local — fonctionne en temps réel avec Supabase en production</span>
+        {tab==="chat"&&(()=>{
+          const startRecord = async() => {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+              const mr = new MediaRecorder(stream);
+              const chunks = [];
+              mr.ondataavailable = e => chunks.push(e.data);
+              mr.onstop = () => {
+                sendAudioBlob(new Blob(chunks,{type:"audio/webm"}), recordSecs);
+                stream.getTracks().forEach(t=>t.stop());
+                setIsRecording(false); setRecordSecs(0); clearInterval(audioTimerRef.current);
+              };
+              mr.start(); mediaRecorderRef.current = mr;
+              setIsRecording(true); setRecordSecs(0);
+              audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
+            } catch(e){ addToast("Microphone non disponible","🎤",G.red); }
+          };
+          const stopRecord = () => { if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); };
+          const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
+
+          return (
+          <div style={{display:"flex",flexDirection:"column",margin:"-16px -16px -16px",height:"calc(100vh - 70px)"}}>
+
+            {/* Header groupe style WhatsApp */}
+            <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+              <div style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>👥</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:700,fontSize:14,color:G.white,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Équipe {settings.boutique}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:1}}>
+                  {teamMembers.length+1} membres · Admin{teamMembers.filter(m=>m.role==="closer").length>0?` · ${teamMembers.filter(m=>m.role==="closer").length} closer`:""}
+                  {teamMembers.filter(m=>m.role==="livreur").length>0?` · ${teamMembers.filter(m=>m.role==="livreur").length} livreur`:""}</div>
+              </div>
             </div>
-            {/* Messages */}
-            <div style={{minHeight:300,maxHeight:400,overflowY:"auto",display:"flex",flexDirection:"column",gap:8,marginBottom:12,padding:"4px 0"}}>
+
+            {/* Zone messages */}
+            <div style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
+              {chat.length===0&&(
+                <div style={{textAlign:"center",padding:40,color:"#8a9a8a"}}>
+                  <div style={{fontSize:36,marginBottom:8}}>💬</div>
+                  <div style={{fontSize:13,fontWeight:600}}>Aucun message</div>
+                  <div style={{fontSize:11,marginTop:4}}>Soyez le premier à écrire !</div>
+                </div>
+              )}
               {chat.map((msg,i)=>{
-                const myName=role==="admin"?"Admin":role==="closer"?"Aminata":"Ibou";
-                const isMe=msg.from===myName;
-                return(
-                  <div key={i} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start"}}>
-                    <div style={{maxWidth:"78%",background:isMe?G.green:G.white,color:isMe?G.white:G.dark,borderRadius:isMe?"16px 16px 4px 16px":"16px 16px 16px 4px",padding:"9px 13px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-                      {!isMe&&<div style={{fontSize:10,fontWeight:700,color:G.gold,marginBottom:3}}>{msg.from}</div>}
-                      {msg.audio?(
-                        <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(255,255,255,0.15)",borderRadius:8,padding:"6px 10px"}}>
-                          <span style={{fontSize:18}}>🎤</span>
+                const isMe = msg.from===myName;
+                const prevFrom = i>0?chat[i-1].from:null;
+                const showAvatar = !isMe && msg.from!==prevFrom;
+                const rc = ROLE_COLOR[msg.role]||G.gray;
+                return (
+                  <div key={i} style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",marginBottom:showAvatar&&!isMe?6:2,marginTop:showAvatar&&!isMe?6:0,paddingLeft:isMe?40:0,paddingRight:isMe?0:40}}>
+                    {!isMe&&(
+                      <div style={{width:30,height:30,borderRadius:"50%",background:showAvatar?rc:"transparent",color:"#FFF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,flexShrink:0,alignSelf:"flex-end",marginRight:6}}>
+                        {showAvatar?msg.from.charAt(0).toUpperCase():""}
+                      </div>
+                    )}
+                    <div style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative"}}>
+                      {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3}}>{msg.from}</div>}
+                      {msg.type==="image"?(
+                        <img src={msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
+                      ):msg.audio?(
+                        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:160}}>
+                          <button onClick={()=>{const a=new Audio(msg.audioUrl);a.play();}}
+                            style={{width:34,height:34,borderRadius:"50%",background:isMe?G.green:"#25D366",border:"none",color:"#FFF",fontSize:14,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
                           <div style={{flex:1}}>
-                            <div style={{height:3,background:"rgba(255,255,255,0.4)",borderRadius:2,marginBottom:3}}>
-                              <div style={{width:"60%",height:3,background:isMe?G.gold:G.green,borderRadius:2}}/>
+                            <div style={{display:"flex",gap:2,alignItems:"flex-end",height:20,marginBottom:2}}>
+                              {[3,5,8,4,9,6,3,7,5,8,4,6].map((h,j)=>(
+                                <div key={j} style={{width:3,borderRadius:2,background:isMe?"#128C7E":"#25D366",height:h,opacity:0.7}}/>
+                              ))}
                             </div>
-                            <div style={{fontSize:10,opacity:0.7}}>0:08</div>
+                            <div style={{fontSize:10,color:G.gray}}>{msg.duration||"0:00"}</div>
                           </div>
-                          <span style={{fontSize:14}}>▶️</span>
+                          <span style={{fontSize:16}}>🎤</span>
                         </div>
                       ):(
-                        msg.audio ? (
-                          <div style={{display:"flex",alignItems:"center",gap:8}}>
-                            {msg.audioUrl
-                              ? <audio controls src={msg.audioUrl} style={{height:32,maxWidth:160}}/>
-                              : <><span style={{fontSize:16}}>🎤</span><span style={{fontSize:13}}>{msg.text}</span></>
-                            }
-                          </div>
-                        ) : (
-                          <div style={{fontSize:13,lineHeight:1.4}}>{msg.text}</div>
-                        )
+                        <div style={{fontSize:13,lineHeight:1.5,wordBreak:"break-word"}}>{msg.text}</div>
                       )}
-                      <div style={{fontSize:10,opacity:0.5,marginTop:3,textAlign:"right"}}>{msg.time}</div>
+                      <div style={{fontSize:10,color:"#8a9a8a",textAlign:"right",marginTop:msg.type==="image"?4:2}}>
+                        {msg.time}{isMe&&" ✓✓"}
+                      </div>
                     </div>
                   </div>
                 );
               })}
+              <div ref={chatBottomRef}/>
             </div>
-            {/* Input */}
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <button
-                onMouseDown={async()=>{
-                  try {
-                    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-                    const mr = new MediaRecorder(stream);
-                    const chunks = [];
-                    mr.ondataavailable = e => chunks.push(e.data);
-                    mr.onstop = () => {
-                      const blob = new Blob(chunks, {type:"audio/webm"});
-                      const url  = URL.createObjectURL(blob);
-                      const secs = recordSecs;
-                      const myName=role==="admin"?settings.nom||"Admin":role==="closer"?"Closer":"Livreur";
-                      const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-                      setChat(p=>[...p,{from:myName,text:`🎤 Message vocal (0:${String(secs).padStart(2,"0")})`,time:now,audio:true,audioUrl:url}]);
-                      if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:`🎤 Message vocal (0:${String(secs).padStart(2,"0")})`,audio:true},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
-                      stream.getTracks().forEach(t=>t.stop());
-                      setIsRecording(false);
-                      setRecordSecs(0);
-                      clearInterval(audioTimerRef.current);
-                    };
-                    mr.start();
-                    mediaRecorderRef.current = mr;
-                    setIsRecording(true);
-                    setRecordSecs(0);
-                    audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
-                  } catch(e) {
-                    alert("Microphone non disponible");
-                  }
-                }}
-                onMouseUp={()=>{ if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); }}
-                onTouchStart={async(e)=>{
-                  e.preventDefault();
-                  try {
-                    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-                    const mr = new MediaRecorder(stream);
-                    const chunks = [];
-                    mr.ondataavailable = ev => chunks.push(ev.data);
-                    mr.onstop = () => {
-                      const blob = new Blob(chunks,{type:"audio/webm"});
-                      const url = URL.createObjectURL(blob);
-                      const myName=role==="admin"?settings.nom||"Admin":role==="closer"?"Closer":"Livreur";
-                      const now=new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-                      setChat(p=>[...p,{from:myName,text:`🎤 Message vocal (0:${String(recordSecs).padStart(2,"0")})`,time:now,audio:true,audioUrl:url}]);
-                      stream.getTracks().forEach(t=>t.stop());
-                      setIsRecording(false); setRecordSecs(0);
-                      clearInterval(audioTimerRef.current);
-                    };
-                    mr.start();
-                    mediaRecorderRef.current = mr;
-                    setIsRecording(true); setRecordSecs(0);
-                    audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
-                  } catch(e) { alert("Microphone non disponible"); }
-                }}
-                onTouchEnd={()=>{ if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); }}
-                style={{background:isRecording?"#FEE2E2":"#F3F4F6",border:isRecording?"2px solid #EF4444":"none",borderRadius:"50%",width:40,height:40,cursor:"pointer",fontSize:18,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",position:"relative"}}
-                title="Maintenir pour enregistrer">
-                {isRecording?<span style={{fontSize:11,fontWeight:700,color:"#EF4444"}}>0:{String(recordSecs).padStart(2,"0")}</span>:"🎤"}
-              </button>
-              <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&sendChat()}
-                placeholder="Écrire un message..."
-                style={{flex:1,border:`1.5px solid ${G.grayLight}`,borderRadius:24,padding:"11px 16px",fontSize:13,outline:"none",background:G.white}}/>
-              <button onClick={sendChat}
-                style={{background:chatMsg.trim()?G.green:G.grayLight,border:"none",borderRadius:"50%",width:44,height:44,cursor:"pointer",color:chatMsg.trim()?G.gold:G.gray,fontSize:18,flexShrink:0,transition:"background 0.2s"}}>
-                ➤
-              </button>
-            </div>
+
+            {/* Barre d'enregistrement active */}
+            {isRecording&&(
+              <div style={{background:"#FEE2E2",padding:"10px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+                <div style={{width:10,height:10,borderRadius:"50%",background:G.red,animation:"pulse 1s infinite"}}/>
+                <div style={{flex:1,fontWeight:700,fontSize:13,color:G.red}}>Enregistrement… 0:{String(recordSecs).padStart(2,"0")}</div>
+                <button onClick={stopRecord} style={{background:G.red,color:"#FFF",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>⏹ Envoyer</button>
+                <button onClick={()=>{if(mediaRecorderRef.current){mediaRecorderRef.current.onstop=()=>{};mediaRecorderRef.current.stop();}setIsRecording(false);setRecordSecs(0);clearInterval(audioTimerRef.current);}} style={{background:"none",border:"none",color:G.gray,fontSize:18,cursor:"pointer"}}>✕</button>
+              </div>
+            )}
+
+            {/* Zone saisie */}
+            {!isRecording&&(
+              <div style={{background:G.white,padding:"8px 10px",display:"flex",gap:6,alignItems:"flex-end",flexShrink:0,borderTop:`1px solid #DDD`}}>
+                {/* Photo */}
+                <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
+                  📷<input type="file" accept="image/*" capture="environment" onChange={sendPhoto} style={{display:"none"}}/>
+                </label>
+                {/* Input texte */}
+                <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
+                  onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
+                  placeholder="Message…"
+                  style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:13,outline:"none",resize:"none"}}/>
+                {/* Envoyer ou micro */}
+                {chatMsg.trim()?(
+                  <button onClick={()=>sendChat()} style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
+                ):(
+                  <button
+                    onMouseDown={startRecord} onMouseUp={stopRecord}
+                    onTouchStart={e=>{e.preventDefault();startRecord();}} onTouchEnd={stopRecord}
+                    style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    🎤
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* ── MODAL: Ajouter commande ── */}
