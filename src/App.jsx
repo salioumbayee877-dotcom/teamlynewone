@@ -668,6 +668,8 @@ function AppInner() {
   const [recordSecs,setRecordSecs]         = useState(0);
   const [chatUnread,setChatUnread]         = useState(0);
   const [selectedMsgId,setSelectedMsgId]  = useState(null);
+  const [playingMsgId,setPlayingMsgId]    = useState(null);
+  const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
@@ -3446,18 +3448,48 @@ function AppInner() {
                       {msg.type==="image"?(
                         <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
                       ):msg.audio?(
-                        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:160}}>
-                          <button onClick={e=>{e.stopPropagation();if(!msg.audioUrl)return;const a=new Audio(msg.audioUrl);a.play().catch(()=>{});}}
-                            style={{width:34,height:34,borderRadius:"50%",background:isMe?G.green:"#25D366",border:"none",color:"#FFF",fontSize:14,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>▶</button>
+                        <div style={{display:"flex",alignItems:"center",gap:8,minWidth:170}}>
+                          <button onClick={e=>{
+                            e.stopPropagation();
+                            if(!msg.audioUrl) return;
+                            if(playingMsgId===msg.id){
+                              audioRef.current?.pause();
+                              setPlayingMsgId(null);
+                            } else {
+                              if(audioRef.current){audioRef.current.pause();}
+                              const a=new Audio(msg.audioUrl);
+                              audioRef.current=a;
+                              a.play().catch(()=>{});
+                              setPlayingMsgId(msg.id);
+                              a.onended=()=>setPlayingMsgId(null);
+                              a.onerror=()=>setPlayingMsgId(null);
+                            }
+                          }}
+                            style={{width:36,height:36,borderRadius:"50%",background:isMe?G.green:"#25D366",border:"none",color:"#FFF",fontSize:15,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
+                            {playingMsgId===msg.id?"⏸":"▶"}
+                          </button>
                           <div style={{flex:1}}>
-                            <div style={{display:"flex",gap:2,alignItems:"flex-end",height:20,marginBottom:2}}>
+                            <div style={{display:"flex",gap:2,alignItems:"flex-end",height:22,marginBottom:2}}>
                               {[3,5,8,4,9,6,3,7,5,8,4,6].map((h,j)=>(
-                                <div key={j} style={{width:3,borderRadius:2,background:isMe?"#128C7E":"#25D366",height:h,opacity:0.7}}/>
+                                <div key={j} style={{
+                                  width:3,borderRadius:2,
+                                  background:isMe?"#128C7E":"#25D366",
+                                  height:playingMsgId===msg.id?h*(0.5+Math.abs(Math.sin((Date.now()/200)+j))*0.8):h,
+                                  opacity:playingMsgId===msg.id?1:0.5,
+                                  transition:"height 0.15s ease",
+                                  animation:playingMsgId===msg.id?`wave${j%4} 0.${6+j%4}s ease-in-out infinite alternate`:"none"
+                                }}/>
                               ))}
                             </div>
                             <div style={{fontSize:10,color:G.gray}}>{msg.duration||"0:00"}</div>
                           </div>
-                          <span style={{fontSize:16}}>🎤</span>
+                          <span style={{fontSize:16,opacity:playingMsgId===msg.id?1:0.5}}>🎤</span>
+                          <style>{`
+                            @keyframes wave0{from{height:3px}to{height:12px}}
+                            @keyframes wave1{from{height:4px}to{height:18px}}
+                            @keyframes wave2{from{height:5px}to{height:14px}}
+                            @keyframes wave3{from{height:3px}to{height:10px}}
+                          `}</style>
                         </div>
                       ):(
                         <div style={{fontSize:13,lineHeight:1.5,wordBreak:"break-word"}}>{msg.text}</div>
