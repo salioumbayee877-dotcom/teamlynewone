@@ -2571,11 +2571,14 @@ function AppInner() {
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
+                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
-                      <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
-                        📞 Appeler
-                      </a>
+                      {m.id!==currentUser.id&&(
+                        <div style={{display:"flex",gap:5}}>
+                          <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
+                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -2589,12 +2592,13 @@ function AppInner() {
                         <div style={{fontWeight:700,fontSize:13,color:m.id===currentUser.id?G.green:G.dark}}>
                           🏍️ {m.nom} {m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
                         </div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>
+                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
                       {m.id!==currentUser.id&&(
-                        <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 14px",fontSize:13,textDecoration:"none",fontWeight:700}}>
-                          📞 Appeler
-                        </a>
+                        <div style={{display:"flex",gap:5}}>
+                          <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
+                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
+                        </div>
                       )}
                     </div>
                   ))}
@@ -2612,10 +2616,16 @@ function AppInner() {
                 <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginTop:3}}>📱 {settings.whatsapp}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>Responsable boutique · Admin</div>
               </div>
-              <a href={`tel:+${settings.whatsapp}`}
-                style={{background:"rgba(255,255,255,0.15)",color:G.white,borderRadius:10,padding:"9px 14px",fontSize:14,textDecoration:"none",fontWeight:700}}>
-                📞
-              </a>
+              <div style={{display:"flex",gap:5}}>
+                <a href={`tel:+${settings.whatsapp}`}
+                  style={{background:"rgba(255,255,255,0.15)",color:G.white,borderRadius:10,padding:"9px 11px",fontSize:14,textDecoration:"none",fontWeight:700}}>
+                  📞
+                </a>
+                <a href={`https://wa.me/${settings.whatsapp?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer"
+                  style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"9px 11px",fontSize:14,textDecoration:"none",fontWeight:700}}>
+                  💬
+                </a>
+              </div>
             </div>
 
             {/* Closers */}
@@ -2628,10 +2638,11 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.id!==currentUser.id&&`📱 ${m.phone} · `}📧 {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
+                        {m.id!==currentUser.id&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                        {m.id!==currentUser.id&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
                         <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
@@ -2664,6 +2675,7 @@ function AppInner() {
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
+                        <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
                         <button onClick={()=>{setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>alert("En production: suppression via Supabase")});}}
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 8px",fontSize:12,cursor:"pointer"}}>🗑️</button>
                       </div>
