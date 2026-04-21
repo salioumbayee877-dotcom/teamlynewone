@@ -1,0 +1,14 @@
+{
+  "name": "Teamly",
+  "short_name": "Teamly",
+  "description": "Gestion COD & livraisons",
+  "theme_color": "#1A5C38",
+  "background_color": "#1A5C38",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
