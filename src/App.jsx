@@ -19,7 +19,10 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
       body: body ? JSON.stringify(body) : undefined,
     });
     if(!res.ok) { const e=await res.text(); throw new Error(e); }
-    return method==="DELETE" ? null : res.json();
+    if(method==="DELETE") return null;
+    const text = await res.text();
+    if(!text||text.trim()==="") return null;
+    try { return JSON.parse(text); } catch(e) { return null; }
   } catch(e) {
     console.error("sbFetch error:", path, e.message);
     throw e;
@@ -1375,6 +1378,7 @@ function AppInner() {
     };
   });
   const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const [org, setOrg]             = useState(null);
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
@@ -1476,7 +1480,7 @@ function AppInner() {
               {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
-                setAuthError("");
+                setAuthError(""); setAuthLoading(true);
                 sbAuth(authForm.email, authForm.password, "login")
                   .then(async(data)=>{
                     const tok = data.access_token;
@@ -1494,6 +1498,7 @@ function AppInner() {
                       setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
                       setRole(p.role||"admin");
                       setTab("dashboard");
+                      setAuthLoading(false);
                       try {
                         localStorage.setItem("teamly_token", tok);
                         localStorage.setItem("teamly_email", authForm.email);
@@ -1515,9 +1520,17 @@ function AppInner() {
                         } else { setAuthError("Erreur création profil — réessaie"); }
                       } catch(e) { setAuthError("Profil introuvable — " + e.message); }
                     }
-                  }).catch(e=>setAuthError(e.message||"Email ou mot de passe incorrect"));
-              }} style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4,fontFamily:"sans-serif"}}>
-                Se connecter →
+                  }).catch(e=>{setAuthError(e.message||"Email ou mot de passe incorrect");setAuthLoading(false);});
+              }} disabled={authLoading} style={{background:authLoading?"#A0845C":G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"not-allowed":"pointer",marginTop:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {authLoading?(
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={G.dark} strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 0.8s linear infinite"}}>
+                      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                    </svg>
+                    Connexion en cours...
+                  </>
+                ):"Se connecter →"}
+                <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
               </button>
               <div style={{textAlign:"center",marginTop:6}}>
                 <button onClick={async()=>{
