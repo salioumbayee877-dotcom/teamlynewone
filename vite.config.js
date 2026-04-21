@@ -7,8 +7,9 @@ export default defineConfig({
     outDir: 'dist',
     rollupOptions: {
       output: {
+        format: 'iife',
         entryFileNames: 'app.js',
-        chunkFileNames: 'chunk.js',
+        name: 'Teamly',
       }
     }
   }
