@@ -11,19 +11,26 @@ const sbHeaders = (token) => ({
   "Prefer":        "return=representation",
 });
 
+const fetchWithTimeout = (url, opts={}, ms=7000) => {
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), ms);
+  return fetch(url, {...opts, signal:ctrl.signal}).finally(()=>clearTimeout(id));
+};
+
 const sbFetch = async (path, method="GET", body=null, token=null) => {
   try {
-    const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    const res = await fetchWithTimeout(`${SB_URL}/rest/v1/${path}`, {
       method,
       headers: sbHeaders(token),
       body: body ? JSON.stringify(body) : undefined,
-    });
+    }, 8000);
     if(!res.ok) { const e=await res.text(); throw new Error(e); }
     if(method==="DELETE") return null;
     const text = await res.text();
     if(!text||text.trim()==="") return null;
     try { return JSON.parse(text); } catch(e) { return null; }
   } catch(e) {
+    if(e.name==="AbortError") throw new Error("Délai dépassé — vérifie ta connexion");
     console.error("sbFetch error:", path, e.message);
     throw e;
   }
@@ -32,17 +39,18 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
 const sbAuth = async (email, password, type="login") => {
   try {
     const endpoint = type==="login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup";
-    const res = await fetch(`${SB_URL}${endpoint}`, {
+    const res = await fetchWithTimeout(`${SB_URL}${endpoint}`, {
       method: "POST",
       headers: {"Content-Type":"application/json","apikey":SB_KEY},
       body: JSON.stringify({email, password}),
-    });
+    }, 10000);
     const text = await res.text();
     let data = null;
-    try { data = JSON.parse(text); } catch(e) { throw new Error("Erreur serveur — réessaie dans quelques secondes"); }
-    if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||"Email ou mot de passe incorrect");
+    try { data = JSON.parse(text); } catch(e) { throw new Error(`Erreur serveur (${res.status}): ${text.slice(0,120)}`); }
+    if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||`Erreur ${res.status}`);
     return data;
   } catch(e) {
+    if(e.name==="AbortError") throw new Error("Connexion trop lente — réessaie");
     if(e.message.includes("fetch")||e.message.includes("network")) throw new Error("Pas de connexion internet");
     throw e;
   }
@@ -914,6 +922,8 @@ function AppInner() {
       const savedNom = localStorage.getItem("teamly_nom");
       if(!email || !savedOrg) { setAppLoading(false); return; }
       if(tok) setSbToken(tok);
+      // Safety timeout: never stay on loading screen more than 5 seconds
+      const safetyTimer = setTimeout(()=>setAppLoading(false), 5000);
       // Restore immediately from cache so dashboard shows data while verifying
       if(savedOrg && savedRole && savedId) {
         setOrgId(savedOrg);
@@ -925,6 +935,7 @@ function AppInner() {
       // Verify & refresh profile in background using SERVICE_KEY (bypasses expired JWT)
       sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET",null,SERVICE_KEY_CONST)
         .then(async profiles=>{
+          clearTimeout(safetyTimer);
           if(profiles&&profiles.length>0){
             const p=profiles[0];
             setOrgId(p.org_id);
@@ -938,19 +949,16 @@ function AppInner() {
             } catch(e){}
             setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
             setRole(p.role||"admin");
-            // Persist fresh data
             try {
               localStorage.setItem("teamly_org",p.org_id);
               localStorage.setItem("teamly_role",p.role||"admin");
               localStorage.setItem("teamly_userId",p.id||"");
               localStorage.setItem("teamly_nom",p.nom||"");
             } catch(e){}
-            setAppLoading(false);
-          } else if(!savedOrg) {
-            setAppLoading(false);
           }
+          setAppLoading(false);
         })
-        .catch(()=>{ setAppLoading(false); });
+        .catch(()=>{ clearTimeout(safetyTimer); setAppLoading(false); });
     } catch(e) { 
       console.log("Session restore error:", e.message);
       setAppLoading(false);
