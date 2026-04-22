@@ -29,19 +29,21 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
   }
 };
 
-const sbAuth = async (email, password, type="login", captchaToken=null) => {
+const sbAuth = async (email, password, type="login") => {
   try {
     const endpoint = type==="login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup";
     const res = await fetch(`${SB_URL}${endpoint}`, {
       method: "POST",
       headers: {"Content-Type":"application/json","apikey":SB_KEY},
-      body: JSON.stringify({email, password, ...(captchaToken?{gotrue_meta_security:{captcha_token:captchaToken}}:{})}),
+      body: JSON.stringify({email, password}),
     });
-    const data = await res.json();
-    if(!res.ok) throw new Error(data.error_description||data.msg||"Email ou mot de passe incorrect");
+    const text = await res.text();
+    let data = null;
+    try { data = JSON.parse(text); } catch(e) { throw new Error("Erreur serveur — réessaie dans quelques secondes"); }
+    if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||"Email ou mot de passe incorrect");
     return data;
   } catch(e) {
-    if(e.message.includes("fetch")) throw new Error("Pas de connexion internet");
+    if(e.message.includes("fetch")||e.message.includes("network")) throw new Error("Pas de connexion internet");
     throw e;
   }
 };
@@ -761,8 +763,6 @@ function AppInner() {
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
-  const [captchaToken,setCaptchaToken]     = useState(null);
-  const captchaWidgetId                    = useRef(null);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("org") && params.get("role")) return "join";
@@ -1675,7 +1675,7 @@ function AppInner() {
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
                 setAuthError(""); setAuthLoading(true);
-                sbAuth(authForm.email, authForm.password, "login", null)
+                sbAuth(authForm.email, authForm.password, "login")
                   .then(async(data)=>{
                     const tok = data.access_token;
                     setSbToken(tok);
