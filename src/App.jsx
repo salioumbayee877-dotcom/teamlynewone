@@ -62,6 +62,23 @@ const G = {
   gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
   grayLight:"#F4F4F4",white:"#FFFFFF",red:"#DC2626",blue:"#2563EB",
 };
+
+// ── Logo Teamly ──────────────────────────────────────────────────────────────
+const TeamlyLogo = ({size=1, dark=false}) => (
+  <div style={{display:"flex",alignItems:"center",gap:3*size}}>
+    <div style={{
+      width:30*size,height:30*size,borderRadius:7*size,
+      background:"#F0A500",display:"flex",alignItems:"center",justifyContent:"center",
+      flexShrink:0,boxShadow:`0 2px 8px rgba(240,165,0,${size>1?0.5:0.35})`
+    }}>
+      <svg width={18*size} height={18*size} viewBox="0 0 18 18" fill="none">
+        <rect x="1" y="2" width="16" height="2.5" rx="1.2" fill="#1A5C38"/>
+        <rect x="7.25" y="4.5" width="3.5" height="11.5" rx="1.2" fill="#1A5C38"/>
+      </svg>
+    </div>
+    <span style={{fontFamily:"Georgia,serif",fontWeight:700,fontSize:22*size,color:dark?"#1A1A1A":"#F0A500",letterSpacing:0.5,lineHeight:1}}>eamly</span>
+  </div>
+);
 const fmt = n => Number(n||0).toLocaleString("fr-FR");
 const pct = n => (Number(n||0)*100).toFixed(1)+"%";
 const TODAY = new Date().toISOString().split("T")[0];
@@ -1641,7 +1658,7 @@ function AppInner() {
   // ── Login screen ──
   if(appLoading) return (
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1A5C38"}}>
-      <div style={{fontSize:32,fontFamily:"Georgia,serif",color:"#F0A500",fontWeight:700,marginBottom:20}}>Teamly</div>
+      <div style={{marginBottom:20}}><TeamlyLogo size={1.3}/></div>
       <div style={{width:36,height:36,border:"3px solid rgba(255,255,255,0.2)",borderTop:"3px solid #F0A500",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
     </div>
@@ -1652,7 +1669,7 @@ function AppInner() {
 
       {/* Logo */}
       <div style={{marginBottom:32,textAlign:"center"}}>
-        <div style={{fontSize:52,fontWeight:700,color:G.gold,letterSpacing:3,textShadow:"0 4px 20px rgba(0,0,0,0.4)"}}>Teamly</div>
+        <TeamlyLogo size={2}/>
         <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,marginTop:6,fontFamily:"sans-serif",letterSpacing:2}}>GESTION DE COMMANDES · WEST AFRICA</div>
       </div>
 
@@ -2196,7 +2213,7 @@ function AppInner() {
       <div style={{position:"fixed",top:0,left:0,bottom:0,width:260,background:G.green,zIndex:201,transform:sidebarOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.28s ease",display:"flex",flexDirection:"column",boxShadow:"4px 0 20px rgba(0,0,0,0.3)"}}>
         {/* Sidebar header */}
         <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
-          <div style={{color:G.gold,fontWeight:700,fontSize:26,fontFamily:"Georgia,serif",letterSpacing:1}}>Teamly</div>
+          <TeamlyLogo size={1.05}/>
           <div style={{color:"rgba(255,255,255,0.5)",fontSize:11,marginTop:2}}>{rlabel[role]}</div>
           <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"5px 10px",display:"inline-block"}}>
             <span style={{fontSize:10,color:G.gold,fontWeight:700}}>{settings.boutique}</span>
@@ -2246,7 +2263,7 @@ function AppInner() {
             <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
           </button>
           <div>
-            <div style={{color:G.gold,fontWeight:700,fontSize:20,fontFamily:"Georgia,serif",letterSpacing:1}}>Teamly</div>
+            <TeamlyLogo size={0.85}/>
             <div style={{color:"rgba(255,255,255,0.5)",fontSize:10}}>{rlabel[role]}</div>
           </div>
         </div>
@@ -2701,16 +2718,20 @@ function AppInner() {
                   <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,letterSpacing:1,marginBottom:10}}>RÉSUMÉ — {baseOrders.length} COMMANDES</div>
                   <div style={{display:"flex",gap:8,marginBottom:10}}>
                     {[
-                      {l:"Confirmé",   v:nConfirme,  c:"#FCD34D",bg:"rgba(252,211,77,0.15)"},
-                      {l:"Livraison",  v:nLivraison, c:"#60A5FA",bg:"rgba(96,165,250,0.15)"},
-                      {l:"Livré",      v:nLivre,     c:"#34D399",bg:"rgba(52,211,153,0.15)"},
-                      {l:"Rejeté",     v:nRejete,    c:"#F87171",bg:"rgba(248,113,113,0.15)"},
-                    ].map((s,i)=>(
-                      <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:"8px 6px",textAlign:"center",border:`1px solid ${s.c}33`,userSelect:"none",pointerEvents:"none"}}>
+                      {l:"Confirmé",   v:nConfirme,  c:"#FCD34D",bg:"rgba(252,211,77,0.15)",  f:"confirmado"},
+                      {l:"Livraison",  v:nLivraison, c:"#60A5FA",bg:"rgba(96,165,250,0.15)",  f:"livraison"},
+                      {l:"Livré",      v:nLivre,     c:"#34D399",bg:"rgba(52,211,153,0.15)",  f:"entregado"},
+                      {l:"Rejeté",     v:nRejete,    c:"#F87171",bg:"rgba(248,113,113,0.15)", f:"rechazado"},
+                    ].map((s,i)=>{
+                      const active = filterStatus===s.f;
+                      return (
+                      <div key={i} onClick={()=>setFilterStatus(active?"all":s.f)}
+                        style={{flex:1,background:active?s.c+"44":s.bg,borderRadius:10,padding:"8px 6px",textAlign:"center",border:`2px solid ${active?s.c:s.c+"33"}`,cursor:"pointer",transition:"all 0.15s",userSelect:"none"}}>
                         <div style={{fontSize:18,fontWeight:800,color:s.c}}>{s.v}</div>
-                        <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:1}}>{s.l}</div>
+                        <div style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:1,fontWeight:active?700:400}}>{s.l}{active?" ✓":""}</div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:8}}>
                     <span style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>CA encaissé</span>
