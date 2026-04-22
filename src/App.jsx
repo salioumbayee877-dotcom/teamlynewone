@@ -43,7 +43,7 @@ const sbAuth = async (email, password, type="login") => {
       method: "POST",
       headers: {"Content-Type":"application/json","apikey":SB_KEY},
       body: JSON.stringify({email, password}),
-    }, 10000);
+    }, 30000);
     const text = await res.text();
     let data = null;
     try { data = JSON.parse(text); } catch(e) { throw new Error(`Erreur serveur (${res.status}): ${text.slice(0,120)}`); }
@@ -1683,56 +1683,56 @@ function AppInner() {
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
                 setAuthError(""); setAuthLoading(true);
-                sbAuth(authForm.email, authForm.password, "login")
-                  .then(async(data)=>{
-                    const tok = data.access_token;
-                    setSbToken(tok);
-                    const profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,tok);
-                    if(profiles&&profiles.length>0){
-                      const p=profiles[0];
-                      setOrgId(p.org_id);
-                      setSbReady(true);
-                      // Load org name
-                      const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,tok);
-                      const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
-                      const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
-                      setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
-                      setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
-                      setRole(p.role||"admin");
-                      setTab("dashboard");
-                      setAuthLoading(false);
-                      try {
-                        localStorage.setItem("teamly_token", tok);
-                        localStorage.setItem("teamly_email", authForm.email);
-                        localStorage.setItem("teamly_org", p.org_id);
-                        localStorage.setItem("teamly_role", p.role||"admin");
-                        localStorage.setItem("teamly_userId", p.id||"");
-                        localStorage.setItem("teamly_nom", p.nom||"");
-                      } catch(e){}
-                    } else {
-                      // Profile missing — create org + profile automatically
-                      try {
-                        const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},SERVICE_KEY_CONST);
-                        const orgData = Array.isArray(org)?org[0]:org;
-                        if(orgData) {
-                          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},SERVICE_KEY_CONST);
-                          setOrgId(orgData.id); setSbReady(true);
-                          setRole("admin"); setTab("dashboard");
-                          try { localStorage.setItem("teamly_token", tok); localStorage.setItem("teamly_email", authForm.email); } catch(e){}
-                        } else { setAuthError("Erreur création profil — réessaie"); }
-                      } catch(e) { setAuthError("Profil introuvable — " + e.message); }
-                    }
-                  }).catch(e=>{
-                    setAuthError(e.message||"Email ou mot de passe incorrect");
-                    setAuthLoading(false);
-                  });
+                // Lancer auth ET pré-fetch profil en parallèle pour aller plus vite
+                const [authResult, profileResult] = await Promise.allSettled([
+                  sbAuth(authForm.email, authForm.password, "login"),
+                  sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,SERVICE_KEY_CONST),
+                ]);
+                if(authResult.status==="rejected"){
+                  setAuthError(authResult.reason?.message||"Email ou mot de passe incorrect");
+                  setAuthLoading(false); return;
+                }
+                const data = authResult.value;
+                const tok  = data.access_token;
+                setSbToken(tok);
+                const profiles = profileResult.status==="fulfilled" ? profileResult.value
+                  : await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
+                if(profiles&&profiles.length>0){
+                  const p=profiles[0];
+                  const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
+                  const orgName  = orgs?.[0]?.name  || "Ma Boutique";
+                  const orgPhone = orgs?.[0]?.whatsapp || "";
+                  setOrgId(p.org_id); setSbReady(true);
+                  setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
+                  setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
+                  setRole(p.role||"admin"); setTab("dashboard"); setAuthLoading(false);
+                  try {
+                    localStorage.setItem("teamly_token", tok);
+                    localStorage.setItem("teamly_email", authForm.email);
+                    localStorage.setItem("teamly_org", p.org_id);
+                    localStorage.setItem("teamly_role", p.role||"admin");
+                    localStorage.setItem("teamly_userId", p.id||"");
+                    localStorage.setItem("teamly_nom", p.nom||"");
+                  } catch(e){}
+                } else {
+                  try {
+                    const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},SERVICE_KEY_CONST);
+                    const orgData = Array.isArray(org)?org[0]:org;
+                    if(orgData){
+                      await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},SERVICE_KEY_CONST);
+                      setOrgId(orgData.id); setSbReady(true); setRole("admin"); setTab("dashboard");
+                      try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);}catch(e){}
+                    } else { setAuthError("Erreur création profil — réessaie"); }
+                  } catch(e){ setAuthError("Profil introuvable — "+e.message); }
+                  setAuthLoading(false);
+                }
               }} disabled={authLoading} style={{background:authLoading?"#A0845C":G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"not-allowed":"pointer",marginTop:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {authLoading?(
                   <>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={G.dark} strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 0.8s linear infinite"}}>
                       <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
                     </svg>
-                    Connexion en cours...
+                    Connexion en cours... (30s max)
                   </>
                 ):"Se connecter →"}
                 <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
