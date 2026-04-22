@@ -717,6 +717,7 @@ function AppInner() {
   const [newAssignment,setNewAssignment] = useState(null);
   const [showGpsPrompt,setShowGpsPrompt] = useState(false);
   const [confirmModal,setConfirmModal]   = useState(null);
+  const [assignLivreurModal,setAssignLivreurModal] = useState(null); // {order}
   const [sbToken,setSbToken]             = useState(null);  // JWT token
   const [orgId,setOrgId]                 = useState(null);
   const [sbReady,setSbReady]             = useState(false);
@@ -2355,12 +2356,8 @@ function AppInner() {
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           ❌
                         </button>
-                        <button onClick={()=>{
-                          upSt(o.id,"confirmado");
-                          addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green);
-                          setTimeout(()=>sendWAConfirmation(o), 400);
-                        }} style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.25 2C6.15 2 2 6.15 2 11.25c0 1.97.573 3.81 1.565 5.36L2 22l5.553-1.54A9.22 9.22 0 0011.25 21.5C16.35 21.5 20.5 17.35 20.5 12.25S16.35 2 11.25 2z"/></svg>
+                        <button onClick={()=>setAssignLivreurModal(o)}
+                          style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           → Cmd à traiter
                         </button>
                       </div>
@@ -4763,6 +4760,58 @@ function AppInner() {
               <button onClick={()=>{setOrders(orders.map(o=>o.id===noteModal?{...o,note:noteText}:o));if(!String(noteModal).startsWith("tmp_"))sbFetch(`orders?id=eq.${noteModal}`,"PATCH",{note:noteText},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");setNoteModal(null);}} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,cursor:"pointer"}}>Sauvegarder</button>
               <button onClick={()=>setNoteModal(null)} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer"}}>Annuler</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL ASSIGNER LIVREUR (Cmdes à confirmer) ── */}
+      {assignLivreurModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={()=>setAssignLivreurModal(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxWidth:480,paddingBottom:34}}>
+            {/* Pill */}
+            <div style={{width:36,height:4,background:"#E5E7EB",borderRadius:2,margin:"0 auto 16px"}}/>
+            <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>Assigner un livreur</div>
+            <div style={{fontSize:12,color:G.gray,marginBottom:16}}>
+              {assignLivreurModal.client} · {assignLivreurModal.product} · <b>{Number(assignLivreurModal.price).toLocaleString("fr-FR")} FCFA</b>
+            </div>
+
+            {/* Lista livreurs */}
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+              {teamMembers.filter(m=>m.role==="livreur").length===0&&(
+                <div style={{textAlign:"center",padding:20,color:G.gray,fontSize:13}}>Aucun livreur dans l'équipe</div>
+              )}
+              {teamMembers.filter(m=>m.role==="livreur").map(m=>(
+                <button key={m.id} onClick={()=>{
+                  const o = assignLivreurModal;
+                  upSt(o.id,"confirmado");
+                  upLiv(o.id, m.id);
+                  sendWAConfirmation(o);
+                  addToast(`${o.client} → ${m.nom} ✅`,"✅",G.green);
+                  setAssignLivreurModal(null);
+                }} style={{background:G.greenLight,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"13px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
+                  <div style={{width:38,height:38,borderRadius:"50%",background:G.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🏍️</div>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{m.nom}</div>
+                    <div style={{fontSize:11,color:G.gray}}>
+                      {orders.filter(x=>x.livreur_id===m.id&&["confirmado","en_camino","chez_client","colis_pris"].includes(x.status)).length} livraison(s) en cours
+                    </div>
+                  </div>
+                  <div style={{marginLeft:"auto",color:G.green,fontWeight:700,fontSize:13}}>→</div>
+                </button>
+              ))}
+            </div>
+
+            {/* Confirmer sans livreur */}
+            <button onClick={()=>{
+              const o = assignLivreurModal;
+              upSt(o.id,"confirmado");
+              sendWAConfirmation(o);
+              addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green);
+              setAssignLivreurModal(null);
+            }} style={{width:"100%",background:"#F3F4F6",color:G.gray,border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              Confirmer sans livreur pour l'instant
+            </button>
           </div>
         </div>
       )}
