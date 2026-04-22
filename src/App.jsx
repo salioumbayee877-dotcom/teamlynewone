@@ -1020,10 +1020,11 @@ function AppInner() {
         const msgs = await sbFetch(`messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`, "GET", null, SERVICE_KEY_CONST);
         if(msgs) {
           const mapped = mapMsgs([...msgs].reverse());
+          const myNom = currentUser.nom;
           setChat(prev => {
             if(mapped.length > prev.length && prev.length > 0) {
-              const newCount = mapped.length - prev.length;
-              setChatUnread(u => tab==="chat" ? 0 : u + newCount);
+              const newFromOthers = mapped.slice(prev.length).filter(m=>m.from!==myNom).length;
+              setChatUnread(u => tab==="chat" ? 0 : u + newFromOthers);
             }
             return mapped;
           });
@@ -2215,6 +2216,8 @@ function AppInner() {
               <span style={{fontSize:13,fontWeight:isActive?700:400,color:isActive?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.2}}>{t.l}</span>
               {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{alertCount}</span>}
               {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{chatUnread}</span>}
+              {t.k==="boutique"&&(()=>{const cnt=orders.filter(o=>o.status==="boutique").length;return cnt>0?<span style={{background:G.gold,color:G.dark,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{cnt}</span>:null;})()}
+              {t.k==="commandes"&&(()=>{const cnt=orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;return cnt>0?<span style={{background:"#EF4444",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{cnt}</span>:null;})()}
             </button>
             );
           })}
@@ -2662,42 +2665,78 @@ function AppInner() {
 
         {/* ── COMMANDES / LIVRAISONS ── */}
         {dataReady&&(tab==="commandes"||tab==="livraisons")&&(
-          <div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-            {/* Filtres date */}
-            <div style={{display:"flex",gap:6,marginBottom:8}}>
-              {[
-                {k:"today",    l:"Aujourd'hui", icon:"📅"},
-                {k:"yesterday",l:"Hier",         icon:"⏪"},
-                {k:"week",     l:"Semaine",      icon:"📆"},
-                {k:"all",      l:"Tout",         icon:"🗂️"},
-              ].map(d=>{
-                const active = filterDate===d.k;
-                const cnt = d.k==="today" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===TODAY).length
-                          : d.k==="yesterday" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===YESTERDAY).length
-                          : d.k==="week" ? baseOrders.filter(o=>o.created_at?.slice(0,10)>=WEEK_AGO).length
-                          : baseOrders.length;
-                return (
-                  <button key={d.k} onClick={()=>setFilterDate(d.k)}
-                    style={{flex:1,background:active?G.green:"#F4F4F4",color:active?G.white:G.gray,border:"none",borderRadius:10,padding:"7px 4px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:1}}>
-                    <span style={{fontSize:14}}>{d.icon}</span>
-                    <span>{d.l}</span>
-                    <span style={{fontSize:10,opacity:0.8}}>{cnt}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {/* ── Sélecteur période — style compta ── */}
+            {tab==="commandes"&&(
+              <div style={{background:G.white,borderRadius:14,padding:"12px 14px"}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:1,marginBottom:9}}>PÉRIODE D'ANALYSE</div>
+                <div style={{display:"flex",gap:6,marginBottom:0}}>
+                  {[
+                    {k:"today",    l:"Aujourd'hui"},
+                    {k:"yesterday",l:"Hier"},
+                    {k:"week",     l:"Semaine"},
+                    {k:"all",      l:"Tout"},
+                  ].map(d=>{
+                    const active = filterDate===d.k;
+                    const cnt = d.k==="today" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===TODAY).length
+                              : d.k==="yesterday" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===YESTERDAY).length
+                              : d.k==="week" ? baseOrders.filter(o=>o.created_at?.slice(0,10)>=WEEK_AGO).length
+                              : baseOrders.length;
+                    return (
+                      <button key={d.k} onClick={()=>setFilterDate(d.k)}
+                        style={{flex:1,background:active?G.green:"#F3F4F6",color:active?G.white:G.gray,border:"none",borderRadius:9,padding:"8px 4px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                        <span>{d.l}</span>
+                        <span style={{fontSize:13,fontWeight:800,color:active?G.gold:G.dark}}>{cnt}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-            {/* Filtres statut — toujours visibles */}
-            {(()=>{
+            {/* ── Stats résumé ── */}
+            {tab==="commandes"&&(()=>{
+              const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
+              const nConfirme  = baseOrders.filter(o=>o.status==="confirmado").length;
+              const nLivraison = baseOrders.filter(o=>LIVRAISON_STATUTS.includes(o.status)).length;
+              const nLivre     = baseOrders.filter(o=>o.status==="entregado").length;
+              const nRejete    = baseOrders.filter(o=>o.status==="rechazado").length;
+              const caLivre    = baseOrders.filter(o=>o.status==="entregado").reduce((a,o)=>a+Number(o.price||0),0);
+              return (
+                <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:14,padding:"14px 16px",color:G.white}}>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,letterSpacing:1,marginBottom:10}}>RÉSUMÉ — {baseOrders.length} COMMANDES</div>
+                  <div style={{display:"flex",gap:8,marginBottom:10}}>
+                    {[
+                      {l:"Confirmé",   v:nConfirme,  c:"#FCD34D",bg:"rgba(252,211,77,0.15)"},
+                      {l:"Livraison",  v:nLivraison, c:"#60A5FA",bg:"rgba(96,165,250,0.15)"},
+                      {l:"Livré",      v:nLivre,     c:"#34D399",bg:"rgba(52,211,153,0.15)"},
+                      {l:"Rejeté",     v:nRejete,    c:"#F87171",bg:"rgba(248,113,113,0.15)"},
+                    ].map((s,i)=>(
+                      <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:"8px 6px",textAlign:"center",border:`1px solid ${s.c}33`}}>
+                        <div style={{fontSize:18,fontWeight:800,color:s.c}}>{s.v}</div>
+                        <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:1}}>{s.l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:8}}>
+                    <span style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>CA encaissé</span>
+                    <span style={{fontSize:18,fontWeight:800,color:G.gold}}>{caLivre.toLocaleString("fr-FR")} <span style={{fontSize:11,fontWeight:400,opacity:0.8}}>FCFA</span></span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* ── Filtres statut + livreur ── */}
+            {tab==="commandes"&&(()=>{
               const FILTERS = [
-                {k:"all",      l:"Tous",      count:null},
-                {k:"confirmado",l:"✅ Confirmé",count:null},
-                {k:"livraison",l:"🏍️ En livraison",count:null},
-                {k:"entregado",l:"✓ Livré",   count:null},
-                {k:"rechazado",l:"❌ Rejeté", count:null},
-                {k:"no_contesta",l:"📵 Absent",count:null},
-                {k:"reprogramar",l:"🔄 Reporter",count:null},
+                {k:"all",        l:"Tous"},
+                {k:"confirmado", l:"Confirmé"},
+                {k:"livraison",  l:"Livraison"},
+                {k:"entregado",  l:"Livré"},
+                {k:"rechazado",  l:"Rejeté"},
+                {k:"no_contesta",l:"Absent"},
+                {k:"reprogramar",l:"Reporter"},
               ];
               const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
               const getCount = k => {
@@ -2705,36 +2744,67 @@ function AppInner() {
                 if(k==="livraison") return baseOrders.filter(o=>LIVRAISON_STATUTS.includes(o.status)).length;
                 return baseOrders.filter(o=>o.status===k).length;
               };
+              const STATUS_COLOR = {all:"#6B7280",confirmado:"#10B981",livraison:"#3B82F6",entregado:"#059669",rechazado:"#EF4444",no_contesta:"#F59E0B",reprogramar:"#8B5CF6"};
+              const livreurs = teamMembers.filter(m=>m.role==="livreur");
               return (
-                <>
-                  <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:8,marginBottom:2}}>
+                <div style={{background:G.white,borderRadius:14,padding:"12px 14px"}}>
+                  <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:1,marginBottom:9}}>FILTRES</div>
+
+                  {/* Statuts */}
+                  <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:6,marginBottom:(livreurs.length>0?8:0)}}>
                     {FILTERS.map(s=>{
                       const cnt = getCount(s.k);
                       const active = filterStatus===s.k || (s.k==="livraison"&&LIVRAISON_STATUTS.includes(filterStatus));
+                      const col = STATUS_COLOR[s.k]||G.gray;
                       return (
                         <button key={s.k}
-                          onClick={()=>{
-                            if(s.k==="livraison") setFilterStatus("livraison");
-                            else setFilterStatus(s.k);
-                          }}
-                          style={{background:active?G.green:"#F4F4F4",color:active?G.white:G.gray,border:"none",borderRadius:20,padding:"6px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,display:"flex",alignItems:"center",gap:4}}>
+                          onClick={()=>setFilterStatus(s.k==="livraison"?"livraison":s.k)}
+                          style={{
+                            background:active?col:"#F3F4F6",
+                            color:active?"#fff":G.gray,
+                            border:`1.5px solid ${active?col:"transparent"}`,
+                            borderRadius:20,padding:"5px 10px",fontSize:11,fontWeight:600,
+                            cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,
+                            display:"flex",alignItems:"center",gap:4,transition:"all 0.15s"
+                          }}>
                           {s.l}
-                          {cnt>0&&<span style={{background:active?"rgba(255,255,255,0.25)":"rgba(0,0,0,0.1)",borderRadius:10,padding:"1px 5px",fontSize:10}}>{cnt}</span>}
+                          <span style={{background:active?"rgba(255,255,255,0.25)":"rgba(0,0,0,0.08)",borderRadius:10,padding:"1px 5px",fontSize:10,fontWeight:700}}>{cnt}</span>
                         </button>
                       );
                     })}
                   </div>
-                  {filterStatus!=="all"&&(
-                    <div style={{fontSize:11,color:G.gray,marginBottom:6}}>
-                      {filteredOrders.length} résultat{filteredOrders.length!==1?"s":""} ·{" "}
-                      <button onClick={()=>setFilterStatus("all")} style={{background:"none",border:"none",color:G.green,fontSize:11,cursor:"pointer",padding:0,textDecoration:"underline"}}>tout voir</button>
+
+                  {/* Livreurs (admin seulement) */}
+                  {livreurs.length>0&&role==="admin"&&(
+                    <>
+                      <div style={{height:1,background:G.grayLight,margin:"2px 0 8px"}}/>
+                      <div style={{display:"flex",gap:5,overflowX:"auto"}}>
+                        {["all",...livreurs.map(m=>m.nom)].map(l=>(
+                          <button key={l} onClick={()=>setFilterLivreur(l)}
+                            style={{background:filterLivreur===l?G.green:"#F3F4F6",color:filterLivreur===l?"#fff":G.gray,border:"none",borderRadius:20,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                            {l==="all"?"Tous livreurs":"🏍️ "+l}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Résultat count */}
+                  {(filterStatus!=="all"||filterLivreur!=="all")&&(
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,paddingTop:6,borderTop:`1px solid ${G.grayLight}`}}>
+                      <span style={{fontSize:11,color:G.gray}}>{filteredOrders.length} résultat{filteredOrders.length!==1?"s":""}</span>
+                      <button onClick={()=>{setFilterStatus("all");setFilterLivreur("all");}}
+                        style={{background:"none",border:"none",color:G.green,fontSize:11,cursor:"pointer",fontWeight:600,textDecoration:"underline"}}>
+                        Réinitialiser
+                      </button>
                     </div>
                   )}
-                </>
+                </div>
               );
             })()}
+
             {filteredOrders.length===0&&(
-              <div style={{textAlign:"center",padding:40,color:G.gray}}>
+              <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
                 <div style={{fontSize:32,marginBottom:8}}>🔍</div>
                 <div style={{fontSize:14,fontWeight:600}}>Aucun résultat</div>
                 <div style={{fontSize:12,marginTop:4}}>Modifie ta recherche ou tes filtres</div>
