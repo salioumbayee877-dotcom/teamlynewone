@@ -321,12 +321,21 @@ class ErrorBoundary extends React.Component {
 }
 
 
+function makeMarkerIcon(L, name) {
+  return L.divIcon({
+    html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="background:#1A5C38;border:2px solid #F0A500;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,0.35)">🏍️</div>
+      <div style="background:#1A5C38;color:#F0A500;font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.25);letter-spacing:0.3px">${name}</div>
+    </div>`,
+    className:"", iconSize:[80,58], iconAnchor:[40,48]
+  });
+}
+
 function MapView({positions, role}) {
   const containerRef = useRef(null);
   const stateRef     = useRef({map:null, markers:{}, loaded:false});
 
   useEffect(()=>{
-    // Load CSS
     if(!document.getElementById("leaflet-css")) {
       const l = document.createElement("link");
       l.id="leaflet-css"; l.rel="stylesheet";
@@ -338,62 +347,58 @@ function MapView({positions, role}) {
       if(!containerRef.current || stateRef.current.map) return;
       const L = window.L;
       if(!L) return;
-      const center = role==="livreur" ? [14.6928,-17.4467] : [14.7167,-17.4677];
+      const entries = Object.values(positions).filter(p=>p?.lat);
+      const center = entries.length>0 ? [entries[0].lat, entries[0].lng] : [14.7167,-17.4677];
       const map = L.map(containerRef.current, {zoomControl:true, scrollWheelZoom:false, attributionControl:false})
                    .setView(center, 13);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
       stateRef.current.map = map;
       stateRef.current.loaded = true;
-      // Add initial markers
       Object.entries(positions).forEach(([name,pos])=>{
-        if(!pos || pos.lat===undefined) return;
-        const icon = L.divIcon({
-          html:`<div style="background:#1A5C38;color:#F0A500;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🏍️</div>`,
-          className:"", iconSize:[34,34], iconAnchor:[17,17]
-        });
-        stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon}).addTo(map).bindPopup(`<b>${name}</b>`);
+        if(!pos?.lat) return;
+        const popup = `<div style="font-size:13px"><b>🏍️ ${name}</b>${pos.city?`<br><span style="color:#666;font-size:11px">📍 ${pos.city}</span>`:""}</div>`;
+        stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
       });
+      if(entries.length>1) {
+        const group = L.featureGroup(Object.values(stateRef.current.markers));
+        map.fitBounds(group.getBounds().pad(0.2));
+      }
     };
 
-    if(window.L) {
-      setTimeout(setupMap, 150);
-    } else {
+    if(window.L) { setTimeout(setupMap,150); }
+    else {
       const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
-      s.onload = () => setTimeout(setupMap, 150);
+      s.src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js";
+      s.onload=()=>setTimeout(setupMap,150);
       document.head.appendChild(s);
     }
+    return ()=>{ if(stateRef.current.map){try{stateRef.current.map.remove();}catch(e){} stateRef.current={map:null,markers:{},loaded:false};} };
+  },[]);
 
-    return () => {
-      if(stateRef.current.map) {
-        try { stateRef.current.map.remove(); } catch(e){}
-        stateRef.current = {map:null, markers:{}, loaded:false};
-      }
-    };
-  }, []);
-
-  // Update markers when positions change
   useEffect(()=>{
     const {map, markers, loaded} = stateRef.current;
-    if(!loaded || !map || !window.L) return;
+    if(!loaded||!map||!window.L) return;
     const L = window.L;
     Object.entries(positions).forEach(([name,pos])=>{
-      if(!pos || pos.lat===undefined) return;
+      if(!pos?.lat) return;
+      const popup = `<div style="font-size:13px"><b>🏍️ ${name}</b>${pos.city?`<br><span style="color:#666;font-size:11px">📍 ${pos.city}</span>`:""}</div>`;
       if(markers[name]) {
-        markers[name].setLatLng([pos.lat, pos.lng]);
+        markers[name].setLatLng([pos.lat,pos.lng]).setPopupContent(popup);
       } else {
-        const icon = L.divIcon({
-          html:`<div style="background:#1A5C38;color:#F0A500;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.3)">🏍️</div>`,
-          className:"", iconSize:[34,34], iconAnchor:[17,17]
-        });
-        markers[name] = L.marker([pos.lat,pos.lng],{icon}).addTo(map).bindPopup(`<b>${name}</b>`);
+        markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
       }
     });
-  }, [positions]);
+    const active = Object.values(positions).filter(p=>p?.lat);
+    if(active.length===1) map.setView([active[0].lat,active[0].lng],15);
+    else if(active.length>1) {
+      const group = L.featureGroup(Object.values(markers).filter(m=>m));
+      map.fitBounds(group.getBounds().pad(0.2));
+    }
+  },[positions]);
 
   return (
-    <div style={{position:"relative", isolation:"isolate", borderRadius:12, overflow:"hidden"}}>
-      <div ref={containerRef} style={{height:260, width:"100%", background:"#E8F4F8"}}/>
+    <div style={{position:"relative",isolation:"isolate",borderRadius:12,overflow:"hidden"}}>
+      <div ref={containerRef} style={{height:300,width:"100%",background:"#E8F4F8"}}/>
     </div>
   );
 }
@@ -956,7 +961,15 @@ function AppInner() {
         const mappedProds = prods ? mapProds(prods)   : null;
         if(mappedOrds)  setOrders(mappedOrds);
         if(mappedProds) setProducts(mappedProds);
-        if(mems)        setTeamMembers(mems);
+        if(mems) {
+          setTeamMembers(mems);
+          // Actualizar posiciones reales de los livreurs
+          const pos = {};
+          mems.filter(m=>m.role==="livreur"&&m.lat&&m.lng).forEach(m=>{
+            pos[m.nom] = {lat:m.lat, lng:m.lng, name:m.nom, city:m.city||""};
+          });
+          if(Object.keys(pos).length>0) setLivreurPositions(pos);
+        }
         setDataReady(true);
         // Guardar en caché (sin mensajes porque son demasiado grandes)
         try {
@@ -2831,9 +2844,16 @@ function AppInner() {
             <div style={{background:G.white,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
               <div style={{padding:"12px 14px",borderBottom:`1px solid ${G.grayLight}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontWeight:700,fontSize:13,color:G.green}}>📍 Positions en temps réel</div>
-                <div style={{fontSize:11,color:G.gray,background:"#FEF3C7",borderRadius:6,padding:"2px 8px"}}>Démo simulée</div>
+                <div style={{fontSize:11,color:G.green,background:G.greenLight,borderRadius:6,padding:"2px 8px",fontWeight:600}}>
+                  {Object.keys(livreurPositions).filter(k=>livreurPositions[k]?.lat).length} actif(s)
+                </div>
               </div>
-              <MapView positions={livreurPositions} role="admin"/>
+              {Object.keys(livreurPositions).filter(k=>livreurPositions[k]?.lat).length===0
+                ? <div style={{padding:30,textAlign:"center",color:G.gray,fontSize:13}}>
+                    Aucun livreur GPS actif pour le moment
+                  </div>
+                : <MapView positions={livreurPositions} role="admin"/>
+              }
             </div>
 
             {/* Liste livreurs avec leurs livraisons actives */}
@@ -2849,8 +2869,8 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:active.length>0?6:0}}>
                       <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🏍️ {name}</div>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                        {pos?<div style={{width:8,height:8,borderRadius:"50%",background:G.green}}/>:<div style={{width:8,height:8,borderRadius:"50%",background:"#D1D5DB"}}/>}
-                        <span style={{fontSize:11,fontWeight:600,color:pos?G.green:G.gray}}>{pos?"GPS actif":"Hors ligne"}</span>
+                        {pos?<div style={{width:8,height:8,borderRadius:"50%",background:G.green,boxShadow:"0 0 0 3px #BBF7D0"}}/>:<div style={{width:8,height:8,borderRadius:"50%",background:"#D1D5DB"}}/>}
+                        <span style={{fontSize:11,fontWeight:600,color:pos?G.green:G.gray}}>{pos?`GPS actif${pos.city?" · "+pos.city:""}` :"Hors ligne"}</span>
                         {active.length>0&&<span style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"1px 7px",fontSize:10,fontWeight:700}}>{active.length} livr.</span>}
                       </div>
                     </div>
@@ -2913,8 +2933,9 @@ function AppInner() {
                 </div>
               )}
               {gpsPos&&(
-                <div style={{background:G.greenLight,borderRadius:10,padding:"8px 12px",marginBottom:14,fontSize:12,color:G.green,fontWeight:600}}>
-                  📍 {gpsPos.lat.toFixed(5)}°, {gpsPos.lng.toFixed(5)}° · ±{gpsPos.accuracy}m
+                <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:12,color:G.green,fontWeight:600,textAlign:"left"}}>
+                  📍 {livreurPositions[currentUser.nom]?.city||`${gpsPos.lat.toFixed(4)}°, ${gpsPos.lng.toFixed(4)}°`}
+                  <div style={{fontSize:10,color:"#4B7A5A",fontWeight:400,marginTop:2}}>Précision ±{gpsPos.accuracy}m · Partagé avec l'Admin ✅</div>
                 </div>
               )}
               <button onClick={()=>{
@@ -2926,10 +2947,19 @@ function AppInner() {
                   setGpsError("");
                   try {
                     gpsWatchRef.current = navigator.geolocation.watchPosition(
-                      pos => {
+                      async pos => {
                         const {latitude:lat,longitude:lng,accuracy} = pos.coords;
                         setGpsPos({lat,lng,accuracy:Math.round(accuracy)});
-                        setLivreurPositions(p=>({...p,"Ibou":{lat,lng,name:"Ibou",order:"En livraison"}}));
+                        // Reverse geocoding — ciudad real
+                        let city = "";
+                        try {
+                          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                          const gd  = await geo.json();
+                          city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
+                        } catch(e){}
+                        // Guardar en Supabase
+                        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},SERVICE_KEY_CONST).catch(()=>{});
+                        setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
                       },
                       err => {
                         const msgs={1:"Accès refusé — autorisez la localisation dans votre navigateur",2:"Signal GPS faible",3:"Délai dépassé — réessayez"};
@@ -2950,7 +2980,7 @@ function AppInner() {
             {gpsPos&&(
               <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
                 <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green}}>📍 Ta position actuelle</div>
-                <MapView positions={{"Ibou":{...gpsPos,name:"Ibou",order:"Ma position"}}} role="livreur"/>
+                <MapView positions={{[currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"}}} role="livreur"/>
               </div>
             )}
 
