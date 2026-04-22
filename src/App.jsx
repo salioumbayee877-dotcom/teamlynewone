@@ -2326,20 +2326,25 @@ function AppInner() {
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {leads.map(o=>(
-                    <div key={o.id} style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:"4px solid #F59E0B"}}>
-                      {/* Info cliente */}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                        <div>
-                          <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
-                          <div style={{fontSize:12,color:G.gray,marginTop:3}}>📦 {o.product}</div>
-                          <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
-                          {o.note&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
-                        </div>
-                        <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
-                          <div style={{fontSize:10,color:G.gray}}>FCFA</div>
+                    <div key={o.id} style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:"4px solid #F59E0B",overflow:"hidden"}}>
+                      {/* Info cliente — clic para ver detalles */}
+                      <div onClick={()=>setOrderDetail(o)} style={{padding:"14px 14px 10px",cursor:"pointer"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+                          <div>
+                            <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
+                            <div style={{fontSize:12,color:G.gray,marginTop:3}}>📦 {o.product}</div>
+                            <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
+                            <div style={{fontSize:12,color:G.gray,marginTop:1}}>📱 {o.phone||"—"}</div>
+                            {o.note&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
+                          </div>
+                          <div style={{textAlign:"right",flexShrink:0}}>
+                            <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
+                            <div style={{fontSize:10,color:G.gray}}>FCFA</div>
+                            <div style={{fontSize:10,color:G.gray,marginTop:4,background:"#FEF3C7",borderRadius:5,padding:"2px 6px"}}>👁 Voir détails</div>
+                          </div>
                         </div>
                       </div>
+                      <div style={{padding:"0 14px 14px"}}>
                       {/* Botones: Llamar → Rechazar → Cmd à traiter */}
                       <div style={{display:"flex",gap:7}}>
                         <a href={`tel:${o.phone}`} style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
@@ -2358,6 +2363,7 @@ function AppInner() {
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.25 2C6.15 2 2 6.15 2 11.25c0 1.97.573 3.81 1.565 5.36L2 22l5.553-1.54A9.22 9.22 0 0011.25 21.5C16.35 21.5 20.5 17.35 20.5 12.25S16.35 2 11.25 2z"/></svg>
                           → Cmd à traiter
                         </button>
+                      </div>
                       </div>
                     </div>
                   ))}
