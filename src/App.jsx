@@ -2069,8 +2069,8 @@ function AppInner() {
   );
 
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"position",icon:"position",l:"Ma Position"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
   };
   const tabDef = tabDefBase;
@@ -2234,10 +2234,10 @@ function AppInner() {
               <div style={{background:"linear-gradient(135deg,#F59E0B,#B45309)",borderRadius:16,padding:"16px 18px",color:"#fff"}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:26}}>📞</span>
+                    <span style={{fontSize:26}}>🛒</span>
                     <div>
-                      <div style={{fontWeight:800,fontSize:16}}>Leads à appeler</div>
-                      <div style={{fontSize:11,opacity:0.85}}>Pedidos Shopify sin confirmar</div>
+                      <div style={{fontWeight:800,fontSize:16}}>Cmdes Boutique</div>
+                      <div style={{fontSize:11,opacity:0.85}}>Pedidos Shopify à traiter</div>
                     </div>
                   </div>
                   <div style={{background:"rgba(255,255,255,0.2)",borderRadius:20,padding:"4px 12px",fontWeight:800,fontSize:18}}>
@@ -2270,26 +2270,19 @@ function AppInner() {
                           <div style={{fontSize:10,color:G.gray}}>FCFA</div>
                         </div>
                       </div>
-                      {/* Botones */}
+                      {/* Botones: Llamar → Rechazar → Cmd à traiter */}
                       <div style={{display:"flex",gap:7}}>
-                        {/* Llamar */}
-                        <a href={`tel:${o.phone}`} style={{flex:1,background:"#EFF6FF",color:G.blue,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,textDecoration:"none"}}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={G.blue} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
-                          Llamar
+                        <a href={`tel:${o.phone}`} style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={G.blue} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
+                          Appeler
                         </a>
-                        {/* Confirmar COD */}
-                        <button onClick={()=>{
-                          upSt(o.id,"confirmado");
-                          addToast(`${o.client} confirmado COD ✅`,"✅",G.green);
-                        }} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                          ✅ Confirmar COD
-                        </button>
-                        {/* Rechazar */}
-                        <button onClick={()=>{
-                          upSt(o.id,"rechazado");
-                          addToast(`Lead rechazado ❌`,"❌",G.red);
-                        }} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                        <button onClick={()=>{ upSt(o.id,"rechazado"); addToast(`Commande annulée ❌`,"❌",G.red); }}
+                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           ❌
+                        </button>
+                        <button onClick={()=>{ upSt(o.id,"confirmado"); addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green); }}
+                          style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                          → Cmd à traiter
                         </button>
                       </div>
                     </div>
