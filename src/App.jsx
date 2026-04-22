@@ -1547,10 +1547,10 @@ function AppInner() {
        "✅ Suivi livraisons en temps réel",
        "✅ Comptabilité boutique",
      ]},
-    {key:"pro",     name:"Pro",     price:"12.000", maxMembers:5, maxOrders:500,  color:G.blue,  bg:"#EFF6FF",    icon:"🔵",
+    {key:"pro",     name:"Pro",     price:"13.000", maxMembers:5, maxOrders:200,  color:G.blue,  bg:"#EFF6FF",    icon:"🔵",
      features:[
        "✅ 5 membres (Admin + équipe)",
-       "✅ 500 commandes / mois",
+       "✅ 200 commandes / mois",
        "✅ Chat groupe interne",
        "✅ Localisation livreur GPS",
        "✅ 3 boutiques connectées",
