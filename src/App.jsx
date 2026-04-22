@@ -1536,12 +1536,41 @@ function AppInner() {
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
   const PLANS = [
-    {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green,   bg:G.greenLight, icon:"🟢",
-     features:["0 à 100 commandes/mois","3 membres max (Admin + équipe)","Toutes les fonctionnalités"]},
-    {key:"pro",     name:"Pro",     price:"12.000", maxMembers:5, maxOrders:null, color:G.blue,    bg:"#EFF6FF",    icon:"🔵",
-     features:["0 à 200 commandes/mois","5 membres max","Toutes les fonctionnalités"]},
-    {key:"scale",   name:"Scale",   price:"25.000", maxMembers:null,maxOrders:null,color:"#7C3AED",bg:"#EDE9FE",    icon:"🟣",
-     features:["Commandes illimitées","Membres illimités","Support prioritaire"]},
+    {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green, bg:G.greenLight, icon:"🟢",
+     features:[
+       "✅ 3 membres (Admin + équipe)",
+       "✅ 100 commandes / mois",
+       "✅ Chat groupe interne",
+       "✅ Localisation livreur GPS",
+       "✅ 1 boutique connectée (Shopify / WooCommerce / YouCan)",
+       "✅ Suivi stock produits",
+       "✅ Suivi livraisons en temps réel",
+       "✅ Comptabilité boutique",
+     ]},
+    {key:"pro",     name:"Pro",     price:"12.000", maxMembers:5, maxOrders:500,  color:G.blue,  bg:"#EFF6FF",    icon:"🔵",
+     features:[
+       "✅ 5 membres (Admin + équipe)",
+       "✅ 500 commandes / mois",
+       "✅ Chat groupe interne",
+       "✅ Localisation livreur GPS",
+       "✅ 3 boutiques connectées",
+       "✅ Suivi stock produits",
+       "✅ Suivi livraisons en temps réel",
+       "✅ Comptabilité boutique",
+       "✅ Rapports avancés",
+     ]},
+    {key:"scale",   name:"Scale",   price:"25.000", maxMembers:null, maxOrders:null, color:"#7C3AED", bg:"#EDE9FE", icon:"🟣",
+     features:[
+       "✅ Membres illimités",
+       "✅ Commandes illimitées",
+       "✅ Chat groupe interne",
+       "✅ Localisation livreur GPS",
+       "✅ Boutiques illimitées",
+       "✅ Suivi stock produits",
+       "✅ Suivi livraisons en temps réel",
+       "✅ Comptabilité boutique",
+       "✅ Support prioritaire 24/7",
+     ]},
   ];
 
   const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
