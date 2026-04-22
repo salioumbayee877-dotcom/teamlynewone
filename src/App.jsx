@@ -798,6 +798,39 @@ function AppInner() {
   });
   const gpsWatchRef = useRef(null);
 
+  // ── Export Excel/CSV ──
+  const exportExcel = () => {
+    const cols = ["Date","Client","Téléphone","Adresse","Produit","Prix","Statut","Livreur","Closer","Note"];
+    const rows = orders.map(o=>[
+      o.created_at ? new Date(o.created_at).toLocaleDateString("fr-FR") : "",
+      o.client||"", o.phone||"", o.address||"", o.product||"",
+      o.price||0, STATUS[o.status]?.label||o.status||"",
+      o.livreur||"", o.closer||"", o.note||""
+    ]);
+    const csv = [cols, ...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
+    const bom = "﻿"; // UTF-8 BOM pour Excel
+    const blob = new Blob([bom+csv], {type:"text/csv;charset=utf-8;"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `commandes_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    addToast("Fichier Excel téléchargé ✅","📊",G.green);
+  };
+
+  // ── WhatsApp confirmation ──
+  const sendWAConfirmation = (order) => {
+    if(!order?.phone) return;
+    const phone = order.phone.replace(/\D/g,"");
+    const intlPhone = phone.startsWith("221") ? phone : `221${phone}`;
+    const msg = waTemplate
+      .replace("{client}", order.client||"")
+      .replace("{produit}", order.product||"")
+      .replace("{prix}", Number(order.price).toLocaleString("fr-FR"))
+      .replace("{adresse}", order.address||"")
+      .replace("{boutique}", settings.boutique||"Teamly");
+    window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, "_blank");
+  };
+
   // ── actions ──
   const upSt = (id,s) => {
     const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
@@ -2211,7 +2244,13 @@ function AppInner() {
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
-            <button onClick={()=>setShowAdd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Commande</button>
+            <>
+              <button onClick={exportExcel} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"7px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4,color:G.white,fontSize:12,fontWeight:600}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                Excel
+              </button>
+              <button onClick={()=>setShowAdd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Commande</button>
+            </>
           )}
           {role==="admin"&&tab==="stock"&&(
             <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Produit</button>
@@ -2309,8 +2348,12 @@ function AppInner() {
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           ❌
                         </button>
-                        <button onClick={()=>{ upSt(o.id,"confirmado"); addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green); }}
-                          style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                        <button onClick={()=>{
+                          upSt(o.id,"confirmado");
+                          addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green);
+                          setTimeout(()=>sendWAConfirmation(o), 400);
+                        }} style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.25 2C6.15 2 2 6.15 2 11.25c0 1.97.573 3.81 1.565 5.36L2 22l5.553-1.54A9.22 9.22 0 0011.25 21.5C16.35 21.5 20.5 17.35 20.5 12.25S16.35 2 11.25 2z"/></svg>
                           → Cmd à traiter
                         </button>
                       </div>
