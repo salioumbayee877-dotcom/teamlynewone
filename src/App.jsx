@@ -2133,8 +2133,8 @@ function AppInner() {
   );
 
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"position",icon:"position",l:"Ma Position"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
   };
   const tabDef = tabDefBase;
