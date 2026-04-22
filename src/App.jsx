@@ -2133,6 +2133,13 @@ function AppInner() {
     </div>
   );
 
+  const pC = settings; // permisos closer
+  const canEditStock        = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageProducts));
+  const canDeleteOrder      = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerDeleteOrder));
+  const canManageTeam       = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageTeam));
+  const canEditOrders = role==="admin" || role==="closer";
+  const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
+
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((pC.closerFullControl||pC.closerCompta)?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
@@ -2140,12 +2147,6 @@ function AppInner() {
   };
   const tabDef = tabDefBase;
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"}`,livreur:`🏍️ ${currentUser.nom||"Livreur"}`};
-  const pC = settings; // permisos closer
-  const canEditStock        = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageProducts));
-  const canDeleteOrder      = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerDeleteOrder));
-  const canManageTeam       = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageTeam));
-  const canEditOrders = role==="admin" || role==="closer";
-  const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
 
 
