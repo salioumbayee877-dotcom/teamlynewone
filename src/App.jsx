@@ -72,6 +72,7 @@ const NavIcon = ({name, size=20, color="#fff", active=false}) => {
     stock:        <svg viewBox="0 0 24 24" style={s}><path {...p} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line {...p} x1="3" y1="6" x2="21" y2="6"/><path {...p} d="M16 10a4 4 0 01-8 0"/></svg>,
     livraisons:   <svg viewBox="0 0 24 24" style={s}><rect {...p} x="1" y="3" width="15" height="13" rx="1"/><path {...p} d="M16 8h4l3 4v5h-7V8z"/><circle {...p} cx="5.5" cy="18.5" r="2.5"/><circle {...p} cx="18.5" cy="18.5" r="2.5"/></svg>,
     position:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><line {...p} x1="12" y1="2" x2="12" y2="6"/><line {...p} x1="12" y1="18" x2="12" y2="22"/><line {...p} x1="2" y1="12" x2="6" y2="12"/><line {...p} x1="18" y1="12" x2="22" y2="12"/></svg>,
+    boutique:     <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 9l1-5h16l1 5"/><path {...p} d="M3 9h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><path {...p} d="M9 9v2a3 3 0 006 0V9"/></svg>,
     notifications:<svg viewBox="0 0 24 24" style={s}><path {...p} d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path {...p} d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
     settings:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><path {...p} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
   };
@@ -89,6 +90,7 @@ const STATUS = {
   rechazado:        {label:"Rejeté",             color:"#DC2626",bg:"#FEE2E2"},
   no_contesta:      {label:"Absent",             color:"#6B7280",bg:"#F3F4F6"},
   reprogramar:      {label:"Reporter",           color:"#7C3AED",bg:"#EDE9FE"},
+  boutique:         {label:"Boutique Shopify 🛒", color:"#96BF48",bg:"#F0F7E6"},
 };
 
 const INIT_PRODUCTS = [
@@ -1942,8 +1944,8 @@ function AppInner() {
   );
 
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Boutique"},{k:"commandes",icon:"commandes",l:"Commandes"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},...(settings.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"position",icon:"position",l:"Ma Position"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
   };
   const tabDef = tabDefBase;
@@ -2096,6 +2098,82 @@ function AppInner() {
 
 
       <div style={{padding:14,paddingBottom:40}}>
+
+        {/* ── BOUTIQUE SHOPIFY ── */}
+        {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
+          const boutiqueOrders = orders.filter(o=>o.status==="boutique");
+          const webhookUrl = `${window.location.origin}/.netlify/functions/shopify-webhook?org=${orgId}`;
+          return (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* Header */}
+              <div style={{background:"linear-gradient(135deg,#96BF48,#5a7a2b)",borderRadius:16,padding:"16px 18px",color:"#fff"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+                  <span style={{fontSize:26}}>🛒</span>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:16}}>Pedidos Shopify</div>
+                    <div style={{fontSize:11,opacity:0.8}}>{boutiqueOrders.length} pedido{boutiqueOrders.length!==1?"s":""} en espera</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* URL webhook */}
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <div style={{fontSize:11,fontWeight:700,color:G.gray,marginBottom:8}}>🔗 URL WEBHOOK SHOPIFY</div>
+                <div style={{background:"#F8F8F8",borderRadius:8,padding:"8px 10px",fontSize:10,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:8}}>{webhookUrl}</div>
+                <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée !","✅",G.green))}
+                  style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                  📋 Copier l'URL
+                </button>
+                <div style={{fontSize:10,color:G.gray,marginTop:6}}>
+                  Cole cette URL dans Shopify → Settings → Notifications → Webhooks → Order creation
+                </div>
+              </div>
+
+              {/* Orders */}
+              {boutiqueOrders.length===0?(
+                <div style={{textAlign:"center",padding:40,color:G.gray}}>
+                  <div style={{fontSize:48,marginBottom:12}}>🛒</div>
+                  <div style={{fontWeight:700,fontSize:15}}>Aucun pedido en attente</div>
+                  <div style={{fontSize:12,marginTop:6,opacity:0.7}}>Les commandes Shopify apparaîtront ici</div>
+                </div>
+              ):(
+                <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                  {boutiqueOrders.map(o=>(
+                    <div key={o.id} style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.07)",borderLeft:"4px solid #96BF48"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                        <div>
+                          <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
+                          <div style={{fontSize:12,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
+                          <div style={{fontSize:12,color:G.gray}}>📍 {o.address||"—"}</div>
+                          <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product}</div>
+                        </div>
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontWeight:800,fontSize:16,color:"#96BF48"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
+                          <div style={{fontSize:10,color:G.gray}}>FCFA</div>
+                        </div>
+                      </div>
+                      {o.note&&<div style={{fontSize:11,color:G.gray,background:"#F9F9F9",borderRadius:6,padding:"4px 8px",marginBottom:10}}>{o.note}</div>}
+                      <div style={{display:"flex",gap:8}}>
+                        <button onClick={()=>{
+                          upSt(o.id,"confirmado");
+                          addToast(`${o.client} confirmé ✅`,"✅",G.green);
+                        }} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                          ✅ Confirmer client
+                        </button>
+                        <button onClick={()=>{
+                          upSt(o.id,"rechazado");
+                          addToast(`Commande annulée`,"❌",G.red);
+                        }} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                          ❌
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── ADMIN DASHBOARD ── */}
         {tab==="dashboard"&&role==="admin"&&(
