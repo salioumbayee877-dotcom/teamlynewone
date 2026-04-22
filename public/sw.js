@@ -1,4 +1,4 @@
-const CACHE = "teamly-v1";
+const CACHE = "teamly-v3";
 const ASSETS = ["/", "/index.html", "/app.js"];
 
 self.addEventListener("install", e => {

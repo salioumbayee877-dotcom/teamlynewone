@@ -673,6 +673,8 @@ function AppInner() {
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
+  const [captchaToken,setCaptchaToken]     = useState(null);
+  const captchaWidgetId                    = useRef(null);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false});
@@ -1401,8 +1403,6 @@ function AppInner() {
   });
   const [authError, setAuthError] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState(null);
-  const captchaWidgetId = useRef(null);
   const [org, setOrg]             = useState(null);
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
