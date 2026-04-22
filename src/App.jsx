@@ -1370,25 +1370,6 @@ function AppInner() {
 
         {o.note&&<div style={{fontSize:11,color:G.gray,background:G.grayLight,borderRadius:6,padding:"3px 8px",marginBottom:8}}>📝 {o.note}</div>}
 
-        {/* Admin / Closer — bouton petit + assignation */}
-        {showPrendre&&(role==="admin"||role==="closer")&&(
-          <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            {(o.closer||role==="admin")&&o.status!=="entregado"&&o.status!=="rechazado"&&!o.livreur&&(
-              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
-                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
-                <option value="">🏍️ Assigner un livreur...</option>
-                {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
-              </select>
-            )}
-            {o.livreur&&(o.status==="confirmado"||o.status==="en_camino")&&(
-              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
-                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
-                <option value="">🔄 Changer livreur...</option>
-                {teamMembers.filter(m=>m.role==="livreur"&&m.id!==o.livreur_id).map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
-              </select>
-            )}
-          </div>
-        )}
 
 
         {/* Livreur — statut final bloqué (entregado / rechazado) */}
