@@ -30,6 +30,15 @@ exports.handler = async (event) => {
     const price   = parseFloat(order.total_price || 0);
     const shopifyRef = `#${order.order_number || order.id}`;
 
+    // Evitar duplicados — verificar si ya existe esta referencia Shopify
+    const checkRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&note=eq.Commande%20Shopify%20${encodeURIComponent(shopifyRef)}&select=id`, {
+      headers: { "apikey": SERVICE_KEY, "Authorization": `Bearer ${SERVICE_KEY}` }
+    });
+    const existing = await checkRes.json();
+    if(existing && existing.length > 0) {
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, skipped: true }) };
+    }
+
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: {

@@ -2224,71 +2224,71 @@ function AppInner() {
 
       <div style={{padding:14,paddingBottom:40}}>
 
-        {/* ── BOUTIQUE SHOPIFY ── */}
+        {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
-          const boutiqueOrders = orders.filter(o=>o.status==="boutique");
+          const leads = orders.filter(o=>o.status==="boutique");
           const webhookUrl = `${window.location.origin}/.netlify/functions/shopify-webhook?org=${orgId}`;
           return (
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {/* Header */}
-              <div style={{background:"linear-gradient(135deg,#96BF48,#5a7a2b)",borderRadius:16,padding:"16px 18px",color:"#fff"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-                  <span style={{fontSize:26}}>🛒</span>
-                  <div>
-                    <div style={{fontWeight:800,fontSize:16}}>Pedidos Shopify</div>
-                    <div style={{fontSize:11,opacity:0.8}}>{boutiqueOrders.length} pedido{boutiqueOrders.length!==1?"s":""} en espera</div>
+              <div style={{background:"linear-gradient(135deg,#F59E0B,#B45309)",borderRadius:16,padding:"16px 18px",color:"#fff"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:26}}>📞</span>
+                    <div>
+                      <div style={{fontWeight:800,fontSize:16}}>Leads à appeler</div>
+                      <div style={{fontSize:11,opacity:0.85}}>Pedidos Shopify sin confirmar</div>
+                    </div>
+                  </div>
+                  <div style={{background:"rgba(255,255,255,0.2)",borderRadius:20,padding:"4px 12px",fontWeight:800,fontSize:18}}>
+                    {leads.length}
                   </div>
                 </div>
               </div>
 
-              {/* URL webhook */}
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <div style={{fontSize:11,fontWeight:700,color:G.gray,marginBottom:8}}>🔗 URL WEBHOOK SHOPIFY</div>
-                <div style={{background:"#F8F8F8",borderRadius:8,padding:"8px 10px",fontSize:10,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:8}}>{webhookUrl}</div>
-                <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée !","✅",G.green))}
-                  style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                  📋 Copier l'URL
-                </button>
-                <div style={{fontSize:10,color:G.gray,marginTop:6}}>
-                  Cole cette URL dans Shopify → Settings → Notifications → Webhooks → Order creation
-                </div>
-              </div>
-
-              {/* Orders */}
-              {boutiqueOrders.length===0?(
-                <div style={{textAlign:"center",padding:40,color:G.gray}}>
-                  <div style={{fontSize:48,marginBottom:12}}>🛒</div>
-                  <div style={{fontWeight:700,fontSize:15}}>Aucun pedido en attente</div>
-                  <div style={{fontSize:12,marginTop:6,opacity:0.7}}>Les commandes Shopify apparaîtront ici</div>
+              {/* Lista leads */}
+              {leads.length===0?(
+                <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
+                  <div style={{fontSize:48,marginBottom:12}}>📭</div>
+                  <div style={{fontWeight:700,fontSize:15}}>Sin leads por ahora</div>
+                  <div style={{fontSize:12,marginTop:6,opacity:0.7}}>Los pedidos de Shopify aparecerán aquí</div>
                 </div>
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {boutiqueOrders.map(o=>(
-                    <div key={o.id} style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.07)",borderLeft:"4px solid #96BF48"}}>
+                  {leads.map(o=>(
+                    <div key={o.id} style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:"4px solid #F59E0B"}}>
+                      {/* Info cliente */}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                         <div>
-                          <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
-                          <div style={{fontSize:12,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
-                          <div style={{fontSize:12,color:G.gray}}>📍 {o.address||"—"}</div>
-                          <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product}</div>
+                          <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
+                          <div style={{fontSize:12,color:G.gray,marginTop:3}}>📦 {o.product}</div>
+                          <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
+                          {o.note&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
                         </div>
                         <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontWeight:800,fontSize:16,color:"#96BF48"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
+                          <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
                           <div style={{fontSize:10,color:G.gray}}>FCFA</div>
                         </div>
                       </div>
-                      {o.note&&<div style={{fontSize:11,color:G.gray,background:"#F9F9F9",borderRadius:6,padding:"4px 8px",marginBottom:10}}>{o.note}</div>}
-                      <div style={{display:"flex",gap:8}}>
+                      {/* Botones */}
+                      <div style={{display:"flex",gap:7}}>
+                        {/* Llamar */}
+                        <a href={`tel:${o.phone}`} style={{flex:1,background:"#EFF6FF",color:G.blue,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5,textDecoration:"none"}}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={G.blue} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
+                          Llamar
+                        </a>
+                        {/* Confirmar COD */}
                         <button onClick={()=>{
                           upSt(o.id,"confirmado");
-                          addToast(`${o.client} confirmé ✅`,"✅",G.green);
+                          addToast(`${o.client} confirmado COD ✅`,"✅",G.green);
                         }} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                          ✅ Confirmer client
+                          ✅ Confirmar COD
                         </button>
+                        {/* Rechazar */}
                         <button onClick={()=>{
                           upSt(o.id,"rechazado");
-                          addToast(`Commande annulée`,"❌",G.red);
-                        }} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 14px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                          addToast(`Lead rechazado ❌`,"❌",G.red);
+                        }} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
                           ❌
                         </button>
                       </div>
@@ -2296,6 +2296,16 @@ function AppInner() {
                   ))}
                 </div>
               )}
+
+              {/* URL webhook (colapsado al fondo) */}
+              <div style={{background:G.white,borderRadius:12,padding:12}}>
+                <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:6}}>🔗 URL WEBHOOK SHOPIFY</div>
+                <div style={{background:"#F8F8F8",borderRadius:7,padding:"6px 8px",fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:6}}>{webhookUrl}</div>
+                <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée !","✅",G.green))}
+                  style={{width:"100%",background:"#F3F4F6",color:G.gray,border:"none",borderRadius:7,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                  📋 Copiar URL
+                </button>
+              </div>
             </div>
           );
         })()}
