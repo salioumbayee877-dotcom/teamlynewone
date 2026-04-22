@@ -1333,7 +1333,7 @@ function AppInner() {
                 return (
                   <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
                     <div
-                      className={active?"step-active":undefined}
+                      className={active&&o.status!=="entregado"?"step-active":undefined}
                       style={{
                         width:22,height:22,borderRadius:"50%",
                         background:done?col:active?col:G.grayLight,
@@ -2165,7 +2165,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
-      <style>{`@keyframes stepPulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:0.7}100%{transform:scale(1);opacity:1}}.step-active{animation:stepPulse 1.5s ease-in-out infinite}`}</style>
+      <style>{`@keyframes stepPulse{0%{transform:scale(1)}8%{transform:scale(1.35)}16%{transform:scale(1)}100%{transform:scale(1)}}.step-active{animation:stepPulse 4s ease-in-out infinite}`}</style>
 
       {/* Sidebar overlay */}
       {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
