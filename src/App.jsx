@@ -35,7 +35,7 @@ const sbAuth = async (email, password, type="login", captchaToken=null) => {
     const res = await fetch(`${SB_URL}${endpoint}`, {
       method: "POST",
       headers: {"Content-Type":"application/json","apikey":SB_KEY},
-      body: JSON.stringify({email, password, ...(captchaToken?{captchaToken}:{})}),
+      body: JSON.stringify({email, password, ...(captchaToken?{gotrue_meta_security:{captcha_token:captchaToken}}:{})}),
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error_description||data.msg||"Email ou mot de passe incorrect");
@@ -58,25 +58,106 @@ const TODAY = new Date().toISOString().split("T")[0];
 const FRAIS_LIV = 1500;
 
 // ── SVG Icon set ────────────────────────────────────────────────────────────
-const NavIcon = ({name, size=20, color="#fff", active=false}) => {
+const NavIcon = ({name, size=20, color="#fff"}) => {
   const s = {width:size,height:size,display:"block"};
-  const p = {stroke:color,strokeWidth:1.7,fill:"none",strokeLinecap:"round",strokeLinejoin:"round"};
+  const p = {stroke:color,strokeWidth:1.5,fill:"none",strokeLinecap:"round",strokeLinejoin:"round"};
   const icons = {
-    dashboard:    <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z"/><path {...p} d="M9 21V12h6v9"/></svg>,
-    commandes:    <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 2L2 7l10 5 10-5-10-5z"/><path {...p} d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>,
-    compta:       <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 3v18h18"/><path {...p} d="M7 16l4-4 4 4 4-8"/></svg>,
-    tracking:     <svg viewBox="0 0 24 24" style={s}><path {...p} d="M12 2C8.13 2 5 5.13 5 9c0 4.17 4.42 9.92 6.24 12.11.4.48 1.13.48 1.53 0C14.58 18.92 19 13.17 19 9c0-3.87-3.13-7-7-7z"/><circle {...p} cx="12" cy="9" r="2.5"/></svg>,
-    clients:      <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="8" r="4"/><path {...p} d="M4 20c0-3.31 3.58-6 8-6s8 2.69 8 6"/></svg>,
-    chat:         <svg viewBox="0 0 24 24" style={s}><path {...p} d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><line {...p} x1="8" y1="10" x2="16" y2="10"/><line {...p} x1="8" y1="14" x2="12" y2="14"/></svg>,
-    equipe:       <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="9" cy="7" r="4"/><path {...p} d="M2 20c0-3.31 3.13-6 7-6s7 2.69 7 6"/><path {...p} d="M19 8c1.66 0 3 1.34 3 3"/><path {...p} d="M22 20c0-2.21-1.34-4-3-4.5"/></svg>,
-    stock:        <svg viewBox="0 0 24 24" style={s}><path {...p} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line {...p} x1="3" y1="6" x2="21" y2="6"/><path {...p} d="M16 10a4 4 0 01-8 0"/></svg>,
-    livraisons:   <svg viewBox="0 0 24 24" style={s}><rect {...p} x="1" y="3" width="15" height="13" rx="1"/><path {...p} d="M16 8h4l3 4v5h-7V8z"/><circle {...p} cx="5.5" cy="18.5" r="2.5"/><circle {...p} cx="18.5" cy="18.5" r="2.5"/></svg>,
-    position:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><line {...p} x1="12" y1="2" x2="12" y2="6"/><line {...p} x1="12" y1="18" x2="12" y2="22"/><line {...p} x1="2" y1="12" x2="6" y2="12"/><line {...p} x1="18" y1="12" x2="22" y2="12"/></svg>,
-    boutique:     <svg viewBox="0 0 24 24" style={s}><path {...p} d="M3 9l1-5h16l1 5"/><path {...p} d="M3 9h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/><path {...p} d="M9 9v2a3 3 0 006 0V9"/></svg>,
-    notifications:<svg viewBox="0 0 24 24" style={s}><path {...p} d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path {...p} d="M13.73 21a2 2 0 01-3.46 0"/></svg>,
-    settings:     <svg viewBox="0 0 24 24" style={s}><circle {...p} cx="12" cy="12" r="3"/><path {...p} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    dashboard: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <rect {...p} x="3" y="3" width="8" height="8" rx="2"/>
+        <rect {...p} x="13" y="3" width="8" height="8" rx="2"/>
+        <rect {...p} x="3" y="13" width="8" height="8" rx="2"/>
+        <rect {...p} x="13" y="13" width="8" height="8" rx="2"/>
+      </svg>
+    ),
+    commandes: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/>
+        <line {...p} x1="3" y1="6" x2="21" y2="6"/>
+        <path {...p} d="M9 12l2 2 4-4"/>
+      </svg>
+    ),
+    compta: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M18 20V10M12 20V4M6 20v-6"/>
+        <path {...p} d="M3 20h18"/>
+      </svg>
+    ),
+    tracking: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+        <circle {...p} cx="12" cy="9" r="2.5"/>
+      </svg>
+    ),
+    clients: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="12" cy="8" r="4"/>
+        <path {...p} d="M4 20c0-3.31 3.58-6 8-6s8 2.69 8 6"/>
+      </svg>
+    ),
+    chat: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+        <circle cx="9" cy="11" r="1.1" fill={color} stroke="none"/>
+        <circle cx="12" cy="11" r="1.1" fill={color} stroke="none"/>
+        <circle cx="15" cy="11" r="1.1" fill={color} stroke="none"/>
+      </svg>
+    ),
+    equipe: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="9" cy="7" r="3.5"/>
+        <path {...p} d="M2 21c0-3.5 3.13-6.33 7-6.33S16 17.5 16 21"/>
+        <path {...p} d="M17.5 4.5a3.5 3.5 0 010 7"/>
+        <path {...p} d="M22 21c0-3-2-5.33-4.5-6"/>
+      </svg>
+    ),
+    stock: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>
+        <path {...p} d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12"/>
+      </svg>
+    ),
+    livraisons: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <rect {...p} x="1" y="3" width="15" height="13" rx="2"/>
+        <path {...p} d="M16 8h4l3 4.5V20h-7V8z"/>
+        <circle {...p} cx="5.5" cy="18.5" r="2"/>
+        <circle {...p} cx="18.5" cy="18.5" r="2"/>
+      </svg>
+    ),
+    position: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="12" cy="12" r="9"/>
+        <circle {...p} cx="12" cy="12" r="3"/>
+        <line {...p} x1="12" y1="3" x2="12" y2="6"/>
+        <line {...p} x1="12" y1="18" x2="12" y2="21"/>
+        <line {...p} x1="3" y1="12" x2="6" y2="12"/>
+        <line {...p} x1="18" y1="12" x2="21" y2="12"/>
+      </svg>
+    ),
+    boutique: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M3 9l1-5h16l1 5"/>
+        <path {...p} d="M3 9h18v11a1 1 0 01-1 1H4a1 1 0 01-1-1V9z"/>
+        <path {...p} d="M9 9v1.5a3 3 0 006 0V9"/>
+        <path {...p} d="M10 15h4v6h-4z"/>
+      </svg>
+    ),
+    notifications: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path {...p} d="M13.73 21a2 2 0 01-3.46 0"/>
+        <circle cx="18" cy="5" r="2.5" fill="#EF4444" stroke="none"/>
+      </svg>
+    ),
+    settings: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <circle {...p} cx="12" cy="12" r="3"/>
+        <path {...p} d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+    ),
   };
-  return icons[name]||<span style={{fontSize:size*0.7,lineHeight:1}}>{name}</span>;
+  return icons[name] || <span style={{fontSize:size*0.7,lineHeight:1}}>{name}</span>;
 };
 
 const STATUS = {
@@ -634,6 +715,7 @@ function AppInner() {
   const [sbToken,setSbToken]             = useState(null);  // JWT token
   const [orgId,setOrgId]                 = useState(null);
   const [sbReady,setSbReady]             = useState(false);
+  const [dataReady,setDataReady]         = useState(false);
   const [currentUser,setCurrentUser]     = useState({id:"",nom:"",email:"",role:"admin"});
   const [teamMembers,setTeamMembers]     = useState([]);
   const [dbNotifs,setDbNotifs]           = useState([]); // from Supabase notifications table
@@ -675,6 +757,24 @@ function AppInner() {
   const chatBottomRef                      = useRef(null);
   const [captchaToken,setCaptchaToken]     = useState(null);
   const captchaWidgetId                    = useRef(null);
+  const [authStep, setAuthStep]   = useState(()=>{
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("org") && params.get("role")) return "join";
+    return "login";
+  });
+  const [authMode, setAuthMode]   = useState("login");
+  const [authForm, setAuthForm]   = useState(()=>{
+    const params = new URLSearchParams(window.location.search);
+    const org  = params.get("org")  || "";
+    const role = params.get("role") || "";
+    const tok  = params.get("token")|| "";
+    return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",
+      inviteOrg:org, inviteRole:role, inviteToken:tok,
+      inviteUrl: org ? window.location.href : ""
+    };
+  });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false});
@@ -749,23 +849,7 @@ function AppInner() {
     }
   },[role]);
 
-  // hCaptcha render when login form appears
-  useEffect(()=>{
-    if(authStep!=="login") return;
-    const tryRender = () => {
-      const el = document.getElementById("h-captcha-login");
-      if(el && window.hcaptcha && captchaWidgetId.current===null) {
-        captchaWidgetId.current = window.hcaptcha.render(el, {
-          sitekey:"f82e9ec2-0a46-4988-bad6-a27ed75c3664",
-          callback:(token)=>setCaptchaToken(token),
-          "expired-callback":()=>setCaptchaToken(null),
-          theme:"light",
-        });
-      }
-    };
-    const t = setTimeout(tryRender, 400);
-    return ()=>clearTimeout(t);
-  },[authStep]);
+  // hCaptcha desactivado
 
   // Save tab to localStorage when it changes
   useEffect(()=>{
@@ -836,26 +920,59 @@ function AppInner() {
 
   // ── Supabase: sync data when connected ──────────────────────────────────
   useEffect(()=>{
-    if(!sbReady||!orgId) return; // sbToken not needed - using service key
-    const load = async() => {
+    if(!sbReady||!orgId) return;
+
+    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id}));
+    const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial}));
+    const mapMsgs   = (msgs) => msgs.map(m=>{
+      const t=m.text||"";
+      const isImg=t.startsWith("IMG:");
+      const isAud=t.startsWith("AUD:");
+      let audioUrl=null,dur="0:00";
+      if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
+      return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+    });
+
+    // Restore pedidos/productos/equipo del caché al instante
+    try {
+      const cached = JSON.parse(localStorage.getItem(`teamly_cache_${orgId}`) || "null");
+      if(cached) {
+        if(cached.orders)   setOrders(cached.orders);
+        if(cached.products) setProducts(cached.products);
+        if(cached.members)  setTeamMembers(cached.members);
+        setDataReady(true);
+      }
+    } catch(e){}
+
+    // Carga pedidos, productos y equipo juntos (sin mensajes — son pesados)
+    const loadMain = async() => {
       try {
-        const [ords, prods, msgs, mems] = await Promise.all([
+        const [ords, prods, mems] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, SERVICE_KEY_CONST),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, SERVICE_KEY_CONST),
-          sbFetch(`messages?org_id=eq.${orgId}&order=created_at.asc&limit=500`, "GET", null, SERVICE_KEY_CONST),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`, "GET", null, SERVICE_KEY_CONST),
         ]);
-        if(ords)  setOrders(ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id})));
-        if(prods) setProducts(prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial})));
+        const mappedOrds  = ords  ? mapOrders(ords)  : null;
+        const mappedProds = prods ? mapProds(prods)   : null;
+        if(mappedOrds)  setOrders(mappedOrds);
+        if(mappedProds) setProducts(mappedProds);
+        if(mems)        setTeamMembers(mems);
+        setDataReady(true);
+        // Guardar en caché (sin mensajes porque son demasiado grandes)
+        try {
+          localStorage.setItem(`teamly_cache_${orgId}`, JSON.stringify({
+            orders: mappedOrds, products: mappedProds, members: mems
+          }));
+        } catch(e){}
+      } catch(e) { console.error("Supabase load error:", e.message, e); }
+    };
+
+    // Carga mensajes por separado — los últimos 100 más recientes
+    const loadChat = async() => {
+      try {
+        const msgs = await sbFetch(`messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`, "GET", null, SERVICE_KEY_CONST);
         if(msgs) {
-          const mapped = msgs.map(m=>{
-            const t=m.text||"";
-            const isImg=t.startsWith("IMG:");
-            const isAud=t.startsWith("AUD:");
-            let audioUrl=null,dur="0:00";
-            if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
-            return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
-          });
+          const mapped = mapMsgs([...msgs].reverse());
           setChat(prev => {
             if(mapped.length > prev.length && prev.length > 0) {
               const newCount = mapped.length - prev.length;
@@ -864,13 +981,14 @@ function AppInner() {
             return mapped;
           });
         }
-        if(mems)  setTeamMembers(mems);
-      } catch(e) { console.error("Supabase load error:", e.message, e); }
+      } catch(e) { console.error("Chat load error:", e.message); }
     };
-    load();
-    // Poll every 5 seconds for "realtime" effect
-    const interval = setInterval(load, 2000);
-    return ()=>clearInterval(interval);
+
+    loadMain();
+    loadChat();
+    const intervalMain = setInterval(loadMain, 5000);
+    const intervalChat = setInterval(loadChat, 4000);
+    return ()=>{ clearInterval(intervalMain); clearInterval(intervalChat); };
   },[sbReady, orgId]);
 
   // Show new notifications as toasts
@@ -1040,26 +1158,44 @@ function AppInner() {
       .catch(e=>console.error("sendChat error:",e.message));
   };
 
-  const sendPhoto = (e) => {
-    const file = e.target.files?.[0];
-    if(!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const data = ev.target.result;
-      sendChat("", {type:"image", text:"IMG:"+data, imgSrc:data});
-    };
-    reader.readAsDataURL(file);
-    e.target.value = "";
+  const uploadMedia = async (blob, ext, mime) => {
+    const path = `${orgId}/${Date.now()}.${ext}`;
+    const res = await fetch(`${SB_URL}/storage/v1/object/chat-media/${path}`, {
+      method: "POST",
+      headers: {"Authorization":`Bearer ${SERVICE_KEY_CONST}`,"Content-Type":mime,"x-upsert":"false"},
+      body: blob,
+    });
+    if(!res.ok) throw new Error("upload failed");
+    return `${SB_URL}/storage/v1/object/public/chat-media/${path}`;
   };
 
-  const sendAudioBlob = (blob, secs) => {
+  const sendPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    e.target.value = "";
+    try {
+      const url = await uploadMedia(file, "jpg", file.type||"image/jpeg");
+      sendChat("", {type:"image", text:"IMG:"+url, imgSrc:url});
+    } catch {
+      // fallback a base64 si el bucket no existe
+      const reader = new FileReader();
+      reader.onload = ev => sendChat("", {type:"image", text:"IMG:"+ev.target.result, imgSrc:ev.target.result});
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const sendAudioBlob = async (blob, secs) => {
     const dur = `0:${String(secs).padStart(2,"0")}`;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const b64 = ev.target.result;
-      sendChat("", {audio:true, audioUrl:b64, duration:dur, text:`AUD:${dur}|${b64}`});
-    };
-    reader.readAsDataURL(blob);
+    const ext = blob.type?.includes("mp4") ? "mp4" : blob.type?.includes("ogg") ? "ogg" : "webm";
+    try {
+      const url = await uploadMedia(blob, ext, blob.type||"audio/webm");
+      sendChat("", {audio:true, audioUrl:url, duration:dur, text:`AUD:${dur}|${url}`});
+    } catch {
+      // fallback a base64
+      const reader = new FileReader();
+      reader.onload = ev => sendChat("", {audio:true, audioUrl:ev.target.result, duration:dur, text:`AUD:${dur}|${ev.target.result}`});
+      reader.readAsDataURL(blob);
+    }
   };
 
   const deleteMsg = (id) => {
@@ -1383,26 +1519,6 @@ function AppInner() {
     );
   };
 
-  // ── Auth / Onboarding state ──
-  const [authStep, setAuthStep]   = useState(()=>{
-    // Auto-detect invite link on first load
-    const params = new URLSearchParams(window.location.search);
-    if(params.get("org") && params.get("role")) return "join";
-    return "login";
-  });
-  const [authMode, setAuthMode]   = useState("login"); // login | register
-  const [authForm, setAuthForm]   = useState(()=>{
-    const params = new URLSearchParams(window.location.search);
-    const org  = params.get("org")  || "";
-    const role = params.get("role") || "";
-    const tok  = params.get("token")|| "";
-    return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",
-      inviteOrg:org, inviteRole:role, inviteToken:tok,
-      inviteUrl: org ? window.location.href : ""
-    };
-  });
-  const [authError, setAuthError] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
   const [org, setOrg]             = useState(null);
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
@@ -1465,7 +1581,7 @@ function AppInner() {
     <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",background:"#1A5C38"}}>
       <div style={{fontSize:32,fontFamily:"Georgia,serif",color:"#F0A500",fontWeight:700,marginBottom:20}}>Teamly</div>
       <div style={{width:36,height:36,border:"3px solid rgba(255,255,255,0.2)",borderTop:"3px solid #F0A500",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}`}</style>
     </div>
   );
 
@@ -1502,12 +1618,10 @@ function AppInner() {
                 </div>
               ))}
               {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
-              <div id="h-captcha-login" style={{margin:"8px 0"}}/>
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
-                if(!captchaToken){setAuthError("Complète la vérification anti-robot d'abord");return;}
                 setAuthError(""); setAuthLoading(true);
-                sbAuth(authForm.email, authForm.password, "login", captchaToken)
+                sbAuth(authForm.email, authForm.password, "login", null)
                   .then(async(data)=>{
                     const tok = data.access_token;
                     setSbToken(tok);
@@ -1549,8 +1663,6 @@ function AppInner() {
                   }).catch(e=>{
                     setAuthError(e.message||"Email ou mot de passe incorrect");
                     setAuthLoading(false);
-                    setCaptchaToken(null);
-                    if(window.hcaptcha&&captchaWidgetId.current!==null){window.hcaptcha.reset(captchaWidgetId.current);}
                   });
               }} disabled={authLoading} style={{background:authLoading?"#A0845C":G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"not-allowed":"pointer",marginTop:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {authLoading?(
@@ -2175,8 +2287,34 @@ function AppInner() {
           );
         })()}
 
+        {/* ── PANTALLA DE CARGA ── */}
+        {!dataReady&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:"60vh",gap:20}}>
+            <div style={{position:"relative",width:56,height:56}}>
+              <svg viewBox="0 0 56 56" style={{width:56,height:56,animation:"spin 1s linear infinite"}}>
+                <circle cx="28" cy="28" r="24" fill="none" stroke="#E5E7EB" strokeWidth="4"/>
+                <circle cx="28" cy="28" r="24" fill="none" stroke={G.green} strokeWidth="4"
+                  strokeDasharray="38 113" strokeLinecap="round"/>
+              </svg>
+              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📦</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>Chargement en cours…</div>
+              <div style={{fontSize:12,color:G.gray,marginTop:4}}>Synchronisation avec le serveur</div>
+            </div>
+            {/* Skeleton cards */}
+            {[1,2,3].map(i=>(
+              <div key={i} style={{width:"100%",maxWidth:400,background:"#F3F4F6",borderRadius:14,padding:"16px 18px",animation:"pulse 1.5s ease-in-out infinite"}}>
+                <div style={{height:10,background:"#E5E7EB",borderRadius:6,width:"60%",marginBottom:10}}/>
+                <div style={{height:28,background:"#E5E7EB",borderRadius:6,width:"40%",marginBottom:8}}/>
+                <div style={{height:10,background:"#E5E7EB",borderRadius:6,width:"80%"}}/>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ── ADMIN DASHBOARD ── */}
-        {tab==="dashboard"&&role==="admin"&&(
+        {dataReady&&tab==="dashboard"&&role==="admin"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
             {/* Salutation */}
@@ -2310,7 +2448,7 @@ function AppInner() {
         )}
 
         {/* ── CLOSER DASHBOARD ── */}
-        {tab==="dashboard"&&role==="closer"&&(
+        {dataReady&&tab==="dashboard"&&role==="closer"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"flex",gap:8}}><SC icon="📦" label="Mes commandes" value={myClo.length}/><SC icon="✅" label="Livrées" value={myClo.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/></div>
             <div style={{display:"flex",gap:8}}><SC icon="❌" label="Rejetées" value={myClo.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/><SC icon="⏳" label="En attente" value={myClo.filter(o=>o.status==="pendiente").length} color={G.gold} bg="#FFF8E7"/></div>
@@ -2332,7 +2470,7 @@ function AppInner() {
         )}
 
         {/* ── LIVREUR DASHBOARD ── */}
-        {tab==="dashboard"&&role==="livreur"&&(()=>{
+        {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
           const aRecuperer = myLiv.filter(o=>o.status==="confirmado"||o.status==="livreur_en_route");
           const aLivrer    = myLiv.filter(o=>o.status==="colis_pris");
           const enRoute    = myLiv.filter(o=>o.status==="en_camino"||o.status==="chez_client");
@@ -2426,7 +2564,7 @@ function AppInner() {
         })()}
 
         {/* ── COMMANDES / LIVRAISONS ── */}
-        {(tab==="commandes"||tab==="livraisons")&&(
+        {dataReady&&(tab==="commandes"||tab==="livraisons")&&(
           <div>
 
             {/* Filtres date */}
@@ -2510,7 +2648,7 @@ function AppInner() {
         )}
 
         {/* ── CLIENTS — Historique ── */}
-        {tab==="clients"&&(role==="admin"||role==="closer")&&(()=>{
+        {dataReady&&tab==="clients"&&(role==="admin"||role==="closer")&&(()=>{
           // Build client list
           const clientMap = {};
           orders.forEach(o=>{
@@ -2674,7 +2812,7 @@ function AppInner() {
         })()}
 
         {/* ── LIVREURS / CARTE ── */}
-        {tab==="tracking"&&(role==="admin"||role==="closer")&&(
+        {dataReady&&tab==="tracking"&&(role==="admin"||role==="closer")&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
             {/* Statuts livreurs */}
@@ -2835,7 +2973,7 @@ function AppInner() {
 
 
         {/* ── ÉQUIPE ── */}
-        {tab==="equipe"&&(
+        {dataReady&&tab==="equipe"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
             {/* Vue simplifiée pour le Livreur — contacts équipe */}
@@ -3015,7 +3153,7 @@ function AppInner() {
         )}
 
         {/* ── COMPTA ── */}
-        {tab==="compta"&&canSeeCompta&&(
+        {dataReady&&tab==="compta"&&canSeeCompta&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
             {/* Sélecteurs — Jour / Mois / Plage */}
@@ -3198,7 +3336,7 @@ function AppInner() {
         )}
 
         {/* ── STOCK ── */}
-        {tab==="stock"&&(canEditStock)&&(
+        {dataReady&&tab==="stock"&&(canEditStock)&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -3459,7 +3597,7 @@ function AppInner() {
           );
         })()}
         {/* ── CHAT ── */}
-        {tab==="chat"&&(()=>{
+        {dataReady&&tab==="chat"&&(()=>{
           const startRecord = async() => {
             try {
               const stream = await navigator.mediaDevices.getUserMedia({audio:true});
