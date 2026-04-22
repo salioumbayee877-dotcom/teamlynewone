@@ -1297,7 +1297,7 @@ function AppInner() {
         <div onClick={()=>setOrderDetail(o)} style={{padding:"13px 13px 10px",cursor:"pointer",userSelect:"none"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client} {cBadge&&<span style={{fontSize:12}}>{cBadge}</span>}</div>
+              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
               <div style={{fontSize:12,color:G.dark,fontWeight:600,marginTop:2}}>📦 {o.product}</div>
               <div style={{fontSize:11,color:G.gray,marginTop:1}}>📍 {o.address} · 📱 {o.phone}</div>
             </div>
@@ -1322,18 +1322,33 @@ function AppInner() {
         {role!=="livreur"&&(()=>{
           const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
           const icons=["✅","🏍️","📦","🚀","📍","✓"];
+          const STEP_COLORS=["#2E8B57","#7C3AED","#2563EB","#0284C7","#D97706","#1A5C38"];
           const cur=steps.indexOf(o.status);
           if(cur<0) return null;
           return (
             <div style={{display:"flex",alignItems:"center",marginBottom:8}}>
-              {icons.map((ico,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                  <div style={{width:20,height:20,borderRadius:"50%",background:i<cur?G.green:i===cur?"#FFF":G.grayLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${i<cur?"#6EE7B7":i===cur?G.green:"#E5E7EB"}`,boxShadow:i===cur?`0 0 0 3px ${G.green}33`:undefined}}>
-                    <span style={{fontSize:9,filter:i>cur?"grayscale(1) opacity(0.4)":"none"}}>{ico}</span>
+              {icons.map((ico,i)=>{
+                const col=STEP_COLORS[i];
+                const done=i<cur, active=i===cur, future=i>cur;
+                return (
+                  <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
+                    <div
+                      className={active?"step-active":undefined}
+                      style={{
+                        width:22,height:22,borderRadius:"50%",
+                        background:done?col:active?col:G.grayLight,
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        fontSize:10,flexShrink:0,
+                        border:`2px solid ${future?"#E5E7EB":col}`,
+                        opacity:future?0.35:1,
+                        '--sc':`${col}55`,
+                      }}>
+                      <span style={{fontSize:10}}>{ico}</span>
+                    </div>
+                    {i<5&&<div style={{flex:1,height:2,background:done?col:G.grayLight,opacity:future?0.3:1}}/>}
                   </div>
-                  {i<5&&<div style={{flex:1,height:2,background:i<cur?G.green:G.grayLight}}/>}
-                </div>
-              ))}
+                );
+              })}
             </div>
           );
         })()}
@@ -1358,33 +1373,12 @@ function AppInner() {
         {/* Admin / Closer — bouton petit + assignation */}
         {showPrendre&&(role==="admin"||role==="closer")&&(
           <div style={{display:"flex",flexDirection:"column",gap:5}}>
-            {!o.closer&&(
-              <button onClick={()=>prendre(o.id)}
-                style={{alignSelf:"flex-start",background:"#FFF8E7",color:G.gold,border:`1px solid #FDE68A`,borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                ✋ Prendre en charge
-              </button>
-            )}
             {(o.closer||role==="admin")&&o.status!=="entregado"&&o.status!=="rechazado"&&!o.livreur&&(
-              <>
-                <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
-                  style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
-                  <option value="">🏍️ Assigner un livreur...</option>
-                  {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
-                </select>
-                {(()=>{
-                  const ACTIVE=["livreur_en_route","colis_pris","en_camino","chez_client"];
-                  const livActifIds=[...new Set(orders.filter(x=>ACTIVE.includes(x.status)&&x.livreur_id).map(x=>x.livreur_id))];
-                  const livActifs=teamMembers.filter(m=>m.role==="livreur"&&livActifIds.includes(m.id));
-                  if(!livActifs.length) return null;
-                  return (
-                    <select onChange={e=>e.target.value&&upLivDirect(o.id,e.target.value)} defaultValue=""
-                      style={{border:`1px solid #93C5FD`,borderRadius:8,padding:"6px 10px",fontSize:12,color:"#1D4ED8",background:"#EFF6FF"}}>
-                      <option value="">🚀 Ajouter à une tournée active...</option>
-                      {livActifs.map(m=><option key={m.id} value={m.id}>🏍️ {m.nom} — en route</option>)}
-                    </select>
-                  );
-                })()}
-              </>
+              <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
+                style={{border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"6px 10px",fontSize:12,color:G.dark,background:G.white}}>
+                <option value="">🏍️ Assigner un livreur...</option>
+                {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.id}>{m.nom}</option>)}
+              </select>
             )}
             {o.livreur&&(o.status==="confirmado"||o.status==="en_camino")&&(
               <select onChange={e=>e.target.value&&upLiv(o.id,e.target.value)} defaultValue=""
@@ -2190,6 +2184,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
+      <style>{`@keyframes stepPulse{0%{transform:scale(1);opacity:1}50%{transform:scale(1.25);opacity:0.7}100%{transform:scale(1);opacity:1}}.step-active{animation:stepPulse 1.5s ease-in-out infinite}`}</style>
 
       {/* Sidebar overlay */}
       {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
@@ -2343,7 +2338,7 @@ function AppInner() {
                             <div style={{fontSize:12,color:G.gray,marginTop:3}}>📦 {o.product}</div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📱 {o.phone||"—"}</div>
-                            {o.note&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
+                            {o.note&&!o.note.startsWith("Commande Shopify")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
                           </div>
                           <div style={{textAlign:"right",flexShrink:0}}>
                             <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
