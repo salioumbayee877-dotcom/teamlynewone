@@ -11,10 +11,10 @@ const sbHeaders = (token) => ({
   "Prefer":        "return=representation",
 });
 
-const fetchWithTimeout = (url, opts={}, ms=7000) => {
+const fetchWithTimeout = async (url, opts={}, ms=7000) => {
   const ctrl = new AbortController();
   const id = setTimeout(()=>ctrl.abort(), ms);
-  return fetch(url, {...opts, signal:ctrl.signal}).finally(()=>clearTimeout(id));
+  try { return await fetch(url, {...opts, signal:ctrl.signal}); } finally { clearTimeout(id); }
 };
 
 const sbFetch = async (path, method="GET", body=null, token=null) => {
@@ -1689,7 +1689,21 @@ function AppInner() {
                   sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,SERVICE_KEY_CONST),
                 ]);
                 if(authResult.status==="rejected"){
-                  setAuthError(authResult.reason?.message||"Email ou mot de passe incorrect");
+                  const errMsg = authResult.reason?.message||"";
+                  const isServerDown = errMsg.includes("503")||errMsg.includes("upstream")||errMsg.includes("Délai")||errMsg.includes("lente");
+                  // Fallback: si Supabase auth est down mais le profil existe → on entre quand même
+                  if(isServerDown && profileResult.status==="fulfilled" && profileResult.value?.length>0){
+                    const p = profileResult.value[0];
+                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
+                    const orgName=orgs?.[0]?.name||"Ma Boutique"; const orgPhone=orgs?.[0]?.whatsapp||"";
+                    setOrgId(p.org_id); setSbReady(true);
+                    setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
+                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
+                    setRole(p.role||"admin"); setTab("dashboard"); setAuthLoading(false);
+                    try{localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
+                    return;
+                  }
+                  setAuthError(isServerDown?"Serveur Supabase indisponible (503) — vérifie que ton projet n'est pas pausé sur supabase.com":errMsg||"Email ou mot de passe incorrect");
                   setAuthLoading(false); return;
                 }
                 const data = authResult.value;
