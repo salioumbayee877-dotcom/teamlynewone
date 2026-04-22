@@ -2643,11 +2643,11 @@ function AppInner() {
         {dataReady&&(tab==="commandes"||tab==="livraisons")&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-            {/* ── Sélecteur période — style compta ── */}
+            {/* ── Sélecteur période — identique compta ── */}
             {tab==="commandes"&&(
-              <div style={{background:G.white,borderRadius:14,padding:"12px 14px"}}>
-                <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:1,marginBottom:9}}>PÉRIODE D'ANALYSE</div>
-                <div style={{display:"flex",gap:6,marginBottom:0}}>
+              <div style={{background:G.white,borderRadius:12,padding:"12px 14px"}}>
+                <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:10}}>📅 PÉRIODE D'ANALYSE</div>
+                <div style={{display:"flex",gap:6,marginBottom:8}}>
                   {[
                     {k:"today",    l:"Aujourd'hui"},
                     {k:"yesterday",l:"Hier"},
@@ -2655,15 +2655,10 @@ function AppInner() {
                     {k:"all",      l:"Tout"},
                   ].map(d=>{
                     const active = filterDate===d.k;
-                    const cnt = d.k==="today" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===TODAY).length
-                              : d.k==="yesterday" ? baseOrders.filter(o=>o.created_at?.slice(0,10)===YESTERDAY).length
-                              : d.k==="week" ? baseOrders.filter(o=>o.created_at?.slice(0,10)>=WEEK_AGO).length
-                              : baseOrders.length;
                     return (
                       <button key={d.k} onClick={()=>setFilterDate(d.k)}
-                        style={{flex:1,background:active?G.green:"#F3F4F6",color:active?G.white:G.gray,border:"none",borderRadius:9,padding:"8px 4px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                        <span>{d.l}</span>
-                        <span style={{fontSize:13,fontWeight:800,color:active?G.gold:G.dark}}>{cnt}</span>
+                        style={{flex:1,background:active?G.green:G.grayLight,color:active?G.white:G.gray,border:"none",borderRadius:8,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                        {d.l}
                       </button>
                     );
                   })}
@@ -2689,7 +2684,7 @@ function AppInner() {
                       {l:"Livré",      v:nLivre,     c:"#34D399",bg:"rgba(52,211,153,0.15)"},
                       {l:"Rejeté",     v:nRejete,    c:"#F87171",bg:"rgba(248,113,113,0.15)"},
                     ].map((s,i)=>(
-                      <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:"8px 6px",textAlign:"center",border:`1px solid ${s.c}33`}}>
+                      <div key={i} style={{flex:1,background:s.bg,borderRadius:10,padding:"8px 6px",textAlign:"center",border:`1px solid ${s.c}33`,userSelect:"none",pointerEvents:"none"}}>
                         <div style={{fontSize:18,fontWeight:800,color:s.c}}>{s.v}</div>
                         <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:1}}>{s.l}</div>
                       </div>
