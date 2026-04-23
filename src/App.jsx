@@ -799,6 +799,7 @@ function AppInner() {
   const tabRef                             = useRef(tab);
   const currentUserRef                     = useRef(currentUser);
   const [chatShowNew, setChatShowNew]      = useState(false);
+  const [chatLoading, setChatLoading]      = useState(true);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("org") && params.get("role")) return "join";
@@ -1066,7 +1067,7 @@ function AppInner() {
     const chatCacheKey = `teamly_chat_${orgId}`;
     try {
       const cached = JSON.parse(localStorage.getItem(chatCacheKey) || "null");
-      if(cached && cached.length > 0) setChat(cached);
+      if(cached && cached.length > 0) { setChat(cached); setChatLoading(false); }
     } catch(e){}
 
     // Carga mensajes — primera vez completo, luego solo nuevos (par created_at, pas par id UUID)
@@ -1077,6 +1078,7 @@ function AppInner() {
           ? `messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`
           : `messages?org_id=eq.${orgId}&created_at=gt.${encodeURIComponent(lastMsgTime)}&order=created_at.asc&limit=50`;
         const msgs = await sbFetch(query);
+        if(firstLoad) setChatLoading(false);
         if(!msgs || msgs.length === 0) return;
         const myNom = currentUserRef.current.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
         const lastReadKey = `teamly_lastread_${currentUser.id}`;
@@ -1135,14 +1137,17 @@ function AppInner() {
           try { localStorage.setItem(chatCacheKey, JSON.stringify(merged.slice(-60))); } catch(e){}
           return merged;
         });
-      } catch(e) { console.error("Chat load error:", e.message); }
+      } catch(e) {
+        if(firstLoad) setChatLoading(false);
+        console.error("Chat load error:", e.message);
+      }
     };
 
     loadMain();
     loadChat(true);
     const intervalMain = setInterval(loadMain, 5000);
-    // Polling de secours — le WebSocket realtime prend le relais pour le chat
-    const intervalChat = setInterval(()=>loadChat(false), 30000);
+    // Polling toutes les 8s si le WebSocket est lent ou indisponible
+    const intervalChat = setInterval(()=>loadChat(false), 8000);
 
     // ── Supabase Realtime WebSocket — chat en temps réel ─────────────────
     let ws = null, wsRef = 0, wsHeartbeat = null, wsReconnect = null;
@@ -1178,13 +1183,14 @@ function AppInner() {
         };
         ws.onclose = () => {
           clearInterval(wsHeartbeat);
-          wsReconnect = setTimeout(setupWS, 4000); // reconnexion auto
+          wsReconnect = setTimeout(setupWS, 2000); // reconnexion auto
         };
         ws.onerror = () => ws.close();
       } catch(e) { /* WebSocket non dispo, polling de secours actif */ }
     };
     setupWS();
 
+    setChatLoading(true);
     return ()=>{
       clearTimeout(readyFallback);
       clearInterval(intervalMain);
@@ -3926,7 +3932,17 @@ function AppInner() {
                 if(atBottom) setChatShowNew(false);
               }}
               style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
-              {chat.length===0&&(
+              {chatLoading&&chat.length===0&&(
+                <div style={{display:"flex",flexDirection:"column",gap:10,padding:"12px 4px"}}>
+                  {[1,2,3,4].map((i)=>(
+                    <div key={i} style={{display:"flex",gap:8,justifyContent:i%2===0?"flex-end":"flex-start",alignItems:"flex-end"}}>
+                      {i%2!==0&&<div style={{width:32,height:32,borderRadius:"50%",background:"#D1D5DB",flexShrink:0,animation:"pulse 1.4s ease-in-out infinite"}}/>}
+                      <div style={{background:"#D1D5DB",borderRadius:i%2===0?"16px 16px 4px 16px":"4px 16px 16px 16px",width:`${50+i*15}%`,maxWidth:220,height:40,animation:`pulse 1.4s ease-in-out ${i*0.15}s infinite`}}/>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {!chatLoading&&chat.length===0&&(
                 <div style={{textAlign:"center",padding:40,color:"#8a9a8a"}}>
                   <div style={{fontSize:36,marginBottom:8}}>💬</div>
                   <div style={{fontSize:13,fontWeight:600}}>Aucun message</div>
