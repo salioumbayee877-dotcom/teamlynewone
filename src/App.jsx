@@ -797,6 +797,7 @@ function AppInner() {
   const chatBottomRef                      = useRef(null);
   const chatScrollRef                      = useRef(null);
   const tabRef                             = useRef(tab);
+  const currentUserRef                     = useRef(currentUser);
   const [chatShowNew, setChatShowNew]      = useState(false);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
@@ -931,7 +932,8 @@ function AppInner() {
     if(tab==="chat") {
       setChatUnread(0);
       setChatShowNew(false);
-      setChat(prev => { if(prev.length>0) try{localStorage.setItem(`teamly_lastread_${currentUser.id}`,String(prev[prev.length-1].id));}catch(e){} return prev; });
+      // Save current timestamp so on next reload we only count messages newer than this
+      try { localStorage.setItem(`teamly_lastread_${currentUser.id}`, new Date().toISOString()); } catch(e){}
       setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
     }
   },[tab]);
@@ -1022,15 +1024,21 @@ function AppInner() {
         setDataReady(true);
       }
     } catch(e){}
+    // Fallback: never keep loading screen more than 3s even without cache
+    const readyFallback = setTimeout(()=>setDataReady(true), 3000);
 
     // Carga pedidos, productos y equipo juntos (sin mensajes — son pesados)
+    let mainReqId = 0;
     const loadMain = async() => {
+      const reqId = ++mainReqId;
       try {
         const [ords, prods, mems] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`),
         ]);
+        if(reqId !== mainReqId) return; // discard stale parallel response
+        clearTimeout(readyFallback);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
         const mappedProds = prods ? mapProds(prods)   : null;
         if(mappedOrds)  setOrders(mappedOrds);
@@ -1070,7 +1078,7 @@ function AppInner() {
           : `messages?org_id=eq.${orgId}&created_at=gt.${encodeURIComponent(lastMsgTime)}&order=created_at.asc&limit=50`;
         const msgs = await sbFetch(query);
         if(!msgs || msgs.length === 0) return;
-        const myNom = currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+        const myNom = currentUserRef.current.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
         const lastReadKey = `teamly_lastread_${currentUser.id}`;
         setChat(prev => {
           let merged;
@@ -1089,15 +1097,14 @@ function AppInner() {
           // Unread badge — use tabRef.current to avoid stale closure
           const currentTab = tabRef.current;
           if(prev.length === 0 && merged.length > 0 && currentTab !== "chat") {
-            const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
+            // Use timestamp: only count messages newer than when user last had chat open
+            const lastReadTime = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
             let unread = 0;
-            if(lastReadId) {
-              const idx = merged.findIndex(m => String(m.id) === String(lastReadId));
-              unread = idx >= 0 ? merged.slice(idx+1).filter(m=>m.from!==myNom).length : Math.min(merged.filter(m=>m.from!==myNom).length, 99);
-            } else {
-              unread = Math.min(merged.filter(m=>m.from!==myNom).length, 5);
+            if(lastReadTime) {
+              unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
             }
-            if(unread > 0) setChatUnread(unread);
+            // Cap at 99, don't show anything if 0
+            if(unread > 0) setChatUnread(Math.min(unread, 99));
           } else if(merged.length > prev.length && prev.length > 0) {
             const prevIds = new Set(prev.map(m=>String(m.id)));
             const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&m.from!==myNom);
@@ -1179,6 +1186,7 @@ function AppInner() {
     setupWS();
 
     return ()=>{
+      clearTimeout(readyFallback);
       clearInterval(intervalMain);
       clearInterval(intervalChat);
       clearInterval(wsHeartbeat);
@@ -1187,8 +1195,9 @@ function AppInner() {
     };
   },[sbReady, orgId]);
 
-  // Keep tabRef in sync so loadChat closure can read current tab without stale capture
+  // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
+  useEffect(()=>{ currentUserRef.current = currentUser; }, [currentUser]);
 
   // Request browser notification permission once user is logged in
   useEffect(()=>{
@@ -1241,9 +1250,12 @@ function AppInner() {
   // ── Detect new orders assigned to livreur
   useEffect(()=>{
     if(role!=="livreur") return;
-    const myName = currentUser.nom;
-    const myId   = currentUser.id;
-    if(prevOrdersRef.current===null) { prevOrdersRef.current=orders; return; }
+    const myName = currentUserRef.current.nom;
+    const myId   = currentUserRef.current.id;
+    // Skip first two runs: null→[] (initial) and []→data (cache restore)
+    if(prevOrdersRef.current===null || (prevOrdersRef.current.length===0 && orders.length>0)) {
+      prevOrdersRef.current=orders; return;
+    }
     const prev = prevOrdersRef.current;
     const newlyAssigned = orders.find(o=>
       (o.livreur===myName||o.livreur_id===myId) &&
