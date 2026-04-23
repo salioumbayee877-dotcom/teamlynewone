@@ -2423,14 +2423,61 @@ function AppInner() {
                 </div>
               )}
 
-              {/* URL webhook (colapsado al fondo) */}
-              <div style={{background:G.white,borderRadius:12,padding:12}}>
-                <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:6}}>🔗 URL WEBHOOK SHOPIFY</div>
-                <div style={{background:"#F8F8F8",borderRadius:7,padding:"6px 8px",fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:6}}>{webhookUrl}</div>
-                <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée !","✅",G.green))}
-                  style={{width:"100%",background:"#F3F4F6",color:G.gray,border:"none",borderRadius:7,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                  📋 Copiar URL
-                </button>
+              {/* Guide intégration webhook */}
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:12}}>🔗 Connecter ta boutique</div>
+
+                {/* URL à copier */}
+                <div style={{background:"#F8F8F8",borderRadius:9,padding:"10px 12px",marginBottom:10}}>
+                  <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:5,letterSpacing:0.5}}>TON URL WEBHOOK (à copier)</div>
+                  <div style={{fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",lineHeight:1.6,marginBottom:8}}>{webhookUrl}</div>
+                  <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée ✅","✅",G.green))}
+                    style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    📋 Copier l'URL
+                  </button>
+                </div>
+
+                {/* Shopify */}
+                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:8}}>
+                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
+                    🛒 Shopify
+                  </div>
+                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
+                    1. Va dans ton admin Shopify<br/>
+                    2. <b>Settings → Notifications → Webhooks</b><br/>
+                    3. Clique <b>"Create webhook"</b><br/>
+                    4. Event: <b>Order payment</b> · Format: <b>JSON</b><br/>
+                    5. Colle l'URL ci-dessus → <b>Save</b>
+                  </div>
+                </div>
+
+                {/* YouCan */}
+                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:8}}>
+                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
+                    ⚡ YouCan
+                  </div>
+                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
+                    1. Va dans ton panel YouCan<br/>
+                    2. <b>Settings → Webhooks</b><br/>
+                    3. Clique <b>"Add webhook"</b><br/>
+                    4. Event: <b>Order created</b> · Format: <b>JSON</b><br/>
+                    5. Colle l'URL ci-dessus → <b>Save</b>
+                  </div>
+                </div>
+
+                {/* WooCommerce */}
+                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden"}}>
+                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
+                    🔧 WooCommerce
+                  </div>
+                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
+                    1. Va dans ton admin WordPress<br/>
+                    2. <b>WooCommerce → Settings → Advanced → Webhooks</b><br/>
+                    3. Clique <b>"Add webhook"</b><br/>
+                    4. Topic: <b>Order created</b> · Format: <b>JSON</b><br/>
+                    5. Colle l'URL ci-dessus → <b>Save</b>
+                  </div>
+                </div>
               </div>
             </div>
           );
@@ -2729,166 +2776,154 @@ function AppInner() {
           </div>
         )}
 
-        {/* ── CLIENTS — Historique ── */}
+        {/* ── CLIENTS ── */}
         {dataReady&&tab==="clients"&&(role==="admin"||role==="closer")&&(()=>{
-          // Build client list
-          const clientMap = {};
-          orders.forEach(o=>{
-            if(!clientMap[o.phone]) clientMap[o.phone]={name:o.client,phone:o.phone,address:o.address,orders:[]};
-            clientMap[o.phone].orders.push(o);
-          });
-          const clients = Object.values(clientMap).map(c=>{
-            const total   = c.orders.length;
-            const livres  = c.orders.filter(o=>o.status==="entregado").length;
-            const rejetes = c.orders.filter(o=>o.status==="rechazado").length;
-            const ca      = c.orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
-            const score   = total===0?0:Math.round(livres/total*100);
-            const fiabilite = score>=80?"🟢 Fiable":score>=50?"🟡 Moyen":"🔴 Risqué";
-            const fColor  = score>=80?G.green:score>=50?G.gold:G.red;
-            const fBg     = score>=80?G.greenLight:score>=50?"#FFF8E7":"#FEE2E2";
-            return {...c,total,livres,rejetes,ca,score,fiabilite,fColor,fBg};
-          }).sort((a,b)=>b.ca-a.ca);
+          const TODAY     = new Date().toISOString().slice(0,10);
+          const YESTERDAY = new Date(Date.now()-86400000).toISOString().slice(0,10);
+          const WEEK_AGO  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
 
-          // Export CSV — défini après clients
-          const exportCSV = () => {
-            const header = ["Nom client","Téléphone","Adresse","Produit","Date","Heure"];
-            const rows = orders.filter(o=>!o.archived).map(o=>{
-              const d = o.created_at ? new Date(o.created_at) : null;
-              return [
-                o.client||"",
-                o.phone||"",
-                o.address||"",
-                o.product||"",
-                d ? d.toLocaleDateString("fr-FR") : "",
-                d ? d.toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"}) : ""
-              ];
+          // Categories
+          const CATS = [
+            {k:"boutique",  label:"En boutique",  color:"#D97706", bg:"#FFF8E7", statuses:["boutique"]},
+            {k:"confirme",  label:"Confirmés",    color:G.blue,    bg:"#EFF6FF", statuses:["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"]},
+            {k:"livre",     label:"Livrés",       color:G.green,   bg:G.greenLight, statuses:["entregado"]},
+          ];
+          const [clientCat, setClientCat] = [
+            window._teamlyClientCat||"confirme",
+            v=>{ window._teamlyClientCat=v; setOrders(o=>o); }
+          ];
+          const [clientDate, setClientDate] = [
+            window._teamlyClientDate||"all",
+            v=>{ window._teamlyClientDate=v; setOrders(o=>o); }
+          ];
+          const cat = CATS.find(c=>c.k===clientCat)||CATS[1];
+
+          const matchDate = (o) => {
+            const d = o.created_at?.slice(0,10)||"";
+            if(clientDate==="today")     return d===TODAY;
+            if(clientDate==="yesterday") return d===YESTERDAY;
+            if(clientDate==="week")      return d>=WEEK_AGO;
+            return true;
+          };
+
+          const filteredOrd = orders.filter(o=>cat.statuses.includes(o.status)&&matchDate(o));
+
+          // Build unique clients from filtered orders
+          const clientMap = {};
+          filteredOrd.forEach(o=>{
+            const key = o.phone||o.client;
+            if(!clientMap[key]) clientMap[key]={name:o.client,phone:o.phone,address:o.address,orders:[]};
+            clientMap[key].orders.push(o);
+          });
+          const clients = Object.values(clientMap).sort((a,b)=>b.orders.length-a.orders.length);
+
+          const exportFile = (type) => {
+            const header = ["Nom client","Téléphone","Adresse","Produit","Prix","Statut","Date"];
+            const rows = filteredOrd.map(o=>{
+              const d = o.created_at?new Date(o.created_at).toLocaleDateString("fr-FR"):"";
+              return [o.client||"",o.phone||"",o.address||"",o.product||"",o.price||0,(STATUS[o.status]||{label:o.status}).label,d];
             });
             const csv = [header,...rows].map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(";")).join("\n");
-            const blob = new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+            const blob = new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8;"});
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href=url; a.download="commandes_teamly_"+new Date().toISOString().split("T")[0]+".csv";
+            a.href=url; a.download=`clients_${cat.k}_${TODAY}.${type==="excel"?"csv":type}`;
             document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
           };
 
-          const selected = showClientDetail ? clients.find(c=>c.phone===showClientDetail) : null;
-
           return (
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
 
-              {/* Header + Export */}
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontWeight:700,fontSize:15,color:G.dark}}>👤 Clients</div>
-                <button onClick={exportCSV}
-                  style={{background:G.green,color:G.white,border:"none",borderRadius:9,padding:"8px 14px",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
-                  ⬇️ Exporter Excel
-                </button>
-              </div>
-
-              {/* Stats globales clients */}
-              <div style={{display:"flex",gap:8}}>
-                <SC icon="👤" label="Clients uniques" value={clients.length}/>
-                <SC icon="🟢" label="Clients fiables" value={clients.filter(c=>c.score>=80).length} color={G.green} bg={G.greenLight}/>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <SC icon="🟡" label="Clients moyens" value={clients.filter(c=>c.score>=50&&c.score<80).length} color={G.gold} bg="#FFF8E7"/>
-                <SC icon="🔴" label="Clients risqués" value={clients.filter(c=>c.score<50).length} color={G.red} bg="#FEE2E2"/>
-              </div>
-
-              {/* Détail client sélectionné */}
-              {selected&&(
-                <div style={{background:G.white,borderRadius:14,padding:16,border:`2px solid ${selected.fColor}`}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                    <div>
-                      <div style={{fontWeight:700,fontSize:16,color:G.dark}}>{selected.name}</div>
-                      <div style={{fontSize:12,color:G.gray,marginTop:2}}>📱 {selected.phone}</div>
-                      <div style={{fontSize:12,color:G.gray}}>📍 {selected.address}</div>
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-                      <span style={{background:selected.fBg,color:selected.fColor,borderRadius:20,padding:"4px 12px",fontSize:12,fontWeight:700}}>{selected.fiabilite}</span>
-                      <button onClick={()=>setShowClientDetail(null)} style={{background:G.grayLight,border:"none",borderRadius:8,padding:"4px 10px",fontSize:11,cursor:"pointer",color:G.gray}}>✕ Fermer</button>
-                    </div>
-                  </div>
-                  {/* Score visuel */}
-                  <div style={{marginBottom:12}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-                      <span style={{fontSize:11,color:G.gray}}>Score de fiabilité</span>
-                      <span style={{fontSize:12,fontWeight:700,color:selected.fColor}}>{selected.score}%</span>
-                    </div>
-                    <div style={{background:G.grayLight,borderRadius:4,height:8}}>
-                      <div style={{background:selected.fColor,borderRadius:4,height:8,width:`${selected.score}%`,transition:"width 0.5s"}}/>
-                    </div>
-                  </div>
-                  {/* Stats */}
-                  <div style={{display:"flex",gap:8,marginBottom:12}}>
-                    {[{l:"Commandes",v:selected.total,c:G.dark},{l:"Livrées",v:selected.livres,c:G.green},{l:"Rejetées",v:selected.rejetes,c:G.red},{l:"CA total",v:`${fmt(selected.ca)}F`,c:G.green}].map((s,i)=>(
-                      <div key={i} style={{flex:1,background:G.grayLight,borderRadius:8,padding:"7px 4px",textAlign:"center"}}>
-                        <div style={{fontSize:14,fontWeight:700,color:s.c}}>{s.v}</div>
-                        <div style={{fontSize:9,color:G.gray,marginTop:1}}>{s.l}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Historique commandes */}
-                  <ST>📋 Historique commandes</ST>
-                  {selected.orders.map(o=>{
-                    const st=STATUS[o.status]||STATUS.pendiente;
-                    return (
-                      <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                        <div>
-                          <div style={{fontSize:12,fontWeight:600,color:G.dark}}>{o.product}</div>
-                          {o.note&&<div style={{fontSize:10,color:G.gray}}>📝 {o.note}</div>}
-                        </div>
-                        <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(o.price)} F</div>
-                          <span style={{background:st.bg,color:st.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:600}}>{st.label}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Liste clients */}
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST>👤 TOUS LES CLIENTS</ST>
-                {clients.map(c=>(
-                  <button key={c.phone} onClick={()=>setShowClientDetail(showClientDetail===c.phone?null:c.phone)}
-                    style={{width:"100%",background:showClientDetail===c.phone?c.fBg:G.white,border:`1px solid ${showClientDetail===c.phone?c.fColor:G.grayLight}`,borderRadius:10,padding:"10px 12px",cursor:"pointer",textAlign:"left",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{c.name}</div>
-                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {c.phone} · {c.total} commande{c.total>1?"s":""}</div>
-                      <div style={{fontSize:11,marginTop:2}}>
-                        <span style={{color:G.green}}>✅ {c.livres}</span>
-                        <span style={{color:G.gray}}> · </span>
-                        <span style={{color:G.red}}>❌ {c.rejetes}</span>
-                        <span style={{color:G.gray}}> · </span>
-                        <span style={{color:G.green,fontWeight:600}}>{fmt(c.ca)} FCFA</span>
-                      </div>
-                    </div>
-                    <div style={{textAlign:"right"}}>
-                      <span style={{background:c.fBg,color:c.fColor,borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:700,display:"block",marginBottom:4}}>{c.fiabilite}</span>
-                      <span style={{fontSize:10,color:G.gray}}>{c.score}% fiable</span>
+              {/* 3 onglets */}
+              <div style={{display:'flex',gap:6}}>
+                {CATS.map(c=>(
+                  <button key={c.k} onClick={()=>{window._teamlyClientCat=c.k;setOrders(o=>o);}}
+                    style={{flex:1,background:clientCat===c.k?c.color:'#F3F4F6',color:clientCat===c.k?'#fff':'#6B7280',border:'none',borderRadius:10,padding:'9px 4px',fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>
+                    {c.label}
+                    <div style={{fontSize:18,fontWeight:800,marginTop:2,color:clientCat===c.k?'rgba(255,255,255,0.9)':c.color}}>
+                      {orders.filter(o=>c.statuses.includes(o.status)).length}
                     </div>
                   </button>
                 ))}
               </div>
 
-              {/* Table récap */}
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST>📊 TABLEAU CLIENTS</ST>
-                <Tbl
-                  headers={["Client","Cmds","Livrées","Rejetées","CA","Score"]}
-                  align={["left","right","right","right","right","right"]}
-                  rows={clients.map(c=>[
-                    <span style={{fontWeight:600,fontSize:11}}>{c.name}</span>,
-                    c.total,
-                    <span style={{color:G.green,fontWeight:700}}>{c.livres}</span>,
-                    <span style={{color:c.rejetes>0?G.red:G.gray,fontWeight:700}}>{c.rejetes}</span>,
-                    <span style={{color:G.green,fontWeight:600}}>{fmt(c.ca)} F</span>,
-                    <span style={{background:c.fBg,color:c.fColor,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>{c.score}%</span>,
-                  ])}
-                />
+              {/* Filtre date */}
+              <div style={{background:G.white,borderRadius:12,padding:'10px 12px'}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>📅 FILTRER PAR DATE</div>
+                <div style={{display:'flex',gap:6}}>
+                  {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
+                    <button key={d.k} onClick={()=>{window._teamlyClientDate=d.k;setOrders(o=>o);}}
+                      style={{flex:1,background:clientDate===d.k?G.green:'#F3F4F6',color:clientDate===d.k?'#fff':G.gray,border:'none',borderRadius:8,padding:'7px 0',fontSize:11,fontWeight:600,cursor:'pointer'}}>
+                      {d.l}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Exports */}
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={()=>exportFile('excel')} style={{flex:1,background:G.green,color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer'}}>📊 Excel (.csv)</button>
+                <button onClick={()=>exportFile('csv')} style={{flex:1,background:'#0284C7',color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer'}}>📄 CSV</button>
+              </div>
+
+              {/* Compteur */}
+              <div style={{display:'flex',justifyContent:'space-between',padding:'2px'}}>
+                <span style={{fontSize:12,color:G.gray}}>{clients.length} client{clients.length!==1?'s':''} · {filteredOrd.length} commande{filteredOrd.length!==1?'s':''}</span>
+                <span style={{fontSize:11,fontWeight:700,color:cat.color}}>{cat.label}</span>
+              </div>
+
+              {/* Liste */}
+              {clients.length===0?(
+                <div style={{background:G.white,borderRadius:14,padding:40,textAlign:'center',color:G.gray}}>
+                  <div style={{fontSize:40,marginBottom:10}}>👤</div>
+                  <div style={{fontWeight:700,fontSize:14}}>Aucun client dans cette catégorie</div>
+                </div>
+              ):(
+                <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                  {clients.map(c=>{
+                    const open = showClientDetail===c.phone;
+                    return (
+                      <div key={c.phone} style={{background:G.white,borderRadius:14,overflow:'hidden',border:`1.5px solid ${open?cat.color:G.grayLight}`}}>
+                        <button onClick={()=>setShowClientDetail(open?null:c.phone)}
+                          style={{width:'100%',background:'none',border:'none',padding:'12px 14px',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <div>
+                            <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{c.name}</div>
+                            <div style={{fontSize:11,color:G.gray,marginTop:3}}>📱 {c.phone}</div>
+                            {c.address&&<div style={{fontSize:11,color:G.gray}}>📍 {c.address}</div>}
+                          </div>
+                          <div style={{textAlign:'right',flexShrink:0}}>
+                            <div style={{background:cat.bg,color:cat.color,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700,marginBottom:4}}>
+                              {c.orders.length} cmde{c.orders.length>1?'s':''}
+                            </div>
+                            <div style={{fontSize:10,color:G.gray}}>{open?'▲ Fermer':'▼ Détails'}</div>
+                          </div>
+                        </button>
+                        {open&&(
+                          <div style={{borderTop:`1px solid ${G.grayLight}`,padding:'10px 14px 14px'}}>
+                            {c.orders.map(o=>{
+                              const st=STATUS[o.status]||{label:o.status,color:G.gray,bg:G.grayLight};
+                              const d=o.created_at?new Date(o.created_at).toLocaleDateString('fr-FR'):'';
+                              return (
+                                <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${G.grayLight}`}}>
+                                  <div>
+                                    <div style={{fontSize:12,fontWeight:600,color:G.dark}}>{o.product}</div>
+                                    {d&&<div style={{fontSize:10,color:G.gray}}>📅 {d}</div>}
+                                  </div>
+                                  <div style={{textAlign:'right'}}>
+                                    <div style={{fontSize:13,fontWeight:800,color:G.green}}>{fmt(o.price)} F</div>
+                                    <span style={{background:st.bg,color:st.color,borderRadius:5,padding:'2px 7px',fontSize:10,fontWeight:600}}>{st.label}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <a href={`tel:${c.phone}`} style={{display:'block',marginTop:10,background:G.greenLight,color:G.green,borderRadius:9,padding:'9px 0',fontSize:12,fontWeight:700,textAlign:'center',textDecoration:'none'}}>📞 Appeler {c.name}</a>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })()}
