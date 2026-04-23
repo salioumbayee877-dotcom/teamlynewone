@@ -1005,7 +1005,7 @@ function AppInner() {
       const isAud=t.startsWith("AUD:");
       let audioUrl=null,dur="0:00";
       if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
-      return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+      return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,created_at:m.created_at,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
     });
 
     // Restore pedidos/productos/equipo del caché al instante
@@ -1057,33 +1057,31 @@ function AppInner() {
       if(cached && cached.length > 0) setChat(cached);
     } catch(e){}
 
-    // Carga mensajes — primera vez completo, luego solo nuevos
-    let lastMsgId = null;
+    // Carga mensajes — primera vez completo, luego solo nuevos (par created_at, pas par id UUID)
+    let lastMsgTime = null;
     const loadChat = async(firstLoad=false) => {
       try {
-        const query = firstLoad || !lastMsgId
-          ? `messages?org_id=eq.${orgId}&order=created_at.desc&limit=60`
-          : `messages?org_id=eq.${orgId}&id=gt.${lastMsgId}&order=created_at.asc&limit=30`;
+        const query = firstLoad || !lastMsgTime
+          ? `messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`
+          : `messages?org_id=eq.${orgId}&created_at=gt.${encodeURIComponent(lastMsgTime)}&order=created_at.asc&limit=50`;
         const msgs = await sbFetch(query);
         if(!msgs || msgs.length === 0) return;
         const myNom = currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
         const lastReadKey = `teamly_lastread_${currentUser.id}`;
         setChat(prev => {
           let merged;
-          if(firstLoad || !lastMsgId) {
+          if(firstLoad || !lastMsgTime) {
             merged = mapMsgs([...msgs].reverse());
           } else {
             const newMapped = mapMsgs(msgs);
             merged = [...prev, ...newMapped.filter(m => {
-              // Skip if exact ID match
               if(prev.find(p=>String(p.id)===String(m.id))) return false;
-              // Skip if local optimistic message (numeric timestamp ID, same from+text)
               if(prev.find(p=>typeof p.id==="number"&&p.from===m.from&&p.text===m.text)) return false;
               return true;
             })];
           }
-          // Update lastMsgId for next poll
-          if(merged.length > 0) lastMsgId = merged[merged.length-1].id;
+          // Update lastMsgTime using created_at (works with UUID ids)
+          if(merged.length > 0) lastMsgTime = merged[merged.length-1].created_at||null;
           // Unread badge
           if(prev.length === 0 && merged.length > 0 && tab !== "chat") {
             const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
