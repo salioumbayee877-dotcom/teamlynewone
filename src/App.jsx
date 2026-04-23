@@ -1090,8 +1090,9 @@ function AppInner() {
             }
             if(unread > 0) setChatUnread(unread);
           } else if(merged.length > prev.length && prev.length > 0) {
-            const newFromOthers = merged.slice(prev.length).filter(m=>m.from!==myNom).length;
-            setChatUnread(u => tab==="chat" ? 0 : u + newFromOthers);
+            const prevIds = new Set(prev.map(m=>String(m.id)));
+            const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&m.from!==myNom);
+            if(genuineNew.length>0) setChatUnread(u => tab==="chat" ? 0 : u + genuineNew.length);
           }
           // Save to cache (last 60)
           try { localStorage.setItem(chatCacheKey, JSON.stringify(merged.slice(-60))); } catch(e){}
@@ -1398,7 +1399,7 @@ function AppInner() {
         {role!=="livreur"&&(()=>{
           const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
           const icons=["✅","🏍️","📦","🚀","📍","✓"];
-          const STEP_COLORS=["#2E8B57","#7C3AED","#2563EB","#0284C7","#D97706","#1A5C38"];
+          const STEP_COLORS=["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
           const cur=steps.indexOf(o.status);
           if(cur<0) return null;
           return (
@@ -2361,27 +2362,27 @@ function AppInner() {
           return (
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {/* Header */}
-              <div style={{background:"linear-gradient(135deg,#F59E0B,#B45309)",borderRadius:16,padding:"16px 18px",color:"#fff"}}>
+              <div style={{background:"linear-gradient(135deg,#FDE68A,#FCD34D)",borderRadius:16,padding:"16px 18px",color:G.green}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
                     <span style={{fontSize:26}}>🛒</span>
                     <div>
-                      <div style={{fontWeight:800,fontSize:16}}>Cmdes Boutique</div>
-                      <div style={{fontSize:11,opacity:0.85}}>Pedidos Shopify à traiter</div>
+                      <div style={{fontWeight:800,fontSize:16,color:G.green}}>Commandes Boutique</div>
+                      <div style={{fontSize:11,color:G.greenMid,fontWeight:600}}>Commandes à confirmer</div>
                     </div>
                   </div>
-                  <div style={{background:"rgba(255,255,255,0.2)",borderRadius:20,padding:"4px 12px",fontWeight:800,fontSize:18}}>
+                  <div style={{background:"rgba(26,92,56,0.15)",borderRadius:20,padding:"4px 14px",fontWeight:800,fontSize:20,color:G.green}}>
                     {leads.length}
                   </div>
                 </div>
               </div>
 
-              {/* Lista leads */}
+              {/* Liste commandes */}
               {leads.length===0?(
                 <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
                   <div style={{fontSize:48,marginBottom:12}}>📭</div>
-                  <div style={{fontWeight:700,fontSize:15}}>Sin leads por ahora</div>
-                  <div style={{fontSize:12,marginTop:6,opacity:0.7}}>Los pedidos de Shopify aparecerán aquí</div>
+                  <div style={{fontWeight:700,fontSize:15,color:G.dark}}>Sans commande pour l'instant</div>
+                  <div style={{fontSize:12,marginTop:6,color:G.gray}}>Les commandes de ta boutique apparaîtront ici</div>
                 </div>
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -2405,7 +2406,7 @@ function AppInner() {
                         </div>
                       </div>
                       <div style={{padding:"0 14px 14px"}}>
-                      {/* Botones: Llamar → Rechazar → Cmd à traiter */}
+                      {/* Actions : Appeler · Rejeter · À traiter */}
                       <div style={{display:"flex",gap:7}}>
                         <a href={`tel:${o.phone}`} style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={G.blue} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.7A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92v2z"/></svg>
@@ -2766,6 +2767,20 @@ function AppInner() {
         {dataReady&&(tab==="commandes"||tab==="livraisons")&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
+            {/* ── Filtre par date (commandes seulement) ── */}
+            {tab==="commandes"&&(
+              <div style={{background:G.white,borderRadius:12,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>📅 FILTRER PAR DATE</div>
+                <div style={{display:"flex",gap:6}}>
+                  {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
+                    <button key={d.k} onClick={()=>setFilterDate(d.k)}
+                      style={{flex:1,background:filterDate===d.k?G.green:"#F3F4F6",color:filterDate===d.k?"#fff":G.gray,border:"none",borderRadius:8,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      {d.l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
 
             {filteredOrders.length===0&&(
@@ -3120,6 +3135,12 @@ function AppInner() {
         {dataReady&&tab==="equipe"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
+            {/* Bouton Chat de groupe */}
+            <button onClick={()=>setTab("chat")} style={{background:"linear-gradient(135deg,#25D366,#128C7E)",color:"#fff",border:"none",borderRadius:14,padding:"14px 18px",fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:"0 4px 14px rgba(37,211,102,0.3)"}}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              Ouvrir le Chat de groupe
+            </button>
+
             {/* Vue simplifiée pour le Livreur — contacts équipe */}
             {role==="livreur"&&(
               <>
@@ -3253,13 +3274,13 @@ function AppInner() {
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>
+                        <div style={{fontWeight:700,fontSize:14,color:m.id===currentUser.id?G.green:G.dark}}>🏍️ {m.nom}{m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
+                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
                       </div>
-                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                      {m.id!==currentUser.id&&<div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
                         <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
-                      </div>
+                      </div>}
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} FCFA encaissés</div>
                     <div style={{display:"flex",gap:6}}>
