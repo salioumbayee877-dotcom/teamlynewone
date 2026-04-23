@@ -781,6 +781,7 @@ function AppInner() {
   const [orderDetail, setOrderDetail]     = useState(null);
   const [dismissedNotifs,setDismissedNotifs] = useState(new Set());
   const [isRecording,setIsRecording]       = useState(false);
+  const isRecordingRef                     = useRef(false); // ref avoids stale closure in stopRecord
   const [audioChunks,setAudioChunks]       = useState([]);
   const mediaRecorderRef                   = useRef(null);
   const audioTimerRef                      = useRef(null);
@@ -1090,7 +1091,12 @@ function AppInner() {
             const newMapped = mapMsgs(msgs);
             merged = [...prev, ...newMapped.filter(m => {
               if(prev.find(p=>String(p.id)===String(m.id))) return false;
-              if(prev.find(p=>typeof p.id==="number"&&p.from===m.from&&p.text===m.text)) return false;
+              // Text message dedup: same sender + same text
+              if(!m.audio && m.type!=="image" && prev.find(p=>typeof p.id==="number"&&p.from===m.from&&p.text===m.text)) return false;
+              // Audio dedup: same sender sent audio within 60s
+              if(m.audio && prev.find(p=>typeof p.id==="number"&&p.audio&&p.from===m.from&&(Date.now()-p.id)<60000)) return false;
+              // Image dedup: same sender sent image within 60s
+              if(m.type==="image" && prev.find(p=>typeof p.id==="number"&&p.type==="image"&&p.from===m.from&&(Date.now()-p.id)<60000)) return false;
               return true;
             })];
           }
@@ -1383,12 +1389,20 @@ function AppInner() {
     const txt = textOverride ?? chatMsg;
     if(!txt && !extra.audio && !extra.type) return;
     const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
-    const msg = {from:myName, role, text:txt||"", time:now, audio:false, ...extra};
+    const optimisticId = Date.now(); // numeric id enables dedup when real message arrives
+    const msg = {id:optimisticId, from:myName, role, text:txt||"", time:now, audio:false, ...extra};
     setChat(p=>[...p,msg]);
     setChatMsg("");
     setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
-    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:msg.text,audio:!!extra.audio})
-      .catch(e=>console.error("sendChat error:",e.message));
+    if(!orgId) return;
+    // Use return=minimal to avoid receiving large payloads back (critical for audio/image)
+    const isMedia = extra.audio || extra.type === "image";
+    const timeout = isMedia ? 30000 : 8000;
+    fetchWithTimeout(`${SB_URL}/rest/v1/messages`, {
+      method: "POST",
+      headers: {...sbHeaders(), "Prefer":"return=minimal"},
+      body: JSON.stringify({org_id:orgId, from_user:myName, role, text:msg.text, audio:!!extra.audio}),
+    }, timeout).catch(e => console.error("sendChat error:", e.message));
   };
 
   const uploadMedia = async (blob, ext, mime) => {
@@ -3892,16 +3906,24 @@ function AppInner() {
               const chunks = [];
               mr.ondataavailable = e => chunks.push(e.data);
               mr.onstop = () => {
+                isRecordingRef.current = false;
                 sendAudioBlob(new Blob(chunks,{type:mr.mimeType||"audio/webm"}), recordSecs);
                 stream.getTracks().forEach(t=>t.stop());
                 setIsRecording(false); setRecordSecs(0); clearInterval(audioTimerRef.current);
               };
               mr.start(); mediaRecorderRef.current = mr;
+              isRecordingRef.current = true;
               setIsRecording(true); setRecordSecs(0);
               audioTimerRef.current = setInterval(()=>setRecordSecs(s=>s+1),1000);
             } catch(e){ addToast("Microphone non disponible","🎤",G.red); }
           };
-          const stopRecord = () => { if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); };
+          // Use ref (not state) to avoid stale closure — onMouseUp fires before React re-renders
+          const stopRecord = () => {
+            if(mediaRecorderRef.current && isRecordingRef.current) {
+              isRecordingRef.current = false;
+              mediaRecorderRef.current.stop();
+            }
+          };
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = role === "admin" || role === "closer";
@@ -4056,7 +4078,7 @@ function AppInner() {
                 <div style={{width:10,height:10,borderRadius:"50%",background:G.red,animation:"pulse 1s infinite"}}/>
                 <div style={{flex:1,fontWeight:700,fontSize:13,color:G.red}}>Enregistrement… 0:{String(recordSecs).padStart(2,"0")}</div>
                 <button onClick={stopRecord} style={{background:G.red,color:"#FFF",border:"none",borderRadius:20,padding:"6px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>⏹ Envoyer</button>
-                <button onClick={()=>{if(mediaRecorderRef.current){mediaRecorderRef.current.onstop=()=>{};mediaRecorderRef.current.stop();}setIsRecording(false);setRecordSecs(0);clearInterval(audioTimerRef.current);}} style={{background:"none",border:"none",color:G.gray,fontSize:18,cursor:"pointer"}}>✕</button>
+                <button onClick={()=>{if(mediaRecorderRef.current){mediaRecorderRef.current.onstop=()=>{};mediaRecorderRef.current.stop();}isRecordingRef.current=false;setIsRecording(false);setRecordSecs(0);clearInterval(audioTimerRef.current);}} style={{background:"none",border:"none",color:G.gray,fontSize:18,cursor:"pointer"}}>✕</button>
               </div>
             )}
 
