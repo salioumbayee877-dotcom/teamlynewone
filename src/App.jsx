@@ -1108,8 +1108,57 @@ function AppInner() {
     loadMain();
     loadChat(true);
     const intervalMain = setInterval(loadMain, 5000);
-    const intervalChat = setInterval(()=>loadChat(false), 4000);
-    return ()=>{ clearInterval(intervalMain); clearInterval(intervalChat); };
+    // Polling de secours — le WebSocket realtime prend le relais pour le chat
+    const intervalChat = setInterval(()=>loadChat(false), 30000);
+
+    // ── Supabase Realtime WebSocket — chat en temps réel ─────────────────
+    let ws = null, wsRef = 0, wsHeartbeat = null, wsReconnect = null;
+    const setupWS = () => {
+      try {
+        ws = new WebSocket(`wss://rddtislrbbkjpoqpdcry.supabase.co/realtime/v1/websocket?apikey=${SB_KEY}&vsn=1.0.0`);
+        ws.onopen = () => {
+          ws.send(JSON.stringify({
+            topic: `realtime:chat_${orgId}`,
+            event: "phx_join",
+            payload: {
+              config: {
+                broadcast: {self: false},
+                postgres_changes: [{event:"INSERT", schema:"public", table:"messages", filter:`org_id=eq.${orgId}`}]
+              },
+              access_token: _authToken || SB_KEY
+            },
+            ref: String(++wsRef),
+            join_ref: String(wsRef)
+          }));
+          wsHeartbeat = setInterval(()=>{
+            if(ws?.readyState === 1) ws.send(JSON.stringify({topic:"phoenix",event:"heartbeat",payload:{},ref:String(++wsRef)}));
+          }, 25000);
+        };
+        ws.onmessage = (evt) => {
+          try {
+            const d = JSON.parse(evt.data);
+            // Nouveau message INSERT détecté → charger immédiatement
+            if(d.event === "postgres_changes" && d.payload?.data?.type === "INSERT") {
+              loadChat(false);
+            }
+          } catch(e) {}
+        };
+        ws.onclose = () => {
+          clearInterval(wsHeartbeat);
+          wsReconnect = setTimeout(setupWS, 4000); // reconnexion auto
+        };
+        ws.onerror = () => ws.close();
+      } catch(e) { /* WebSocket non dispo, polling de secours actif */ }
+    };
+    setupWS();
+
+    return ()=>{
+      clearInterval(intervalMain);
+      clearInterval(intervalChat);
+      clearInterval(wsHeartbeat);
+      clearTimeout(wsReconnect);
+      if(ws) { ws.onclose = null; ws.close(); }
+    };
   },[sbReady, orgId]);
 
   // Show new notifications as toasts
