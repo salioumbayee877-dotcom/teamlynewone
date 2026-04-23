@@ -4926,7 +4926,6 @@ function AppInner() {
                   const o = assignLivreurModal;
                   upSt(o.id,"confirmado");
                   upLiv(o.id, m.id);
-                  sendWAConfirmation(o);
                   addToast(`${o.client} → ${m.nom} ✅`,"✅",G.green);
                   setAssignLivreurModal(null);
                 }} style={{background:G.greenLight,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"13px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
@@ -4946,7 +4945,6 @@ function AppInner() {
             <button onClick={()=>{
               const o = assignLivreurModal;
               upSt(o.id,"confirmado");
-              sendWAConfirmation(o);
               addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green);
               setAssignLivreurModal(null);
             }} style={{width:"100%",background:"#F3F4F6",color:G.gray,border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
