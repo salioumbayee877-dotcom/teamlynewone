@@ -545,33 +545,35 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             {qty>1&&!bundleSelected&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>×{qty}{disc>0?` · −${disc}%`:""}</div>}
           </div>
         )}
-        {/* Assigner livreur */}
+        {/* Assigner livreur — obligatoire */}
         {livreurs.length>0&&(
           <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>🏍️ Assigner un livreur <span style={{fontWeight:400}}>(optionnel)</span></div>
+            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>🏍️ Livreur <span style={{color:"#EF4444",fontWeight:700}}>*</span></div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              <button onClick={()=>setNewOrder({...newOrder,livreur:""})}
-                style={{background:!newOrder.livreur?G.grayLight:G.white,color:G.gray,border:`1.5px solid ${!newOrder.livreur?"#9CA3AF":G.grayLight}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
-                Pas encore
+              <button onClick={()=>setNewOrder({...newOrder,livreur:"",deliveryStatus:""})}
+                style={{background:!newOrder.livreur?"#FEF2F2":"#F9FAFB",color:!newOrder.livreur?"#EF4444":G.gray,border:`1.5px solid ${!newOrder.livreur?"#FCA5A5":"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
+                — Pas encore
               </button>
               {livreurs.map(l=>(
-                <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l})}
-                  style={{background:newOrder.livreur===l?G.greenLight:G.white,color:newOrder.livreur===l?G.green:G.gray,border:`1.5px solid ${newOrder.livreur===l?G.green:G.grayLight}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:newOrder.livreur===l?700:400,cursor:"pointer"}}>
+                <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l,deliveryStatus:newOrder.deliveryStatus||"confirmado"})}
+                  style={{background:newOrder.livreur===l?G.greenLight:"#F9FAFB",color:newOrder.livreur===l?G.green:G.gray,border:`1.5px solid ${newOrder.livreur===l?G.green:"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:newOrder.livreur===l?700:400,cursor:"pointer"}}>
                   🏍️ {l}
                 </button>
               ))}
             </div>
+            {/* État — obligatoire dès qu'un livreur est sélectionné */}
             {newOrder.livreur&&(
-              <div style={{marginTop:10}}>
-                <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>📋 Statut de la livraison</div>
+              <div style={{marginTop:10,background:"#F0FDF4",borderRadius:10,padding:"10px 12px",border:"1px solid #BBF7D0"}}>
+                <div style={{fontSize:11,color:G.green,marginBottom:6,fontWeight:700}}>📍 État du livreur <span style={{color:"#EF4444"}}>*</span></div>
                 <select value={newOrder.deliveryStatus||"confirmado"} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
-                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:12,color:G.dark,background:G.white,boxSizing:"border-box"}}>
-                  <option value="confirmado">🔔 Aller récupérer le colis (défaut)</option>
+                  style={{width:"100%",border:`1.5px solid ${G.green}`,borderRadius:8,padding:"9px 12px",fontSize:12,color:G.dark,background:G.white,boxSizing:"border-box"}}>
+                  <option value="confirmado">🔔 Aller récupérer le colis</option>
                   <option value="livreur_en_route">🏍️ En route pour récupérer</option>
                   <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
                   <option value="en_camino">🚀 En route vers le client</option>
-                  <option value="chez_client">📍 Livreur chez le client</option>
+                  <option value="chez_client">📍 Déjà chez le client</option>
                 </select>
+                <div style={{fontSize:10,color:G.gray,marginTop:5}}>⚠️ Obligatoire — permet au livreur de savoir où il en est</div>
               </div>
             )}
           </div>
@@ -748,6 +750,8 @@ function AppInner() {
   const [showIosInstall,setShowIosInstall] = useState(false);
   const [confirmModal,setConfirmModal]   = useState(null);
   const [assignLivreurModal,setAssignLivreurModal] = useState(null); // {order}
+  const [assignSelLiv,setAssignSelLiv]             = useState(null); // selected livreur member
+  const [assignDelStatus,setAssignDelStatus]       = useState("confirmado");
   const [sbToken,setSbToken]             = useState(null);  // JWT token
   const [orgId,setOrgId]                 = useState(null);
   const [sbReady,setSbReady]             = useState(false);
@@ -2552,7 +2556,7 @@ function AppInner() {
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           ❌
                         </button>
-                        <button onClick={()=>setAssignLivreurModal(o)}
+                        <button onClick={()=>{setAssignLivreurModal(o);setAssignSelLiv(null);setAssignDelStatus("confirmado");}}
                           style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           → Cmd à traiter
                         </button>
@@ -5063,55 +5067,106 @@ function AppInner() {
         </div>
       )}
 
-      {/* ── MODAL ASSIGNER LIVREUR (Cmdes à confirmer) ── */}
-      {assignLivreurModal&&(
+      {/* ── MODAL ASSIGNER LIVREUR (Cmdes boutique → obligatoire) ── */}
+      {assignLivreurModal&&(()=>{
+        const o = assignLivreurModal;
+        const livreurs = teamMembers.filter(m=>m.role==="livreur");
+        const STATUS_OPTS = [
+          {v:"confirmado",       label:"🔔 Aller récupérer le colis",       sub:"Le livreur n'a pas encore le colis"},
+          {v:"livreur_en_route", label:"🏍️ En route pour récupérer",         sub:"Le livreur part chercher le colis"},
+          {v:"colis_pris",       label:"📦 Colis en main — Prêt à livrer",   sub:"Le livreur a déjà le colis sur lui"},
+          {v:"en_camino",        label:"🚀 En route vers le client",          sub:"Le livreur est en chemin pour livrer"},
+          {v:"chez_client",      label:"📍 Déjà chez le client",              sub:"Livraison en cours maintenant"},
+        ];
+        const canConfirm = !!assignSelLiv;
+        return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
           onClick={()=>setAssignLivreurModal(null)}>
-          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxWidth:480,paddingBottom:34}}>
-            {/* Pill */}
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"88vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom,0px))"}}>
             <div style={{width:36,height:4,background:"#E5E7EB",borderRadius:2,margin:"0 auto 16px"}}/>
-            <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>Assigner un livreur</div>
-            <div style={{fontSize:12,color:G.gray,marginBottom:16}}>
-              {assignLivreurModal.client} · {assignLivreurModal.product} · <b>{Number(assignLivreurModal.price).toLocaleString("fr-FR")} FCFA</b>
+
+            {/* Header commande */}
+            <div style={{background:"#FFF8E7",borderRadius:12,padding:"12px 14px",marginBottom:16,borderLeft:"4px solid #F59E0B"}}>
+              <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
+              <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} FCFA</b></div>
+              {o.address&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📍 {o.address}</div>}
             </div>
 
-            {/* Lista livreurs */}
-            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-              {teamMembers.filter(m=>m.role==="livreur").length===0&&(
-                <div style={{textAlign:"center",padding:20,color:G.gray,fontSize:13}}>Aucun livreur dans l'équipe</div>
+            {/* Étape 1 — Sélectionner livreur (obligatoire) */}
+            <div style={{marginBottom:16}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:assignSelLiv?G.green:"#E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#fff",flexShrink:0}}>1</div>
+                <div style={{fontWeight:700,fontSize:13,color:G.dark}}>Sélectionner le livreur <span style={{color:G.red}}>*</span></div>
+              </div>
+              {livreurs.length===0?(
+                <div style={{textAlign:"center",padding:16,color:G.gray,fontSize:12,background:"#F9FAFB",borderRadius:10}}>Aucun livreur dans l'équipe</div>
+              ):(
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {livreurs.map(m=>{
+                    const active = orders.filter(x=>x.livreur_id===m.id&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(x.status));
+                    const isSelected = assignSelLiv?.id===m.id;
+                    const load = active.length;
+                    const loadColor = load===0?"#10B981":load<=2?"#F59E0B":"#EF4444";
+                    const loadLabel = load===0?"Disponible":`${load} livraison${load>1?"s":""} en cours`;
+                    return (
+                      <button key={m.id} onClick={()=>setAssignSelLiv(isSelected?null:m)}
+                        style={{background:isSelected?G.greenLight:"#F9FAFB",border:`2px solid ${isSelected?G.green:"#E5E7EB"}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left",transition:"all .15s"}}>
+                        <div style={{width:40,height:40,borderRadius:"50%",background:isSelected?G.green:"#E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,transition:"all .15s"}}>🏍️</div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{m.nom}</div>
+                          <div style={{fontSize:11,fontWeight:600,color:loadColor,marginTop:2}}>● {loadLabel}</div>
+                          {active.length>0&&<div style={{fontSize:10,color:G.gray,marginTop:1}}>{active.slice(0,2).map(x=>x.client).join(", ")}{active.length>2?`…`:""}</div>}
+                        </div>
+                        {isSelected&&<div style={{color:G.green,fontSize:18}}>✓</div>}
+                      </button>
+                    );
+                  })}
+                </div>
               )}
-              {teamMembers.filter(m=>m.role==="livreur").map(m=>(
-                <button key={m.id} onClick={()=>{
-                  const o = assignLivreurModal;
-                  upSt(o.id,"confirmado");
-                  upLiv(o.id, m.id);
-                  addToast(`${o.client} → ${m.nom} ✅`,"✅",G.green);
-                  setAssignLivreurModal(null);
-                }} style={{background:G.greenLight,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"13px 16px",cursor:"pointer",display:"flex",alignItems:"center",gap:12,textAlign:"left"}}>
-                  <div style={{width:38,height:38,borderRadius:"50%",background:G.green,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>🏍️</div>
-                  <div>
-                    <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{m.nom}</div>
-                    <div style={{fontSize:11,color:G.gray}}>
-                      {orders.filter(x=>x.livreur_id===m.id&&["confirmado","en_camino","chez_client","colis_pris"].includes(x.status)).length} livraison(s) en cours
-                    </div>
-                  </div>
-                  <div style={{marginLeft:"auto",color:G.green,fontWeight:700,fontSize:13}}>→</div>
-                </button>
-              ))}
             </div>
 
-            {/* Confirmer sans livreur */}
-            <button onClick={()=>{
-              const o = assignLivreurModal;
-              upSt(o.id,"confirmado");
-              addToast(`${o.client} → Cmd à traiter ✅`,"✅",G.green);
+            {/* Étape 2 — État du livreur (obligatoire) */}
+            <div style={{marginBottom:20,opacity:assignSelLiv?1:0.4,pointerEvents:assignSelLiv?"auto":"none",transition:"opacity .2s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:10}}>
+                <div style={{width:22,height:22,borderRadius:"50%",background:assignSelLiv?G.green:"#E5E7EB",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:"#fff",flexShrink:0}}>2</div>
+                <div style={{fontWeight:700,fontSize:13,color:G.dark}}>État actuel du livreur <span style={{color:G.red}}>*</span></div>
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {STATUS_OPTS.map(s=>(
+                  <button key={s.v} onClick={()=>setAssignDelStatus(s.v)}
+                    style={{background:assignDelStatus===s.v?G.greenLight:"#F9FAFB",border:`2px solid ${assignDelStatus===s.v?G.green:"#E5E7EB"}`,borderRadius:10,padding:"10px 14px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,transition:"all .15s"}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{s.label}</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:1}}>{s.sub}</div>
+                    </div>
+                    {assignDelStatus===s.v&&<span style={{color:G.green,fontSize:16,flexShrink:0}}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Bouton confirmer */}
+            <button disabled={!canConfirm} onClick={()=>{
+              upSt(o.id, assignDelStatus);
+              upLiv(o.id, assignSelLiv.id);
+              addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
               setAssignLivreurModal(null);
-            }} style={{width:"100%",background:"#F3F4F6",color:G.gray,border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+            }} style={{width:"100%",background:canConfirm?G.green:"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:canConfirm?"pointer":"not-allowed",transition:"background .2s"}}>
+              {canConfirm?`✅ Confirmer → ${assignSelLiv.nom}`:"Sélectionne un livreur pour continuer"}
+            </button>
+
+            {/* Sans livreur (secondaire) */}
+            <button onClick={()=>{
+              upSt(o.id,"confirmado");
+              addToast(`${o.client} → Cmd à traiter (sans livreur)`,"📦","#D97706");
+              setAssignLivreurModal(null);
+            }} style={{width:"100%",background:"none",color:G.gray,border:"none",padding:"12px 0",fontWeight:500,fontSize:12,cursor:"pointer",marginTop:4}}>
               Confirmer sans livreur pour l'instant
             </button>
           </div>
         </div>
-      )}
+        );
+      })()}
       {/* ── BOTTOM TAB BAR (admin / closer) ── */}
       {(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
         const boutiqueCnt = orders.filter(o=>o.status==="boutique").length;
