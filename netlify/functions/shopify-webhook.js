@@ -1,4 +1,4 @@
-const SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo";
+const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
 
 exports.handler = async (event) => {

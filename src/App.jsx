@@ -1,13 +1,15 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 // ── Supabase REST client (no SDK needed) ──────────────────────────────────
 const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
-const SERVICE_KEY_CONST = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMzcwMDIsImV4cCI6MjA5MTkxMzAwMn0.2G6eiQyih1h3PTDbYU757hGW7ScRqHhyyqsolEO-Rzc";
+
+// User JWT stored after login — all data requests use this so RLS is enforced
+let _authToken = null;
 
 const sbHeaders = (token) => ({
   "Content-Type":  "application/json",
   "apikey":        SB_KEY,
-  "Authorization": `Bearer ${token||SB_KEY}`,
+  "Authorization": `Bearer ${token||_authToken||SB_KEY}`,
   "Prefer":        "return=representation",
 });
 
@@ -784,6 +786,7 @@ function AppInner() {
   const audioTimerRef                      = useRef(null);
   const [recordSecs,setRecordSecs]         = useState(0);
   const [chatUnread,setChatUnread]         = useState(0);
+  const [profileEdit,setProfileEdit]       = useState({nom:"",phone:"",birthday:""});
   const [selectedMsgId,setSelectedMsgId]  = useState(null);
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
@@ -872,7 +875,7 @@ function AppInner() {
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
     // Save to Supabase
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo").catch(e=>console.error("upSt error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>console.error("upSt error:",e));
   };
   const upLiv = (id, livId) => {
     const mem = teamMembers.find(m=>m.id===livId);
@@ -883,7 +886,7 @@ function AppInner() {
       addToast(`${order.client} assigné à ${livName} 🏍️`, "🏍️", G.green);
       if(livId===currentUser.id) setTimeout(()=>setNewAssignment(order),500);
     }
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId},SERVICE_KEY_CONST).catch(e=>console.error("upLiv error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId}).catch(e=>console.error("upLiv error:",e));
   };
   const upLivDirect = (id, livId) => {
     const mem = teamMembers.find(m=>m.id===livId);
@@ -891,13 +894,13 @@ function AppInner() {
     setOrders(o=>o.map(x=>x.id===id?{...x,livreur:livName,livreur_id:livId,status:"en_camino"}:x));
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} ajouté à la tournée de ${livName} 🚀`,"🚀","#0284C7");
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId,status:"en_camino"},SERVICE_KEY_CONST).catch(e=>console.error("upLivDirect error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{livreur:livName,livreur_id:livId,status:"en_camino"}).catch(e=>console.error("upLivDirect error:",e));
   };
   const upClo = (id, clId) => {
     const mem = teamMembers.find(m=>m.id===clId);
     const clName = mem?.nom || (clId===currentUser.id ? currentUser.nom : clId);
     setOrders(o=>o.map(x=>x.id===id?{...x,closer:clName,closer_id:clId}:x));
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:clName,closer_id:clId},SERVICE_KEY_CONST).catch(e=>console.error("upClo error:",e));
+    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:clName,closer_id:clId}).catch(e=>console.error("upClo error:",e));
   };
   const addToast = (msg, icon="ℹ️", color=G.green) => {
     const id = Date.now();
@@ -918,7 +921,11 @@ function AppInner() {
   // Save tab to localStorage when it changes
   useEffect(()=>{
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
-    if(tab==="chat") { setChatUnread(0); setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100); }
+    if(tab==="chat") {
+      setChatUnread(0);
+      setChat(prev => { if(prev.length>0) try{localStorage.setItem(`teamly_lastread_${currentUser.id}`,String(prev[prev.length-1].id));}catch(e){} return prev; });
+      setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
+    }
   },[tab]);
 
   // ── Restore session from localStorage on startup ───────────────────────
@@ -938,7 +945,7 @@ function AppInner() {
       const savedId  = localStorage.getItem("teamly_userId");
       const savedNom = localStorage.getItem("teamly_nom");
       if(!email || !savedOrg) { setAppLoading(false); return; }
-      if(tok) setSbToken(tok);
+      if(tok) { setSbToken(tok); _authToken = tok; }
       // Safety timeout: never stay on loading screen more than 5 seconds
       const safetyTimer = setTimeout(()=>setAppLoading(false), 5000);
       // Restore immediately from cache so dashboard shows data while verifying
@@ -949,8 +956,8 @@ function AppInner() {
         setSbReady(true);
         setAppLoading(false);
       }
-      // Verify & refresh profile in background using SERVICE_KEY (bypasses expired JWT)
-      sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET",null,SERVICE_KEY_CONST)
+      // Verify & refresh profile in background using stored JWT
+      sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`,"GET")
         .then(async profiles=>{
           clearTimeout(safetyTimer);
           if(profiles&&profiles.length>0){
@@ -958,13 +965,13 @@ function AppInner() {
             setOrgId(p.org_id);
             setSbReady(true);
             try {
-              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST);
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET");
               const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
               if(orgs&&orgs[0]?.plan) setSettings(s=>({...s,plan:orgs[0].plan||s.plan}));
             } catch(e){}
-            setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin"});
+            setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
             setRole(p.role||"admin");
             try {
               localStorage.setItem("teamly_org",p.org_id);
@@ -1012,9 +1019,9 @@ function AppInner() {
     const loadMain = async() => {
       try {
         const [ords, prods, mems] = await Promise.all([
-          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`, "GET", null, SERVICE_KEY_CONST),
-          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`, "GET", null, SERVICE_KEY_CONST),
-          sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`, "GET", null, SERVICE_KEY_CONST),
+          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
+          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
+          sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`),
         ]);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
         const mappedProds = prods ? mapProds(prods)   : null;
@@ -1042,12 +1049,24 @@ function AppInner() {
     // Carga mensajes por separado — los últimos 100 más recientes
     const loadChat = async() => {
       try {
-        const msgs = await sbFetch(`messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`, "GET", null, SERVICE_KEY_CONST);
+        const msgs = await sbFetch(`messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`);
         if(msgs) {
           const mapped = mapMsgs([...msgs].reverse());
           const myNom = currentUser.nom;
+          const lastReadKey = `teamly_lastread_${currentUser.id}`;
           setChat(prev => {
-            if(mapped.length > prev.length && prev.length > 0) {
+            if(prev.length === 0 && mapped.length > 0 && tab !== "chat") {
+              // First load: count unread since last session
+              const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
+              let unread = 0;
+              if(lastReadId) {
+                const idx = mapped.findIndex(m => String(m.id) === String(lastReadId));
+                unread = idx >= 0 ? mapped.slice(idx+1).filter(m=>m.from!==myNom).length : Math.min(mapped.filter(m=>m.from!==myNom).length, 99);
+              } else {
+                unread = Math.min(mapped.filter(m=>m.from!==myNom).length, 5);
+              }
+              if(unread > 0) setChatUnread(unread);
+            } else if(mapped.length > prev.length && prev.length > 0) {
               const newFromOthers = mapped.slice(prev.length).filter(m=>m.from!==myNom).length;
               setChatUnread(u => tab==="chat" ? 0 : u + newFromOthers);
             }
@@ -1141,7 +1160,7 @@ function AppInner() {
     const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
     setOrders(o=>[...o,order]);
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false},SERVICE_KEY_CONST)
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
@@ -1154,7 +1173,7 @@ function AppInner() {
               en_camino:        "🚀 Livraison directe — En route vers le client",
               chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
             };
-            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} FCFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}},SERVICE_KEY_CONST).catch(()=>{});
+            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} FCFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
           }
         })
         .catch(e=>console.error("addOrder Supabase error:",e));
@@ -1198,7 +1217,7 @@ function AppInner() {
     const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:parseInt(newProd.fraisLiv)||1500,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
     setProducts(p=>[...p,newProduct]);
     if(orgId) { console.log("Saving product to org:", orgId);
-      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,niche:newProduct.niche,archived:false},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo")
+      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,niche:newProduct.niche,archived:false})
         .then(res=>{
           const saved=Array.isArray(res)?res[0]:res;
           if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
@@ -1227,7 +1246,7 @@ function AppInner() {
     setChat(p=>[...p,msg]);
     setChatMsg("");
     setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
-    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:msg.text,audio:!!extra.audio},SERVICE_KEY_CONST)
+    if(orgId) sbFetch("messages","POST",{org_id:orgId,from_user:myName,role,text:msg.text,audio:!!extra.audio})
       .catch(e=>console.error("sendChat error:",e.message));
   };
 
@@ -1235,7 +1254,7 @@ function AppInner() {
     const path = `${orgId}/${Date.now()}.${ext}`;
     const res = await fetch(`${SB_URL}/storage/v1/object/chat-media/${path}`, {
       method: "POST",
-      headers: {"Authorization":`Bearer ${SERVICE_KEY_CONST}`,"Content-Type":mime,"x-upsert":"false"},
+      headers: {"Authorization":`Bearer ${_authToken||SB_KEY}`,"Content-Type":mime,"x-upsert":"false"},
       body: blob,
     });
     if(!res.ok) throw new Error("upload failed");
@@ -1273,7 +1292,7 @@ function AppInner() {
 
   const deleteMsg = (id) => {
     if(!id) return;
-    sbFetch(`messages?id=eq.${id}`,"DELETE",null,SERVICE_KEY_CONST).catch(()=>{});
+    sbFetch(`messages?id=eq.${id}`,"DELETE").catch(()=>{});
     setChat(p=>p.filter(m=>m.id!==id));
     setSelectedMsgId(null);
   };
@@ -1573,7 +1592,7 @@ function AppInner() {
   const PLANS = [
     {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green, bg:G.greenLight, icon:"🟢",
      features:[
-       "✅ 3 membres (Admin + équipe)",
+       "✅ 3 membres max (Admin + 2 membres)",
        "✅ 100 commandes / mois",
        "✅ Chat groupe interne",
        "✅ Localisation livreur GPS temps réel",
@@ -1618,22 +1637,19 @@ function AppInner() {
     setAuthError("");
     sbAuth(authForm.email, authForm.password, "register")
       .then(async(data)=>{
-        const tok=data.access_token; setSbToken(tok);
-        const orgRes=await sbFetch("organizations","POST",{name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
-        const orgData=Array.isArray(orgRes)?orgRes[0]:orgRes;
-        if(orgData?.id){
-          await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.nom||"Admin",phone:authForm.phone||"",email:authForm.email,role:"admin"},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
-          // Set REAL UUID - critical for invite links
-          setOrgId(orgData.id);
-          setSbReady(true);
-          setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:"admin"});
-          setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
-          setOrg({id:orgData.id,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
-          try{localStorage.setItem("teamly_org",orgData.id);}catch(e){}
-          setAuthStep("plan"); // Move to plan AFTER org is created
-        } else {
-          setAuthError("Erreur création boutique — réessaie");
-        }
+        const tok=data.access_token; _authToken=tok; setSbToken(tok);
+        // Generate org UUID client-side so we don't need to read it back
+        const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+        await sbFetch("organizations","POST",{id:newOrgId,name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""});
+        await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:authForm.nom||"Admin",phone:authForm.phone||"",email:authForm.email,role:"admin"});
+        // Set REAL UUID - critical for invite links
+        setOrgId(newOrgId);
+        setSbReady(true);
+        setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:"admin"});
+        setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
+        setOrg({id:newOrgId,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
+        try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",authForm.nom||"Admin");}catch(e){}
+        setAuthStep("plan"); // Move to plan AFTER org is created
       }).catch(e=>setAuthError(e.message||"Erreur inscription — email déjà utilisé ?"));
   };
 
@@ -1700,63 +1716,43 @@ function AppInner() {
               <button onClick={async()=>{
                 if(!authForm.email||!authForm.password){setAuthError("Email et mot de passe requis");return;}
                 setAuthError(""); setAuthLoading(true);
-                // Lancer auth ET pré-fetch profil en parallèle pour aller plus vite
-                const [authResult, profileResult] = await Promise.allSettled([
-                  sbAuth(authForm.email, authForm.password, "login"),
-                  sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,SERVICE_KEY_CONST),
-                ]);
-                if(authResult.status==="rejected"){
-                  const errMsg = authResult.reason?.message||"";
-                  const isServerDown = errMsg.includes("503")||errMsg.includes("upstream")||errMsg.includes("Délai")||errMsg.includes("lente");
-                  // Fallback: si Supabase auth est down mais le profil existe → on entre quand même
-                  if(isServerDown && profileResult.status==="fulfilled" && profileResult.value?.length>0){
-                    const p = profileResult.value[0];
-                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
-                    const orgName=orgs?.[0]?.name||"Ma Boutique"; const orgPhone=orgs?.[0]?.whatsapp||"";
+                try {
+                  const data = await sbAuth(authForm.email, authForm.password, "login");
+                  const tok = data.access_token;
+                  _authToken = tok; setSbToken(tok);
+                  // Fetch profile using user JWT (RLS-enforced, by user ID from auth response)
+                  const profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
+                  if(profiles&&profiles.length>0){
+                    const p=profiles[0];
+                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`).catch(()=>null);
+                    const orgName  = orgs?.[0]?.name  || "Ma Boutique";
+                    const orgPhone = orgs?.[0]?.whatsapp || "";
                     setOrgId(p.org_id); setSbReady(true);
-                    setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
-                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
-                    setRole(p.role||"admin"); setTab("dashboard"); setAuthLoading(false);
-                    try{localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
-                    return;
+                    setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
+                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
+                    setRole(p.role||"admin"); setTab("dashboard");
+                    try {
+                      localStorage.setItem("teamly_token", tok);
+                      localStorage.setItem("teamly_email", authForm.email);
+                      localStorage.setItem("teamly_org", p.org_id);
+                      localStorage.setItem("teamly_role", p.role||"admin");
+                      localStorage.setItem("teamly_userId", p.id||"");
+                      localStorage.setItem("teamly_nom", p.nom||"");
+                    } catch(e){}
+                  } else {
+                    // No profile — create org+profile with user JWT (RLS allows it)
+                    const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+                    await sbFetch("organizations","POST",{id:newOrgId,name:"Ma Boutique",whatsapp:""});
+                    await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"});
+                    setOrgId(newOrgId); setSbReady(true); setRole("admin"); setTab("dashboard");
+                    try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_role","admin");}catch(e){}
                   }
+                } catch(e) {
+                  const errMsg = e.message||"";
+                  const isServerDown = errMsg.includes("503")||errMsg.includes("upstream")||errMsg.includes("Délai")||errMsg.includes("lente");
                   setAuthError(isServerDown?"Serveur Supabase indisponible (503) — vérifie que ton projet n'est pas pausé sur supabase.com":errMsg||"Email ou mot de passe incorrect");
-                  setAuthLoading(false); return;
                 }
-                const data = authResult.value;
-                const tok  = data.access_token;
-                setSbToken(tok);
-                const profiles = profileResult.status==="fulfilled" ? profileResult.value
-                  : await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
-                if(profiles&&profiles.length>0){
-                  const p=profiles[0];
-                  const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET",null,SERVICE_KEY_CONST).catch(()=>null);
-                  const orgName  = orgs?.[0]?.name  || "Ma Boutique";
-                  const orgPhone = orgs?.[0]?.whatsapp || "";
-                  setOrgId(p.org_id); setSbReady(true);
-                  setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
-                  setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin"});
-                  setRole(p.role||"admin"); setTab("dashboard"); setAuthLoading(false);
-                  try {
-                    localStorage.setItem("teamly_token", tok);
-                    localStorage.setItem("teamly_email", authForm.email);
-                    localStorage.setItem("teamly_org", p.org_id);
-                    localStorage.setItem("teamly_role", p.role||"admin");
-                    localStorage.setItem("teamly_userId", p.id||"");
-                    localStorage.setItem("teamly_nom", p.nom||"");
-                  } catch(e){}
-                } else {
-                  try {
-                    const org = await sbFetch("organizations","POST",{name:"Ma Boutique",whatsapp:""},SERVICE_KEY_CONST);
-                    const orgData = Array.isArray(org)?org[0]:org;
-                    if(orgData){
-                      await sbFetch("profiles","POST",{id:data.user.id,org_id:orgData.id,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"},SERVICE_KEY_CONST);
-                      setOrgId(orgData.id); setSbReady(true); setRole("admin"); setTab("dashboard");
-                      try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);}catch(e){}
-                    } else { setAuthError("Erreur création profil — réessaie"); }
-                  } catch(e){ setAuthError("Profil introuvable — "+e.message); }
-                  setAuthLoading(false);
-                }
+                setAuthLoading(false);
               }} disabled={authLoading} style={{background:authLoading?"#A0845C":G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"not-allowed":"pointer",marginTop:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 {authLoading?(
                   <>
@@ -2103,11 +2099,29 @@ function AppInner() {
                 setAuthError(`Lien invalide (org="${detectedOrg}") — demande un nouveau lien à l'Admin`); 
                 return; 
               }
+              // ── Verificar límite del plan ANTES de registrar ──────────
+              try {
+                const [orgRes, membersRes] = await Promise.all([
+                  fetch(`${SB_URL}/rest/v1/organizations?id=eq.${detectedOrg}&select=plan`, {headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`}}),
+                  fetch(`${SB_URL}/rest/v1/profiles?org_id=eq.${detectedOrg}&select=id`, {headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`}}),
+                ]);
+                const orgData   = await orgRes.json();
+                const membersData = await membersRes.json();
+                const planKey   = orgData?.[0]?.plan || "starter";
+                const maxMap    = {starter:3, pro:5, business:null};
+                const maxM      = maxMap[planKey] ?? 3;
+                const currentCount = Array.isArray(membersData) ? membersData.length : 0;
+                if(maxM && currentCount >= maxM) {
+                  setAuthError(`❌ Cette équipe a atteint sa limite (${maxM} membres). Demande à l'Admin de passer au plan supérieur.`);
+                  return;
+                }
+              } catch(e) { /* si falla la comprobación, dejamos continuar */ }
+              // ─────────────────────────────────────────────────────────────
               sbAuth(authForm.email, authForm.password, "register")
                 .then(async(data)=>{
                   const tok=data.access_token;
-                  setSbToken(tok);
-                  // Create profile in Supabase
+                  _authToken = tok; setSbToken(tok);
+                  // Create profile using user JWT (RLS: WITH CHECK id = auth.uid())
                   await sbFetch("profiles","POST",{
                     id:data.user.id,
                     org_id:detectedOrg,
@@ -2116,7 +2130,7 @@ function AppInner() {
                     email:(authForm.email||"").trim(),
                     adresse:(authForm.adresse||"").trim(),
                     role:detectedRole
-                  },"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                  });
                   // Set state
                   setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:detectedRole});
                   setOrgId(detectedOrg);
@@ -2161,7 +2175,7 @@ function AppInner() {
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"position",icon:"position",l:"Ma Position"},{k:"chat",icon:"chat",l:"Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
   };
   const tabDef = tabDefBase;
-  const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"}`,livreur:`🏍️ ${currentUser.nom||"Livreur"}`};
+  const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"} · ${settings.boutique||""}`,livreur:`🏍️ ${currentUser.nom||"Livreur"} · ${settings.boutique||""}`};
 
 
 
@@ -2204,7 +2218,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
-      <style>{`@keyframes stepPulse{0%{transform:scale(1)}8%{transform:scale(1.35)}16%{transform:scale(1)}100%{transform:scale(1)}}.step-active{animation:stepPulse 4s ease-in-out infinite}`}</style>
+      <style>{`@keyframes stepPulse{0%{transform:scale(1)}16.67%{transform:scale(1.35)}33.33%{transform:scale(1)}100%{transform:scale(1)}}.step-active{animation:stepPulse 6s ease-in-out infinite}`}</style>
 
       {/* Sidebar overlay */}
       {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
@@ -2226,13 +2240,14 @@ function AppInner() {
             const isActive = tab===t.k;
             return (
             <button key={t.k} onClick={()=>{setTab(t.k);setSidebarOpen(false);}}
-              style={{width:"100%",background:isActive?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${isActive?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:14,transition:"background 0.15s"}}>
+              style={{width:"100%",background:isActive?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${isActive?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:18,transition:"background 0.15s"}}>
               <NavIcon name={t.icon} size={20} color={isActive?G.gold:"rgba(255,255,255,0.7)"}/>
-              <span style={{fontSize:13,fontWeight:isActive?700:400,color:isActive?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.2}}>{t.l}</span>
-              {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{alertCount}</span>}
-              {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{chatUnread}</span>}
-              {t.k==="boutique"&&(()=>{const cnt=orders.filter(o=>o.status==="boutique").length;return cnt>0?<span style={{background:G.gold,color:G.dark,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{cnt}</span>:null;})()}
-              {t.k==="commandes"&&(()=>{const cnt=orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;return cnt>0?<span style={{background:"#EF4444",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",marginLeft:"auto"}}>{cnt}</span>:null;})()}
+              <span style={{fontSize:13,fontWeight:isActive?700:400,color:isActive?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.3,flex:1}}>{t.l}</span>
+              {t.k==="notifications"&&alertCount>0&&<span style={{background:G.red,color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{alertCount}</span>}
+              {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{chatUnread}</span>}
+              {t.k==="boutique"&&(()=>{const cnt=orders.filter(o=>o.status==="boutique").length;return cnt>0?<span style={{background:G.gold,color:G.dark,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
+              {t.k==="commandes"&&(()=>{const cnt=orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;return cnt>0?<span style={{background:"#EF4444",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
+              {t.k==="livraisons"&&(()=>{const cnt=orders.filter(o=>o.livreur_id===currentUser.id&&!["entregado","rechazado"].includes(o.status)).length;return cnt>0?<span style={{background:"#0284C7",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
             </button>
             );
           })}
@@ -2240,13 +2255,12 @@ function AppInner() {
 
         {/* Bottom actions */}
         <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",gap:6}}>
-          {(role==="admin"||(role==="closer"&&(pC.closerFullControl||pC.closerSettings)))&&(
-            <button onClick={()=>{setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
-              ⚙️ <span>Paramètres</span>
-            </button>
-          )}
+          <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+            ⚙️ <span>Paramètres</span>
+          </button>
           <button onClick={()=>{
-            try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_email");}catch(e){}
+            try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_email");localStorage.removeItem("teamly_org");localStorage.removeItem("teamly_role");localStorage.removeItem("teamly_userId");localStorage.removeItem("teamly_nom");}catch(e){}
+            _authToken = null;
             setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setChat([]);
           }} style={{background:"rgba(220,38,38,0.15)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:"#FCA5A5",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
             🚪 <span>Déconnexion</span>
@@ -2262,9 +2276,13 @@ function AppInner() {
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
             <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
           </button>
-          <div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{textAlign:"right"}}>
+              <div style={{color:G.gold,fontSize:12,fontWeight:800,lineHeight:1.2}}>{role==="admin"?"👑":role==="closer"?"📞":"🏍️"} {currentUser.nom||role}</div>
+              <div style={{color:"rgba(255,255,255,0.4)",fontSize:9,lineHeight:1.2}}>{settings.boutique||""}</div>
+            </div>
+            <div style={{width:1,height:28,background:"rgba(255,255,255,0.15)",flexShrink:0}}/>
             <TeamlyLogo size={0.85}/>
-            <div style={{color:"rgba(255,255,255,0.5)",fontSize:10}}>{rlabel[role]}</div>
           </div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -2601,7 +2619,7 @@ function AppInner() {
                   <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",marginTop:2}}>{n.body}</div>
                 </div>
                 <button onClick={()=>{
-                  sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true},SERVICE_KEY_CONST);
+                  sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true});
                   setDbNotifs(p=>p.filter(x=>x.id!==n.id));
                 }} style={{background:"rgba(0,0,0,0.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#FFF",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
               </div>
@@ -3126,7 +3144,7 @@ function AppInner() {
                           city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
                         } catch(e){}
                         // Guardar en Supabase
-                        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},SERVICE_KEY_CONST).catch(()=>{});
+                        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city}).catch(()=>{});
                         setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
                       },
                       err => {
@@ -3330,21 +3348,37 @@ function AppInner() {
             </div>
 
             {/* Inviter */}
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>➕ INVITER UN MEMBRE</div>
-              <div style={{display:"flex",gap:8}}>
-                {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                  <button key={r.role} onClick={()=>{
-                    const token=Math.random().toString(36).substring(2,10).toUpperCase();
-                    const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
-                    const msg=`Bonjour ! Rejoins mon équipe sur Teamly.\n\nClique ici:\n${link}`;
-                    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
-                  }} style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                    {r.label} 📲
-                  </button>
-                ))}
+            {(()=>{
+              const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+              const membersUsed = teamMembers.length + 1;
+              const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+              return (
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green}}>➕ INVITER UN MEMBRE</div>
+                  <div style={{fontSize:11,fontWeight:700,color:atLimit?G.red:G.gray}}>{membersUsed}/{curPlan.maxMembers||"∞"} membres</div>
+                </div>
+                {atLimit ? (
+                  <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.red,fontWeight:600}}>
+                    ⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres max). Passe au plan Pro pour inviter plus.
+                  </div>
+                ) : (
+                  <div style={{display:"flex",gap:8}}>
+                    {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                      <button key={r.role} onClick={()=>{
+                        const token=Math.random().toString(36).substring(2,10).toUpperCase();
+                        const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                        const msg=`Bonjour ! Rejoins mon équipe sur Teamly.\n\nClique ici:\n${link}`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
+                      }} style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        {r.label} 📲
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
+              );
+            })()}
             </>
             )} {/* end admin/closer */}
           </div>
@@ -3632,7 +3666,7 @@ function AppInner() {
                         const q=parseInt(qty||0);
                         if(q<=0) return;
                         setProducts(p=>p.map(x=>x.id===prod.id?{...x,stockInitial:(x.stockInitial||x.stock+nLiv)+q,stock:x.stock+q}:x));
-                        if(!String(prod.id).startsWith("tmp_")) sbFetch(`products?id=eq.${prod.id}`,"PATCH",{stock:prod.stock+q,stock_initial:(prod.stockInitial||prod.stock+nLiv)+q},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                        if(!String(prod.id).startsWith("tmp_")) sbFetch(`products?id=eq.${prod.id}`,"PATCH",{stock:prod.stock+q,stock_initial:(prod.stockInitial||prod.stock+nLiv)+q});
                         setStockAjout(p=>({...p,[prod.id]:""}));
                       }} style={{background:G.green,color:G.white,border:"none",borderRadius:7,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap"}}>
                         ✅ OK
@@ -4257,6 +4291,7 @@ function AppInner() {
               <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
             </div>
 
+            {role==="admin" ? (<>
             {/* Compte */}
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON COMPTE</div>
@@ -4276,7 +4311,7 @@ function AppInner() {
             {/* Plan */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-              const membersUsed = teamMembers.length + 1; // +1 for admin
+              const membersUsed = teamMembers.length + 1;
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{marginBottom:18}}>
@@ -4284,29 +4319,20 @@ function AppInner() {
                   <div style={{background:curPlan.bg,borderRadius:12,padding:"14px"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                       <div>
-                        <div style={{fontWeight:800,fontSize:15,color:curPlan.color}}>{curPlan.icon} {curPlan.name}</div>
+                        <div style={{fontWeight:800,fontSize:15,color:curPlan.color}}>{curPlan.name}</div>
                         <div style={{fontSize:12,color:G.gray,marginTop:2}}>{curPlan.price} FCFA / mois</div>
                       </div>
-                      <button onClick={()=>setShowPlanModal(true)}
-                        style={{background:curPlan.color,color:G.white,border:"none",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                        Changer →
-                      </button>
+                      <button onClick={()=>setShowPlanModal(true)} style={{background:curPlan.color,color:G.white,border:"none",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Changer →</button>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                      {curPlan.features.map((f,i)=>(
-                        <div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>
-                      ))}
+                      {curPlan.features.map((f,i)=><div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>)}
                     </div>
                     <div style={{marginTop:10,background:"rgba(0,0,0,0.05)",borderRadius:8,padding:"8px 10px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                         <span style={{fontSize:11,color:G.gray,fontWeight:600}}>Membres</span>
                         <span style={{fontSize:11,fontWeight:700,color:atLimit?G.red:curPlan.color}}>{membersUsed} / {curPlan.maxMembers||"∞"}</span>
                       </div>
-                      {curPlan.maxMembers&&(
-                        <div style={{background:"rgba(0,0,0,0.08)",borderRadius:4,height:5}}>
-                          <div style={{background:atLimit?G.red:curPlan.color,borderRadius:4,height:5,width:`${Math.min(100,membersUsed/curPlan.maxMembers*100)}%`,transition:"width 0.4s"}}/>
-                        </div>
-                      )}
+                      {curPlan.maxMembers&&<div style={{background:"rgba(0,0,0,0.08)",borderRadius:4,height:5}}><div style={{background:atLimit?G.red:curPlan.color,borderRadius:4,height:5,width:`${Math.min(100,membersUsed/curPlan.maxMembers*100)}%`,transition:"width 0.4s"}}/></div>}
                       {atLimit&&<div style={{fontSize:10,color:G.red,marginTop:4,fontWeight:600}}>⚠️ Limite atteinte — passe au plan supérieur</div>}
                     </div>
                   </div>
@@ -4326,14 +4352,8 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
-                      <button onClick={()=>setConfirmModal({
-                        msg:`Retirer ${m.nom} de l'équipe ?`,
-                        sub:"Le membre perdra l'accès immédiatement.",
-                        danger:true,
-                        onConfirm:()=>addToast(`${m.nom} retiré de l'équipe`,"✅",G.green)
-                      })} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>
-                        🗑️
-                      </button>
+                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>{sbFetch(`profiles?id=eq.${m.id}`,"DELETE").catch(()=>{});setTeamMembers(p=>p.filter(x=>x.id!==m.id));addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}})}
+                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>🗑️</button>
                     </div>
                   </div>
                 ))}
@@ -4342,29 +4362,15 @@ function AppInner() {
                 const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
                 const membersUsed = teamMembers.length + 1;
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
-                return (
-                  <>
-                    {atLimit&&(
-                      <div style={{background:"#FEE2E2",borderRadius:8,padding:"8px 10px",marginTop:8,fontSize:11,color:G.red,fontWeight:600}}>
-                        ⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres) —{" "}
-                        <span onClick={()=>setShowPlanModal(true)} style={{textDecoration:"underline",cursor:"pointer"}}>Changer de plan →</span>
-                      </div>
-                    )}
-                    <div style={{marginTop:10,display:"flex",gap:6}}>
-                      {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                        <button key={r.role} onClick={()=>{
-                          if(atLimit){setShowPlanModal(true);return;}
-                          const token = Math.random().toString(36).substring(2,10).toUpperCase();
-                          const link = `https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
-                          const msg = `Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`;
-                          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
-                        }} style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                          {r.label} 📲
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                );
+                return (<>
+                  {atLimit&&<div style={{background:"#FEE2E2",borderRadius:8,padding:"8px 10px",marginTop:8,fontSize:11,color:G.red,fontWeight:600}}>⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres) — <span onClick={()=>setShowPlanModal(true)} style={{textDecoration:"underline",cursor:"pointer"}}>Changer de plan →</span></div>}
+                  <div style={{marginTop:10,display:"flex",gap:6}}>
+                    {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                      <button key={r.role} onClick={()=>{if(atLimit){setShowPlanModal(true);return;}const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
+                        style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
+                    ))}
+                  </div>
+                </>);
               })()}
             </div>
 
@@ -4372,54 +4378,81 @@ function AppInner() {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5}}>🔐 PERMISSIONS CLOSER</div>
               <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Définit ce que les Closers peuvent faire par défaut</div>
-
-              {/* Contrôle total */}
               <div style={{background:settings.closerFullControl?"#FEF3C7":"#F9FAFB",borderRadius:12,padding:"12px 14px",marginBottom:10,border:`1.5px solid ${settings.closerFullControl?"#F59E0B":G.grayLight}`}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:700,color:G.dark}}>👑 Contrôle total</div>
-                    <div style={{fontSize:11,color:G.gray,marginTop:1}}>Le Closer a les mêmes droits que l'Admin</div>
-                  </div>
+                  <div><div style={{fontSize:13,fontWeight:700,color:G.dark}}>👑 Contrôle total</div><div style={{fontSize:11,color:G.gray,marginTop:1}}>Le Closer a les mêmes droits que l'Admin</div></div>
                   <button onClick={()=>setSettings(s=>({...s,closerFullControl:!s.closerFullControl,closerCompta:!s.closerFullControl,closerSettings:!s.closerFullControl,closerDeleteOrder:!s.closerFullControl,closerManageTeam:!s.closerFullControl,closerManageProducts:!s.closerFullControl}))}
                     style={{background:settings.closerFullControl?"#F59E0B":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:settings.closerFullControl?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
                 </div>
               </div>
-
-              {/* Permissions individuelles */}
-              {[
-                {key:"closerCompta",          label:"📊 Voir la comptabilité",       desc:"Revenus, bénéfices, statistiques"},
-                {key:"closerManageProducts",  label:"📦 Gérer produits & stock",     desc:"Ajouter, modifier, supprimer des produits"},
-                {key:"closerDeleteOrder",     label:"🗑️ Supprimer des commandes",    desc:"Effacer définitivement une commande"},
-                {key:"closerManageTeam",      label:"👥 Gérer l'équipe",             desc:"Inviter et supprimer des membres"},
-                {key:"closerSettings",        label:"⚙️ Accès aux paramètres",      desc:"Modifier les paramètres de la boutique"},
-              ].map(n=>(
+              {[{key:"closerCompta",label:"📊 Voir la comptabilité",desc:"Revenus, bénéfices, statistiques"},{key:"closerManageProducts",label:"📦 Gérer produits & stock",desc:"Ajouter, modifier, supprimer des produits"},{key:"closerDeleteOrder",label:"🗑️ Supprimer des commandes",desc:"Effacer définitivement une commande"},{key:"closerManageTeam",label:"👥 Gérer l'équipe",desc:"Inviter et supprimer des membres"},{key:"closerSettings",label:"⚙️ Accès aux paramètres",desc:"Modifier les paramètres de la boutique"}].map(n=>(
                 <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${G.grayLight}`,opacity:settings.closerFullControl?0.5:1}}>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.label}</div>
-                    <div style={{fontSize:11,color:G.gray,marginTop:1}}>{n.desc}</div>
-                  </div>
+                  <div><div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.label}</div><div style={{fontSize:11,color:G.gray,marginTop:1}}>{n.desc}</div></div>
                   <button onClick={()=>!settings.closerFullControl&&setSettings(s=>({...s,[n.key]:!s[n.key]}))}
                     style={{background:settings[n.key]||settings.closerFullControl?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:settings.closerFullControl?"default":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:(settings[n.key]||settings.closerFullControl)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
                 </div>
               ))}
-
-              <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",marginTop:10,fontSize:11,color:G.green}}>
-                ✅ Par défaut le Closer peut toujours : créer des commandes, confirmer boutique → traiter, assigner un livreur, modifier une commande
-              </div>
+              <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",marginTop:10,fontSize:11,color:G.green}}>✅ Par défaut le Closer peut toujours : créer des commandes, confirmer boutique → traiter, assigner un livreur, modifier une commande</div>
             </div>
 
-            {/* Déconnexion */}
-            <button onClick={()=>{setShowSettings(false);setRole(null);}}
+            {/* Supprimer compte admin */}
+            <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Toutes les données (commandes, produits, équipe) seront effacées. Cette action est irréversible.",danger:true,onConfirm:async()=>{
+              const doLogout=()=>{try{localStorage.clear();}catch(e){}_authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);};
+              try{
+                await Promise.allSettled([
+                  sbFetch(`orders?org_id=eq.${orgId}`,"DELETE"),
+                  sbFetch(`products?org_id=eq.${orgId}`,"DELETE"),
+                  sbFetch(`messages?org_id=eq.${orgId}`,"DELETE"),
+                  sbFetch(`notifications?org_id=eq.${orgId}`,"DELETE"),
+                  sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE"),
+                ]);
+              }catch(e){}
+              doLogout();
+            }})}
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
-              🚪 Se déconnecter
+              🗑️ Supprimer mon compte
             </button>
             <button onClick={()=>setShowSettings(false)} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
               ✅ Enregistrer
             </button>
+            </>) : (<>
+            {/* Profil simplifié pour closer / livreur */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PROFIL</div>
+              {[
+                {key:"nom",      label:"👤 Ton nom",          ph:"Ton nom"},
+                {key:"phone",    label:"📱 Téléphone",         ph:"221 77 123 45 67"},
+                {key:"birthday", label:"🎂 Date de naissance", ph:"JJ/MM/AAAA", type:"date"},
+              ].map(f=>(
+                <div key={f.key} style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                  <input type={f.type||"text"} value={profileEdit[f.key]||""} onChange={e=>setProfileEdit(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                    style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+              ))}
+            </div>
+            <button onClick={async()=>{
+              await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null}).catch(()=>{});
+              setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
+              try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
+              addToast("Profil mis à jour ✅","✅",G.green);
+              setShowSettings(false);
+            }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:10}}>
+              ✅ Enregistrer
+            </button>
+            <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Tu perdras l'accès à Teamly définitivement.",danger:true,onConfirm:async()=>{
+              try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE");}catch(e){}
+              try{localStorage.clear();}catch(e){}
+              _authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);
+            }})}
+              style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              🗑️ Supprimer mon compte
+            </button>
+            </>)}
           </div>
         </div>
       )}
@@ -4442,13 +4475,12 @@ function AppInner() {
                 return (
                   <button key={p.key} onClick={()=>{
                     setSettings(s=>({...s,plan:p.key}));
-                    if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key},SERVICE_KEY_CONST).catch(()=>{});
+                    if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{});
                     setShowPlanModal(false);
                     addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
                   }} style={{background:isCurrent?p.bg:G.white,border:`2px solid ${isCurrent?p.color:G.grayLight}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",position:"relative"}}>
                     {isCurrent&&<div style={{position:"absolute",top:12,right:12,background:p.color,color:"#FFF",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>ACTUEL</div>}
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                      <span style={{fontSize:22}}>{p.icon}</span>
                       <div>
                         <div style={{fontWeight:800,fontSize:15,color:p.color}}>{p.name}</div>
                         <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{p.price} FCFA <span style={{fontSize:11,color:G.gray,fontWeight:400}}>/ mois</span></div>
@@ -4742,7 +4774,7 @@ function AppInner() {
                   danger:true,
                   onConfirm:()=>{ 
                     setProducts(p=>p.filter(x=>x.id!==editProd.id));
-                    if(!String(editProd.id).startsWith("tmp_")) sbFetch(`products?id=eq.${editProd.id}`,"PATCH",{archived:true},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");
+                    if(!String(editProd.id).startsWith("tmp_")) sbFetch(`products?id=eq.${editProd.id}`,"PATCH",{archived:true});
                     setEditProd(null);
                   }
                 })
@@ -4869,7 +4901,7 @@ function AppInner() {
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Ex: Client demande livraison avant 14h..."
               style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:12,fontSize:13,outline:"none",minHeight:80,resize:"none",boxSizing:"border-box"}}/>
             <div style={{display:"flex",gap:8,marginTop:10}}>
-              <button onClick={()=>{setOrders(orders.map(o=>o.id===noteModal?{...o,note:noteText}:o));if(!String(noteModal).startsWith("tmp_"))sbFetch(`orders?id=eq.${noteModal}`,"PATCH",{note:noteText},"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjMzNzAwMiwiZXhwIjoyMDkxOTEzMDAyfQ.qEXeYxoxqgyTr0-603bCxNBEFQOKlV7CfOF5RdijPWo");setNoteModal(null);}} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,cursor:"pointer"}}>Sauvegarder</button>
+              <button onClick={()=>{setOrders(orders.map(o=>o.id===noteModal?{...o,note:noteText}:o));if(!String(noteModal).startsWith("tmp_"))sbFetch(`orders?id=eq.${noteModal}`,"PATCH",{note:noteText});setNoteModal(null);}} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,cursor:"pointer"}}>Sauvegarder</button>
               <button onClick={()=>setNoteModal(null)} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer"}}>Annuler</button>
             </div>
           </div>
