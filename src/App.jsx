@@ -795,6 +795,9 @@ function AppInner() {
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
+  const chatScrollRef                      = useRef(null);
+  const tabRef                             = useRef(tab);
+  const [chatShowNew, setChatShowNew]      = useState(false);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("org") && params.get("role")) return "join";
@@ -927,6 +930,7 @@ function AppInner() {
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
     if(tab==="chat") {
       setChatUnread(0);
+      setChatShowNew(false);
       setChat(prev => { if(prev.length>0) try{localStorage.setItem(`teamly_lastread_${currentUser.id}`,String(prev[prev.length-1].id));}catch(e){} return prev; });
       setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
     }
@@ -1082,8 +1086,9 @@ function AppInner() {
           }
           // Update lastMsgTime using created_at (works with UUID ids)
           if(merged.length > 0) lastMsgTime = merged[merged.length-1].created_at||null;
-          // Unread badge
-          if(prev.length === 0 && merged.length > 0 && tab !== "chat") {
+          // Unread badge — use tabRef.current to avoid stale closure
+          const currentTab = tabRef.current;
+          if(prev.length === 0 && merged.length > 0 && currentTab !== "chat") {
             const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
             let unread = 0;
             if(lastReadId) {
@@ -1096,7 +1101,28 @@ function AppInner() {
           } else if(merged.length > prev.length && prev.length > 0) {
             const prevIds = new Set(prev.map(m=>String(m.id)));
             const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&m.from!==myNom);
-            if(genuineNew.length>0) setChatUnread(u => tab==="chat" ? 0 : u + genuineNew.length);
+            if(genuineNew.length > 0) {
+              if(currentTab !== "chat") {
+                setChatUnread(u => u + genuineNew.length);
+              }
+              // Browser push notification when app not focused
+              genuineNew.forEach(m => {
+                if(!document.hasFocus() && typeof Notification !== "undefined" && Notification.permission === "granted") {
+                  try { new Notification(m.from||"Équipe", {body: m.text||"📷 Photo", icon:"/icon.svg", tag:"teamly-chat"}); } catch(e){}
+                }
+              });
+              // Auto-scroll or show "new message" button — resolved outside setChat via setTimeout
+              setTimeout(()=>{
+                const el = chatScrollRef.current;
+                if(!el) return;
+                const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                if(atBottom) {
+                  chatBottomRef.current?.scrollIntoView({behavior:"smooth"});
+                } else {
+                  setChatShowNew(true);
+                }
+              }, 50);
+            }
           }
           // Save to cache (last 60)
           try { localStorage.setItem(chatCacheKey, JSON.stringify(merged.slice(-60))); } catch(e){}
@@ -1160,6 +1186,17 @@ function AppInner() {
       if(ws) { ws.onclose = null; ws.close(); }
     };
   },[sbReady, orgId]);
+
+  // Keep tabRef in sync so loadChat closure can read current tab without stale capture
+  useEffect(()=>{ tabRef.current = tab; }, [tab]);
+
+  // Request browser notification permission once user is logged in
+  useEffect(()=>{
+    if(!orgId) return;
+    if(typeof Notification !== "undefined" && Notification.permission === "default") {
+      Notification.requestPermission().catch(()=>{});
+    }
+  },[orgId]);
 
   // Show new notifications as toasts
   const prevNotifsRef = useRef([]);
@@ -3849,8 +3886,11 @@ function AppInner() {
           const stopRecord = () => { if(mediaRecorderRef.current&&isRecording) mediaRecorderRef.current.stop(); };
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
+          const hasBottomBar = role === "admin" || role === "closer";
+          const chatH = hasBottomBar ? "calc(100vh - 70px - 72px)" : "calc(100vh - 70px)";
+
           return (
-          <div style={{display:"flex",flexDirection:"column",margin:"-16px -16px -16px",height:"calc(100vh - 70px)"}}>
+          <div style={{display:"flex",flexDirection:"column",margin:"-16px -16px -16px",height:chatH,position:"relative"}}>
 
             {/* Header groupe style WhatsApp */}
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -3864,7 +3904,14 @@ function AppInner() {
             </div>
 
             {/* Zone messages */}
-            <div style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
+            <div ref={chatScrollRef}
+              onScroll={()=>{
+                const el = chatScrollRef.current;
+                if(!el) return;
+                const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+                if(atBottom) setChatShowNew(false);
+              }}
+              style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
               {chat.length===0&&(
                 <div style={{textAlign:"center",padding:40,color:"#8a9a8a"}}>
                   <div style={{fontSize:36,marginBottom:8}}>💬</div>
@@ -3957,6 +4004,21 @@ function AppInner() {
               })}
               <div ref={chatBottomRef}/>
             </div>
+
+            {/* Bouton "Nouveau message" flottant */}
+            {chatShowNew&&(
+              <button onClick={()=>{
+                chatBottomRef.current?.scrollIntoView({behavior:"smooth"});
+                setChatShowNew(false);
+              }} style={{
+                position:"absolute",bottom: hasBottomBar ? 68 : 68,left:"50%",transform:"translateX(-50%)",
+                background:"#25D366",color:"#FFF",border:"none",borderRadius:20,
+                padding:"7px 18px",fontSize:12,fontWeight:700,cursor:"pointer",
+                boxShadow:"0 3px 10px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",gap:6,zIndex:10
+              }}>
+                ↓ Nouveau message
+              </button>
+            )}
 
             {/* Barre d'enregistrement active */}
             {isRecording&&(
