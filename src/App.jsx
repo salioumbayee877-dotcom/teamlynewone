@@ -1046,40 +1046,60 @@ function AppInner() {
       } catch(e) { console.error("Supabase load error:", e.message, e); }
     };
 
-    // Carga mensajes por separado — los últimos 100 más recientes
-    const loadChat = async() => {
+    // Restaurar chat desde cache instantáneamente
+    const chatCacheKey = `teamly_chat_${orgId}`;
+    try {
+      const cached = JSON.parse(localStorage.getItem(chatCacheKey) || "null");
+      if(cached && cached.length > 0) setChat(cached);
+    } catch(e){}
+
+    // Carga mensajes — primera vez completo, luego solo nuevos
+    let lastMsgId = null;
+    const loadChat = async(firstLoad=false) => {
       try {
-        const msgs = await sbFetch(`messages?org_id=eq.${orgId}&order=created_at.desc&limit=100`);
-        if(msgs) {
-          const mapped = mapMsgs([...msgs].reverse());
-          const myNom = currentUser.nom;
-          const lastReadKey = `teamly_lastread_${currentUser.id}`;
-          setChat(prev => {
-            if(prev.length === 0 && mapped.length > 0 && tab !== "chat") {
-              // First load: count unread since last session
-              const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
-              let unread = 0;
-              if(lastReadId) {
-                const idx = mapped.findIndex(m => String(m.id) === String(lastReadId));
-                unread = idx >= 0 ? mapped.slice(idx+1).filter(m=>m.from!==myNom).length : Math.min(mapped.filter(m=>m.from!==myNom).length, 99);
-              } else {
-                unread = Math.min(mapped.filter(m=>m.from!==myNom).length, 5);
-              }
-              if(unread > 0) setChatUnread(unread);
-            } else if(mapped.length > prev.length && prev.length > 0) {
-              const newFromOthers = mapped.slice(prev.length).filter(m=>m.from!==myNom).length;
-              setChatUnread(u => tab==="chat" ? 0 : u + newFromOthers);
+        const query = firstLoad || !lastMsgId
+          ? `messages?org_id=eq.${orgId}&order=created_at.desc&limit=60`
+          : `messages?org_id=eq.${orgId}&id=gt.${lastMsgId}&order=created_at.asc&limit=30`;
+        const msgs = await sbFetch(query);
+        if(!msgs || msgs.length === 0) return;
+        const myNom = currentUser.nom;
+        const lastReadKey = `teamly_lastread_${currentUser.id}`;
+        setChat(prev => {
+          let merged;
+          if(firstLoad || !lastMsgId) {
+            merged = mapMsgs([...msgs].reverse());
+          } else {
+            const newMapped = mapMsgs(msgs);
+            merged = [...prev, ...newMapped.filter(m => !prev.find(p => p.id === m.id))];
+          }
+          // Update lastMsgId for next poll
+          if(merged.length > 0) lastMsgId = merged[merged.length-1].id;
+          // Unread badge
+          if(prev.length === 0 && merged.length > 0 && tab !== "chat") {
+            const lastReadId = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
+            let unread = 0;
+            if(lastReadId) {
+              const idx = merged.findIndex(m => String(m.id) === String(lastReadId));
+              unread = idx >= 0 ? merged.slice(idx+1).filter(m=>m.from!==myNom).length : Math.min(merged.filter(m=>m.from!==myNom).length, 99);
+            } else {
+              unread = Math.min(merged.filter(m=>m.from!==myNom).length, 5);
             }
-            return mapped;
-          });
-        }
+            if(unread > 0) setChatUnread(unread);
+          } else if(merged.length > prev.length && prev.length > 0) {
+            const newFromOthers = merged.slice(prev.length).filter(m=>m.from!==myNom).length;
+            setChatUnread(u => tab==="chat" ? 0 : u + newFromOthers);
+          }
+          // Save to cache (last 60)
+          try { localStorage.setItem(chatCacheKey, JSON.stringify(merged.slice(-60))); } catch(e){}
+          return merged;
+        });
       } catch(e) { console.error("Chat load error:", e.message); }
     };
 
     loadMain();
-    loadChat();
+    loadChat(true);
     const intervalMain = setInterval(loadMain, 5000);
-    const intervalChat = setInterval(loadChat, 4000);
+    const intervalChat = setInterval(()=>loadChat(false), 4000);
     return ()=>{ clearInterval(intervalMain); clearInterval(intervalChat); };
   },[sbReady, orgId]);
 
