@@ -2438,7 +2438,7 @@ function AppInner() {
       </div>
 
       {/* Header */}
-      <div style={{background:G.green,padding:"13px 18px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+      <div style={{background:G.green,padding:"13px 18px",paddingTop:"calc(13px + env(safe-area-inset-top, 0px))",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           <button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4}}>
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
