@@ -745,6 +745,7 @@ function AppInner() {
   const [dateTo,setDateTo]             = useState("");
   const [newAssignment,setNewAssignment] = useState(null);
   const [showGpsPrompt,setShowGpsPrompt] = useState(false);
+  const [showIosInstall,setShowIosInstall] = useState(false);
   const [confirmModal,setConfirmModal]   = useState(null);
   const [assignLivreurModal,setAssignLivreurModal] = useState(null); // {order}
   const [sbToken,setSbToken]             = useState(null);  // JWT token
@@ -1206,6 +1207,19 @@ function AppInner() {
       if(ws) { ws.onclose = null; ws.close(); }
     };
   },[sbReady, orgId]);
+
+  // Show iOS install banner once after login (only on iPhone Safari, not already installed)
+  useEffect(()=>{
+    if(!orgId) return;
+    const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    const isStandalone = window.navigator.standalone === true;
+    const isSafari = /safari/i.test(navigator.userAgent) && !/chrome|crios|fxios/i.test(navigator.userAgent);
+    const dismissed = (() => { try { return localStorage.getItem("teamly_ios_install_dismissed"); } catch(e){ return null; } })();
+    if(isIos && isSafari && !isStandalone && !dismissed) {
+      const t = setTimeout(()=>setShowIosInstall(true), 3000);
+      return ()=>clearTimeout(t);
+    }
+  },[orgId]);
 
   // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
@@ -4612,6 +4626,34 @@ function AppInner() {
             <button onClick={()=>setShowPlanModal(false)}
               style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
               Annuler
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── BANNER: iOS Install ── */}
+      {showIosInstall&&(
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,zIndex:500,padding:"0 12px 12px"}}>
+          <div style={{background:G.white,borderRadius:18,padding:"18px 18px 14px",boxShadow:"0 -4px 32px rgba(0,0,0,0.18)",border:`1.5px solid ${G.greenLight}`}}>
+            <button onClick={()=>{setShowIosInstall(false);try{localStorage.setItem("teamly_ios_install_dismissed","1");}catch(e){}}}
+              style={{position:"absolute",top:12,right:14,background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1}}>✕</button>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              <img src="/apple-touch-icon.png" style={{width:48,height:48,borderRadius:11,flexShrink:0}} alt="Teamly"/>
+              <div>
+                <div style={{fontWeight:800,fontSize:15,color:G.dark}}>Installer Teamly</div>
+                <div style={{fontSize:12,color:G.gray,marginTop:2}}>Accès rapide depuis ton écran d'accueil</div>
+              </div>
+            </div>
+            <div style={{background:G.greenLight,borderRadius:12,padding:"12px 14px",fontSize:12,color:G.green,lineHeight:1.8}}>
+              <div><strong>1.</strong> Appuie sur <strong style={{letterSpacing:0.3}}>
+                <svg style={{verticalAlign:"middle",marginRight:3}} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                Partager</strong> en bas de Safari</div>
+              <div><strong>2.</strong> Sélectionne <strong>"Sur l'écran d'accueil"</strong></div>
+              <div><strong>3.</strong> Appuie sur <strong>"Ajouter"</strong> — c'est tout !</div>
+            </div>
+            <button onClick={()=>{setShowIosInstall(false);try{localStorage.setItem("teamly_ios_install_dismissed","1");}catch(e){}}}
+              style={{width:"100%",marginTop:12,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+              J'ai compris
             </button>
           </div>
         </div>
