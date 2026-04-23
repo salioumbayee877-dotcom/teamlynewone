@@ -3379,8 +3379,10 @@ function AppInner() {
             {/* Inviter */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-              const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
+              const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+              // Attendre le vrai comptage avant d'afficher les boutons
+              if(orgMemberCount === null) return null;
               if(atLimit) return null;
               return (
               <div style={{background:G.white,borderRadius:14,padding:14}}>
@@ -4337,7 +4339,7 @@ function AppInner() {
             {/* Plan */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-              const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
+              const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{marginBottom:18}}>
@@ -4386,10 +4388,11 @@ function AppInner() {
               </div>
               {(()=>{
                 const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-                const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
+                const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+                const canInvite = orgMemberCount !== null && !atLimit;
                 return (<>
-                  {!atLimit&&<div style={{marginTop:10,display:"flex",gap:6}}>
+                  {canInvite&&<div style={{marginTop:10,display:"flex",gap:6}}>
                     {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
                       <button key={r.role} onClick={()=>{const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
                         style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
