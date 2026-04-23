@@ -3352,17 +3352,14 @@ function AppInner() {
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
               const membersUsed = teamMembers.length + 1;
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+              if(atLimit) return null;
               return (
               <div style={{background:G.white,borderRadius:14,padding:14}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>
                   <div style={{fontWeight:700,fontSize:13,color:G.green}}>➕ INVITER UN MEMBRE</div>
-                  <div style={{fontSize:11,fontWeight:700,color:atLimit?G.red:G.gray}}>{membersUsed}/{curPlan.maxMembers||"∞"} membres</div>
+                  <div style={{fontSize:11,fontWeight:700,color:G.gray}}>{membersUsed}/{curPlan.maxMembers||"∞"} membres</div>
                 </div>
-                {atLimit ? (
-                  <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.red,fontWeight:600}}>
-                    ⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres max). Passe au plan Pro pour inviter plus.
-                  </div>
-                ) : (
+                {(
                   <div style={{display:"flex",gap:8}}>
                     {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
                       <button key={r.role} onClick={()=>{
@@ -4363,13 +4360,12 @@ function AppInner() {
                 const membersUsed = teamMembers.length + 1;
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 return (<>
-                  {atLimit&&<div style={{background:"#FEE2E2",borderRadius:8,padding:"8px 10px",marginTop:8,fontSize:11,color:G.red,fontWeight:600}}>⚠️ Limite {curPlan.name} atteinte ({curPlan.maxMembers} membres) — <span onClick={()=>setShowPlanModal(true)} style={{textDecoration:"underline",cursor:"pointer"}}>Changer de plan →</span></div>}
-                  <div style={{marginTop:10,display:"flex",gap:6}}>
+                  {!atLimit&&<div style={{marginTop:10,display:"flex",gap:6}}>
                     {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                      <button key={r.role} onClick={()=>{if(atLimit){setShowPlanModal(true);return;}const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
-                        style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
+                      <button key={r.role} onClick={()=>{const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
+                        style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
                     ))}
-                  </div>
+                  </div>}
                 </>);
               })()}
             </div>
