@@ -1066,7 +1066,7 @@ function AppInner() {
           : `messages?org_id=eq.${orgId}&id=gt.${lastMsgId}&order=created_at.asc&limit=30`;
         const msgs = await sbFetch(query);
         if(!msgs || msgs.length === 0) return;
-        const myNom = currentUser.nom;
+        const myNom = currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
         const lastReadKey = `teamly_lastread_${currentUser.id}`;
         setChat(prev => {
           let merged;
@@ -1074,7 +1074,13 @@ function AppInner() {
             merged = mapMsgs([...msgs].reverse());
           } else {
             const newMapped = mapMsgs(msgs);
-            merged = [...prev, ...newMapped.filter(m => !prev.find(p => p.id === m.id))];
+            merged = [...prev, ...newMapped.filter(m => {
+              // Skip if exact ID match
+              if(prev.find(p=>String(p.id)===String(m.id))) return false;
+              // Skip if local optimistic message (numeric timestamp ID, same from+text)
+              if(prev.find(p=>typeof p.id==="number"&&p.from===m.from&&p.text===m.text)) return false;
+              return true;
+            })];
           }
           // Update lastMsgId for next poll
           if(merged.length > 0) lastMsgId = merged[merged.length-1].id;
@@ -3154,7 +3160,6 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
                       <div style={{fontWeight:700,fontSize:14,color:G.dark}}>👑 {settings.nom||"Admin"}</div>
-                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {settings.whatsapp||"—"}</div>
                       <div style={{fontSize:10,color:G.gold,marginTop:2,fontWeight:600}}>Responsable de la boutique</div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -3219,18 +3224,7 @@ function AppInner() {
             <div style={{background:`linear-gradient(135deg,${G.green},${G.greenDark||"#0D3D25"})`,borderRadius:14,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
                 <div style={{fontWeight:800,fontSize:15,color:G.gold}}>👑 {settings.nom||"Admin"}</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginTop:3}}>📱 {settings.whatsapp}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>Responsable boutique · Admin</div>
-              </div>
-              <div style={{display:"flex",gap:5}}>
-                <a href={`tel:+${settings.whatsapp}`}
-                  style={{background:"rgba(255,255,255,0.15)",color:G.white,borderRadius:10,padding:"9px 11px",fontSize:14,textDecoration:"none",fontWeight:700}}>
-                  📞
-                </a>
-                <a href={`https://wa.me/${settings.whatsapp?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer"
-                  style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"9px 11px",fontSize:14,textDecoration:"none",fontWeight:700}}>
-                  💬
-                </a>
               </div>
             </div>
 
@@ -4919,23 +4913,25 @@ function AppInner() {
       {(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
         const boutiqueCnt = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
-        const tabs=[
+        const canCompta = role==="admin"||(role==="closer"&&(pC.closerCompta||pC.closerFullControl));
+        const allTabs=[
           {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,
             icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",
             icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",
             icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>},
-          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",         badgeTxt:"",
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",         badgeTxt:"", show:canCompta,
             icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",         badgeTxt:"",
             icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>},
         ];
+        const tabs = allTabs.filter(t=>t.show!==false);
         return (
           <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:G.white,borderTop:"1px solid #E5E7EB",boxShadow:"0 -4px 20px rgba(0,0,0,0.08)",display:"flex",alignItems:"flex-end",zIndex:150,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
             {tabs.map((t,i)=>{
               const active = tab===t.k;
-              const isCenter = t.k==="dashboard" && i===2;
+              const isCenter = t.k==="dashboard" && i===Math.floor(tabs.length/2);
               return (
                 <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:isCenter?"0 0 10px":"8px 0 10px",background:"none",border:"none",cursor:"pointer",position:"relative",outline:"none"}}>
                   {isCenter ? (
