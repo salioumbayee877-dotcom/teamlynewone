@@ -787,6 +787,7 @@ function AppInner() {
   const [recordSecs,setRecordSecs]         = useState(0);
   const [chatUnread,setChatUnread]         = useState(0);
   const [profileEdit,setProfileEdit]       = useState({nom:"",phone:"",birthday:""});
+  const [orgMemberCount,setOrgMemberCount] = useState(null);
   const [selectedMsgId,setSelectedMsgId]  = useState(null);
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
@@ -1122,6 +1123,14 @@ function AppInner() {
     if(orgId) console.log("✅ Teamly connected — orgId:", orgId, "role:", role, "sbReady:", sbReady);
     else console.log("⚠️ No orgId — sbReady:", sbReady, "sbToken:", !!sbToken);
   },[orgId, role, sbReady, sbToken]);
+
+  // Cuenta miembros reales de la org (para límite de plan)
+  useEffect(()=>{
+    if(!orgId||!sbReady) return;
+    sbFetch(`profiles?org_id=eq.${orgId}&select=id`)
+      .then(p=>{ if(Array.isArray(p)) setOrgMemberCount(p.length); })
+      .catch(()=>{});
+  },[orgId, sbReady, teamMembers.length]);
 
   // Supabase persist helpers
   const sbSave = async (table, data) => {
@@ -3370,7 +3379,7 @@ function AppInner() {
             {/* Inviter */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-              const membersUsed = teamMembers.length + 1;
+              const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               if(atLimit) return null;
               return (
@@ -4328,7 +4337,7 @@ function AppInner() {
             {/* Plan */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-              const membersUsed = teamMembers.length + 1;
+              const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{marginBottom:18}}>
@@ -4377,7 +4386,7 @@ function AppInner() {
               </div>
               {(()=>{
                 const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
-                const membersUsed = teamMembers.length + 1;
+                const membersUsed = orgMemberCount ?? (teamMembers.length + 1);
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 return (<>
                   {!atLimit&&<div style={{marginTop:10,display:"flex",gap:6}}>
