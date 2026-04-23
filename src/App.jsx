@@ -2305,14 +2305,7 @@ function AppInner() {
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
             <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
           </button>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{textAlign:"right"}}>
-              <div style={{color:G.gold,fontSize:12,fontWeight:800,lineHeight:1.2}}>{role==="admin"?"👑":role==="closer"?"📞":"🏍️"} {currentUser.nom||role}</div>
-              <div style={{color:"rgba(255,255,255,0.4)",fontSize:9,lineHeight:1.2}}>{settings.boutique||""}</div>
-            </div>
-            <div style={{width:1,height:28,background:"rgba(255,255,255,0.15)",flexShrink:0}}/>
-            <TeamlyLogo size={0.85}/>
-          </div>
+          <TeamlyLogo size={0.85}/>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
