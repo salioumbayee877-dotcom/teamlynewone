@@ -2362,7 +2362,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:14,paddingBottom:40}}>
+      <div style={{padding:14,paddingBottom:(role==="admin"||(role==="closer"&&sbReady))?90:40}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
@@ -4985,6 +4985,50 @@ function AppInner() {
           </div>
         </div>
       )}
+      {/* ── BOTTOM TAB BAR (admin / closer) ── */}
+      {(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
+        const boutiqueCnt = orders.filter(o=>o.status==="boutique").length;
+        const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
+        const tabs=[
+          {k:"boutique", label:"À confirmer", badge:boutiqueCnt, badgeColor:G.gold, badgeTxt:G.dark,
+            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},
+          {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",
+            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>},
+          {k:"dashboard", label:"Dashboard", badge:0, badgeColor:"", badgeTxt:"",
+            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>},
+          {k:"compta", label:"Compta", badge:0, badgeColor:"", badgeTxt:"",
+            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>},
+        ];
+        return (
+          <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:G.white,borderTop:"1px solid #E5E7EB",boxShadow:"0 -4px 20px rgba(0,0,0,0.08)",display:"flex",alignItems:"flex-end",zIndex:150,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+            {tabs.map((t,i)=>{
+              const active = tab===t.k;
+              const isCenter = t.k==="dashboard";
+              return (
+                <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:isCenter?"0 0 10px":"8px 0 10px",background:"none",border:"none",cursor:"pointer",position:"relative",outline:"none"}}>
+                  {isCenter ? (
+                    <>
+                      <div style={{width:54,height:54,borderRadius:"50%",background:active?"#0D3D25":G.green,display:"flex",alignItems:"center",justifyContent:"center",position:"absolute",top:-26,boxShadow:"0 4px 16px rgba(26,92,56,0.4)",border:"3px solid #fff",transition:"background .2s"}}>
+                        {t.icon("#fff")}
+                      </div>
+                      <div style={{height:22}}/>
+                      <span style={{fontSize:9,fontWeight:700,color:G.green,marginTop:2,letterSpacing:0.3}}>Dashboard</span>
+                    </>
+                  ) : (
+                    <>
+                      {t.badge>0&&<span style={{position:"absolute",top:4,right:"calc(50% - 18px)",background:t.badgeColor,color:t.badgeTxt,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1}}>{t.badge}</span>}
+                      {t.icon(active?G.green:"#9CA3AF")}
+                      <span style={{fontSize:9,fontWeight:active?700:400,color:active?G.green:"#9CA3AF",marginTop:3,letterSpacing:0.2}}>{t.label}</span>
+                      {active&&<div style={{position:"absolute",bottom:0,width:24,height:2.5,background:G.green,borderRadius:2}}/>}
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
+
     </div>
   );
 }
