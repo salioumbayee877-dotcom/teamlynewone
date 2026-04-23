@@ -3896,7 +3896,7 @@ function AppInner() {
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
               <div style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>👥</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:700,fontSize:14,color:G.white,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Équipe {settings.boutique}</div>
+                <div style={{fontWeight:700,fontSize:14,color:G.white,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Chat de mon équipe · {settings.boutique}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:1}}>
                   {teamMembers.length+1} membres · Admin{teamMembers.filter(m=>m.role==="closer").length>0?` · ${teamMembers.filter(m=>m.role==="closer").length} closer`:""}
                   {teamMembers.filter(m=>m.role==="livreur").length>0?` · ${teamMembers.filter(m=>m.role==="livreur").length} livreur`:""}</div>
