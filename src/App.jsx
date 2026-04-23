@@ -2102,7 +2102,7 @@ function AppInner() {
 
             {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif",background:"rgba(220,38,38,0.15)",borderRadius:8,padding:"8px 12px"}}>{authError}</div>}
 
-            <button onClick={()=>{
+            <button onClick={async()=>{
               const missing = [];
               if(!authForm.nom?.trim()) missing.push("Nom");
               if(!authForm.phone?.trim()) missing.push("Téléphone");
