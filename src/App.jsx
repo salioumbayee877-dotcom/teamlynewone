@@ -3899,10 +3899,12 @@ function AppInner() {
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = role === "admin" || role === "closer";
-          const chatH = hasBottomBar ? "calc(100vh - 70px - 72px)" : "calc(100vh - 70px)";
+          // Header ~54px, tab bar ~54px; margin cancels parent padding (14px top, 90/40px bottom)
+          const chatH = hasBottomBar ? "calc(100vh - 54px - 54px)" : "calc(100vh - 54px)";
+          const chatMargin = hasBottomBar ? "-14px -14px -90px" : "-14px -14px -40px";
 
           return (
-          <div style={{display:"flex",flexDirection:"column",margin:"-16px -16px -16px",height:chatH,position:"relative"}}>
+          <div style={{display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"}}>
 
             {/* Header groupe style WhatsApp */}
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -4023,7 +4025,7 @@ function AppInner() {
                 chatBottomRef.current?.scrollIntoView({behavior:"smooth"});
                 setChatShowNew(false);
               }} style={{
-                position:"absolute",bottom: hasBottomBar ? 68 : 68,left:"50%",transform:"translateX(-50%)",
+                position:"absolute",bottom:72,left:"50%",transform:"translateX(-50%)",
                 background:"#25D366",color:"#FFF",border:"none",borderRadius:20,
                 padding:"7px 18px",fontSize:12,fontWeight:700,cursor:"pointer",
                 boxShadow:"0 3px 10px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",gap:6,zIndex:10
