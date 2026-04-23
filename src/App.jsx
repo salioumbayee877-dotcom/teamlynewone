@@ -545,37 +545,40 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             {qty>1&&!bundleSelected&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>×{qty}{disc>0?` · −${disc}%`:""}</div>}
           </div>
         )}
-        {/* Assigner livreur — obligatoire */}
+        {/* Situation du colis — TOUJOURS obligatoire */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>
+            📦 Situation du colis <span style={{color:"#EF4444",fontWeight:700}}>*</span>
+          </div>
+          <select value={newOrder.deliveryStatus||""} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
+            style={{width:"100%",border:`1.5px solid ${!newOrder.deliveryStatus?"#FCA5A5":G.green}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:newOrder.deliveryStatus?G.dark:"#9CA3AF",background:G.white,boxSizing:"border-box"}}>
+            <option value="" disabled>— Sélectionner la situation —</option>
+            <option value="confirmado">🔔 Aller récupérer le colis</option>
+            <option value="livreur_en_route">🏍️ En camino para recogerlo</option>
+            <option value="colis_pris">📦 Paquete en mano — Prêt à livrer</option>
+            <option value="en_camino">🚀 En camino hacia el cliente</option>
+            <option value="chez_client">📍 Déjà chez le client</option>
+            <option value="entregado">💰 Payé — Livraison encaissée</option>
+          </select>
+          {!newOrder.deliveryStatus&&<div style={{fontSize:10,color:"#EF4444",marginTop:4}}>⚠️ Champ obligatoire — sans ça, impossible d'enregistrer</div>}
+        </div>
+
+        {/* Assigner livreur */}
         {livreurs.length>0&&(
           <div style={{marginBottom:12}}>
-            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>🏍️ Livreur <span style={{color:"#EF4444",fontWeight:700}}>*</span></div>
+            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>🏍️ Livreur</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              <button onClick={()=>setNewOrder({...newOrder,livreur:"",deliveryStatus:""})}
-                style={{background:!newOrder.livreur?"#FEF2F2":"#F9FAFB",color:!newOrder.livreur?"#EF4444":G.gray,border:`1.5px solid ${!newOrder.livreur?"#FCA5A5":"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
-                — Pas encore
+              <button onClick={()=>setNewOrder({...newOrder,livreur:""})}
+                style={{background:!newOrder.livreur?G.grayLight:G.white,color:G.gray,border:`1.5px solid ${!newOrder.livreur?"#9CA3AF":"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
+                Pas encore
               </button>
               {livreurs.map(l=>(
-                <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l,deliveryStatus:newOrder.deliveryStatus||"confirmado"})}
+                <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l})}
                   style={{background:newOrder.livreur===l?G.greenLight:"#F9FAFB",color:newOrder.livreur===l?G.green:G.gray,border:`1.5px solid ${newOrder.livreur===l?G.green:"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:newOrder.livreur===l?700:400,cursor:"pointer"}}>
                   🏍️ {l}
                 </button>
               ))}
             </div>
-            {/* État — obligatoire dès qu'un livreur est sélectionné */}
-            {newOrder.livreur&&(
-              <div style={{marginTop:10,background:"#F0FDF4",borderRadius:10,padding:"10px 12px",border:"1px solid #BBF7D0"}}>
-                <div style={{fontSize:11,color:G.green,marginBottom:6,fontWeight:700}}>📍 État du livreur <span style={{color:"#EF4444"}}>*</span></div>
-                <select value={newOrder.deliveryStatus||"confirmado"} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
-                  style={{width:"100%",border:`1.5px solid ${G.green}`,borderRadius:8,padding:"9px 12px",fontSize:12,color:G.dark,background:G.white,boxSizing:"border-box"}}>
-                  <option value="confirmado">🔔 Aller récupérer le colis</option>
-                  <option value="livreur_en_route">🏍️ En route pour récupérer</option>
-                  <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
-                  <option value="en_camino">🚀 En route vers le client</option>
-                  <option value="chez_client">📍 Déjà chez le client</option>
-                </select>
-                <div style={{fontSize:10,color:G.gray,marginTop:5}}>⚠️ Obligatoire — permet au livreur de savoir où il en est</div>
-              </div>
-            )}
           </div>
         )}
 
@@ -631,8 +634,14 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
         })()}
 
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>addOrder(false)} style={{flex:1,background:G.greenLight,color:G.green,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>Ajouter</button>
-          <button onClick={()=>addOrder(true)} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>+ WhatsApp 📲</button>
+          <button onClick={()=>addOrder(false)} disabled={!newOrder.deliveryStatus}
+            style={{flex:1,background:newOrder.deliveryStatus?G.greenLight:"#F3F4F6",color:newOrder.deliveryStatus?G.green:"#9CA3AF",border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:newOrder.deliveryStatus?"pointer":"not-allowed"}}>
+            Ajouter
+          </button>
+          <button onClick={()=>addOrder(true)} disabled={!newOrder.deliveryStatus}
+            style={{flex:1,background:newOrder.deliveryStatus?G.green:"#D1D5DB",color:"#fff",border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:newOrder.deliveryStatus?"pointer":"not-allowed"}}>
+            + WhatsApp 📲
+          </button>
         </div>
         <button onClick={onClose} style={{width:"100%",background:"none",border:"none",color:G.gray,padding:10,cursor:"pointer",fontSize:13}}>Annuler</button>
       </div>
@@ -1304,6 +1313,9 @@ function AppInner() {
   };
 
   const addOrder = wa => {
+    if(!newOrder.client.trim()) { addToast("Nom du client obligatoire","⚠️","#F59E0B"); return; }
+    if(!newOrder.product)       { addToast("Sélectionne un produit","⚠️","#F59E0B"); return; }
+    if(!newOrder.deliveryStatus){ addToast("Situation du colis obligatoire","⚠️",G.red); return; }
     const prod  = products.find(x=>x.name===newOrder.product);
     const bund  = prod?.bundles?.find(b=>String(b.id)===newOrder.bundle);
     const qty   = parseInt(newOrder.qty||1);
@@ -1321,7 +1333,7 @@ function AppInner() {
     }
     const tempId = "tmp_" + Date.now();
     const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
-    const deliveryStatus = newOrder.livreur ? (newOrder.deliveryStatus||"confirmado") : "confirmado";
+    const deliveryStatus = newOrder.deliveryStatus;
     const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
     setOrders(o=>[...o,order]);
     if(orgId) {
@@ -1748,7 +1760,7 @@ function AppInner() {
           <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note);}} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:0}}>
             📝 {o.note?"Modifier note":"Ajouter note"}
           </button>
-          {role==="admin"&&(
+          {(role==="admin"||(role==="closer"&&pC.closerFullControl))&&(
             <button onClick={()=>setEditOrder({...o})} style={{background:G.grayLight,border:"none",borderRadius:6,padding:"3px 10px",fontSize:11,color:G.dark,cursor:"pointer",fontWeight:600}}>
               ✏️ Modifier
             </button>
@@ -3316,9 +3328,9 @@ function AppInner() {
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.nom}</div>
-                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
-                      {m.id!==currentUser.id&&(
+                      {m.id!==currentUser.id&&m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
                           <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
                           <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
@@ -3337,9 +3349,9 @@ function AppInner() {
                         <div style={{fontWeight:700,fontSize:13,color:m.id===currentUser.id?G.green:G.dark}}>
                           🏍️ {m.nom} {m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
                         </div>
-                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
-                      {m.id!==currentUser.id&&(
+                      {m.id!==currentUser.id&&m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
                           <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
                           <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
@@ -3372,11 +3384,11 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.id!==currentUser.id&&`📱 ${m.phone} · `}📧 {m.email}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.id!==currentUser.id&&m.email!==currentUser.email&&`📱 ${m.phone} · `}📧 {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.id!==currentUser.id&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
-                        {m.id!==currentUser.id&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -3403,9 +3415,9 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:14,color:m.id===currentUser.id?G.green:G.dark}}>🏍️ {m.nom}{m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
-                        {m.id!==currentUser.id&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
                       </div>
-                      {m.id!==currentUser.id&&<div style={{display:"flex",gap:5,alignItems:"center"}}>
+                      {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{display:"flex",gap:5,alignItems:"center"}}>
                         <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
                         <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
                       </div>}
@@ -5009,7 +5021,7 @@ function AppInner() {
                   style={{background:G.green,color:G.white,borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   📞 Appeler le client
                 </a>
-                {(role==="admin"||(role==="closer"&&settings.closerModify))&&(
+                {(role==="admin"||(role==="closer"&&(pC.closerFullControl||settings.closerModify)))&&(
                   <button onClick={()=>{setOrderDetail(null);setEditOrder({...o});}}
                     style={{width:"100%",background:"#EFF6FF",color:G.blue,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
                     ✏️ Modifier la commande
