@@ -788,6 +788,9 @@ function AppInner() {
   const [chatUnread,setChatUnread]         = useState(0);
   const [profileEdit,setProfileEdit]       = useState({nom:"",phone:"",birthday:""});
   const [orgMemberCount,setOrgMemberCount] = useState(null);
+  const [clientCat,setClientCat]           = useState("confirme");
+  const [clientDate,setClientDate]         = useState("all");
+  const [clientLoading,setClientLoading]   = useState(false);
   const [selectedMsgId,setSelectedMsgId]  = useState(null);
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
@@ -1408,13 +1411,13 @@ function AppInner() {
                     <div
                       className={active&&o.status!=="entregado"?"step-active":undefined}
                       style={{
-                        width:22,height:22,borderRadius:"50%",
+                        width:24,height:24,borderRadius:"50%",
                         background:done?col:active?col:G.grayLight,
                         display:"flex",alignItems:"center",justifyContent:"center",
                         fontSize:10,flexShrink:0,
                         border:`2px solid ${future?"#E5E7EB":col}`,
                         opacity:future?0.35:1,
-                        '--sc':`${col}55`,
+                        '--sc':col+'BB',
                       }}>
                       <span style={{fontSize:10}}>{ico}</span>
                     </div>
@@ -2247,7 +2250,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
-      <style>{`@keyframes stepPulse{0%{transform:scale(1)}16.67%{transform:scale(1.35)}33.33%{transform:scale(1)}100%{transform:scale(1)}}.step-active{animation:stepPulse 6s ease-in-out infinite}`}</style>
+      <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* Sidebar overlay */}
       {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
@@ -2788,14 +2791,12 @@ function AppInner() {
             {k:"confirme",  label:"Confirmés",    color:G.blue,    bg:"#EFF6FF", statuses:["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"]},
             {k:"livre",     label:"Livrés",       color:G.green,   bg:G.greenLight, statuses:["entregado"]},
           ];
-          const [clientCat, setClientCat] = [
-            window._teamlyClientCat||"confirme",
-            v=>{ window._teamlyClientCat=v; setOrders(o=>o); }
-          ];
-          const [clientDate, setClientDate] = [
-            window._teamlyClientDate||"all",
-            v=>{ window._teamlyClientDate=v; setOrders(o=>o); }
-          ];
+          const changeFilter = (setCat, setDate, catVal, dateVal) => {
+            setClientLoading(true);
+            if(catVal!==undefined) setClientCat(catVal);
+            if(dateVal!==undefined) setClientDate(dateVal);
+            setTimeout(()=>setClientLoading(false), 300);
+          };
           const cat = CATS.find(c=>c.k===clientCat)||CATS[1];
 
           const matchDate = (o) => {
@@ -2837,7 +2838,7 @@ function AppInner() {
               {/* 3 onglets */}
               <div style={{display:'flex',gap:6}}>
                 {CATS.map(c=>(
-                  <button key={c.k} onClick={()=>{window._teamlyClientCat=c.k;setOrders(o=>o);}}
+                  <button key={c.k} onClick={()=>changeFilter(null,null,c.k,undefined)}
                     style={{flex:1,background:clientCat===c.k?c.color:'#F3F4F6',color:clientCat===c.k?'#fff':'#6B7280',border:'none',borderRadius:10,padding:'9px 4px',fontSize:11,fontWeight:700,cursor:'pointer',transition:'all .15s'}}>
                     {c.label}
                     <div style={{fontSize:18,fontWeight:800,marginTop:2,color:clientCat===c.k?'rgba(255,255,255,0.9)':c.color}}>
@@ -2852,7 +2853,7 @@ function AppInner() {
                 <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>📅 FILTRER PAR DATE</div>
                 <div style={{display:'flex',gap:6}}>
                   {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
-                    <button key={d.k} onClick={()=>{window._teamlyClientDate=d.k;setOrders(o=>o);}}
+                    <button key={d.k} onClick={()=>changeFilter(null,null,undefined,d.k)}
                       style={{flex:1,background:clientDate===d.k?G.green:'#F3F4F6',color:clientDate===d.k?'#fff':G.gray,border:'none',borderRadius:8,padding:'7px 0',fontSize:11,fontWeight:600,cursor:'pointer'}}>
                       {d.l}
                     </button>
@@ -2872,13 +2873,22 @@ function AppInner() {
                 <span style={{fontSize:11,fontWeight:700,color:cat.color}}>{cat.label}</span>
               </div>
 
+              {/* Loading */}
+              {clientLoading&&(
+                <div style={{background:G.white,borderRadius:14,padding:30,textAlign:"center"}}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={G.green} strokeWidth="2.5" strokeLinecap="round" style={{animation:"spin 0.8s linear infinite"}}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                  <div style={{fontSize:12,color:G.gray,marginTop:8,fontWeight:600}}>Chargement...</div>
+                </div>
+              )}
+
               {/* Liste */}
-              {clients.length===0?(
+              {!clientLoading&&clients.length===0&&(
                 <div style={{background:G.white,borderRadius:14,padding:40,textAlign:'center',color:G.gray}}>
                   <div style={{fontSize:40,marginBottom:10}}>👤</div>
                   <div style={{fontWeight:700,fontSize:14}}>Aucun client dans cette catégorie</div>
                 </div>
-              ):(
+              )}
+              {!clientLoading&&clients.length>0&&(
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
                   {clients.map(c=>{
                     const open = showClientDetail===c.phone;
@@ -3264,6 +3274,47 @@ function AppInner() {
                 );
               })}
             </div>
+
+            {/* ── Inviter un membre (toujours visible, grisé si limite atteinte) ── */}
+            {(()=>{
+              const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+              const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
+              const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:14,marginTop:4}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{fontWeight:700,fontSize:13,color:G.dark}}>➕ Inviter un membre</div>
+                    <div style={{fontSize:11,color:atLimit?G.red:G.gray,fontWeight:600}}>
+                      {membersUsed}/{curPlan.maxMembers||"∞"} membres
+                    </div>
+                  </div>
+                  {atLimit&&(
+                    <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
+                      ⚠️ Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus
+                    </div>
+                  )}
+                  <div style={{display:"flex",gap:8}}>
+                    {[{role:"closer",label:"📞 Closer"},{role:"livreur",label:"🏍️ Livreur"}].map(r=>(
+                      <button key={r.role} onClick={()=>{
+                        if(atLimit){ setShowPlanModal(true); return; }
+                        const token=Math.random().toString(36).substring(2,10).toUpperCase();
+                        const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
+                      }} style={{
+                        flex:1,
+                        background:atLimit?"#D1D5DB":"#25D366",
+                        color:atLimit?"#9CA3AF":"#fff",
+                        border:"none",borderRadius:9,padding:"10px 0",
+                        fontSize:12,fontWeight:700,cursor:"pointer",
+                        opacity:atLimit?0.7:1,
+                      }}>
+                        {r.label} {atLimit?"🔒":"📲"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             </>
             )} {/* end admin/closer */}
@@ -4848,20 +4899,22 @@ function AppInner() {
         const boutiqueCnt = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
         const tabs=[
-          {k:"boutique", label:"À confirmer", badge:boutiqueCnt, badgeColor:G.gold, badgeTxt:G.dark,
-            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},
+          {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,
+            icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",
-            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>},
-          {k:"dashboard", label:"Dashboard", badge:0, badgeColor:"", badgeTxt:"",
+            icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>},
+          {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",
             icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>},
-          {k:"compta", label:"Compta", badge:0, badgeColor:"", badgeTxt:"",
-            icon:(c)=><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",         badgeTxt:"",
+            icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>},
+          {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",         badgeTxt:"",
+            icon:(c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>},
         ];
         return (
           <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:480,background:G.white,borderTop:"1px solid #E5E7EB",boxShadow:"0 -4px 20px rgba(0,0,0,0.08)",display:"flex",alignItems:"flex-end",zIndex:150,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
             {tabs.map((t,i)=>{
               const active = tab===t.k;
-              const isCenter = t.k==="dashboard";
+              const isCenter = t.k==="dashboard" && i===2;
               return (
                 <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:isCenter?"0 0 10px":"8px 0 10px",background:"none",border:"none",cursor:"pointer",position:"relative",outline:"none"}}>
                   {isCenter ? (
