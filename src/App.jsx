@@ -360,7 +360,7 @@ function makeMarkerIcon(L, name) {
   });
 }
 
-function MapView({positions, role}) {
+function MapView({positions, role, isDesktop=false}) {
   const containerRef = useRef(null);
   const stateRef     = useRef({map:null, markers:{}, loaded:false});
   const [fullscreen, setFullscreen] = React.useState(false);
@@ -459,7 +459,7 @@ function MapView({positions, role}) {
       </button>
 
       <div ref={containerRef} style={{
-        height: fullscreen ? "100dvh" : "calc(100dvh - 180px)",
+        height: fullscreen ? "100dvh" : isDesktop ? 480 : role==="livreur" ? "calc(100dvh - 200px)" : 320,
         width:"100%",
         background:"#E8F4F8",
         borderRadius: fullscreen ? 0 : 12,
@@ -3290,7 +3290,7 @@ function AppInner() {
                 ? <div style={{padding:30,textAlign:"center",color:G.gray,fontSize:13}}>
                     Aucun livreur GPS actif pour le moment
                   </div>
-                : <MapView positions={livreurPositions} role="admin"/>
+                : <MapView positions={livreurPositions} role="admin" isDesktop={isDesktop}/>
               }
             </div>
 
@@ -3433,7 +3433,7 @@ function AppInner() {
             {gpsPos&&(
               <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
                 <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green}}>📍 Ta position actuelle</div>
-                <MapView positions={{[currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"}}} role="livreur"/>
+                <MapView positions={{[currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"}}} role="livreur" isDesktop={isDesktop}/>
               </div>
             )}
 
