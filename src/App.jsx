@@ -2538,17 +2538,28 @@ function AppInner() {
                 </div>
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                  {leads.map(o=>(
-                    <div key={o.id} style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:"4px solid #F59E0B",overflow:"hidden"}}>
+                  {leads.map(o=>{
+                    // Check if the product was matched to a catalog item (webhook marks with ✓)
+                    const isMatched = o.note?.includes("✓");
+                    const catalogMatch = products.find(p=>p.name===o.product);
+                    const productRecognized = isMatched || !!catalogMatch;
+                    return (
+                    <div key={o.id} style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:`4px solid ${productRecognized?"#10B981":"#F59E0B"}`,overflow:"hidden"}}>
                       {/* Info cliente — clic para ver detalles */}
                       <div onClick={()=>setOrderDetail(o)} style={{padding:"14px 14px 10px",cursor:"pointer"}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                           <div>
                             <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
-                            <div style={{fontSize:12,color:G.gray,marginTop:3}}>📦 {o.product}</div>
+                            <div style={{fontSize:12,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
+                              <span style={{color:G.gray}}>📦 {o.product}</span>
+                              {productRecognized
+                                ? <span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
+                                : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
+                              }
+                            </div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📱 {o.phone||"—"}</div>
-                            {o.note&&!o.note.startsWith("Commande Shopify")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note}</div>}
+                            {o.note&&!o.note.startsWith("Commande Shopify")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note.replace(" ✓","")}</div>}
                           </div>
                           <div style={{textAlign:"right",flexShrink:0}}>
                             <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
@@ -2575,7 +2586,8 @@ function AppInner() {
                       </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
 
