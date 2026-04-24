@@ -2398,7 +2398,8 @@ function AppInner() {
     return matchSearch && matchStatus && matchLivreur && matchDate;
   });
 
-  const SIDEBAR_W = 240;
+  const SIDEBAR_W = 280;
+  const isWide = isDesktop && window.innerWidth >= 1400; // 34" ultrawide
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
@@ -2469,7 +2470,7 @@ function AppInner() {
       <div style={{flex:isDesktop?1:"none",minWidth:0,display:"flex",flexDirection:"column",minHeight:isDesktop?"100vh":"auto"}}>
 
       {/* Header */}
-      <div style={{background:G.green,padding:"13px 18px",paddingTop:isDesktop?"13px":"calc(13px + env(safe-area-inset-top, 0px))",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+      <div style={{background:G.green,padding:isDesktop?"16px 32px":"13px 18px",paddingTop:isDesktop?"16px":"calc(13px + env(safe-area-inset-top, 0px))",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
           {!isDesktop&&<button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4}}>
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
@@ -2477,9 +2478,12 @@ function AppInner() {
             <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
           </button>}
           {!isDesktop&&<TeamlyLogo size={0.85}/>}
-          {isDesktop&&<div style={{fontWeight:700,fontSize:15,color:G.white,letterSpacing:0.3}}>{
-            tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":"Teamly"
-          }</div>}
+          {isDesktop&&<div>
+            <div style={{fontWeight:800,fontSize:18,color:G.white,letterSpacing:0.3}}>{
+              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":"Teamly"
+            }</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:1}}>{settings.boutique}</div>
+          </div>}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
@@ -2523,7 +2527,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:isDesktop?24:14,paddingBottom:isDesktop?24:(role==="admin"||(role==="closer"&&sbReady))?90:40,maxWidth:isDesktop?1200:"none"}}>
+      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:(role==="admin"||(role==="closer"&&sbReady))?90:40,maxWidth:isDesktop?1600:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
@@ -2724,7 +2728,7 @@ function AppInner() {
             </div>
 
             {/* KPIs */}
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
               <SC icon="📦" label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
               <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
               <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
@@ -2999,7 +3003,7 @@ function AppInner() {
                       <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
                       <div style={{flex:1,height:1,background:`${st.color}33`}}/>
                     </div>
-                    <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                    <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
                       {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
                     </div>
                   </div>
