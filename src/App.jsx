@@ -789,7 +789,7 @@ function AppInner() {
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterDate,   setFilterDate]   = useState("all");
+  const [filterDate,   setFilterDate]   = useState("today");
   const [filterLivreur, setFilterLivreur] = useState("all");
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
