@@ -398,10 +398,6 @@ function MapView({positions, role, isDesktop=false}) {
         const popup = `<div style="font-size:13px"><b>🏍️ ${name}</b>${pos.city?`<br><span style="color:#666;font-size:11px">📍 ${pos.city}</span>`:""}</div>`;
         stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
       });
-      if(entries.length>1) {
-        const group = L.featureGroup(Object.values(stateRef.current.markers));
-        map.fitBounds(group.getBounds().pad(0.2));
-      }
     };
 
     if(window.L) { setTimeout(setupMap,150); }
@@ -427,15 +423,6 @@ function MapView({positions, role, isDesktop=false}) {
         markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
       }
     });
-    // Solo auto-zoom si el usuario no ha tocado el mapa
-    if(!userMovedRef.current) {
-      const active = Object.values(positions).filter(p=>p?.lat);
-      if(active.length===1) map.setView([active[0].lat,active[0].lng],15);
-      else if(active.length>1) {
-        const group = L.featureGroup(Object.values(markers).filter(m=>m));
-        map.fitBounds(group.getBounds().pad(0.2));
-      }
-    }
   },[positions]);
 
   // Invalide la taille de la carte quand on change de mode
