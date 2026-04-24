@@ -1515,89 +1515,72 @@ function AppInner() {
 
   // ── OCard ──
   const OCard = ({o,showPrendre=false}) => {
-    const st=STATUS[o.status]||STATUS.pendiente;
-    const clientOrders = orders.filter(x=>x.phone===o.phone);
-    const cScore = clientOrders.length>0?Math.round(clientOrders.filter(x=>x.status==="entregado").length/clientOrders.length*100):null;
-    const cBadge = cScore===null?null:cScore>=80?"🟢":cScore>=50?"🟡":"🔴";
-    return (
-      <div style={{background:G.white,borderRadius:13,boxShadow:"0 1px 5px rgba(0,0,0,0.06)",borderLeft:`4px solid ${st.color}`,marginBottom:10,overflow:"hidden"}}>
+    const st = STATUS[o.status]||STATUS.pendiente;
+    const STEP_ICONS  = ["✅","🏍️","📦","🚀","📍","✓"];
+    const STEP_COLORS = ["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
+    const STEP_KEYS   = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
+    const curStep     = STEP_KEYS.indexOf(o.status);
+    const inDelivery  = curStep >= 0;
 
-        {/* Zone cliquable — info client → ouvre détail */}
-        <div onClick={()=>setOrderDetail(o)} style={{padding:"13px 13px 10px",cursor:"pointer",userSelect:"none"}}>
+    return (
+      <div style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",overflow:"hidden",marginBottom:10}}>
+
+        {/* ── Header — cliquable ── */}
+        <div onClick={()=>setOrderDetail(o)} style={{padding:"14px 14px 12px",cursor:"pointer",borderLeft:`4px solid ${st.color}`}}>
+          {/* Ligne 1: Client + Prix */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
-              <div style={{fontSize:12,color:G.dark,fontWeight:600,marginTop:2}}>📦 {o.product}</div>
-              <div style={{fontSize:11,color:G.gray,marginTop:1}}>📍 {o.address} · 📱 {o.phone}</div>
+              <div style={{fontWeight:800,fontSize:16,color:G.dark,lineHeight:1.2}}>{o.client}</div>
+              <div style={{fontSize:12,color:G.gray,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
+                <span style={{background:st.bg,color:st.color,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>{st.label}</span>
+                {o.isBundle&&<span style={{background:"#FFF8E7",color:G.gold,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
+              </div>
             </div>
-            <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
-              <div style={{background:st.bg,color:st.color,borderRadius:20,padding:"4px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</div>
-              {o.isBundle&&<div style={{background:"#FFF8E7",color:G.gold,borderRadius:6,padding:"2px 6px",fontSize:10,fontWeight:700}}>🎁 Bundle</div>}
-              <div style={{fontWeight:800,color:G.green,fontSize:15}}>{fmt(o.price)} F</div>
+            <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}>
+              <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1}}>{fmt(o.price)}</div>
+              <div style={{fontSize:10,color:G.gray,marginTop:2}}>FCFA</div>
             </div>
           </div>
-        </div>
-
-        {/* Actions zone — pas de propagation vers détail */}
-        <div onClick={e=>e.stopPropagation()} style={{padding:"0 13px 13px"}}>
-
-        {/* Produit + Prix — ligne séparatrice */}
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,display:"none"}}>
-          <span style={{fontSize:13,color:G.dark}}>{o.product}</span>
-          <span style={{fontWeight:700,color:G.green,fontSize:14}}>{fmt(o.price)} FCFA</span>
-        </div>
-
-        {/* Barre progression tracking — pour admin/closer */}
-        {role!=="livreur"&&(()=>{
-          const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
-          const icons=["✅","🏍️","📦","🚀","📍","✓"];
-          const STEP_COLORS=["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
-          const cur=steps.indexOf(o.status);
-          if(cur<0) return null;
-          return (
-            <div style={{display:"flex",alignItems:"center",marginBottom:8}}>
-              {icons.map((ico,i)=>{
-                const col=STEP_COLORS[i];
-                const done=i<cur, active=i===cur, future=i>cur;
-                return (
-                  <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                    <div
-                      className={active&&o.status!=="entregado"?"step-active":undefined}
-                      style={{
-                        width:24,height:24,borderRadius:"50%",
-                        background:done?col:active?col:G.grayLight,
-                        display:"flex",alignItems:"center",justifyContent:"center",
-                        fontSize:10,flexShrink:0,
-                        border:`2px solid ${future?"#E5E7EB":col}`,
-                        opacity:future?0.35:1,
-                        '--sc':col+'BB',
-                      }}>
-                      <span style={{fontSize:10}}>{ico}</span>
-                    </div>
-                    {i<5&&<div style={{flex:1,height:2,background:done?col:G.grayLight,opacity:future?0.3:1}}/>}
-                  </div>
-                );
-              })}
+          {/* Ligne 2: Produit */}
+          <div style={{fontSize:12,color:G.dark,fontWeight:600,marginBottom:4}}>📦 {o.product}</div>
+          {/* Ligne 3: Adresse + Téléphone */}
+          <div style={{display:"flex",gap:10,fontSize:11,color:G.gray}}>
+            {o.address&&<span>📍 {o.address}</span>}
+            {o.phone&&<span>📱 {o.phone}</span>}
+          </div>
+          {/* Ligne 4: Livreur assigné */}
+          {o.livreur&&(
+            <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5}}>
+              <span style={{background:"#EFF6FF",color:G.blue,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
+              {o.closer&&<span style={{background:G.greenLight,color:G.green,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:600}}>📞 {o.closer}</span>}
             </div>
-          );
-        })()}
-
-        {/* Chaîne Admin/Closer → Livreur */}
-        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-          {o.closer ? (
-            <span style={{background:G.greenLight,color:G.green,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600}}>📞 {o.closer}</span>
-          ) : (
-            <span style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:11}}>📞 Sans closer</span>
-          )}
-          {(o.closer||o.livreur)&&<span style={{fontSize:10,color:G.gray}}>→</span>}
-          {o.livreur ? (
-            <span style={{background:"#EFF6FF",color:G.blue,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600}}>🏍️ {o.livreur}</span>
-          ) : (
-            <span style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:11}}>🏍️ Sans livreur</span>
           )}
         </div>
 
-        {o.note&&<div style={{fontSize:11,color:G.gray,background:G.grayLight,borderRadius:6,padding:"3px 8px",marginBottom:8}}>📝 {o.note}</div>}
+        {/* ── Actions zone ── */}
+        <div onClick={e=>e.stopPropagation()} style={{padding:"10px 14px 14px"}}>
+
+        {/* Barre de progression — admin/closer only */}
+        {role!=="livreur"&&inDelivery&&(
+          <div style={{display:"flex",alignItems:"center",marginBottom:10}}>
+            {STEP_ICONS.map((ico,i)=>{
+              const col=STEP_COLORS[i];
+              const done=i<curStep, active=i===curStep;
+              return (
+                <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
+                  <div className={active&&o.status!=="entregado"?"step-active":undefined}
+                    style={{width:26,height:26,borderRadius:"50%",background:done?col:active?col:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,flexShrink:0,border:`2px solid ${i>curStep?"#E5E7EB":col}`,opacity:i>curStep?0.3:1,"--sc":col+"BB"}}>
+                    {ico}
+                  </div>
+                  {i<5&&<div style={{flex:1,height:2,background:done?col:"#F3F4F6"}}/>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Note (si existe) */}
+        {o.note&&<div style={{fontSize:11,color:"#78716C",background:"#FAFAF9",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:"3px solid #E7E5E4"}}>📝 {o.note}</div>}
 
 
 
@@ -1756,12 +1739,19 @@ function AppInner() {
           </div>
         )}
 
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:7}}>
-          <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note);}} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:0}}>
-            📝 {o.note?"Modifier note":"Ajouter note"}
+        {/* Actions rapides — bas de carte */}
+        <div style={{display:"flex",gap:6,marginTop:8}}>
+          <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+            style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5,textDecoration:"none"}}>
+            📞 Appeler
+          </a>
+          <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note||"");}}
+            style={{flex:1,background:"#FAFAF9",color:"#78716C",border:"1px solid #E7E5E4",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+            📝 {o.note?"Note":"+ Note"}
           </button>
           {(role==="admin"||(role==="closer"&&pC.closerFullControl))&&(
-            <button onClick={()=>setEditOrder({...o})} style={{background:G.grayLight,border:"none",borderRadius:6,padding:"3px 10px",fontSize:11,color:G.dark,cursor:"pointer",fontWeight:600}}>
+            <button onClick={()=>setEditOrder({...o})}
+              style={{flex:1,background:G.grayLight,color:G.dark,border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
               ✏️ Modifier
             </button>
           )}
