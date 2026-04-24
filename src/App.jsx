@@ -3585,35 +3585,22 @@ function AppInner() {
                           value={costEdit.stock??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,stock:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
-                      <button
-                        disabled={comptaSaving===prod.id}
-                        onClick={async()=>{
-                          const cost     = parseFloat(costEdit.cost)||0;
-                          const fraisLiv = parseFloat(costEdit.fraisLiv)||FRAIS_LIV;
-                          const stock    = parseInt(costEdit.stock)||0;
-                          if(cost<=0){ addToast("Entre le coût du produit","⚠️","#F59E0B"); return; }
-                          setComptaSaving(prod.id);
-                          // Mise à jour locale immédiate
-                          setProducts(p=>p.map(x=>x.id===prod.id?{...x,cost,fraisLiv,stock,stockInitial:stock}:x));
-                          // Sync Supabase
-                          const token = sbToken||_authToken;
-                          try {
-                            const res = await fetch(`${SB_URL}/rest/v1/products?id=eq.${prod.id}`,{
-                              method:"PATCH",
-                              headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":`Bearer ${token}`,"Prefer":"return=minimal"},
-                              body:JSON.stringify({cost,frais_liv:fraisLiv,stock,stock_initial:stock}),
-                            });
-                            if(!res.ok) throw new Error(await res.text());
-                            addToast(`${prod.name} — enregistré ✅`,"✅",G.green);
-                            setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
-                          } catch(err){
-                            console.error("Save cost error:",err.message);
-                            addToast("Erreur — réessaie","❌",G.red);
-                          }
-                          setComptaSaving(null);
+                      <button onClick={()=>{
+                          const newCost   = parseFloat(String(costEdit.cost||"").replace(",","."));
+                          const newFrais  = parseFloat(String(costEdit.fraisLiv||"").replace(",","."))||FRAIS_LIV;
+                          const newStock  = parseInt(costEdit.stock||0)||0;
+                          if(!newCost||newCost<=0){ addToast("Entre le coût du produit","⚠️","#F59E0B"); return; }
+                          // Fermer le formulaire immédiatement
+                          setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
+                          // Mise à jour locale
+                          setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,fraisLiv:newFrais,stock:newStock,stockInitial:newStock}:x));
+                          // Sync Supabase (pattern identique au reste de l'app)
+                          sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,frais_liv:newFrais,stock:newStock,stock_initial:newStock},_authToken)
+                            .then(()=>addToast(`${prod.name} enregistré ✅`,"✅",G.green))
+                            .catch(e=>{ console.error("cost save:",e.message); addToast("Erreur de sauvegarde","❌",G.red); });
                         }}
-                        style={{background:comptaSaving===prod.id?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:14,cursor:comptaSaving===prod.id?"not-allowed":"pointer",transition:"background .2s"}}>
-                        {comptaSaving===prod.id ? "⏳ Enregistrement…" : "✅ Enregistrer dans le catalogue"}
+                        style={{background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                        ✅ Enregistrer dans le catalogue
                       </button>
                     </div>
                   </div>
