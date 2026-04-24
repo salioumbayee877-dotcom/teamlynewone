@@ -790,6 +790,14 @@ function AppInner() {
   const [comptaSaving,setComptaSaving]     = useState(null); // prodId en cours de sauvegarde
   const [expandedProd,setExpandedProd]     = useState(null); // produit id ouvert en détail
   const [isDesktop, setIsDesktop]          = useState(()=>window.innerWidth>=900);
+
+  // ── AI Assistant ──────────────────────────────────────────────────────────
+  const [aiOpen,   setAiOpen]    = useState(false);
+  const [aiMsgs,   setAiMsgs]    = useState([]);
+  const [aiInput,  setAiInput]   = useState("");
+  const [aiLoading,setAiLoading] = useState(false);
+  const aiBottomRef = useRef(null);
+
   useEffect(()=>{
     const onResize = ()=>setIsDesktop(window.innerWidth>=900);
     window.addEventListener("resize",onResize);
@@ -976,6 +984,31 @@ function AppInner() {
     const id = Date.now();
     setToasts(t=>[...t,{id,msg,icon,color}]);
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
+  };
+
+  const sendAiMessage = async (text) => {
+    if (!text.trim() || aiLoading) return;
+    const userMsg = { role: "user", content: text.trim() };
+    const next = [...aiMsgs, userMsg];
+    setAiMsgs(next);
+    setAiInput("");
+    setAiLoading(true);
+    setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+    try {
+      const res = await fetch("/.netlify/functions/ai-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next }),
+      });
+      const data = await res.json();
+      const reply = data.reply || "Désolé, je n'ai pas pu répondre.";
+      setAiMsgs(p => [...p, { role: "assistant", content: reply }]);
+    } catch {
+      setAiMsgs(p => [...p, { role: "assistant", content: "❌ Erreur de connexion. Réessaie." }]);
+    } finally {
+      setAiLoading(false);
+      setTimeout(() => aiBottomRef.current?.scrollIntoView({ behavior: "smooth" }), 80);
+    }
   };
 
   // Show GPS prompt when livreur first logs in
@@ -5488,6 +5521,103 @@ function AppInner() {
           </div>
         );
       })()}
+
+      {/* ── AI ASSISTANT ── */}
+      {/* Floating button */}
+      {!aiOpen&&(
+        <button onClick={()=>setAiOpen(true)} style={{
+          position:"fixed",bottom:isDesktop?28:80,right:18,zIndex:8000,
+          width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",
+          background:"linear-gradient(135deg,#1A5C38,#0D9488)",
+          boxShadow:"0 4px 16px rgba(0,0,0,0.25)",
+          display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,
+        }}>🤖</button>
+      )}
+
+      {/* Chat panel */}
+      {aiOpen&&(
+        <div style={{
+          position:"fixed",bottom:isDesktop?28:0,right:isDesktop?18:0,
+          width:isDesktop?380:"100%",
+          height:isDesktop?560:"92dvh",
+          zIndex:8000,background:"#FFF",
+          borderRadius:isDesktop?20:"20px 20px 0 0",
+          boxShadow:"0 8px 40px rgba(0,0,0,0.2)",
+          display:"flex",flexDirection:"column",overflow:"hidden",
+        }}>
+          {/* Header */}
+          <div style={{background:"linear-gradient(135deg,#1A5C38,#0D9488)",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
+            <div style={{fontSize:24}}>🤖</div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Assistant Teamly</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>IA • e-commerce COD</div>
+            </div>
+            <button onClick={()=>setAiOpen(false)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:30,height:30,color:"#FFF",cursor:"pointer",fontSize:16}}>✕</button>
+          </div>
+
+          {/* Messages */}
+          <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
+            {aiMsgs.length===0&&(
+              <div style={{textAlign:"center",padding:"24px 16px"}}>
+                <div style={{fontSize:36,marginBottom:8}}>🤖</div>
+                <div style={{fontWeight:700,fontSize:14,color:"#1A5C38",marginBottom:6}}>Bonjour ! Je suis ton assistant Teamly</div>
+                <div style={{fontSize:12,color:"#6B7280",marginBottom:16}}>Pose-moi n'importe quelle question sur l'app ou le e-commerce COD</div>
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {["Comment connecter Shopify ?","Comment réduire les refus de livraison ?","Comment créer une campagne COD ?","Comment installer l'app sur iPhone ?"].map(q=>(
+                    <button key={q} onClick={()=>sendAiMessage(q)} style={{background:"#FFF",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#374151",cursor:"pointer",textAlign:"left",fontWeight:500}}>
+                      💬 {q}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {aiMsgs.map((m,i)=>(
+              <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+                <div style={{
+                  maxWidth:"82%",padding:"10px 13px",borderRadius:m.role==="user"?"16px 16px 4px 16px":"16px 16px 16px 4px",
+                  background:m.role==="user"?"linear-gradient(135deg,#1A5C38,#0D9488)":"#FFF",
+                  color:m.role==="user"?"#FFF":"#1F2937",
+                  fontSize:13,lineHeight:1.5,
+                  boxShadow:"0 1px 4px rgba(0,0,0,0.08)",
+                  whiteSpace:"pre-wrap",
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {aiLoading&&(
+              <div style={{display:"flex",justifyContent:"flex-start"}}>
+                <div style={{background:"#FFF",borderRadius:"16px 16px 16px 4px",padding:"10px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.08)",display:"flex",gap:4,alignItems:"center"}}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{width:7,height:7,borderRadius:"50%",background:"#9CA3AF",animation:`bounce 1s ease-in-out ${i*0.15}s infinite`}}/>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={aiBottomRef}/>
+          </div>
+
+          {/* Input */}
+          <div style={{padding:"10px 12px",borderTop:"1px solid #F3F4F6",background:"#FFF",display:"flex",gap:8,alignItems:"flex-end"}}>
+            <textarea
+              value={aiInput}
+              onChange={e=>setAiInput(e.target.value)}
+              onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendAiMessage(aiInput);}}}
+              placeholder="Pose ta question…"
+              rows={1}
+              style={{flex:1,border:"1px solid #E5E7EB",borderRadius:12,padding:"9px 12px",fontSize:13,resize:"none",outline:"none",fontFamily:"inherit",lineHeight:1.4,maxHeight:100,overflowY:"auto"}}
+            />
+            <button
+              onClick={()=>sendAiMessage(aiInput)}
+              disabled={!aiInput.trim()||aiLoading}
+              style={{width:40,height:40,borderRadius:12,border:"none",background:aiInput.trim()&&!aiLoading?"linear-gradient(135deg,#1A5C38,#0D9488)":"#E5E7EB",color:"#FFF",cursor:aiInput.trim()&&!aiLoading?"pointer":"not-allowed",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              ➤
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}`}</style>
 
     </div>
   );
