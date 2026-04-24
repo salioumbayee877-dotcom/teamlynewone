@@ -822,6 +822,7 @@ function AppInner() {
   const chatScrollRef                      = useRef(null);
   const tabRef                             = useRef(tab);
   const currentUserRef                     = useRef(currentUser);
+  const loadChatRef                        = useRef(null); // ref to call loadChat from outside the effect
   const [chatShowNew, setChatShowNew]      = useState(false);
   const [chatLoading, setChatLoading]      = useState(true);
   const [authStep, setAuthStep]   = useState(()=>{
@@ -1172,11 +1173,18 @@ function AppInner() {
       }
     };
 
+    loadChatRef.current = loadChat;
     loadMain();
     loadChat(true);
     const intervalMain = setInterval(loadMain, 5000);
-    // Polling toutes les 8s si le WebSocket est lent ou indisponible
-    const intervalChat = setInterval(()=>loadChat(false), 8000);
+    // Polling toutes les 8s — si chat vide, force un reload complet
+    const intervalChat = setInterval(()=>{
+      setChat(prev => {
+        if(prev.length === 0) loadChat(true);  // retry complet si toujours vide
+        else loadChat(false);                   // sinon incrémental
+        return prev;
+      });
+    }, 8000);
 
     // ── Supabase Realtime WebSocket — chat en temps réel ─────────────────
     let ws = null, wsRef = 0, wsHeartbeat = null, wsReconnect = null;
@@ -4167,10 +4175,14 @@ function AppInner() {
                 </div>
               )}
               {!chatLoading&&chat.length===0&&(
-                <div style={{textAlign:"center",padding:40,color:"#8a9a8a"}}>
-                  <div style={{fontSize:36,marginBottom:8}}>💬</div>
-                  <div style={{fontSize:13,fontWeight:600}}>Aucun message</div>
-                  <div style={{fontSize:11,marginTop:4}}>Soyez le premier à écrire !</div>
+                <div style={{textAlign:"center",padding:40,color:"#8a9a8a",display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+                  <div style={{fontSize:36}}>💬</div>
+                  <div style={{fontSize:13,fontWeight:600,color:"#555"}}>Aucun message</div>
+                  <div style={{fontSize:11}}>Soyez le premier à écrire !</div>
+                  <button onClick={()=>{ setChatLoading(true); loadChatRef.current?.(true); }}
+                    style={{marginTop:8,background:G.green,color:"#fff",border:"none",borderRadius:20,padding:"8px 20px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                    🔄 Actualiser
+                  </button>
                 </div>
               )}
               {chat.map((msg,i)=>{
