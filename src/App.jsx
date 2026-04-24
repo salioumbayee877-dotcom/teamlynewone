@@ -1529,7 +1529,12 @@ function AppInner() {
 
         {/* ── Bande état colorée (top) ── */}
         <div style={{background:st.color,padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
+          <div style={{display:"flex",alignItems:"center",gap:7}}>
+            <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
+            {o.created_at&&<span style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>
+              {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+            </span>}
+          </div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
@@ -2535,7 +2540,12 @@ function AppInner() {
                       <div onClick={()=>setOrderDetail(o)} style={{padding:"14px 14px 10px",cursor:"pointer"}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                           <div>
-                            <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:6}}>
+                              <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
+                              {o.created_at&&<span style={{fontSize:10,color:G.gray,background:G.grayLight,borderRadius:5,padding:"1px 6px"}}>
+                                🕐 {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+                              </span>}
+                            </div>
                             <div style={{fontSize:12,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
                               <span style={{color:G.gray}}>📦 {o.product}</span>
                               {isMatched||catalogMatch
@@ -3545,14 +3555,15 @@ function AppInner() {
             {calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>{
               const notConfigured = !prod.cost || prod.cost===0;
               const costEdit = comptaCostEdit[prod.id]||{};
+              const showCostForm = notConfigured || !!comptaCostEdit[prod.id];
               return (
               <div key={prod.id} style={{background:G.white,borderRadius:14,padding:15,borderLeft:`4px solid ${notConfigured?"#F59E0B":ben>=0?G.green:G.red}`}}>
 
-                {/* ── Produit non configuré — saisie inline ── */}
-                {notConfigured&&(
+                {/* ── Saisie inline coûts — nouveau produit OU bouton Modifier ── */}
+                {showCostForm&&(
                   <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 14px",marginBottom:14,border:"1.5px solid #FCD34D"}}>
                     <div style={{fontWeight:700,fontSize:13,color:"#92400E",marginBottom:10}}>
-                      ⚠️ {prod.name} — Coûts non configurés
+                      {notConfigured ? `⚠️ ${prod.name} — Coûts non configurés` : `✏️ Modifier les coûts — ${prod.name}`}
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       <div>
@@ -3600,16 +3611,22 @@ function AppInner() {
                 )}
 
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                  <div>
+                  <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{prod.name}</div>
                     <div style={{display:"flex",gap:6,marginTop:3,flexWrap:"wrap"}}>
                       <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>💰 Coût: {fmt(prod.cost)} F</span>
                       <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>🏍️ Livr: {fmt(prod.fraisLiv||FRAIS_LIV)} F</span>
                     </div>
                   </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:10,color:G.gray}}>Marge/unité</div>
-                    <div style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(prod.price-prod.cost-(prod.fraisLiv||FRAIS_LIV))} F</div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
+                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||FRAIS_LIV,stock:prod.stock||""}}))}
+                      style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      ✏️ Modifier
+                    </button>
+                    <div style={{textAlign:"right"}}>
+                      <div style={{fontSize:10,color:G.gray}}>Marge/unité</div>
+                      <div style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(prod.price-prod.cost-(prod.fraisLiv||FRAIS_LIV))} F</div>
+                    </div>
                   </div>
                 </div>
 
