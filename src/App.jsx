@@ -3573,13 +3573,25 @@ function AppInner() {
                           value={costEdit.stock??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,stock:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
-                      <button onClick={async()=>{
+                      <button onClick={async(e)=>{
+                        e.currentTarget.disabled = true;
+                        e.currentTarget.textContent = "Enregistrement…";
                         const cost     = parseFloat(costEdit.cost||0);
                         const fraisLiv = parseFloat(costEdit.fraisLiv||FRAIS_LIV);
                         const stock    = parseInt(costEdit.stock||0);
+                        if(cost<=0){ addToast("Entre le coût du produit","⚠️","#F59E0B"); e.currentTarget.disabled=false; e.currentTarget.textContent="✅ Enregistrer dans le catalogue"; return; }
+                        // Update local state immediately
                         setProducts(p=>p.map(x=>x.id===prod.id?{...x,cost,fraisLiv,stock,stockInitial:stock}:x));
-                        try { await sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost,frais_liv:fraisLiv,stock,stock_initial:stock}); } catch(e){}
-                        setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
+                        // Sync to Supabase with user JWT
+                        try {
+                          await sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost,frais_liv:fraisLiv,stock,stock_initial:stock}, sbToken);
+                          addToast(`${prod.name} — coûts enregistrés ✅`,"✅",G.green);
+                          setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
+                        } catch(err) {
+                          addToast("Erreur de synchronisation — réessaie","❌",G.red);
+                          e.currentTarget.disabled=false;
+                          e.currentTarget.textContent="✅ Enregistrer dans le catalogue";
+                        }
                       }} style={{background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
                         ✅ Enregistrer dans le catalogue
                       </button>
