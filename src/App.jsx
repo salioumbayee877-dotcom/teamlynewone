@@ -2539,10 +2539,11 @@ function AppInner() {
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:10}}>
                   {leads.map(o=>{
-                    // Check if the product was matched to a catalog item (webhook marks with ✓)
-                    const isMatched = o.note?.includes("✓");
-                    const catalogMatch = products.find(p=>p.name===o.product);
-                    const productRecognized = isMatched || !!catalogMatch;
+                    // ✓ = matched existing, ★ = auto-created, neither = unknown
+                    const isMatched     = o.note?.includes("✓");
+                    const isAutoCreated = o.note?.includes("★");
+                    const catalogMatch  = products.find(p=>p.name===o.product);
+                    const productRecognized = isMatched || isAutoCreated || !!catalogMatch;
                     return (
                     <div key={o.id} style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.08)",borderLeft:`4px solid ${productRecognized?"#10B981":"#F59E0B"}`,overflow:"hidden"}}>
                       {/* Info cliente — clic para ver detalles */}
@@ -2552,9 +2553,11 @@ function AppInner() {
                             <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
                             <div style={{fontSize:12,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
                               <span style={{color:G.gray}}>📦 {o.product}</span>
-                              {productRecognized
+                              {isMatched||catalogMatch
                                 ? <span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
-                                : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
+                                : isAutoCreated
+                                  ? <span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté — Ajoute le coût</span>
+                                  : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
                               }
                             </div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>

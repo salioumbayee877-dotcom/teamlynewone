@@ -1,18 +1,21 @@
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
 
-// Normalize string for fuzzy matching: lowercase, remove accents + special chars
 const norm = s => (s||"").toLowerCase()
   .normalize("NFD").replace(/[̀-ͯ]/g,"")
   .replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
 
-// Score: % of catalog product words found in the Shopify product string
 const matchScore = (catalogName, shopifyStr) => {
   const words = norm(catalogName).split(" ").filter(w => w.length > 2);
   if (!words.length) return 0;
   const target = norm(shopifyStr);
-  const hits = words.filter(w => target.includes(w)).length;
-  return hits / words.length;
+  return words.filter(w => target.includes(w)).length / words.length;
+};
+
+const sbHeaders = {
+  "Content-Type": "application/json",
+  "apikey": SERVICE_KEY,
+  "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
 exports.handler = async (event) => {
@@ -27,83 +30,105 @@ exports.handler = async (event) => {
   try {
     const order = JSON.parse(event.body || "{}");
     const orgId = event.queryStringParameters?.org;
-
     if (!orgId) return { statusCode: 400, headers, body: "Missing ?org= parameter" };
 
-    const firstName = order.billing_address?.first_name || order.customer?.first_name || "";
-    const lastName  = order.billing_address?.last_name  || order.customer?.last_name  || "";
+    const firstName  = order.billing_address?.first_name || order.customer?.first_name || "";
+    const lastName   = order.billing_address?.last_name  || order.customer?.last_name  || "";
     const clientName = `${firstName} ${lastName}`.trim() || order.email || "Client Shopify";
+    const rawPhone   = order.billing_address?.phone || order.shipping_address?.phone || order.phone || "";
+    const phone      = rawPhone.replace(/\D/g,"").slice(-9);
+    const addr       = order.shipping_address;
+    const address    = addr ? [addr.address1, addr.city, addr.country].filter(Boolean).join(", ") : "";
 
-    const rawPhone = order.billing_address?.phone || order.shipping_address?.phone || order.phone || "";
-    const phone = rawPhone.replace(/\D/g, "").slice(-9);
-
-    const addr = order.shipping_address;
-    const address = addr ? [addr.address1, addr.city, addr.country].filter(Boolean).join(", ") : "";
-
-    // Raw Shopify product name
-    const shopifyProduct = (order.line_items || [])
-      .map(i => `${i.name}${i.quantity > 1 ? ` x${i.quantity}` : ""}`)
-      .join(" + ") || "Produit Shopify";
-    const price      = parseFloat(order.total_price || 0);
-    const shopifyRef = `#${order.order_number || order.id}`;
+    // Build clean product name from Shopify line items (without size/variant details)
+    const lineItems     = order.line_items || [];
+    const shopifyProduct = lineItems.map(i=>`${i.title||i.name}${i.quantity>1?` x${i.quantity}`:""}`).join(" + ") || "Produit Shopify";
+    const unitPrice      = lineItems.length > 0 ? parseFloat(lineItems[0].price || 0) : parseFloat(order.total_price || 0);
+    const price          = parseFloat(order.total_price || 0);
+    const shopifyRef     = `#${order.order_number || order.id}`;
 
     // ── Duplicate check ──────────────────────────────────────────────────
     const checkRes = await fetch(
-      `${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&note=eq.Commande%20Shopify%20${encodeURIComponent(shopifyRef)}&select=id`,
-      { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+      `${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&note=like.Commande%20Shopify%20${encodeURIComponent(shopifyRef)}*&select=id`,
+      { headers: sbHeaders }
     );
     const existing = await checkRes.json();
     if (existing && existing.length > 0)
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, skipped: true }) };
 
-    // ── Product matching ─────────────────────────────────────────────────
-    // Fetch catalog products for this org
-    let matchedName = null;
-    let matched = false;
+    // ── Product catalog matching ─────────────────────────────────────────
+    let finalProduct = shopifyProduct;
+    let matched      = false;
+    let autoCreated  = false;
+
     try {
       const prodsRes = await fetch(
-        `${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name`,
-        { headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` } }
+        `${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name,price`,
+        { headers: sbHeaders }
       );
       const catalog = await prodsRes.json();
+
       if (Array.isArray(catalog) && catalog.length > 0) {
-        let best = 0;
+        // Try to find an existing match
+        let best = 0, bestName = null;
         for (const p of catalog) {
           const score = matchScore(p.name, shopifyProduct);
-          if (score > best) { best = score; matchedName = p.name; }
+          if (score > best) { best = score; bestName = p.name; }
         }
-        // Require at least 50% word overlap to accept the match
-        if (best < 0.5) matchedName = null;
-        else matched = true;
+        if (best >= 0.5) {
+          finalProduct = bestName;
+          matched      = true;
+        }
       }
-    } catch(e) { /* catalog fetch failed — use raw Shopify name */ }
 
-    const finalProduct = matchedName || shopifyProduct;
-    // Append a marker so the app can show matched vs unmatched
-    const note = matched
-      ? `Commande Shopify ${shopifyRef} ✓`
-      : `Commande Shopify ${shopifyRef}`;
+      // No match found → auto-create the product in the catalog
+      if (!matched) {
+        // Use the first line item title as the clean product name
+        const cleanName = (lineItems[0]?.title || shopifyProduct).split(" - ")[0].trim();
+
+        // Check if this exact name already exists (avoid duplicates)
+        const existProd = Array.isArray(catalog)
+          ? catalog.find(p => norm(p.name) === norm(cleanName))
+          : null;
+
+        if (!existProd) {
+          await fetch(`${SB_URL}/rest/v1/products`, {
+            method: "POST",
+            headers: { ...sbHeaders, Prefer: "return=minimal" },
+            body: JSON.stringify({
+              org_id:        orgId,
+              name:          cleanName,
+              price:         unitPrice,
+              cost:          0,        // owner fills in manually
+              stock:         0,
+              stock_initial: 0,
+              frais_liv:     1500,
+              archived:      false,
+            }),
+          });
+          autoCreated  = true;
+          finalProduct = cleanName;
+        } else {
+          // Exact norm match found — use it
+          finalProduct = existProd.name;
+          matched      = true;
+        }
+      }
+    } catch(e) {
+      console.error("Catalog error:", e.message);
+      // Fall back to raw Shopify name — order still gets created
+    }
+
+    const note = `Commande Shopify ${shopifyRef}${matched ? " ✓" : autoCreated ? " ★" : ""}`;
 
     // ── Insert order ─────────────────────────────────────────────────────
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: SERVICE_KEY,
-        Authorization: `Bearer ${SERVICE_KEY}`,
-        Prefer: "return=representation",
-      },
+      headers: { ...sbHeaders, Prefer: "return=representation" },
       body: JSON.stringify({
-        org_id: orgId,
-        client: clientName,
-        phone,
-        address,
-        product: finalProduct,
-        price,
-        status: "boutique",
-        note,
-        archived: false,
-        is_bundle: false,
+        org_id: orgId, client: clientName, phone, address,
+        product: finalProduct, price,
+        status: "boutique", note, archived: false, is_bundle: false,
       }),
     });
 
@@ -113,7 +138,7 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers, body: `Supabase error: ${err}` };
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, matched, matchedName }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, matched, autoCreated, finalProduct }) };
   } catch (e) {
     console.error("Webhook error:", e.message);
     return { statusCode: 500, headers, body: `Error: ${e.message}` };
