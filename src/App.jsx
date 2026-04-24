@@ -386,7 +386,7 @@ function MapView({positions, role}) {
         doubleClickZoom:true,
         attributionControl:false,
         tap:true,
-      }).setView(center, 13);
+      }).setView(center, 11);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
       stateRef.current.map = map;
       stateRef.current.loaded = true;
@@ -459,7 +459,7 @@ function MapView({positions, role}) {
       </button>
 
       <div ref={containerRef} style={{
-        height: fullscreen ? "100dvh" : 380,
+        height: fullscreen ? "100dvh" : "calc(100dvh - 180px)",
         width:"100%",
         background:"#E8F4F8",
         borderRadius: fullscreen ? 0 : 12,
