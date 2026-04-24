@@ -1525,42 +1525,35 @@ function AppInner() {
     const inDelivery  = curStep >= 0;
 
     return (
-      <div style={{background:G.white,borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.07)",overflow:"hidden",marginBottom:10}}>
+      <div style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:`1px solid ${st.color}22`}}>
 
-        {/* ── Header — cliquable ── */}
-        <div onClick={()=>setOrderDetail(o)} style={{padding:"14px 14px 12px",cursor:"pointer",borderLeft:`4px solid ${st.color}`}}>
-          {/* Ligne 1: Client + Prix */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontWeight:800,fontSize:16,color:G.dark,lineHeight:1.2}}>{o.client}</div>
-              <div style={{fontSize:12,color:G.gray,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
-                <span style={{background:st.bg,color:st.color,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>{st.label}</span>
-                {o.isBundle&&<span style={{background:"#FFF8E7",color:G.gold,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
-              </div>
-            </div>
-            <div style={{textAlign:"right",flexShrink:0,marginLeft:10}}>
-              <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1}}>{fmt(o.price)}</div>
-              <div style={{fontSize:10,color:G.gray,marginTop:2}}>FCFA</div>
-            </div>
+        {/* ── Bande état colorée (top) ── */}
+        <div style={{background:st.color,padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
+            <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
-          {/* Ligne 2: Produit */}
-          <div style={{fontSize:12,color:G.dark,fontWeight:600,marginBottom:4}}>📦 {o.product}</div>
-          {/* Ligne 3: Adresse + Téléphone */}
-          <div style={{display:"flex",gap:10,fontSize:11,color:G.gray}}>
+        </div>
+
+        {/* ── Corps — cliquable ── */}
+        <div onClick={()=>setOrderDetail(o)} style={{background:st.bg,padding:"12px 14px 10px",cursor:"pointer"}}>
+          <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>{o.client}</div>
+          <div style={{fontSize:12,color:"#374151",fontWeight:600,marginBottom:3}}>📦 {o.product}</div>
+          <div style={{display:"flex",gap:10,fontSize:11,color:"#6B7280",flexWrap:"wrap"}}>
             {o.address&&<span>📍 {o.address}</span>}
             {o.phone&&<span>📱 {o.phone}</span>}
           </div>
-          {/* Ligne 4: Livreur assigné */}
           {o.livreur&&(
-            <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5}}>
-              <span style={{background:"#EFF6FF",color:G.blue,borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
-              {o.closer&&<span style={{background:G.greenLight,color:G.green,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:600}}>📞 {o.closer}</span>}
+            <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+              <span style={{background:"rgba(37,99,235,0.12)",color:"#1D4ED8",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
+              {o.closer&&<span style={{background:"rgba(26,92,56,0.12)",color:G.green,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:600}}>📞 {o.closer}</span>}
             </div>
           )}
         </div>
 
         {/* ── Actions zone ── */}
-        <div onClick={e=>e.stopPropagation()} style={{padding:"10px 14px 14px"}}>
+        <div onClick={e=>e.stopPropagation()} style={{background:G.white,padding:"10px 14px 14px"}}>
 
         {/* Barre de progression — admin/closer only */}
         {role!=="livreur"&&inDelivery&&(
@@ -1582,7 +1575,7 @@ function AppInner() {
         )}
 
         {/* Note (si existe) */}
-        {o.note&&<div style={{fontSize:11,color:"#78716C",background:"#FAFAF9",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:"3px solid #E7E5E4"}}>📝 {o.note}</div>}
+        {o.note&&<div style={{fontSize:11,color:"#6B7280",background:"#F9FAFB",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:`3px solid ${st.color}`}}>📝 {o.note}</div>}
 
 
 
@@ -2949,7 +2942,30 @@ function AppInner() {
                 <div style={{fontSize:12,marginTop:4}}>Modifie ta recherche ou tes filtres</div>
               </div>
             )}
-            {filteredOrders.map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+            {(()=>{
+              // Groupe par statut pour mieux s'y retrouver
+              const GROUP_ORDER = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","pendiente"];
+              const groups = {};
+              filteredOrders.forEach(o=>{
+                const k = o.status||"pendiente";
+                if(!groups[k]) groups[k]=[];
+                groups[k].push(o);
+              });
+              return GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
+                const st = STATUS[k]||STATUS.pendiente;
+                return (
+                  <div key={k}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                      <div style={{width:10,height:10,borderRadius:"50%",background:st.color,flexShrink:0}}/>
+                      <span style={{fontSize:11,fontWeight:700,color:st.color,letterSpacing:0.3}}>{st.label.toUpperCase()}</span>
+                      <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
+                      <div style={{flex:1,height:1,background:`${st.color}33`}}/>
+                    </div>
+                    {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
 
