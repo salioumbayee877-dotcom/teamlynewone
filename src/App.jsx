@@ -1011,13 +1011,36 @@ function AppInner() {
     }
   };
 
-  // Show GPS prompt when livreur first logs in
+  // Auto-start GPS when livreur logs in
   useEffect(()=>{
-    if(role==="livreur" && !gpsActive) {
-      const t = setTimeout(()=>setShowGpsPrompt(true), 800);
-      return ()=>clearTimeout(t);
-    }
-  },[role]);
+    if(role!=="livreur" || !currentUser?.id || gpsActive) return;
+    if(!navigator?.geolocation) return;
+    const t = setTimeout(()=>{
+      try {
+        gpsWatchRef.current = navigator.geolocation.watchPosition(
+          async pos => {
+            const {latitude:lat,longitude:lng,accuracy} = pos.coords;
+            setGpsPos({lat,lng,accuracy:Math.round(accuracy)});
+            let city = "";
+            try {
+              const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+              const gd  = await geo.json();
+              city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
+            } catch(e){}
+            sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
+            setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
+          },
+          err => {
+            const msgs={1:"GPS refusé — autorisez dans les réglages",2:"Signal GPS faible",3:"Délai GPS dépassé"};
+            setGpsError(msgs[err.code]||"Erreur GPS");
+          },
+          {enableHighAccuracy:true,timeout:15000,maximumAge:10000}
+        );
+        setGpsActive(true);
+      } catch(e){}
+    }, 1200);
+    return ()=>clearTimeout(t);
+  },[role, currentUser?.id]);
 
   // hCaptcha desactivado
 
@@ -4930,30 +4953,13 @@ function AppInner() {
         </div>
       )}
 
-      {/* ── MODAL: GPS Prompt Livreur ── */}
-      {showGpsPrompt&&role==="livreur"&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:28,width:"100%",maxWidth:480}}>
-            <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:52,marginBottom:10}}>📍</div>
-              <div style={{fontWeight:800,fontSize:18,color:G.dark,marginBottom:6}}>Activer le GPS ?</div>
-              <div style={{fontSize:13,color:G.gray,lineHeight:1.6}}>
-                L'Admin peut suivre vos livraisons en temps réel.<br/>
-                Votre position ne sera partagée que pendant les livraisons.
-              </div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <button onClick={()=>{
-                setShowGpsPrompt(false);
-                setTab("position");
-              }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:20}}>📍</span> Activer le GPS
-              </button>
-              <button onClick={()=>setShowGpsPrompt(false)}
-                style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:14,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
-                Plus tard
-              </button>
-            </div>
+      {/* GPS refusé — bannière d'alerte livreur */}
+      {gpsError&&role==="livreur"&&!gpsActive&&(
+        <div style={{position:"fixed",bottom:isDesktop?28:72,left:0,right:0,zIndex:500,display:"flex",justifyContent:"center",pointerEvents:"none"}}>
+          <div style={{background:"#FEF3C7",border:"1px solid #FDE68A",borderRadius:12,padding:"10px 16px",fontSize:12,color:"#92400E",display:"flex",gap:8,alignItems:"center",maxWidth:360,pointerEvents:"all",margin:"0 16px"}}>
+            <span>⚠️</span>
+            <span style={{flex:1}}>{gpsError}</span>
+            <button onClick={()=>setGpsError("")} style={{background:"none",border:"none",cursor:"pointer",color:"#92400E",fontSize:14}}>✕</button>
           </div>
         </div>
       )}
