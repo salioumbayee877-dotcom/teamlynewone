@@ -2942,6 +2942,18 @@ function AppInner() {
               </div>
             )}
 
+            {/* ── BLOC TOURNÉE — colis à récupérer ── */}
+            {aRecuperer.length>0&&(
+              <TourneeBlock
+                orders={aRecuperer}
+                mode="recuperer"
+                onConfirm={(ids)=>{
+                  ids.forEach(id=>upSt(id,"livreur_en_route"));
+                  addToast(`${ids.length} colis — Je pars récupérer 🏍️`,"🏍️",G.green);
+                }}
+                G={G} fmt={fmt}
+              />
+            )}
 
             {myLiv.length===0&&orders.length>0&&(
               <div style={{background:"#FFF8E7",borderRadius:12,padding:14,fontSize:12,color:"#92400E",border:"1px solid #FDE68A"}}>
