@@ -1061,7 +1061,7 @@ function AppInner() {
         const [ords, prods, mems] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
-          sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)`),
+          sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)&select=id,nom,phone,email,role,lat,lng,city`),
         ]);
         if(reqId !== mainReqId) return; // discard stale parallel response
         clearTimeout(readyFallback);
@@ -3248,18 +3248,33 @@ function AppInner() {
         {tab==="position"&&role==="livreur"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Bouton partager position réelle */}
+            {/* Bouton partager position réelle — sauvegarde aussi dans Supabase */}
             <button onClick={()=>{
-              if(!navigator.geolocation){alert("GPS non disponible sur cet appareil");return;}
+              if(!navigator.geolocation){ setGpsError("GPS non disponible sur cet appareil"); return; }
+              addToast("Localisation en cours…","📍","#0284C7");
               navigator.geolocation.getCurrentPosition(
-                (pos)=>{
-                  setGpsPos({lat:pos.coords.latitude, lng:pos.coords.longitude});
-                  setLivreurPositions(p=>({...p,[currentUser.nom]:{lat:pos.coords.latitude,lng:pos.coords.longitude,name:currentUser.nom,order:"En livraison"}}));
-                  addToast("📍 Position partagée avec l'Admin !","📍",G.green);
+                async(pos)=>{
+                  const lat=pos.coords.latitude, lng=pos.coords.longitude;
+                  let city="";
+                  try {
+                    const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+                    const gd  = await geo.json();
+                    city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||"";
+                  } catch(e){}
+                  setGpsPos({lat,lng,accuracy:Math.round(pos.coords.accuracy||0)});
+                  setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
+                  // Sauvegarder dans Supabase pour que l'Admin voie la position
+                  sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},_authToken)
+                    .then(()=>addToast("📍 Position partagée avec l'Admin !","📍",G.green))
+                    .catch(()=>addToast("Position locale OK — erreur de sync","⚠️","#F59E0B"));
                 },
-                ()=>alert("Impossible d'obtenir votre position. Activez le GPS.")
+                (err)=>{
+                  const msgs={1:"Accès refusé — autorisez la localisation",2:"Signal GPS faible",3:"Délai dépassé"};
+                  setGpsError(msgs[err.code]||"Erreur GPS");
+                },
+                {enableHighAccuracy:true,timeout:10000,maximumAge:0}
               );
-            }} style={{background:G.green,color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+            }} style={{background:"#0284C7",color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
               📍 Partager ma position maintenant
             </button>
 
@@ -3313,8 +3328,8 @@ function AppInner() {
                           const gd  = await geo.json();
                           city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
                         } catch(e){}
-                        // Guardar en Supabase
-                        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city}).catch(()=>{});
+                        // Guardar en Supabase con el token de l'utilisateur
+                        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
                         setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
                       },
                       err => {
