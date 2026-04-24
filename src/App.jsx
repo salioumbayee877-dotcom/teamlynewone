@@ -378,8 +378,14 @@ function MapView({positions, role}) {
       if(!L) return;
       const entries = Object.values(positions).filter(p=>p?.lat);
       const center = entries.length>0 ? [entries[0].lat, entries[0].lng] : [14.7167,-17.4677];
-      const map = L.map(containerRef.current, {zoomControl:true, scrollWheelZoom:false, attributionControl:false})
-                   .setView(center, 13);
+      const map = L.map(containerRef.current, {
+        zoomControl:true,
+        scrollWheelZoom:true,
+        touchZoom:true,
+        doubleClickZoom:true,
+        attributionControl:false,
+        tap:true,
+      }).setView(center, 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19}).addTo(map);
       stateRef.current.map = map;
       stateRef.current.loaded = true;
@@ -426,8 +432,9 @@ function MapView({positions, role}) {
   },[positions]);
 
   return (
-    <div style={{position:"relative",isolation:"isolate",borderRadius:12,overflow:"hidden"}}>
-      <div ref={containerRef} style={{height:300,width:"100%",background:"#E8F4F8"}}/>
+    <div style={{position:"relative",isolation:"isolate"}}>
+      <style>{`.leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;font-size:20px!important;}`}</style>
+      <div ref={containerRef} style={{height:380,width:"100%",background:"#E8F4F8",borderRadius:12}}/>
     </div>
   );
 }
