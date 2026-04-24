@@ -554,9 +554,9 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             style={{width:"100%",border:`1.5px solid ${!newOrder.deliveryStatus?"#FCA5A5":G.green}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:newOrder.deliveryStatus?G.dark:"#9CA3AF",background:G.white,boxSizing:"border-box"}}>
             <option value="" disabled>— Sélectionner la situation —</option>
             <option value="confirmado">🔔 Aller récupérer le colis</option>
-            <option value="livreur_en_route">🏍️ En camino para recogerlo</option>
-            <option value="colis_pris">📦 Paquete en mano — Prêt à livrer</option>
-            <option value="en_camino">🚀 En camino hacia el cliente</option>
+            <option value="livreur_en_route">🏍️ En route pour récupérer le colis</option>
+            <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
+            <option value="en_camino">🚀 En route vers le client</option>
             <option value="chez_client">📍 Déjà chez le client</option>
             <option value="entregado">💰 Payé — Livraison encaissée</option>
           </select>
