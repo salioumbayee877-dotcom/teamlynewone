@@ -1027,8 +1027,10 @@ function AppInner() {
               const gd  = await geo.json();
               city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
             } catch(e){}
-            sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
-            setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
+            const uid = currentUserRef.current?.id;
+            const nom = currentUserRef.current?.nom;
+            if(uid) sbFetch(`profiles?id=eq.${uid}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
+            if(nom) setLivreurPositions(p=>({...p,[nom]:{lat,lng,name:nom,city,order:"En livraison"}}));
           },
           err => {
             const msgs={1:"GPS refusé — autorisez dans les réglages",2:"Signal GPS faible",3:"Délai GPS dépassé"};
@@ -2499,7 +2501,13 @@ function AppInner() {
   });
 
   const SIDEBAR_W = 280;
-  const isWide = isDesktop && window.innerWidth >= 1400; // 34" ultrawide
+  const [screenW, setScreenW] = useState(()=>window.innerWidth);
+  useEffect(()=>{
+    const h = ()=>setScreenW(window.innerWidth);
+    window.addEventListener("resize",h);
+    return ()=>window.removeEventListener("resize",h);
+  },[]);
+  const isWide = isDesktop && screenW >= 1400;
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
@@ -2627,7 +2635,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:(role==="admin"||(role==="closer"&&sbReady))?90:40,maxWidth:isDesktop?1600:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
+      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:(role==="admin"||(role==="closer"&&sbReady))?"calc(90px + env(safe-area-inset-bottom,0px))":"calc(40px + env(safe-area-inset-bottom,0px))",maxWidth:isWide?1400:isDesktop?1100:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
