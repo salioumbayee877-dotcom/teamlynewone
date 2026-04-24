@@ -5552,25 +5552,60 @@ function AppInner() {
               <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Assistant Teamly</div>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>IA • e-commerce COD</div>
             </div>
+            {aiMsgs.length>0&&(
+              <button onClick={()=>setAiMsgs([])} title="Effacer la conversation" style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"5px 9px",color:"rgba(255,255,255,0.85)",cursor:"pointer",fontSize:11,fontWeight:600,marginRight:4}}>🗑️</button>
+            )}
             <button onClick={()=>setAiOpen(false)} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:30,height:30,color:"#FFF",cursor:"pointer",fontSize:16}}>✕</button>
           </div>
 
           {/* Messages */}
           <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
-            {aiMsgs.length===0&&(
-              <div style={{textAlign:"center",padding:"24px 16px"}}>
-                <div style={{fontSize:36,marginBottom:8}}>🤖</div>
-                <div style={{fontWeight:700,fontSize:14,color:"#1A5C38",marginBottom:6}}>Bonjour ! Je suis ton assistant Teamly</div>
-                <div style={{fontSize:12,color:"#6B7280",marginBottom:16}}>Pose-moi n'importe quelle question sur l'app ou le e-commerce COD</div>
-                <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                  {["Comment connecter Shopify ?","Comment réduire les refus de livraison ?","Comment créer une campagne COD ?","Comment installer l'app sur iPhone ?"].map(q=>(
-                    <button key={q} onClick={()=>sendAiMessage(q)} style={{background:"#FFF",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#374151",cursor:"pointer",textAlign:"left",fontWeight:500}}>
-                      💬 {q}
-                    </button>
-                  ))}
+            {aiMsgs.length===0&&(()=>{
+              const aiByRole = {
+                livreur: {
+                  intro: "Je suis là pour t'aider à utiliser l'app et gérer tes livraisons 🏍️",
+                  questions: [
+                    "Comment accepter une commande assignée ?",
+                    "Comment mettre à jour le statut d'une livraison ?",
+                    "Comment partager ma position GPS ?",
+                    "Comment installer l'app sur mon téléphone ?",
+                  ],
+                },
+                closer: {
+                  intro: "Je suis là pour t'aider à enregistrer et confirmer tes commandes 📞",
+                  questions: [
+                    "Comment créer une commande manuellement ?",
+                    "Comment confirmer une commande par WhatsApp ?",
+                    "Comment enregistrer un refus client ?",
+                    "Comment modifier une commande existante ?",
+                  ],
+                },
+                admin: {
+                  intro: "Je suis là pour t'aider à gérer ton business COD et ton équipe 🚀",
+                  questions: [
+                    "Comment connecter Shopify à Teamly ?",
+                    "Comment créer une campagne COD efficace ?",
+                    "Comment réduire les refus de livraison ?",
+                    "Comment voir mes statistiques et marges ?",
+                  ],
+                },
+              };
+              const ctx = aiByRole[role] || aiByRole.admin;
+              return (
+                <div style={{textAlign:"center",padding:"24px 16px"}}>
+                  <div style={{fontSize:36,marginBottom:8}}>🤖</div>
+                  <div style={{fontWeight:700,fontSize:14,color:"#1A5C38",marginBottom:4}}>Bonjour {currentUser?.nom||""} !</div>
+                  <div style={{fontSize:12,color:"#6B7280",marginBottom:16}}>{ctx.intro}</div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {ctx.questions.map(q=>(
+                      <button key={q} onClick={()=>sendAiMessage(q)} style={{background:"#FFF",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#374151",cursor:"pointer",textAlign:"left",fontWeight:500}}>
+                        💬 {q}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
             {aiMsgs.map((m,i)=>(
               <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
                 <div style={{
