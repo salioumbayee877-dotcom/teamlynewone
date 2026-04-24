@@ -36,7 +36,9 @@ exports.handler = async (event) => {
     const lastName   = order.billing_address?.last_name  || order.customer?.last_name  || "";
     const clientName = `${firstName} ${lastName}`.trim() || order.email || "Client Shopify";
     const rawPhone   = order.billing_address?.phone || order.shipping_address?.phone || order.phone || "";
-    const phone      = rawPhone.replace(/\D/g,"").slice(-9);
+    // Keep full digits — preserve country code if present, strip leading 00/+
+    const digits     = rawPhone.replace(/\D/g,"").replace(/^00/,"");
+    const phone      = digits.startsWith("221") ? digits : digits.startsWith("0") ? "221" + digits.slice(1) : digits.length >= 8 ? "221" + digits.slice(-9) : digits;
     const addr       = order.shipping_address;
     const address    = addr ? [addr.address1, addr.city, addr.country].filter(Boolean).join(", ") : "";
 

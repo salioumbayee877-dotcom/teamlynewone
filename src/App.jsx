@@ -5305,8 +5305,18 @@ function AppInner() {
                 setAssignLivreurModal(null);
               };
               const sendWA = () => {
-                const rawPhone = (o.phone||"").replace(/\s+/g,"").replace(/^00/,"").replace(/^\+/,"");
-                const phoneWA  = rawPhone.startsWith("221") ? rawPhone : `221${rawPhone}`;
+                // Nettoyer le numéro — garder uniquement les chiffres
+                const digits = (o.phone||"").replace(/\D/g,"");
+                if(digits.length < 8) {
+                  addToast("Numéro de téléphone manquant — édite la commande pour l'ajouter","⚠️","#F59E0B");
+                  return;
+                }
+                // Construire le numéro international
+                let phoneWA;
+                if(digits.startsWith("00")) phoneWA = digits.slice(2);
+                else if(digits.startsWith("221")) phoneWA = digits;
+                else if(digits.startsWith("0")) phoneWA = "221" + digits.slice(1);
+                else phoneWA = "221" + digits;
                 const msg = waTemplate
                   .replace(/{client}/g,  o.client||"")
                   .replace(/{produit}/g, o.product||"")
