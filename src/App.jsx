@@ -5296,24 +5296,51 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Bouton confirmer */}
-            <button disabled={!canConfirm} onClick={()=>{
-              upSt(o.id, assignDelStatus);
-              upLiv(o.id, assignSelLiv.id);
-              addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
-              setAssignLivreurModal(null);
-            }} style={{width:"100%",background:canConfirm?G.green:"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:canConfirm?"pointer":"not-allowed",transition:"background .2s"}}>
-              {canConfirm?`✅ Confirmer → ${assignSelLiv.nom}`:"Sélectionne un livreur pour continuer"}
-            </button>
-
-            {/* Sans livreur (secondaire) */}
-            <button onClick={()=>{
-              upSt(o.id,"confirmado");
-              addToast(`${o.client} → Cmd à traiter (sans livreur)`,"📦","#D97706");
-              setAssignLivreurModal(null);
-            }} style={{width:"100%",background:"none",color:G.gray,border:"none",padding:"12px 0",fontWeight:500,fontSize:12,cursor:"pointer",marginTop:4}}>
-              Confirmer sans livreur pour l'instant
-            </button>
+            {/* Boutons confirmer */}
+            {(()=>{
+              const doConfirm = () => {
+                upSt(o.id, assignDelStatus);
+                upLiv(o.id, assignSelLiv.id);
+                addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
+                setAssignLivreurModal(null);
+              };
+              const sendWA = () => {
+                const rawPhone = (o.phone||"").replace(/\s+/g,"").replace(/^00/,"").replace(/^\+/,"");
+                const phoneWA  = rawPhone.startsWith("221") ? rawPhone : `221${rawPhone}`;
+                const msg = waTemplate
+                  .replace(/{client}/g,  o.client||"")
+                  .replace(/{produit}/g, o.product||"")
+                  .replace(/{prix}/g,    Number(o.price).toLocaleString("fr-FR"))
+                  .replace(/{adresse}/g, o.address||"")
+                  .replace(/{boutique}/g, settings.boutique||"Teamly")
+                  .replace(/{livreur}/g,  assignSelLiv?.nom||"notre livreur");
+                window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank");
+              };
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {/* Confirmer + WhatsApp (principal) */}
+                  <button disabled={!canConfirm} onClick={()=>{ doConfirm(); sendWA(); }}
+                    style={{width:"100%",background:canConfirm?"#25D366":"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:canConfirm?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background .2s"}}>
+                    {canConfirm?<>💬 Confirmer + WhatsApp client</>:"Sélectionne un livreur pour continuer"}
+                  </button>
+                  {/* Confirmer sans WhatsApp */}
+                  {canConfirm&&(
+                    <button onClick={doConfirm}
+                      style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+                      ✅ Confirmer sans WhatsApp
+                    </button>
+                  )}
+                  {/* Sans livreur */}
+                  <button onClick={()=>{
+                    upSt(o.id,"confirmado");
+                    addToast(`${o.client} → Cmd à traiter (sans livreur)`,"📦","#D97706");
+                    setAssignLivreurModal(null);
+                  }} style={{width:"100%",background:"none",color:G.gray,border:"none",padding:"10px 0",fontWeight:500,fontSize:12,cursor:"pointer"}}>
+                    Confirmer sans livreur pour l'instant
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
         );
