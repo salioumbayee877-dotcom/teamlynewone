@@ -790,6 +790,7 @@ function AppInner() {
   const [comptaSaving,setComptaSaving]     = useState(null); // prodId en cours de sauvegarde
   const [expandedProd,setExpandedProd]     = useState(null); // produit id ouvert en détail
   const [isDesktop, setIsDesktop]          = useState(()=>window.innerWidth>=900);
+  const [screenW,   setScreenW]            = useState(()=>window.innerWidth);
 
   // ── AI Assistant ──────────────────────────────────────────────────────────
   const [aiOpen,   setAiOpen]    = useState(false);
@@ -799,7 +800,7 @@ function AppInner() {
   const aiBottomRef = useRef(null);
 
   useEffect(()=>{
-    const onResize = ()=>setIsDesktop(window.innerWidth>=900);
+    const onResize = ()=>{ setIsDesktop(window.innerWidth>=900); setScreenW(window.innerWidth); };
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
@@ -2501,12 +2502,6 @@ function AppInner() {
   });
 
   const SIDEBAR_W = 280;
-  const [screenW, setScreenW] = useState(()=>window.innerWidth);
-  useEffect(()=>{
-    const h = ()=>setScreenW(window.innerWidth);
-    window.addEventListener("resize",h);
-    return ()=>window.removeEventListener("resize",h);
-  },[]);
   const isWide = isDesktop && screenW >= 1400;
 
   return (
