@@ -363,6 +363,7 @@ function makeMarkerIcon(L, name) {
 function MapView({positions, role}) {
   const containerRef = useRef(null);
   const stateRef     = useRef({map:null, markers:{}, loaded:false});
+  const [fullscreen, setFullscreen] = React.useState(false);
 
   useEffect(()=>{
     if(!document.getElementById("leaflet-css")) {
@@ -431,10 +432,38 @@ function MapView({positions, role}) {
     }
   },[positions]);
 
+  // Invalide la taille de la carte quand on change de mode
+  React.useEffect(()=>{
+    setTimeout(()=>stateRef.current.map?.invalidateSize(),100);
+  },[fullscreen]);
+
   return (
-    <div style={{position:"relative",isolation:"isolate"}}>
+    <div style={{
+      position: fullscreen ? "fixed" : "relative",
+      inset: fullscreen ? 0 : undefined,
+      zIndex: fullscreen ? 9999 : undefined,
+      background: fullscreen ? "#000" : undefined,
+      isolation:"isolate",
+    }}>
       <style>{`.leaflet-control-zoom a{width:36px!important;height:36px!important;line-height:36px!important;font-size:20px!important;}`}</style>
-      <div ref={containerRef} style={{height:380,width:"100%",background:"#E8F4F8",borderRadius:12}}/>
+
+      {/* Bouton plein écran */}
+      <button onClick={()=>setFullscreen(f=>!f)} style={{
+        position:"absolute", top:10, right:10, zIndex:1000,
+        background:"#fff", border:"none", borderRadius:8,
+        width:36, height:36, cursor:"pointer",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        boxShadow:"0 2px 6px rgba(0,0,0,0.25)", fontSize:16,
+      }}>
+        {fullscreen ? "✕" : "⛶"}
+      </button>
+
+      <div ref={containerRef} style={{
+        height: fullscreen ? "100dvh" : 380,
+        width:"100%",
+        background:"#E8F4F8",
+        borderRadius: fullscreen ? 0 : 12,
+      }}/>
     </div>
   );
 }
