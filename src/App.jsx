@@ -2942,31 +2942,6 @@ function AppInner() {
               </div>
             )}
 
-            {/* ── BLOC TOURNÉE — colis à récupérer ── */}
-            {aRecuperer.length>0&&(
-              <TourneeBlock
-                orders={aRecuperer}
-                mode="recuperer"
-                onConfirm={(ids)=>{
-                  ids.forEach(id=>upSt(id,"livreur_en_route"));
-                  addToast(`${ids.length} colis — Je pars récupérer 🏍️`,"🏍️",G.green);
-                }}
-                G={G} fmt={fmt}
-              />
-            )}
-
-            {/* ── BLOC DÉPART CLIENTS — colis récupérés, prêt à livrer ── */}
-            {aLivrer.length>0&&(
-              <TourneeBlock
-                orders={aLivrer}
-                mode="livrer"
-                onConfirm={(ids)=>{
-                  ids.forEach(id=>upSt(id,"en_camino"));
-                  addToast(`${ids.length} colis — En route vers les clients 🚀`,"🚀","#0284C7");
-                }}
-                G={G} fmt={fmt}
-              />
-            )}
 
             {myLiv.length===0&&orders.length>0&&(
               <div style={{background:"#FFF8E7",borderRadius:12,padding:14,fontSize:12,color:"#92400E",border:"1px solid #FDE68A"}}>
