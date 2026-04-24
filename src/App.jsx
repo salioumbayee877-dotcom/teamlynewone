@@ -753,6 +753,12 @@ function AppInner() {
   const [comptaCostEdit,setComptaCostEdit] = useState({}); // {prodId:{cost,fraisLiv,stock}}
   const [comptaSaving,setComptaSaving]     = useState(null); // prodId en cours de sauvegarde
   const [expandedProd,setExpandedProd]     = useState(null); // produit id ouvert en détail
+  const [isDesktop, setIsDesktop]          = useState(()=>window.innerWidth>=900);
+  useEffect(()=>{
+    const onResize = ()=>setIsDesktop(window.innerWidth>=900);
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
   const [cashRemis,setCashRemis]       = useState("");
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
   const [dateFrom,setDateFrom]         = useState("");
@@ -2392,15 +2398,30 @@ function AppInner() {
     return matchSearch && matchStatus && matchLivreur && matchDate;
   });
 
+  const SIDEBAR_W = 240;
+
   return (
-    <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:480,margin:"0 auto"}}>
+    <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
       <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
-      {/* Sidebar overlay */}
-      {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
+      {/* Sidebar overlay — mobile uniquement */}
+      {!isDesktop&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
 
       {/* Sidebar */}
-      <div style={{position:"fixed",top:0,left:0,bottom:0,width:260,background:G.green,zIndex:201,transform:sidebarOpen?"translateX(0)":"translateX(-100%)",transition:"transform 0.28s ease",display:"flex",flexDirection:"column",boxShadow:"4px 0 20px rgba(0,0,0,0.3)"}}>
+      <div style={{
+        position:isDesktop?"sticky":"fixed",
+        top:0, left:0, bottom:isDesktop?undefined:0,
+        width:SIDEBAR_W,
+        height:isDesktop?"100vh":undefined,
+        background:G.green,
+        zIndex:201,
+        transform:isDesktop?"none":sidebarOpen?"translateX(0)":"translateX(-100%)",
+        transition:"transform 0.28s ease",
+        display:"flex", flexDirection:"column",
+        flexShrink:0,
+        boxShadow:isDesktop?"2px 0 20px rgba(0,0,0,0.15)":"4px 0 20px rgba(0,0,0,0.3)",
+        overflowY:"auto",
+      }}>
         {/* Sidebar header */}
         <div style={{padding:"20px 18px 16px",borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
           <TeamlyLogo size={1.05}/>
@@ -2444,15 +2465,21 @@ function AppInner() {
         </div>
       </div>
 
+      {/* ── Main content wrapper (flex:1 on desktop) ── */}
+      <div style={{flex:isDesktop?1:"none",minWidth:0,display:"flex",flexDirection:"column",minHeight:isDesktop?"100vh":"auto"}}>
+
       {/* Header */}
-      <div style={{background:G.green,padding:"13px 18px",paddingTop:"calc(13px + env(safe-area-inset-top, 0px))",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
+      <div style={{background:G.green,padding:"13px 18px",paddingTop:isDesktop?"13px":"calc(13px + env(safe-area-inset-top, 0px))",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.2)"}}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4}}>
+          {!isDesktop&&<button onClick={()=>setSidebarOpen(true)} style={{background:"none",border:"none",cursor:"pointer",padding:4,display:"flex",flexDirection:"column",gap:4}}>
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
             <div style={{width:20,height:2,background:G.white,borderRadius:2}}/>
             <div style={{width:14,height:2,background:G.white,borderRadius:2}}/>
-          </button>
-          <TeamlyLogo size={0.85}/>
+          </button>}
+          {!isDesktop&&<TeamlyLogo size={0.85}/>}
+          {isDesktop&&<div style={{fontWeight:700,fontSize:15,color:G.white,letterSpacing:0.3}}>{
+            tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":"Teamly"
+          }</div>}
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
@@ -2496,7 +2523,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:14,paddingBottom:(role==="admin"||(role==="closer"&&sbReady))?90:40}}>
+      <div style={{padding:isDesktop?24:14,paddingBottom:isDesktop?24:(role==="admin"||(role==="closer"&&sbReady))?90:40,maxWidth:isDesktop?1200:"none"}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
@@ -2697,7 +2724,7 @@ function AppInner() {
             </div>
 
             {/* KPIs */}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:8}}>
               <SC icon="📦" label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
               <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
               <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
@@ -2972,7 +2999,9 @@ function AppInner() {
                       <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
                       <div style={{flex:1,height:1,background:`${st.color}33`}}/>
                     </div>
-                    {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                    <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                      {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                    </div>
                   </div>
                 );
               });
@@ -4097,8 +4126,8 @@ function AppInner() {
 
           const hasBottomBar = role === "admin" || role === "closer";
           // Header ~54px, tab bar ~54px; margin cancels parent padding (14px top, 90/40px bottom)
-          const chatH = hasBottomBar ? "calc(100vh - 54px - 54px)" : "calc(100vh - 54px)";
-          const chatMargin = hasBottomBar ? "-14px -14px -90px" : "-14px -14px -40px";
+          const chatH = isDesktop ? "calc(100vh - 54px)" : hasBottomBar ? "calc(100vh - 54px - 54px)" : "calc(100vh - 54px)";
+          const chatMargin = isDesktop ? "-24px -24px -24px" : hasBottomBar ? "-14px -14px -90px" : "-14px -14px -40px";
 
           return (
           <div style={{display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"}}>
@@ -5355,8 +5384,11 @@ function AppInner() {
         </div>
         );
       })()}
-      {/* ── BOTTOM TAB BAR (admin / closer) ── */}
-      {(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
+      {/* Close main content wrapper */}
+      </div>
+
+      {/* ── BOTTOM TAB BAR (admin / closer) — mobile uniquement ── */}
+      {!isDesktop&&(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
         const boutiqueCnt = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
         const canCompta = role==="admin"||(role==="closer"&&(pC.closerCompta||pC.closerFullControl));
