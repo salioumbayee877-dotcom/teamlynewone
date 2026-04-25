@@ -892,6 +892,10 @@ function AppInner() {
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
   const [payLoading,    setPayLoading]    = useState(false);
+  const [saClients,     setSaClients]     = useState([]);
+  const [saLoading,     setSaLoading]     = useState(false);
+  const [saPlanEdit,    setSaPlanEdit]    = useState({});
+  const OWNER_EMAIL = "salioumbayee877@gmail.com";
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} CFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
@@ -2709,6 +2713,15 @@ function AppInner() {
 
         {/* Nav links */}
         <div style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
+          {/* Super-admin link — visible uniquement pour le propriétaire */}
+          {currentUser.email===OWNER_EMAIL&&(
+            <button onClick={()=>{setTab("superadmin");setSidebarOpen(false);}}
+              style={{width:"100%",background:tab==="superadmin"?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${tab==="superadmin"?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:18,transition:"background 0.15s"}}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={tab==="superadmin"?G.gold:"rgba(255,255,255,0.7)"} strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span style={{fontSize:13,fontWeight:tab==="superadmin"?700:400,color:tab==="superadmin"?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.3}}>Mes Clients</span>
+              <span style={{background:"#F0A500",color:"#000",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:800}}>OWNER</span>
+            </button>
+          )}
           {tabDef[role].map(t=>{
             const isActive = tab===t.k;
             return (
@@ -2960,6 +2973,128 @@ function AppInner() {
         )}
 
         {/* ── ADMIN DASHBOARD ── */}
+        {/* ── SUPER ADMIN PANEL ── */}
+        {tab==="superadmin"&&currentUser.email===OWNER_EMAIL&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{background:"linear-gradient(135deg,#0D1F14,#1A3828)",borderRadius:16,padding:"18px 20px"}}>
+              <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.4)",fontWeight:600,marginBottom:6}}>PROPRIÉTAIRE</div>
+              <div style={{fontWeight:800,fontSize:18,color:"#FFF",marginBottom:4}}>Gestion des clients</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Modifie les plans de tes clients directement ici</div>
+            </div>
+
+            <button onClick={async()=>{
+              setSaLoading(true);
+              try {
+                const res = await fetch("/.netlify/functions/super-admin",{
+                  headers:{"Authorization":`Bearer ${_authToken}`}
+                });
+                const data = await res.json();
+                if(Array.isArray(data)) setSaClients(data);
+                else addToast("Erreur chargement clients","❌",G.red);
+              } catch(e){ addToast("Erreur connexion","❌",G.red); }
+              setSaLoading(false);
+            }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+              {saLoading?"Chargement...":"Charger tous les clients"}
+            </button>
+
+            {saClients.map(client=>{
+              const planColors={gratuit:G.gray,basic:G.green,pro:G.blue,scale:"#7C3AED"};
+              const planColor = planColors[client.plan||"gratuit"]||G.gray;
+              const edit = saPlanEdit[client.id] || {};
+              return (
+                <div key={client.id} style={{background:"#FFF",borderRadius:14,padding:"16px 18px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+                  {/* Header client */}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                    <div>
+                      <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{client.name}</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>
+                        {client.memberCount} membre{client.memberCount>1?"s":""} · {client.ordersThisMonth} cmd ce mois
+                      </div>
+                    </div>
+                    <span style={{background:planColor+"20",color:planColor,borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>
+                      {client.plan||"gratuit"}
+                    </span>
+                  </div>
+
+                  {/* Modifier plan */}
+                  <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                    <select
+                      value={edit.plan||client.plan||"gratuit"}
+                      onChange={e=>setSaPlanEdit(p=>({...p,[client.id]:{...edit,plan:e.target.value}}))}
+                      style={{flex:1,border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:13,outline:"none",minWidth:120}}>
+                      <option value="gratuit">Gratuit</option>
+                      <option value="basic">Basic — 8 000 CFA</option>
+                      <option value="pro">Pro — 14 000 CFA</option>
+                      <option value="scale">Scale — 25 000 CFA</option>
+                    </select>
+
+                    <select
+                      value={edit.expiry||"never"}
+                      onChange={e=>setSaPlanEdit(p=>({...p,[client.id]:{...edit,expiry:e.target.value}}))}
+                      style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none"}}>
+                      <option value="never">Sans expiration</option>
+                      <option value="7d">7 jours</option>
+                      <option value="30d">30 jours</option>
+                      <option value="90d">90 jours</option>
+                      <option value="1y">1 an</option>
+                    </select>
+
+                    <button onClick={async()=>{
+                      const newPlan = edit.plan||client.plan||"gratuit";
+                      const expiry  = edit.expiry||"never";
+                      let plan_expires_at = null;
+                      if(expiry!=="never"){
+                        const days = expiry==="7d"?7:expiry==="30d"?30:expiry==="90d"?90:365;
+                        plan_expires_at = new Date(Date.now()+days*86400000).toISOString();
+                      }
+                      try {
+                        const res = await fetch("/.netlify/functions/super-admin",{
+                          method:"PATCH",
+                          headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken}`},
+                          body:JSON.stringify({orgId:client.id, plan:newPlan, plan_expires_at}),
+                        });
+                        const data = await res.json();
+                        if(data.success){
+                          setSaClients(p=>p.map(c=>c.id===client.id?{...c,plan:newPlan}:c));
+                          setSaPlanEdit(p=>({...p,[client.id]:{}}));
+                          addToast(`${client.name} → ${newPlan} ✅`,"✅",G.green);
+                        } else addToast("Erreur mise à jour","❌",G.red);
+                      } catch(e){ addToast("Erreur connexion","❌",G.red); }
+                    }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"8px 16px",fontSize:12,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                      Sauvegarder
+                    </button>
+                  </div>
+
+                  {/* Raccourcis */}
+                  <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}}>
+                    {["basic","pro","scale"].map(p=>(
+                      <button key={p} onClick={async()=>{
+                        try {
+                          const res = await fetch("/.netlify/functions/super-admin",{
+                            method:"PATCH",
+                            headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken}`},
+                            body:JSON.stringify({orgId:client.id, plan:p, plan_expires_at:null}),
+                          });
+                          const data = await res.json();
+                          if(data.success){ setSaClients(prev=>prev.map(c=>c.id===client.id?{...c,plan:p}:c)); addToast(`${client.name} → ${p} gratuit ✅`,"✅",G.green); }
+                        } catch(e){}
+                      }} style={{background:"#F3F4F6",color:G.dark,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer",textTransform:"capitalize"}}>
+                        {p} gratuit
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+
+            {saClients.length===0&&!saLoading&&(
+              <div style={{textAlign:"center",padding:32,color:G.gray,fontSize:13}}>
+                Clique sur "Charger tous les clients" pour voir la liste
+              </div>
+            )}
+          </div>
+        )}
+
         {dataReady&&tab==="dashboard"&&role==="admin"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
