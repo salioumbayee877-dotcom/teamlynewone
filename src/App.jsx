@@ -1090,7 +1090,7 @@ function AppInner() {
 
   // hCaptcha desactivado
 
-  // ── Vérification du plan toutes les 5 minutes ────────────────────────────
+  // ── Vérification du plan toutes les 2 minutes ────────────────────────────
   useEffect(()=>{
     if(!orgId || !sbReady) return;
     const checkPlan = async () => {
@@ -1098,12 +1098,17 @@ function AppInner() {
         const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at`,"GET");
         const org  = orgs?.[0];
         if(!org) return;
-        if(currentUserRef.current?.email === "salioumbayee877@gmail.com") { setIsPro(true); return; }
+        // Owner: always full access, just sync the plan label
+        if(currentUserRef.current?.email === "salioumbayee877@gmail.com") {
+          setIsPro(true);
+          if(org.plan) setSettings(s=>({...s, plan: org.plan}));
+          return;
+        }
         const paidPlans = ["basic","pro","scale"];
         const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at) > new Date();
         const pro = paidPlans.includes(org.plan) && notExpired;
         setIsPro(pro);
-        setSettings(s => org.plan && s.plan !== org.plan ? {...s, plan: org.plan} : s);
+        if(org.plan) setSettings(s=>({...s, plan: org.plan}));
         if(!pro) {
           const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
           setTrialDaysLeft(days);
@@ -1111,7 +1116,7 @@ function AppInner() {
       } catch(e) {}
     };
     checkPlan();
-    const interval = setInterval(checkPlan, 5 * 60 * 1000); // toutes les 5 min
+    const interval = setInterval(checkPlan, 2 * 60 * 1000); // toutes les 2 min
     return () => clearInterval(interval);
   }, [orgId, sbReady]);
 
@@ -2597,23 +2602,24 @@ function AppInner() {
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
-  const trialExpired = !isPro && trialDaysLeft === 0;
+  const isOwner       = currentUser.email === OWNER_EMAIL;
+  const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
   const PLAN_ORDER_LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:2000, scale:Infinity};
-  const currentPlanKey    = isPro ? (settings.plan || "basic") : (trialDaysLeft > 0 ? "gratuit" : "gratuit");
-  const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 50;
+  const currentPlanKey    = settings.plan || "gratuit";
+  const orderLimit        = isOwner ? Infinity : (PLAN_ORDER_LIMITS[currentPlanKey] ?? 30);
   const THIS_MONTH        = new Date().toISOString().slice(0,7);
   const ordersThisMonth   = orders.filter(o=>o.created_at?.slice(0,7)===THIS_MONTH).length;
-  const orderLimitReached = isFinite(orderLimit) && ordersThisMonth >= orderLimit;
-  const orderLimitWarning = isFinite(orderLimit) && ordersThisMonth >= Math.floor(orderLimit * 0.8);
+  const orderLimitReached = !isOwner && isFinite(orderLimit) && ordersThisMonth >= orderLimit;
+  const orderLimitWarning = !isOwner && isFinite(orderLimit) && ordersThisMonth >= Math.floor(orderLimit * 0.8);
 
-  // Fonctions bloquées sur plan gratuit
-  const isGratuit     = !isPro;
-  const canUseGPS     = !isGratuit;
-  const canUseShopify = !isGratuit;
-  const canUseCompta  = !isGratuit;
-  const canUseAI      = !isGratuit;
+  // Fonctions bloquées selon le plan (owner = accès complet toujours)
+  const isGratuit     = !isOwner && !isPro;
+  const canUseGPS     = isOwner || isPro;
+  const canUseShopify = isOwner || isPro;
+  const canUseCompta  = isOwner || isPro;
+  const canUseAI      = isOwner || isPro;
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((canUseCompta&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
@@ -5395,18 +5401,26 @@ function AppInner() {
                       )}
                       {/* Bouton */}
                       {!isCurrent&&(
-                        <button onClick={()=>{
-                          const isOwner = currentUser.email==="salioumbayee877@gmail.com";
-                          if(isPaidPlan && !isOwner){ startWavePayment(p.priceNum, p.key); setShowPlanModal(false); }
-                          else {
-                            setSettings(s=>({...s,plan:p.key}));
-                            if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{});
-                            if(isPaidPlan) setIsPro(true);
+                        <button onClick={async()=>{
+                          if(isPaidPlan && !isOwner){
+                            startWavePayment(p.priceNum, p.key);
                             setShowPlanModal(false);
-                            addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
+                          } else {
+                            // Mise à jour immédiate locale
+                            setSettings(s=>({...s, plan:p.key}));
+                            const paidPlans = ["basic","pro","scale"];
+                            if(paidPlans.includes(p.key)) setIsPro(true);
+                            setShowPlanModal(false);
+                            // Sauvegarde en base
+                            try {
+                              await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key},_authToken);
+                              addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
+                            } catch(e) {
+                              addToast("Erreur sauvegarde — réessaie","❌","#DC2626");
+                            }
                           }
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
-                          {isPaidPlan && currentUser.email!=="salioumbayee877@gmail.com" ? `Passer au ${p.name} — ${p.price}` : `Activer le plan ${p.name}`}
+                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${p.price}` : `Activer le plan ${p.name}`}
                         </button>
                       )}
                     </div>
