@@ -4907,27 +4907,56 @@ function AppInner() {
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{marginBottom:18}}>
-                  <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PLAN</div>
-                  <div style={{background:curPlan.bg,borderRadius:12,padding:"14px"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                  <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:1.5}}>ABONNEMENT ACTUEL</div>
+
+                  {/* Card plan élégante */}
+                  <div style={{background:"linear-gradient(135deg,#0D3D25,#1A5C38)",borderRadius:16,padding:"20px",marginBottom:10}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
                       <div>
-                        <div style={{fontWeight:800,fontSize:15,color:curPlan.color}}>{curPlan.name}</div>
-                        <div style={{fontSize:12,color:G.gray,marginTop:2}}>{curPlan.price} CFA / mois</div>
+                        <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.45)",fontWeight:600,marginBottom:4}}>{curPlan.key==="starter"?"ESSAI GRATUIT":"PLAN ACTIF"}</div>
+                        <div style={{fontWeight:800,fontSize:22,color:"#FFF",letterSpacing:0.3}}>{curPlan.name}</div>
+                        <div style={{fontSize:12,color:"rgba(255,255,255,0.55)",marginTop:3}}>
+                          {curPlan.key==="starter"?"14 jours gratuits":`${curPlan.price} CFA / mois`}
+                        </div>
                       </div>
-                      <button onClick={()=>setShowPlanModal(true)} style={{background:curPlan.color,color:G.white,border:"none",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Changer →</button>
+                      <button onClick={()=>setShowPlanModal(true)}
+                        style={{background:"rgba(255,255,255,0.12)",color:"#FFF",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"8px 14px",fontSize:11,fontWeight:600,cursor:"pointer",letterSpacing:0.3}}>
+                        Changer
+                      </button>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                      {curPlan.features.map((f,i)=><div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>)}
+
+                    {/* Features */}
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+                      {curPlan.features.map((f,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:"rgba(255,255,255,0.75)"}}>
+                          <div style={{width:4,height:4,borderRadius:"50%",background:"#F0A500",flexShrink:0}}/>
+                          {f}
+                        </div>
+                      ))}
                     </div>
-                    <div style={{marginTop:10,background:"rgba(0,0,0,0.05)",borderRadius:8,padding:"8px 10px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                        <span style={{fontSize:11,color:G.gray,fontWeight:600}}>Membres</span>
-                        <span style={{fontSize:11,fontWeight:700,color:atLimit?G.red:curPlan.color}}>{membersUsed} / {curPlan.maxMembers||"∞"}</span>
+
+                    {/* Barre membres */}
+                    {curPlan.maxMembers&&(
+                      <div style={{background:"rgba(0,0,0,0.2)",borderRadius:10,padding:"10px 12px"}}>
+                        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                          <span style={{fontSize:11,color:"rgba(255,255,255,0.55)",fontWeight:500}}>Membres utilisés</span>
+                          <span style={{fontSize:11,fontWeight:700,color:atLimit?"#FCA5A5":"#FFF"}}>{membersUsed} / {curPlan.maxMembers}</span>
+                        </div>
+                        <div style={{background:"rgba(255,255,255,0.1)",borderRadius:4,height:4}}>
+                          <div style={{background:atLimit?"#EF4444":G.gold,borderRadius:4,height:4,width:`${Math.min(100,membersUsed/curPlan.maxMembers*100)}%`,transition:"width 0.4s"}}/>
+                        </div>
+                        {atLimit&&<div style={{fontSize:10,color:"#FCA5A5",marginTop:6,fontWeight:600}}>Limite atteinte — passez au plan supérieur</div>}
                       </div>
-                      {curPlan.maxMembers&&<div style={{background:"rgba(0,0,0,0.08)",borderRadius:4,height:5}}><div style={{background:atLimit?G.red:curPlan.color,borderRadius:4,height:5,width:`${Math.min(100,membersUsed/curPlan.maxMembers*100)}%`,transition:"width 0.4s"}}/></div>}
-                      {atLimit&&<div style={{fontSize:10,color:G.red,marginTop:4,fontWeight:600}}>⚠️ Limite atteinte — passe au plan supérieur</div>}
-                    </div>
+                    )}
                   </div>
+
+                  {/* Jours restants si trial */}
+                  {curPlan.key==="starter"&&!isPro&&(
+                    <div style={{background:"#FEF3C7",borderRadius:10,padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:12,color:"#92400E",fontWeight:600}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""} restants</span>
+                      <button onClick={()=>setShowPlanModal(true)} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:7,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Passer Pro</button>
+                    </div>
+                  )}
                 </div>
               );
             })()}
