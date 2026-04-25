@@ -2510,11 +2510,14 @@ function AppInner() {
 
   const trialExpired = !isPro && trialDaysLeft === 0;
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(!trialExpired?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(!trialExpired?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(!trialExpired?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((!trialExpired&&(pC.closerFullControl||pC.closerManageProducts))?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((!trialExpired&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
-    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(!trialExpired?[{k:"position",icon:"position",l:"Localisation"}]:[])],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((pC.closerFullControl||pC.closerCompta)?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"position",icon:"position",l:"Localisation"}],
   };
-  const tabDef = tabDefBase;
+  // Quand le trial expire → bloquer tout pour tous les rôles
+  const tabDef = trialExpired
+    ? {admin:[], closer:[], livreur:[]}
+    : tabDefBase;
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"} · ${settings.boutique||""}`,livreur:`🏍️ ${currentUser.nom||"Livreur"} · ${settings.boutique||""}`};
 
 
@@ -2571,7 +2574,8 @@ function AppInner() {
             <div style={{fontWeight:800,fontSize:22,color:G.dark,marginBottom:8}}>Essai terminé</div>
             <div style={{fontSize:14,color:G.gray,lineHeight:1.6,marginBottom:24}}>
               Tes 14 jours d'essai gratuit sont terminés.<br/>
-              Abonne-toi pour continuer à utiliser Teamly.
+              L'accès est bloqué pour toute l'équipe.<br/>
+              Abonne-toi pour débloquer immédiatement.
             </div>
             <div style={{background:G.greenLight,borderRadius:16,padding:20,marginBottom:24}}>
               <div style={{fontSize:11,color:G.green,fontWeight:700,letterSpacing:1,marginBottom:4}}>PLAN PRO</div>
@@ -2601,7 +2605,7 @@ function AppInner() {
           </div>
           <button onClick={startWavePayment} disabled={payLoading}
             style={{background:"#FFF",color:"#D97706",border:"none",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0}}>
-            {payLoading?"...":"S'abonner — 7 500 CFA/mois"}
+            {payLoading?"...":"S'abonner — 8 000 CFA/mois"}
           </button>
         </div>
       )}
@@ -5559,7 +5563,7 @@ function AppInner() {
       </div>
 
       {/* ── BOTTOM TAB BAR — mobile uniquement ── */}
-      {!isDesktop&&role&&sbReady&&(()=>{
+      {!isDesktop&&role&&sbReady&&!trialExpired&&(()=>{
         const boutiqueCnt  = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
         const livraisonsCnt= myLiv.filter(o=>!["entregado","rechazado"].includes(o.status)).length;

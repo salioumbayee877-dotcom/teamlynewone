@@ -39,7 +39,7 @@ exports.handler = async (event) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        amount: "7500",
+        amount: "8000",
         currency: "XOF",
         error_url:   `${APP_URL}/?payment=error&org=${orgId}`,
         success_url: `${APP_URL}/?payment=success&org=${orgId}`,
