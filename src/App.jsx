@@ -1929,41 +1929,85 @@ function AppInner() {
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
   const PLANS = [
-    {key:"gratuit", name:"Gratuit", price:"0", maxMembers:2, maxOrders:50, color:G.gray, bg:G.grayLight,
-     features:[
-       "2 membres — Admin + 1 membre",
-       "50 commandes / mois",
-       "Création manuelle de commandes",
-       "Suivi livraisons",
-       "Chat équipe interne",
-       "Dashboard basique",
-     ]},
-    {key:"basic", name:"Basic", price:"8.000", maxMembers:3, maxOrders:100, color:G.green, bg:G.greenLight,
-     features:[
-       "3 membres — Admin + 1 Closer + 1 Livreur",
-       "100 commandes / mois",
-       "Shopify · WooCommerce · YouCan Shop",
-       "Confirmation WhatsApp automatique",
-       "Gestion produits & stock",
-       "GPS livreur temps réel",
-       "Comptabilité & marges",
-       "Assistant IA",
-     ]},
-    {key:"pro", name:"Pro", price:"14.000", maxMembers:5, maxOrders:200, color:G.blue, bg:"#EFF6FF",
-     features:[
-       "5 membres — 3 rôles inclus",
-       "200 commandes / mois",
-       "Toutes les fonctions Basic",
-       "Export Excel clients",
-       "Rapports avancés",
-     ]},
-    {key:"scale", name:"Scale", price:"25.000", maxMembers:null, maxOrders:null, color:"#7C3AED", bg:"#EDE9FE",
-     features:[
-       "Membres illimités",
-       "Commandes illimitées",
-       "Toutes les fonctions Pro",
-       "Support prioritaire",
-     ]},
+    {
+      key:"gratuit", name:"Gratuit", price:"0 CFA", priceNum:0, maxMembers:2, maxOrders:30, maxStores:0, color:G.gray, bg:"#F9FAFB",
+      tag:"14 jours d'essai",
+      description:"Pour découvrir Teamly sans engagement",
+      features:[
+        "2 membres — Admin + 1 membre",
+        "30 commandes / mois",
+        "Création manuelle de commandes",
+        "Suivi des livraisons",
+        "Chat équipe interne",
+        "Dashboard & statistiques basiques",
+      ],
+      locked:[
+        "GPS livreur temps réel",
+        "Intégration boutique (Shopify, WooCommerce, YouCan)",
+        "Comptabilité & marges",
+        "Assistant IA",
+        "Confirmation WhatsApp automatique",
+      ],
+    },
+    {
+      key:"basic", name:"Basic", price:"8 000 CFA", priceNum:8000, maxMembers:3, maxOrders:100, maxStores:1, color:G.green, bg:G.greenLight,
+      tag:"Le plus populaire",
+      description:"Pour les boutiques qui démarrent",
+      features:[
+        "3 membres — Admin + 1 Closer + 1 Livreur",
+        "100 commandes / mois",
+        "1 boutique connectée (Shopify, WooCommerce ou YouCan)",
+        "Confirmation WhatsApp automatique",
+        "Gestion produits & stock",
+        "GPS livreur temps réel",
+        "Comptabilité & marges",
+        "Assistant IA",
+        "Chat équipe interne",
+        "Dashboard complet",
+      ],
+      locked:[],
+    },
+    {
+      key:"pro", name:"Pro", price:"14 000 CFA", priceNum:14000, maxMembers:5, maxOrders:2000, maxStores:2, color:G.blue, bg:"#EFF6FF",
+      tag:"Pour les équipes",
+      description:"Pour les boutiques en croissance",
+      features:[
+        "5 membres — 3 rôles (Admin, Closer, Livreur)",
+        "2 000 commandes / mois",
+        "2 boutiques connectées (Shopify, WooCommerce, YouCan)",
+        "Toutes les fonctions Basic",
+        "Confirmation WhatsApp automatique",
+        "Gestion produits & stock avancée",
+        "GPS livreur temps réel",
+        "Comptabilité & marges",
+        "Assistant IA",
+        "Rapports & statistiques avancés",
+        "Export Excel clients",
+        "Chat équipe interne",
+      ],
+      locked:[],
+    },
+    {
+      key:"scale", name:"Scale", price:"25 000 CFA", priceNum:25000, maxMembers:null, maxOrders:null, maxStores:4, color:"#7C3AED", bg:"#EDE9FE",
+      tag:"Pour les grandes équipes",
+      description:"Croissance sans limites",
+      features:[
+        "Membres illimités — 3 rôles inclus",
+        "Commandes illimitées",
+        "4 boutiques connectées (Shopify, WooCommerce, YouCan)",
+        "Toutes les fonctions Pro",
+        "Confirmation WhatsApp automatique",
+        "Gestion produits & stock",
+        "GPS livreur temps réel",
+        "Comptabilité & marges",
+        "Assistant IA",
+        "Rapports & statistiques avancés",
+        "Export Excel clients",
+        "Support prioritaire 24/7",
+        "Chat équipe interne",
+      ],
+      locked:[],
+    },
   ];
 
   const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
@@ -2517,7 +2561,7 @@ function AppInner() {
   const trialExpired = !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
-  const PLAN_ORDER_LIMITS = {gratuit:50, starter:50, trial:50, basic:100, pro:200, scale:Infinity, pro:200};
+  const PLAN_ORDER_LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:2000, scale:Infinity};
   const currentPlanKey    = isPro ? (settings.plan || "basic") : (trialDaysLeft > 0 ? "gratuit" : "gratuit");
   const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 50;
   const THIS_MONTH        = new Date().toISOString().slice(0,7);
@@ -2590,14 +2634,11 @@ function AppInner() {
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
-        const PLANS_PAY = [
-          {
-            key:"basic", name:"Basic", price:8000, priceLabel:"8 000",
-            members:"3 membres", orders:"100 commandes/mois",
-            features:["Admin + 1 Closer + 1 Livreur","100 commandes / mois","Shopify · WooCommerce · YouCan","Confirmation WhatsApp automatique","GPS livreur temps réel","Gestion produits & stock","Comptabilité & marges","Assistant IA"],
-            highlight:true,
-          },
-        ];
+        const PLANS_PAY = PLANS.filter(p=>p.key!=="gratuit").map(p=>({
+          key:p.key, name:p.name, price:p.priceNum, priceLabel:p.price.replace(" CFA",""),
+          tag:p.tag, features:p.features,
+          highlight:p.key==="basic",
+        }));
         return (
           <div style={{position:"fixed",inset:0,background:"linear-gradient(160deg,#0D1F14 0%,#1A3828 100%)",zIndex:9000,overflowY:"auto",padding:"24px 16px"}}>
             <div style={{maxWidth:480,margin:"0 auto"}}>
@@ -5221,47 +5262,86 @@ function AppInner() {
 
       {/* ── MODAL: Changer de plan ── */}
       {showPlanModal&&(
-        <div onClick={()=>setShowPlanModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
-              <div style={{width:40,height:4,borderRadius:2,background:G.grayLight}}/>
+        <div onClick={()=>setShowPlanModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:600,overflowY:"auto",padding:"20px 0"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:20,margin:"0 auto",width:"100%",maxWidth:480,overflow:"hidden"}}>
+            {/* Header */}
+            <div style={{background:"linear-gradient(135deg,#0D1F14,#1A3828)",padding:"20px 22px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:18,color:"#FFF"}}>Nos plans</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:2}}>Choisissez le plan adapté à votre équipe</div>
+              </div>
+              <button onClick={()=>setShowPlanModal(false)} style={{background:"rgba(255,255,255,0.1)",border:"none",borderRadius:"50%",width:32,height:32,color:"#FFF",cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center"}}>×</button>
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-              <div style={{fontWeight:800,fontSize:16,color:G.dark}}>Changer de plan</div>
-              <button onClick={()=>setShowPlanModal(false)} style={{background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
-            </div>
-            <div style={{fontSize:12,color:G.gray,marginBottom:18}}>Choisis le plan adapté à ton équipe</div>
-            <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+
+            <div style={{padding:"16px 18px",display:"flex",flexDirection:"column",gap:12}}>
               {PLANS.map(p=>{
-                const isCurrent = settings.plan===p.key;
+                const isCurrent = (settings.plan||"gratuit")===p.key;
+                const isPaidPlan = p.key!=="gratuit";
                 return (
-                  <button key={p.key} onClick={()=>{
-                    setSettings(s=>({...s,plan:p.key}));
-                    if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{});
-                    setShowPlanModal(false);
-                    addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
-                  }} style={{background:isCurrent?p.bg:G.white,border:`2px solid ${isCurrent?p.color:G.grayLight}`,borderRadius:14,padding:"14px 16px",cursor:"pointer",textAlign:"left",position:"relative"}}>
-                    {isCurrent&&<div style={{position:"absolute",top:12,right:12,background:p.color,color:"#FFF",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>ACTUEL</div>}
-                    <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                      <div>
-                        <div style={{fontWeight:800,fontSize:15,color:p.color}}>{p.name}</div>
-                        <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{p.price} CFA <span style={{fontSize:11,color:G.gray,fontWeight:400}}>/ mois</span></div>
+                  <div key={p.key} style={{border:`2px solid ${isCurrent?p.color:"#F3F4F6"}`,borderRadius:16,overflow:"hidden",background:isCurrent?p.bg:"#FFF"}}>
+                    {/* Plan header */}
+                    <div style={{padding:"14px 16px",borderBottom:`1px solid ${isCurrent?p.color+"30":"#F3F4F6"}`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                        <div>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <span style={{fontWeight:800,fontSize:16,color:p.color}}>{p.name}</span>
+                            {p.tag&&<span style={{background:p.color,color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5}}>{p.tag.toUpperCase()}</span>}
+                            {isCurrent&&<span style={{background:"#10B981",color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700}}>ACTUEL</span>}
+                          </div>
+                          <div style={{fontSize:11,color:G.gray,marginTop:2}}>{p.description}</div>
+                        </div>
+                        <div style={{textAlign:"right",flexShrink:0}}>
+                          <div style={{fontWeight:800,fontSize:18,color:G.dark,lineHeight:1}}>{p.key==="gratuit"?"Gratuit":p.price.split(" CFA")[0]}</div>
+                          {p.key!=="gratuit"&&<div style={{fontSize:10,color:G.gray}}>CFA / mois</div>}
+                          {p.key==="gratuit"&&<div style={{fontSize:10,color:G.gray}}>14 jours</div>}
+                        </div>
+                      </div>
+                      {/* Stats rapides */}
+                      <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+                        {[
+                          p.maxOrders?`${p.maxOrders.toLocaleString()} cmd/mois`:"Commandes illim.",
+                          p.maxMembers?`${p.maxMembers} membres`:"Membres illim.",
+                          p.maxStores===0?"Boutique non connectée":p.maxStores===1?"1 boutique":p.maxStores===null?"Boutiques illim.":`${p.maxStores} boutiques`,
+                        ].map((s,i)=>(
+                          <span key={i} style={{background:isCurrent?p.color+"15":"#F3F4F6",color:isCurrent?p.color:G.gray,borderRadius:6,padding:"3px 8px",fontSize:10,fontWeight:600}}>{s}</span>
+                        ))}
                       </div>
                     </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                      {p.features.map((f,i)=><div key={i} style={{fontSize:11,color:G.gray}}>✓ {f}</div>)}
-                      <div style={{fontSize:11,color:p.color,fontWeight:700,marginTop:4}}>
-                        👥 {p.maxMembers?`${p.maxMembers} membres max`:"Membres illimités"} · 📦 {p.maxOrders?`${p.maxOrders} commandes/mois`:"Commandes illimitées"}
+
+                    {/* Features */}
+                    <div style={{padding:"12px 16px"}}>
+                      <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:p.locked?.length?10:0}}>
+                        {p.features.map((f,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:G.dark}}>
+                            <div style={{width:5,height:5,borderRadius:"50%",background:p.color,flexShrink:0}}/>
+                            {f}
+                          </div>
+                        ))}
                       </div>
+                      {p.locked?.length>0&&(
+                        <div style={{marginTop:6,paddingTop:8,borderTop:"1px solid #F3F4F6"}}>
+                          {p.locked.map((f,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:7,fontSize:11,color:"#D1D5DB",marginBottom:4}}>
+                              <div style={{width:5,height:5,borderRadius:"50%",background:"#E5E7EB",flexShrink:0}}/>
+                              {f}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {/* Bouton */}
+                      {!isCurrent&&(
+                        <button onClick={()=>{
+                          if(isPaidPlan){ startWavePayment(p.priceNum, p.key); setShowPlanModal(false); }
+                          else { setSettings(s=>({...s,plan:p.key})); if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{}); setShowPlanModal(false); addToast(`Plan ${p.name} activé`,"✅",p.color); }
+                        }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
+                          {isPaidPlan?`Passer au ${p.name} — ${p.price}`:`Activer le plan ${p.name}`}
+                        </button>
+                      )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
-            <button onClick={()=>setShowPlanModal(false)}
-              style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              Annuler
-            </button>
           </div>
         </div>
       )}
