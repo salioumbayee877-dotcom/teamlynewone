@@ -1146,13 +1146,19 @@ function AppInner() {
               if(orgs&&orgs[0]) {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
-                const paidPlans = ["basic","pro","scale"];
-                const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at)>new Date();
-                const pro = paidPlans.includes(org.plan) && notExpired;
-                setIsPro(pro);
-                if(!pro) {
-                  const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
-                  setTrialDaysLeft(days);
+                // Propriétaire → accès complet gratuit toujours
+                if(p.email === "salioumbayee877@gmail.com") {
+                  setIsPro(true);
+                  setTrialDaysLeft(999);
+                } else {
+                  const paidPlans = ["basic","pro","scale"];
+                  const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at)>new Date();
+                  const pro = paidPlans.includes(org.plan) && notExpired;
+                  setIsPro(pro);
+                  if(!pro) {
+                    const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
+                    setTrialDaysLeft(days);
+                  }
                 }
               }
             } catch(e){}
@@ -2116,11 +2122,15 @@ function AppInner() {
                     setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
                     if(orgs?.[0]) {
                       const org=orgs[0];
-                      const paidPlans=["basic","pro","scale"];
-                      const notExpired=!org.plan_expires_at||new Date(org.plan_expires_at)>new Date();
-                      const pro=paidPlans.includes(org.plan)&&notExpired;
-                      setIsPro(pro);
-                      if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
+                      if(authForm.email==="salioumbayee877@gmail.com"){
+                        setIsPro(true); setTrialDaysLeft(999);
+                      } else {
+                        const paidPlans=["basic","pro","scale"];
+                        const notExpired=!org.plan_expires_at||new Date(org.plan_expires_at)>new Date();
+                        const pro=paidPlans.includes(org.plan)&&notExpired;
+                        setIsPro(pro);
+                        if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
+                      }
                     }
                     setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
                     setRole(p.role||"admin"); setTab("dashboard");
@@ -5335,10 +5345,17 @@ function AppInner() {
                       {/* Bouton */}
                       {!isCurrent&&(
                         <button onClick={()=>{
-                          if(isPaidPlan){ startWavePayment(p.priceNum, p.key); setShowPlanModal(false); }
-                          else { setSettings(s=>({...s,plan:p.key})); if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{}); setShowPlanModal(false); addToast(`Plan ${p.name} activé`,"✅",p.color); }
+                          const isOwner = currentUser.email==="salioumbayee877@gmail.com";
+                          if(isPaidPlan && !isOwner){ startWavePayment(p.priceNum, p.key); setShowPlanModal(false); }
+                          else {
+                            setSettings(s=>({...s,plan:p.key}));
+                            if(orgId) sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key}).catch(()=>{});
+                            if(isPaidPlan) setIsPro(true);
+                            setShowPlanModal(false);
+                            addToast(`Plan ${p.name} activé ✅`,"✅",p.color);
+                          }
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
-                          {isPaidPlan?`Passer au ${p.name} — ${p.price}`:`Activer le plan ${p.name}`}
+                          {isPaidPlan && currentUser.email!=="salioumbayee877@gmail.com" ? `Passer au ${p.name} — ${p.price}` : `Activer le plan ${p.name}`}
                         </button>
                       )}
                     </div>
