@@ -41,7 +41,9 @@ exports.handler = async (event) => {
       }
     }
 
-    // Update org plan to 'pro' for 31 days
+    // Update org plan (pro or scale) for 31 days
+    const { plan = "pro" } = JSON.parse(event.body || "{}");
+    const validPlan = ["pro","scale"].includes(plan) ? plan : "pro";
     const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
     const res = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}`, {
       method: "PATCH",

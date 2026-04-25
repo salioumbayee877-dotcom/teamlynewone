@@ -1142,7 +1142,7 @@ function AppInner() {
               if(orgs&&orgs[0]) {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
-                const pro = org.plan==="pro" && org.plan_expires_at && new Date(org.plan_expires_at)>new Date();
+                const pro = ["pro","scale"].includes(org.plan) && org.plan_expires_at && new Date(org.plan_expires_at)>new Date();
                 setIsPro(pro);
                 if(!pro) {
                   const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
@@ -1923,40 +1923,37 @@ function AppInner() {
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
   const PLANS = [
-    {key:"starter", name:"Starter", price:"7.500",  maxMembers:3, maxOrders:100,  color:G.green, bg:G.greenLight, icon:"🟢",
+    {key:"starter", name:"Starter", price:"Gratuit 14 jours", maxMembers:3, maxOrders:100, color:G.green, bg:G.greenLight,
      features:[
-       "✅ 3 membres max (Admin + 2 membres)",
-       "✅ 100 commandes / mois",
-       "✅ Chat groupe interne",
-       "✅ Localisation livreur GPS temps réel",
-       "✅ 1 boutique connectée (Shopify / WooCommerce / YouCan)",
-       "✅ Suivi stock produits",
-       "✅ Suivi livraisons en temps réel",
-       "✅ Comptabilité boutique",
-       "✅ Confirmation commande WhatsApp auto",
-       "✅ Export Excel & Google Sheets",
+       "3 membres — Admin + 1 Closer + 1 Livreur",
+       "100 commandes / mois",
+       "3 rôles inclus",
+       "Suivi livraisons temps réel",
+       "Chat équipe interne",
+       "GPS livreur",
      ]},
-    {key:"pro",     name:"Pro",     price:"13.000", maxMembers:5, maxOrders:200,  color:G.blue,  bg:"#EFF6FF",    icon:"🔵",
+    {key:"pro", name:"Pro", price:"14.000", maxMembers:5, maxOrders:200, color:G.blue, bg:"#EFF6FF",
      features:[
-       "✅ 5 membres (Admin + équipe)",
-       "✅ 200 commandes / mois",
-       "✅ Chat groupe interne",
-       "✅ Localisation livreur GPS",
-       "✅ 3 boutiques connectées",
-       "✅ Suivi stock produits",
-       "✅ Suivi livraisons en temps réel",
-       "✅ Comptabilité boutique",
-       "✅ Rapports avancés",
+       "5 membres — 3 rôles inclus",
+       "200 commandes / mois",
+       "Shopify · WooCommerce · YouCan Shop",
+       "GPS temps réel",
+       "Comptabilité & marges",
+       "Gestion produits & stock",
+       "Assistant IA",
+       "Chat équipe interne",
      ]},
-    {key:"scale",   name:"Scale",   price:"25.000", maxMembers:null, maxOrders:null, color:"#7C3AED", bg:"#EDE9FE", icon:"🟣",
+    {key:"scale", name:"Scale", price:"25.000", maxMembers:null, maxOrders:null, color:"#7C3AED", bg:"#EDE9FE",
      features:[
-       "✅ Membres illimités",
-       "✅ Commandes illimitées",
-       "✅ Chat groupe interne",
-       "✅ Localisation livreur GPS",
-       "✅ Boutiques illimitées",
-       "✅ Suivi stock produits",
-       "✅ Suivi livraisons en temps réel",
+       "Membres illimités — 3 rôles inclus",
+       "Commandes illimitées",
+       "Shopify · WooCommerce · YouCan Shop",
+       "GPS temps réel",
+       "Comptabilité & marges",
+       "Gestion produits & stock",
+       "Assistant IA",
+       "Export Excel clients",
+       "Support prioritaire",
        "✅ Comptabilité boutique",
        "✅ Support prioritaire 24/7",
      ]},
