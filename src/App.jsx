@@ -514,7 +514,7 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           <select value={newOrder.product||""} onChange={e=>setNewOrder({...newOrder,product:e.target.value,bundle:"",qty:"1",discount:""})}
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
             <option value="">Sélectionner un produit...</option>
-            {products.map(p=><option key={p.id} value={p.name}>{p.name} — {fmt(p.price)} FCFA · stock: {p.stock}</option>)}
+            {products.map(p=><option key={p.id} value={p.name}>{p.name} — {fmt(p.price)} CFA · stock: {p.stock}</option>)}
           </select>
         </div>
         {prod&&!bundleSelected&&(
@@ -534,7 +534,7 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
                   style={{width:"100%",border:`1.5px solid ${disc>0?"#FCA5A5":G.grayLight}`,borderRadius:8,padding:"8px 28px 8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                 <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:13,color:G.gray}}>%</span>
               </div>
-              {disc>0&&<div style={{fontSize:10,color:G.red,marginTop:2}}>−{fmt(Math.round(basePrice*disc/100))} FCFA</div>}
+              {disc>0&&<div style={{fontSize:10,color:G.red,marginTop:2}}>−{fmt(Math.round(basePrice*disc/100))} CFA</div>}
             </div>
           </div>
         )}
@@ -556,9 +556,9 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
                     <span style={{background:"#F3F4F6",color:TL[b.type]||"#666",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{TN[b.type]||b.type}</span>
                     {b.livraisonOfferte&&<span style={{background:G.greenLight,color:G.green,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🚚</span>}
                   </div>
-                  <div style={{fontSize:11,color:G.gray}}>{b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · marge: <strong style={{color:m>=0?G.green:G.red}}>{fmt(m)} FCFA</strong></div>
+                  <div style={{fontSize:11,color:G.gray}}>{b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · marge: <strong style={{color:m>=0?G.green:G.red}}>{fmt(m)} CFA</strong></div>
                 </div>
-                <div style={{fontWeight:700,fontSize:14,color:isSel?G.gold:G.gray,whiteSpace:"nowrap",marginLeft:8}}>{fmt(b.prixVente)} FCFA</div>
+                <div style={{fontWeight:700,fontSize:14,color:isSel?G.gold:G.gray,whiteSpace:"nowrap",marginLeft:8}}>{fmt(b.prixVente)} CFA</div>
               </button>;
             }):<div style={{background:G.grayLight,borderRadius:10,padding:"8px 12px",fontSize:11,color:G.gray,textAlign:"center"}}>Aucun bundle — <span style={{color:G.green,fontWeight:600}}>à créer dans Stock</span></div>}
           </div>
@@ -567,11 +567,11 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           <div style={{background:margeTotal>=0?G.greenLight:"#FEE2E2",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
               <span style={{fontSize:13,color:G.gray,fontWeight:600}}>💰 Prix COD</span>
-              <span style={{fontSize:24,fontWeight:700,color:G.green}}>{fmt(finalPrice)} FCFA</span>
+              <span style={{fontSize:24,fontWeight:700,color:G.green}}>{fmt(finalPrice)} CFA</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between"}}>
               <span style={{fontSize:11,color:G.gray}}>Marge estimée</span>
-              <span style={{fontSize:13,fontWeight:700,color:margeTotal>=0?G.green:G.red}}>{fmt(margeTotal)} FCFA</span>
+              <span style={{fontSize:13,fontWeight:700,color:margeTotal>=0?G.green:G.red}}>{fmt(margeTotal)} CFA</span>
             </div>
             {qty>1&&!bundleSelected&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>×{qty}{disc>0?` · −${disc}%`:""}</div>}
           </div>
@@ -654,7 +654,7 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
                   <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:5}}>✏️ MODIFIER LE MESSAGE</div>
                   <textarea value={waTemplate} onChange={e=>setWaTemplate&&setWaTemplate(e.target.value)}
                     style={{width:"100%",border:"1.5px solid #FDE68A",borderRadius:8,padding:10,fontSize:12,outline:"none",minHeight:110,resize:"vertical",boxSizing:"border-box",fontFamily:"monospace",lineHeight:1.5}}/>
-                  <button onClick={()=>setWaTemplate&&setWaTemplate(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`)}
+                  <button onClick={()=>setWaTemplate&&setWaTemplate(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} CFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`)}
                     style={{marginTop:6,background:"none",border:"none",color:G.gray,fontSize:10,cursor:"pointer",padding:0,textDecoration:"underline"}}>
                     Réinitialiser le message par défaut
                   </button>
@@ -714,7 +714,7 @@ function TourneeBlock({orders, onConfirm, G, fmt, mode="recuperer"}) {
         </div>
         <div style={{textAlign:"right"}}>
           <div style={{fontSize:18,fontWeight:700,color:accent}}>{fmt(total)}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>FCFA total</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>CFA total</div>
         </div>
       </div>
 
@@ -893,7 +893,7 @@ function AppInner() {
   const [payLoading,    setPayLoading]    = useState(false);
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
-  const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
+  const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} CFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
   const [gpsActive, setGpsActive]     = useState(false);
   const [gpsPos, setGpsPos]           = useState(null);
   const [gpsError, setGpsError]       = useState("");
@@ -1502,7 +1502,7 @@ function AppInner() {
               en_camino:        "🚀 Livraison directe — En route vers le client",
               chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
             };
-            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} FCFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
+            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
           }
         })
         .catch(e=>console.error("addOrder Supabase error:",e));
@@ -2161,7 +2161,7 @@ function AppInner() {
                 onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>{p.name}</div>
-                  <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.price} <span style={{fontSize:10,opacity:0.7}}>FCFA/mois</span></div>
+                  <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.price} <span style={{fontSize:10,opacity:0.7}}>CFA/mois</span></div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:3}}>
                   {p.features.map((f,i)=>(
@@ -2517,16 +2517,16 @@ function AppInner() {
     // Commandes sans livreur
     ...orders.filter(o=>!o.livreur&&o.status==="confirmado").map(o=>({type:"sans_livreur",msg:`${o.client} — sans livreur`,sub:"Assigne un livreur pour cette commande",id:o.id,color:"#F0A500",bg:"#FFF8E7",icon:"🏍️",phone:o.phone})),
     // Livrées récemment
-    ...orders.filter(o=>o.status==="entregado").slice(-3).map(o=>({type:"livre",msg:`${o.client} — Livré ✅`,sub:`${Number(o.price).toLocaleString("fr-FR")} FCFA encaissé`,id:o.id,color:G.green,bg:G.greenLight,icon:"✅",phone:o.phone})),
+    ...orders.filter(o=>o.status==="entregado").slice(-3).map(o=>({type:"livre",msg:`${o.client} — Livré ✅`,sub:`${Number(o.price).toLocaleString("fr-FR")} CFA encaissé`,id:o.id,color:G.green,bg:G.greenLight,icon:"✅",phone:o.phone})),
     // Rejetées
     ...orders.filter(o=>o.status==="rechazado").map(o=>({type:"rejet",msg:`${o.client} — Rejeté ❌`,sub:"Relancer le client ou clôturer",id:o.id,color:G.red,bg:"#FEE2E2",icon:"❌",phone:o.phone})),
     // Stock bas
     ...products.filter(p=>p.stock<5).map(p=>({type:"stock",msg:`Stock bas: ${p.name}`,sub:`${p.stock} unités restantes`,id:p.id,color:G.red,bg:"#FEE2E2",icon:"📦"})),
   ];
   const livreurAlerts = [
-    ...myLiv.filter(o=>o.status==="colis_pris").map(o=>({type:"recuperer",msg:`📦 ${o.client}`,sub:`Prêt à livrer — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.green,bg:G.greenLight,icon:"📦"})),
-    ...myLiv.filter(o=>o.status==="en_camino").map(o=>({type:"pedido",msg:`🚀 ${o.client}`,sub:`En route — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#0284C7",bg:"#EFF6FF",icon:"🚀"})),
-    ...myLiv.filter(o=>o.status==="confirmado").map(o=>({type:"nouveau",msg:`🔔 Nouveau colis : ${o.client}`,sub:`${o.product} — ${fmt(o.price)} FCFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.gold,bg:"#FFF8E7",icon:"🔔"})),
+    ...myLiv.filter(o=>o.status==="colis_pris").map(o=>({type:"recuperer",msg:`📦 ${o.client}`,sub:`Prêt à livrer — ${fmt(o.price)} CFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.green,bg:G.greenLight,icon:"📦"})),
+    ...myLiv.filter(o=>o.status==="en_camino").map(o=>({type:"pedido",msg:`🚀 ${o.client}`,sub:`En route — ${fmt(o.price)} CFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#0284C7",bg:"#EFF6FF",icon:"🚀"})),
+    ...myLiv.filter(o=>o.status==="confirmado").map(o=>({type:"nouveau",msg:`🔔 Nouveau colis : ${o.client}`,sub:`${o.product} — ${fmt(o.price)} CFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.gold,bg:"#FFF8E7",icon:"🔔"})),
     ...myLiv.filter(o=>o.status==="livreur_en_route").map(o=>({type:"route",msg:`🏍️ ${o.client}`,sub:`Je pars récupérer — ${o.address}`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#7C3AED",bg:"#EDE9FE",icon:"🏍️"})),
   ];
   const alerts = role==="livreur" ? livreurAlerts : adminAlerts;
@@ -2567,7 +2567,7 @@ function AppInner() {
             </div>
             <div style={{background:G.greenLight,borderRadius:16,padding:20,marginBottom:24}}>
               <div style={{fontSize:11,color:G.green,fontWeight:700,letterSpacing:1,marginBottom:4}}>PLAN PRO</div>
-              <div style={{fontSize:36,fontWeight:800,color:G.green}}>7 500 <span style={{fontSize:16}}>FCFA</span></div>
+              <div style={{fontSize:36,fontWeight:800,color:G.green}}>7 500 <span style={{fontSize:16}}>CFA</span></div>
               <div style={{fontSize:12,color:G.gray,marginTop:2}}>par mois · tout inclus</div>
               <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:4}}>
                 {["✅ Commandes illimitées","✅ GPS temps réel","✅ Intégration Shopify","✅ Comptabilité & marges","✅ Assistant IA","✅ Équipe illimitée"].map(f=>(
@@ -2593,7 +2593,7 @@ function AppInner() {
           </div>
           <button onClick={startWavePayment} disabled={payLoading}
             style={{background:"#FFF",color:"#D97706",border:"none",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0}}>
-            {payLoading?"...":"S'abonner — 7 500 FCFA/mois"}
+            {payLoading?"...":"S'abonner — 7 500 CFA/mois"}
           </button>
         </div>
       )}
@@ -2788,7 +2788,7 @@ function AppInner() {
                           </div>
                           <div style={{textAlign:"right",flexShrink:0}}>
                             <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
-                            <div style={{fontSize:10,color:G.gray}}>FCFA</div>
+                            <div style={{fontSize:10,color:G.gray}}>CFA</div>
                             <div style={{fontSize:10,color:G.gray,marginTop:4,background:"#FEF3C7",borderRadius:5,padding:"2px 6px"}}>👁 Voir détails</div>
                           </div>
                         </div>
@@ -2883,8 +2883,8 @@ function AppInner() {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:12}}>
                 <div>
                   <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>CA DU JOUR</div>
-                  <div style={{fontSize:30,fontWeight:700,color:G.gold,marginTop:2}}>{fmt(caJour)} <span style={{fontSize:14}}>FCFA</span></div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: {fmt(tBen)} FCFA</div>
+                  <div style={{fontSize:30,fontWeight:700,color:G.gold,marginTop:2}}>{fmt(caJour)} <span style={{fontSize:14}}>CFA</span></div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: {fmt(tBen)} CFA</div>
                 </div>
                 <button onClick={()=>setTab("compta")} style={{background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                   Voir Compta →
@@ -2923,20 +2923,20 @@ function AppInner() {
                       <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                         <span style={{fontSize:12,fontWeight:600,color:G.dark}}>{prod.name}</span>
                         <div style={{textAlign:"right"}}>
-                          <span style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(ca)} FCFA</span>
+                          <span style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(ca)} CFA</span>
                           <span style={{fontSize:10,color:G.gray,marginLeft:6}}>({nLiv} livrées)</span>
                         </div>
                       </div>
                       <div style={{background:G.grayLight,borderRadius:4,height:8}}>
                         <div style={{background:G.green,borderRadius:4,height:8,width:`${pctBar}%`,transition:"width 0.5s"}}/>
                       </div>
-                      <div style={{fontSize:10,color:ben>=0?G.greenMid:G.red,marginTop:2}}>Bénéfice: {fmt(ben)} FCFA</div>
+                      <div style={{fontSize:10,color:ben>=0?G.greenMid:G.red,marginTop:2}}>Bénéfice: {fmt(ben)} CFA</div>
                     </div>
                   );
                 })}
                 <div style={{background:G.greenLight,borderRadius:10,padding:"8px 12px",marginTop:6,display:"flex",justifyContent:"space-between"}}>
                   <span style={{fontSize:12,fontWeight:700,color:G.green}}>CA Total</span>
-                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(tCA)} FCFA</span>
+                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(tCA)} CFA</span>
                 </div>
               </div>
             )}
@@ -3085,7 +3085,7 @@ function AppInner() {
             <div style={{display:"flex",gap:8}}><SC icon="🏍️" label="En route" value={myLiv.filter(o=>o.status==="en_camino").length} color={G.blue} bg="#EFF6FF"/><SC icon="❌" label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/></div>
             <div style={{background:G.greenLight,borderRadius:14,padding:18,textAlign:"center"}}>
               <div style={{fontSize:11,color:G.gray,fontWeight:700,letterSpacing:1}}>CASH COLLECTÉ</div>
-              <div style={{fontSize:28,fontWeight:700,color:G.green,marginTop:4}}>{fmt(myLiv.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0))} FCFA</div>
+              <div style={{fontSize:28,fontWeight:700,color:G.green,marginTop:4}}>{fmt(myLiv.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0))} CFA</div>
             </div>
             {myLiv.filter(o=>o.status==="en_camino").length>0&&(
               <div style={{background:G.white,borderRadius:14,padding:14}}>
@@ -3094,7 +3094,7 @@ function AppInner() {
                   <div key={o.id} style={{padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <div style={{fontWeight:700,fontSize:14}}>{o.client}</div>
                     <div style={{fontSize:12,color:G.gray}}>📍 {o.address} · 📱 {o.phone}</div>
-                    <div style={{fontSize:13,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} FCFA</div>
+                    <div style={{fontSize:13,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} CFA</div>
                   </div>
                 ))}
               </div>
@@ -3512,7 +3512,7 @@ function AppInner() {
                   <div key={o.id} style={{padding:"9px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <div style={{fontWeight:700,fontSize:13}}>{o.client}</div>
                     <div style={{fontSize:11,color:G.gray}}>📍 {o.address}</div>
-                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} FCFA</div>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} CFA</div>
                   </div>
                 ))
               }
@@ -3660,7 +3660,7 @@ function AppInner() {
                         <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
                       </div>}
                     </div>
-                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} FCFA encaissés</div>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} CFA encaissés</div>
                     <div style={{display:"flex",gap:6}}>
                       {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"En route",v:all.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length,c:G.blue,bg:"#EFF6FF"},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"}].map(s=>(
                         <div key={s.l} style={{flex:1,background:s.bg,borderRadius:8,padding:"6px 0",textAlign:"center"}}>
@@ -3742,8 +3742,8 @@ function AppInner() {
             <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:16,padding:18,color:G.white}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:600,letterSpacing:1,marginBottom:6}}>RAPPORT — {new Date(selMonth+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase()}</div>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontWeight:700,letterSpacing:1,marginBottom:2}}>BÉNÉFICE NET</div>
-              <div style={{fontSize:36,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:2}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>FCFA</span></div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.6)"}}>Marge: {pct(tMarge)} · CA: {fmt(tCA)} FCFA</div>
+              <div style={{fontSize:36,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:2}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>CFA</span></div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.6)"}}>Marge: {pct(tMarge)} · CA: {fmt(tCA)} CFA</div>
               <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
                 {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Frais",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
                   <div key={i}><div style={{fontSize:12,fontWeight:700,color:i===0?"rgba(255,255,255,0.9)":G.gold}}>{s.v} F</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{s.l}</div></div>
@@ -3772,13 +3772,13 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:8}}>
                       <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Coût du produit (FCFA/unité)</div>
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Coût du produit (CFA/unité)</div>
                         <input type="number" min="0" placeholder="ex: 3500"
                           value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
                       <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Frais de livraison (FCFA/commande)</div>
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Frais de livraison (CFA/commande)</div>
                         <input type="number" min="0" placeholder="ex: 1500"
                           value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
@@ -3832,9 +3832,9 @@ function AppInner() {
 
                 {[
                   {l:"Commandes livrées",        v:nLiv,                c:G.green},
-                  {l:"Chiffre d'Affaires",        v:`${fmt(ca)} FCFA`,  c:G.dark},
-                  {l:"CAMV (coût produits)",      v:`${fmt(camv)} FCFA`,c:G.dark},
-                  {l:"Frais livraison (livrés)",  v:`${fmt(frais)} FCFA`,c:G.dark},
+                  {l:"Chiffre d'Affaires",        v:`${fmt(ca)} CFA`,  c:G.dark},
+                  {l:"CAMV (coût produits)",      v:`${fmt(camv)} CFA`,c:G.dark},
+                  {l:"Frais livraison (livrés)",  v:`${fmt(frais)} CFA`,c:G.dark},
                 ].map((r,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <span style={{fontSize:12,color:G.gray}}>{r.l}</span>
@@ -3855,21 +3855,21 @@ function AppInner() {
 
                 {/* Pub du jour */}
                 <div style={{marginTop:10,marginBottom:8}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>📣 Pub du jour (FCFA)</div>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>📣 Pub du jour (CFA)</div>
                   <input type="number" value={adSpend[prod.id]||""} onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
                     style={{width:"100%",border:`2px solid ${G.gold}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                 </div>
 
                 {/* Livraisons échouées — champ manuel */}
                 <div style={{marginBottom:10}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>🚫 Livraisons échouées — frais supplémentaires (FCFA)
+                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>🚫 Livraisons échouées — frais supplémentaires (CFA)
                     <span style={{fontSize:10,color:"#9CA3AF",marginLeft:4}}>ex: re-livraisons, frais retour...</span>
                   </div>
                   <input type="number" value={livraisonsEchouees[prod.id]||""} onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
                     style={{width:"100%",border:`2px solid ${G.red}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600,background:livraisonsEchouees[prod.id]?"#FFF5F5":G.white}}/>
                   {livraisonsEchouees[prod.id]&&(
                     <div style={{fontSize:11,color:G.red,marginTop:3}}>
-                      💡 Frais échoués déduits du bénéfice: <strong>−{fmt(parseInt(livraisonsEchouees[prod.id]||0))} FCFA</strong>
+                      💡 Frais échoués déduits du bénéfice: <strong>−{fmt(parseInt(livraisonsEchouees[prod.id]||0))} CFA</strong>
                     </div>
                   )}
                 </div>
@@ -3877,7 +3877,7 @@ function AppInner() {
                 <div style={{background:ben>=0?G.greenLight:"#FEE2E2",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                   <div>
                     <div style={{fontSize:10,color:G.gray,fontWeight:700}}>BÉNÉFICE NET</div>
-                    <div style={{fontSize:22,fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)} FCFA</div>
+                    <div style={{fontSize:22,fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)} CFA</div>
                   </div>
                   <div style={{textAlign:"right"}}>
                     <div style={{fontSize:10,color:G.gray}}>Marge</div>
@@ -3901,11 +3901,11 @@ function AppInner() {
                   <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
                     <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                       <span style={{fontSize:12,color:G.gray}}>CA théorique (commandes livrées)</span>
-                      <span style={{fontSize:13,fontWeight:700,color:G.dark}}>{fmt(theo)} FCFA</span>
+                      <span style={{fontSize:13,fontWeight:700,color:G.dark}}>{fmt(theo)} CFA</span>
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                       <span style={{fontSize:12,color:G.gray}}>Cash effectivement reçu</span>
-                      <span style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(recu)} FCFA</span>
+                      <span style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(recu)} CFA</span>
                     </div>
                     <div style={{background:diff===0?G.greenLight:diff>0?"#FEE2E2":"#FEF9C3",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
                       <div>
@@ -3928,7 +3928,7 @@ function AppInner() {
             {/* Total du jour */}
             <div style={{background:tBen>=0?G.green:"#7F1D1D",borderRadius:14,padding:20,textAlign:"center"}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:1}}>BÉNÉFICE NET TOTAL DU JOUR</div>
-              <div style={{fontSize:34,fontWeight:700,color:G.white,marginTop:6}}>{fmt(tBen)} FCFA</div>
+              <div style={{fontSize:34,fontWeight:700,color:G.white,marginTop:6}}>{fmt(tBen)} CFA</div>
               <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:10,flexWrap:"wrap"}}>
                 {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Livr.",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
                   <div key={i} style={{textAlign:"center"}}>
@@ -4141,7 +4141,7 @@ function AppInner() {
           // Build grouped notifications
           const NOTIFS_ADMIN = [
             ...orders.filter(o=>o.status==="confirmado"&&!o.livreur).map(o=>({key:`noLiv_${o.id}`,type:"noLiv",icon:"🏍️",title:"Sans livreur",body:o.client,color:"#F0A500",bg:"#FFF8E7",id:o.id,phone:o.phone,time:"à l'instant"})),
-            ...orders.filter(o=>o.status==="entregado").slice(-5).map(o=>({key:`liv_${o.id}`,type:"livre",icon:"✅",title:"Encaissé",body:`${o.client} — ${Number(o.price).toLocaleString("fr-FR")} FCFA`,color:G.green,bg:"#D1FAE5",id:o.id,phone:o.phone,time:"aujourd'hui"})),
+            ...orders.filter(o=>o.status==="entregado").slice(-5).map(o=>({key:`liv_${o.id}`,type:"livre",icon:"✅",title:"Encaissé",body:`${o.client} — ${Number(o.price).toLocaleString("fr-FR")} CFA`,color:G.green,bg:"#D1FAE5",id:o.id,phone:o.phone,time:"aujourd'hui"})),
             ...orders.filter(o=>o.status==="rechazado").map(o=>({key:`rej_${o.id}`,type:"rejet",icon:"❌",title:"Commande rejetée",body:o.client,color:G.red,bg:"#FEE2E2",id:o.id,phone:o.phone,time:"aujourd'hui"})),
             ...orders.filter(o=>["no_contesta","reprogramar"].includes(o.status)).map(o=>({key:`ret_${o.id}`,type:"retour",icon:"🔄",title:"À retenter",body:o.client,color:"#7C3AED",bg:"#EDE9FE",id:o.id,phone:o.phone,time:"aujourd'hui"})),
             ...products.filter(p=>p.stock<5).map(p=>({key:`stock_${p.id}`,type:"stock",icon:"📦",title:"Stock bas",body:`${p.name} — ${p.stock} restants`,color:G.red,bg:"#FEE2E2",id:p.id,time:"maintenant"})),
@@ -4249,7 +4249,7 @@ function AppInner() {
                         <div key={n.key} style={{padding:"10px 14px",borderBottom:i<notDismissed.length-1?`1px solid ${G.grayLight}`:"none",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div style={{flex:1}}>
                             <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.body}</div>
-                            {n.price&&<div style={{fontSize:12,color:G.green,fontWeight:700,marginTop:1}}>{Number(n.price).toLocaleString("fr-FR")} FCFA</div>}
+                            {n.price&&<div style={{fontSize:12,color:G.green,fontWeight:700,marginTop:1}}>{Number(n.price).toLocaleString("fr-FR")} CFA</div>}
                             <div style={{fontSize:10,color:G.gray,marginTop:1}}>{n.time}</div>
                           </div>
                           <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -4521,10 +4521,10 @@ function AppInner() {
 
             {[
               {key:"name",      label:"📦 Nom du produit *",             ph:"Chaussures Nike",  type:"text",   req:true},
-              {key:"cost",      label:"💰 Prix de revient (FCFA) *",     ph:"7000",             type:"number", req:true},
-              {key:"price",     label:"💰 Prix de vente (FCFA) *",       ph:"25000",            type:"number", req:true},
+              {key:"cost",      label:"💰 Prix de revient (CFA) *",     ph:"7000",             type:"number", req:true},
+              {key:"price",     label:"💰 Prix de vente (CFA) *",       ph:"25000",            type:"number", req:true},
               {key:"stock",     label:"📦 Stock initial *",              ph:"50",               type:"number", req:true},
-              {key:"fraisLiv",  label:"🏍️ Frais livraison/cmd (FCFA) *", ph:"1500",             type:"number", req:true},
+              {key:"fraisLiv",  label:"🏍️ Frais livraison/cmd (CFA) *", ph:"1500",             type:"number", req:true},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:9,position:"relative"}}>
                 <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
@@ -4563,7 +4563,7 @@ function AppInner() {
                 <div style={{fontSize:11,color:G.gray,fontWeight:700,marginBottom:4}}>APERÇU MARGE / UNITÉ</div>
                 <div style={{display:"flex",justifyContent:"space-between"}}>
                   <span style={{fontSize:12,color:G.gray}}>Après livraison</span>
-                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))} FCFA &nbsp;({pct(parseInt(newProd.price||0)>0?(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))/parseInt(newProd.price||0):0)})</span>
+                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))} CFA &nbsp;({pct(parseInt(newProd.price||0)>0?(parseInt(newProd.price||0)-parseInt(newProd.cost||0)-parseInt(newProd.fraisLiv||1500))/parseInt(newProd.price||0):0)})</span>
                 </div>
               </div>
             )}
@@ -4587,10 +4587,10 @@ function AppInner() {
                         <div>
                           <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{b.label} <span style={{fontSize:10,color:G.gray,fontWeight:400}}>({TN[b.type]||b.type})</span></div>
                           <div style={{fontSize:11,color:G.gray,marginTop:2}}>
-                            {b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · {fmt(b.prixVente)} FCFA
+                            {b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · {fmt(b.prixVente)} CFA
                             {b.livraisonOfferte?" · 🚚 offerte":""}
                           </div>
-                          <div style={{fontSize:11,fontWeight:600,color:m>=0?G.green:G.red,marginTop:2}}>Marge: {fmt(m)} FCFA</div>
+                          <div style={{fontSize:11,fontWeight:600,color:m>=0?G.green:G.red,marginTop:2}}>Marge: {fmt(m)} CFA</div>
                         </div>
                         <button onClick={()=>setNewProd(p=>({...p,bundles:p.bundles.filter((_,j)=>j!==i)}))}
                           style={{background:"none",border:"none",color:G.red,fontSize:18,cursor:"pointer",padding:0,lineHeight:1}}>×</button>
@@ -4648,7 +4648,7 @@ function AppInner() {
                   <div style={{flex:1}}>
                     <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:3}}>
                       {bundleErrors.prixVente&&<span style={{width:7,height:7,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
-                      <div style={{fontSize:11,color:bundleErrors.prixVente?G.red:G.gray,fontWeight:bundleErrors.prixVente?700:400}}>Prix vente (FCFA) *</div>
+                      <div style={{fontSize:11,color:bundleErrors.prixVente?G.red:G.gray,fontWeight:bundleErrors.prixVente?700:400}}>Prix vente (CFA) *</div>
                     </div>
                     <input type="number" value={newBundleForm.prixVente}
                       onChange={e=>{setNewBundleForm(p=>({...p,prixVente:e.target.value}));if(bundleErrors.prixVente)setBundleErrors(p=>({...p,prixVente:false}));}}
@@ -4668,7 +4668,7 @@ function AppInner() {
                   const c=(parseInt(newProd.cost)||0)*qr;
                   const fl=newBundleForm.livraisonOfferte?0:parseInt(newProd.fraisLiv||1500);
                   const m=parseInt(newBundleForm.prixVente||0)-c-fl;
-                  return <div style={{fontSize:12,color:m>=0?G.green:G.red,fontWeight:600,marginBottom:8}}>Marge estimée: {fmt(m)} FCFA ({pct(parseInt(newBundleForm.prixVente||0)>0?m/parseInt(newBundleForm.prixVente):0)})</div>;
+                  return <div style={{fontSize:12,color:m>=0?G.green:G.red,fontWeight:600,marginBottom:8}}>Marge estimée: {fmt(m)} CFA ({pct(parseInt(newBundleForm.prixVente||0)>0?m/parseInt(newBundleForm.prixVente):0)})</div>;
                 })()}
 
                 {/* Erreur bundle */}
@@ -4744,7 +4744,7 @@ function AppInner() {
             {newBundle.type==="bxgyf"&&<div style={{marginBottom:10}}><div style={{fontSize:11,color:G.gray,marginBottom:3}}>Quantité offerte (Y)</div><input type="number" min="1" value={newBundle.qteOfferte} onChange={e=>setNewBundle(p=>({...p,qteOfferte:e.target.value}))} placeholder="1" style={{width:"100%",border:`1.5px solid #EDE9FE`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>}
             {newBundle.type==="remise_pct"&&<div style={{marginBottom:10}}><div style={{fontSize:11,color:G.gray,marginBottom:3}}>Remise % appliquée</div><input type="number" min="0" max="100" value={newBundle.remisePct} onChange={e=>setNewBundle(p=>({...p,remisePct:e.target.value}))} placeholder="15" style={{width:"100%",border:`1.5px solid #FEE2E2`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/></div>}
             <div style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Prix de vente bundel (FCFA)</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Prix de vente bundel (CFA)</div>
               <input type="number" value={newBundle.prixVente} onChange={e=>setNewBundle(p=>({...p,prixVente:e.target.value}))} placeholder="40000"
                 style={{width:"100%",border:`2px solid ${G.gold}`,borderRadius:8,padding:"9px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
             </div>
@@ -4759,9 +4759,9 @@ function AppInner() {
               const c=prod.cost*qr,fl=newBundle.livraisonOfferte?0:FRAIS_LIV,m=parseInt(newBundle.prixVente||0)-c-fl;
               return <div style={{background:m>=0?G.greenLight:"#FEE2E2",borderRadius:10,padding:"10px 14px",marginBottom:14}}>
                 <div style={{fontSize:11,color:G.gray,fontWeight:700}}>APERÇU MARGE</div>
-                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><span style={{fontSize:12,color:G.gray}}>Coût ({qr} unités)</span><span style={{fontWeight:700}}>{fmt(c)} FCFA</span></div>
-                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:G.gray}}>Frais livraison</span><span style={{fontWeight:700}}>{newBundle.livraisonOfferte?"Offerte":fmt(fl)+" FCFA"}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between",paddingTop:6,borderTop:`1px solid ${m>=0?"#BBF7D0":"#FCA5A5"}`,marginTop:4}}><span style={{fontSize:13,fontWeight:700}}>Marge nette</span><span style={{fontSize:16,fontWeight:700,color:m>=0?G.green:G.red}}>{fmt(m)} FCFA ({pct(parseInt(newBundle.prixVente||0)>0?m/parseInt(newBundle.prixVente):0)})</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:6}}><span style={{fontSize:12,color:G.gray}}>Coût ({qr} unités)</span><span style={{fontWeight:700}}>{fmt(c)} CFA</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:12,color:G.gray}}>Frais livraison</span><span style={{fontWeight:700}}>{newBundle.livraisonOfferte?"Offerte":fmt(fl)+" CFA"}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",paddingTop:6,borderTop:`1px solid ${m>=0?"#BBF7D0":"#FCA5A5"}`,marginTop:4}}><span style={{fontSize:13,fontWeight:700}}>Marge nette</span><span style={{fontSize:16,fontWeight:700,color:m>=0?G.green:G.red}}>{fmt(m)} CFA ({pct(parseInt(newBundle.prixVente||0)>0?m/parseInt(newBundle.prixVente):0)})</span></div>
               </div>;
             })()}
             <button onClick={addBundle} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:8}}>Créer le bundel</button>
@@ -4811,7 +4811,7 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                       <div>
                         <div style={{fontWeight:800,fontSize:15,color:curPlan.color}}>{curPlan.name}</div>
-                        <div style={{fontSize:12,color:G.gray,marginTop:2}}>{curPlan.price} FCFA / mois</div>
+                        <div style={{fontSize:12,color:G.gray,marginTop:2}}>{curPlan.price} CFA / mois</div>
                       </div>
                       <button onClick={()=>setShowPlanModal(true)} style={{background:curPlan.color,color:G.white,border:"none",borderRadius:8,padding:"7px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Changer →</button>
                     </div>
@@ -4974,7 +4974,7 @@ function AppInner() {
                     <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:800,fontSize:15,color:p.color}}>{p.name}</div>
-                        <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{p.price} FCFA <span style={{fontSize:11,color:G.gray,fontWeight:400}}>/ mois</span></div>
+                        <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{p.price} CFA <span style={{fontSize:11,color:G.gray,fontWeight:400}}>/ mois</span></div>
                       </div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",gap:3}}>
@@ -5068,7 +5068,7 @@ function AppInner() {
               </div>
               <div style={{background:G.green,borderRadius:10,padding:"10px 14px",marginTop:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Montant COD</span>
-                <span style={{fontSize:24,fontWeight:800,color:G.gold}}>{Number(newAssignment.price).toLocaleString("fr-FR")} FCFA</span>
+                <span style={{fontSize:24,fontWeight:800,color:G.gold}}>{Number(newAssignment.price).toLocaleString("fr-FR")} CFA</span>
               </div>
             </div>
 
@@ -5141,7 +5141,7 @@ function AppInner() {
               {key:"phone",   label:"📱 Téléphone",    ph:"77 123 45 67",     type:"text"},
               {key:"address", label:"📍 Adresse",      ph:"Médina, Dakar",    type:"text"},
               {key:"product", label:"📦 Produit",      ph:"Chaussures Nike",  type:"text"},
-              {key:"price",   label:"💰 Prix COD (FCFA)", ph:"25000",         type:"number"},
+              {key:"price",   label:"💰 Prix COD (CFA)", ph:"25000",         type:"number"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
@@ -5207,9 +5207,9 @@ function AppInner() {
 
             {[
               {key:"name",     label:"📦 Nom du produit *",           type:"text",   ph:"Chaussures Nike"},
-              {key:"cost",     label:"💰 Prix de revient (FCFA) *",   type:"number", ph:"7000"},
-              {key:"price",    label:"💰 Prix de vente (FCFA) *",     type:"number", ph:"25000"},
-              {key:"fraisLiv", label:"🏍️ Frais livraison (FCFA) *",  type:"number", ph:"1500"},
+              {key:"cost",     label:"💰 Prix de revient (CFA) *",   type:"number", ph:"7000"},
+              {key:"price",    label:"💰 Prix de vente (CFA) *",     type:"number", ph:"25000"},
+              {key:"fraisLiv", label:"🏍️ Frais livraison (CFA) *",  type:"number", ph:"1500"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
@@ -5248,7 +5248,7 @@ function AppInner() {
               <div style={{background:G.greenLight,borderRadius:10,padding:"10px 14px",marginBottom:14,display:"flex",justifyContent:"space-between"}}>
                 <span style={{fontSize:12,color:G.gray}}>Marge / unité</span>
                 <span style={{fontSize:14,fontWeight:700,color:G.green}}>
-                  {fmt(parseInt(editProd.price||0)-parseInt(editProd.cost||0)-(parseInt(editProd.fraisLiv||1500)))} FCFA
+                  {fmt(parseInt(editProd.price||0)-parseInt(editProd.cost||0)-(parseInt(editProd.fraisLiv||1500)))} CFA
                 </span>
               </div>
             )}
@@ -5431,7 +5431,7 @@ function AppInner() {
             {/* Header commande */}
             <div style={{background:"#FFF8E7",borderRadius:12,padding:"12px 14px",marginBottom:16,borderLeft:"4px solid #F59E0B"}}>
               <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
-              <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} FCFA</b></div>
+              <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} CFA</b></div>
               {o.address&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📍 {o.address}</div>}
             </div>
 
@@ -5550,8 +5550,8 @@ function AppInner() {
       {/* Close main content wrapper */}
       </div>
 
-      {/* ── BOTTOM TAB BAR (admin / closer) — mobile uniquement ── */}
-      {!isDesktop&&(role==="admin"||(role==="closer"))&&sbReady&&(()=>{
+      {/* ── BOTTOM TAB BAR — mobile uniquement ── */}
+      {!isDesktop&&role&&sbReady&&(()=>{
         const boutiqueCnt  = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
         const livraisonsCnt= myLiv.filter(o=>!["entregado","rechazado"].includes(o.status)).length;
