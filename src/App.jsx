@@ -2820,6 +2820,29 @@ function AppInner() {
             </button>
             );
           })}
+
+          {/* Tabs bloqués — plan gratuit */}
+          {isGratuit&&!trialExpired&&(()=>{
+            const LOCKED_TABS = [
+              ...(role==="admin"||role==="closer" ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
+              {k:"compta",icon:"compta",l:"Comptabilité & marges"},
+              ...(role==="livreur"||role==="admin" ? [{k:"position",icon:"position",l:"GPS temps réel"}] : []),
+            ].filter(t => !tabDef[role]?.find(x=>x.k===t.k));
+            if(!LOCKED_TABS.length) return null;
+            return (
+              <div style={{marginTop:6,borderTop:"1px solid rgba(255,255,255,0.06)",paddingTop:6}}>
+                <div style={{padding:"6px 18px",fontSize:9,letterSpacing:1.5,color:"rgba(255,255,255,0.25)",fontWeight:700}}>PLAN BASIC</div>
+                {LOCKED_TABS.map(t=>(
+                  <button key={t.k} onClick={()=>{setShowPlanModal(true);setSidebarOpen(false);}}
+                    style={{width:"100%",background:"none",border:"none",borderLeft:"3px solid transparent",padding:"10px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:18,opacity:0.45}}>
+                    <NavIcon name={t.icon} size={20} color="rgba(255,255,255,0.5)"/>
+                    <span style={{fontSize:13,color:"rgba(255,255,255,0.6)",flex:1,letterSpacing:0.3}}>{t.l}</span>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Bottom actions */}
