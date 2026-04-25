@@ -888,6 +888,9 @@ function AppInner() {
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false, closerFullControl:false, closerDeleteOrder:false, closerManageTeam:false, closerManageProducts:false});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [trialDaysLeft, setTrialDaysLeft] = useState(14);
+  const [isPro,         setIsPro]         = useState(false);
+  const [payLoading,    setPayLoading]    = useState(false);
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} FCFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
@@ -981,6 +984,39 @@ function AppInner() {
     setToasts(t=>[...t,{id,msg,icon,color}]);
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
   };
+
+  const startWavePayment = async () => {
+    if(!orgId||payLoading) return;
+    setPayLoading(true);
+    try {
+      const res = await fetch("/.netlify/functions/wave-checkout",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({orgId}),
+      });
+      const data = await res.json();
+      if(data.url) window.location.href = data.url;
+      else addToast("Erreur Wave — réessaie","❌","#DC2626");
+    } catch(e){ addToast("Erreur de connexion","❌","#DC2626"); }
+    finally{ setPayLoading(false); }
+  };
+
+  // Handle Wave payment return (?payment=success)
+  useEffect(()=>{
+    const params = new URLSearchParams(window.location.search);
+    if(params.get("payment")==="success" && params.get("org")===orgId && orgId) {
+      fetch("/.netlify/functions/wave-success",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({orgId}),
+      }).then(r=>r.json()).then(d=>{
+        if(d.success){ setIsPro(true); setTrialDaysLeft(31); addToast("Paiement confirmé — Bienvenue en Pro 🎉","✅","#1A5C38"); }
+      }).catch(()=>{});
+      window.history.replaceState({},document.title,window.location.pathname);
+    }
+    if(params.get("payment")==="error") {
+      addToast("Paiement annulé","⚠️","#F59E0B");
+      window.history.replaceState({},document.title,window.location.pathname);
+    }
+  },[orgId]);
 
   const sendAiMessage = async (text) => {
     if (!text.trim() || aiLoading) return;
@@ -1091,11 +1127,20 @@ function AppInner() {
             setOrgId(p.org_id);
             setSbReady(true);
             try {
-              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`,"GET");
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at`,"GET");
               const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
-              if(orgs&&orgs[0]?.plan) setSettings(s=>({...s,plan:orgs[0].plan||s.plan}));
+              if(orgs&&orgs[0]) {
+                const org = orgs[0];
+                if(org.plan) setSettings(s=>({...s,plan:org.plan}));
+                const pro = org.plan==="pro" && org.plan_expires_at && new Date(org.plan_expires_at)>new Date();
+                setIsPro(pro);
+                if(!pro) {
+                  const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
+                  setTrialDaysLeft(days);
+                }
+              }
             } catch(e){}
             setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
             setRole(p.role||"admin");
@@ -2004,11 +2049,17 @@ function AppInner() {
                   const profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
                   if(profiles&&profiles.length>0){
                     const p=profiles[0];
-                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1`).catch(()=>null);
+                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at`).catch(()=>null);
                     const orgName  = orgs?.[0]?.name  || "Ma Boutique";
                     const orgPhone = orgs?.[0]?.whatsapp || "";
                     setOrgId(p.org_id); setSbReady(true);
                     setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
+                    if(orgs?.[0]) {
+                      const org=orgs[0];
+                      const pro=org.plan==="pro"&&org.plan_expires_at&&new Date(org.plan_expires_at)>new Date();
+                      setIsPro(pro);
+                      if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
+                    }
                     setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
                     setRole(p.role||"admin"); setTab("dashboard");
                     try {
@@ -2449,10 +2500,11 @@ function AppInner() {
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
+  const trialExpired = !isPro && trialDaysLeft === 0;
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((pC.closerFullControl||pC.closerCompta)?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
-    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"position",icon:"position",l:"Localisation"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(!trialExpired?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(!trialExpired?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(!trialExpired?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((!trialExpired&&(pC.closerFullControl||pC.closerManageProducts))?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((!trialExpired&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(!trialExpired?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
   const tabDef = tabDefBase;
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"} · ${settings.boutique||""}`,livreur:`🏍️ ${currentUser.nom||"Livreur"} · ${settings.boutique||""}`};
@@ -2502,6 +2554,49 @@ function AppInner() {
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
       <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+
+      {/* ── PAYWALL — trial expiré ── */}
+      {trialExpired&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div style={{background:G.white,borderRadius:24,padding:32,maxWidth:400,width:"100%",textAlign:"center",boxShadow:"0 20px 60px rgba(0,0,0,0.4)"}}>
+            <div style={{fontSize:52,marginBottom:12}}>🔒</div>
+            <div style={{fontWeight:800,fontSize:22,color:G.dark,marginBottom:8}}>Essai terminé</div>
+            <div style={{fontSize:14,color:G.gray,lineHeight:1.6,marginBottom:24}}>
+              Tes 14 jours d'essai gratuit sont terminés.<br/>
+              Abonne-toi pour continuer à utiliser Teamly.
+            </div>
+            <div style={{background:G.greenLight,borderRadius:16,padding:20,marginBottom:24}}>
+              <div style={{fontSize:11,color:G.green,fontWeight:700,letterSpacing:1,marginBottom:4}}>PLAN PRO</div>
+              <div style={{fontSize:36,fontWeight:800,color:G.green}}>7 500 <span style={{fontSize:16}}>FCFA</span></div>
+              <div style={{fontSize:12,color:G.gray,marginTop:2}}>par mois · tout inclus</div>
+              <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:4}}>
+                {["✅ Commandes illimitées","✅ GPS temps réel","✅ Intégration Shopify","✅ Comptabilité & marges","✅ Assistant IA","✅ Équipe illimitée"].map(f=>(
+                  <div key={f} style={{fontSize:12,color:G.dark,textAlign:"left"}}>{f}</div>
+                ))}
+              </div>
+            </div>
+            <button onClick={startWavePayment} disabled={payLoading}
+              style={{width:"100%",background:payLoading?"#9CA3AF":"#1A73E8",color:"#FFF",border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:16,cursor:payLoading?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:10}}>
+              <span style={{fontSize:22}}>〽️</span>
+              {payLoading?"Connexion Wave...":"Payer avec Wave"}
+            </button>
+            <div style={{fontSize:11,color:G.gray}}>Paiement sécurisé · Renouvellement mensuel</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── BANNIÈRE TRIAL (derniers 3 jours) ── */}
+      {!isPro&&!trialExpired&&trialDaysLeft<=3&&(
+        <div style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0}}>
+          <div style={{fontSize:12,color:"#FFF",fontWeight:600}}>
+            ⏳ Plus que <strong>{trialDaysLeft} jour{trialDaysLeft>1?"s":""}</strong> d'essai gratuit
+          </div>
+          <button onClick={startWavePayment} disabled={payLoading}
+            style={{background:"#FFF",color:"#D97706",border:"none",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:800,cursor:"pointer",flexShrink:0}}>
+            {payLoading?"...":"S'abonner — 7 500 FCFA/mois"}
+          </button>
+        </div>
+      )}
 
       {/* Sidebar overlay — mobile uniquement */}
       {!isDesktop&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
@@ -5533,7 +5628,7 @@ function AppInner() {
 
       {/* ── AI ASSISTANT ── */}
       {/* Floating button */}
-      {!aiOpen&&(
+      {!aiOpen&&!trialExpired&&(
         <button onClick={()=>setAiOpen(true)} style={{
           position:"fixed",bottom:isDesktop?28:80,right:18,zIndex:8000,
           width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",
