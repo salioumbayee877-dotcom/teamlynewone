@@ -1090,6 +1090,31 @@ function AppInner() {
 
   // hCaptcha desactivado
 
+  // ── Vérification du plan toutes les 5 minutes ────────────────────────────
+  useEffect(()=>{
+    if(!orgId || !sbReady) return;
+    const checkPlan = async () => {
+      try {
+        const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at`,"GET");
+        const org  = orgs?.[0];
+        if(!org) return;
+        if(currentUserRef.current?.email === "salioumbayee877@gmail.com") { setIsPro(true); return; }
+        const paidPlans = ["basic","pro","scale"];
+        const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at) > new Date();
+        const pro = paidPlans.includes(org.plan) && notExpired;
+        setIsPro(pro);
+        setSettings(s => org.plan && s.plan !== org.plan ? {...s, plan: org.plan} : s);
+        if(!pro) {
+          const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
+          setTrialDaysLeft(days);
+        }
+      } catch(e) {}
+    };
+    checkPlan();
+    const interval = setInterval(checkPlan, 5 * 60 * 1000); // toutes les 5 min
+    return () => clearInterval(interval);
+  }, [orgId, sbReady]);
+
   // Save tab to localStorage when it changes
   useEffect(()=>{
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
@@ -2718,9 +2743,12 @@ function AppInner() {
                 </div>
               ))}
 
-              <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8,paddingBottom:24}}>
+              <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8}}>
                 Paiement sécurisé via Wave · Sans engagement
               </div>
+              <button onClick={()=>window.location.reload()} style={{width:"100%",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.4)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 0",fontSize:12,cursor:"pointer",marginTop:8,marginBottom:24}}>
+                J'ai déjà payé — Actualiser
+              </button>
             </div>
           </div>
         );
