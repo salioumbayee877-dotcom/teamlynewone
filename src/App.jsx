@@ -1937,6 +1937,8 @@ function AppInner() {
         "2 membres — Admin + 1 membre",
         "30 commandes / mois",
         "Création manuelle de commandes",
+        "Gestion des produits — ajout & édition",
+        "Suivi du stock (quantités)",
         "Suivi des livraisons",
         "Chat équipe interne",
         "Dashboard & statistiques basiques",
@@ -1944,9 +1946,11 @@ function AppInner() {
       locked:[
         "GPS livreur temps réel",
         "Intégration boutique (Shopify, WooCommerce, YouCan)",
+        "Synchronisation stock automatique",
         "Comptabilité & marges",
         "Assistant IA",
         "Confirmation WhatsApp automatique",
+        "Alertes stock bas",
       ],
     },
     {
