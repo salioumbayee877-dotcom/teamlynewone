@@ -8,14 +8,20 @@ const sbHeaders = {
   "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
+const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
+
 exports.handler = async (event) => {
+  const origin = event.headers?.origin || event.headers?.Origin || "";
   const headers = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": ALLOWED.includes(origin) ? origin : ALLOWED[0],
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
     "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
+  if (origin && !ALLOWED.includes(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method not allowed" };
 
   try {

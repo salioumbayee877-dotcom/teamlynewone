@@ -140,15 +140,25 @@ R: Comptabilité > bénéfice = (prix vente - coût - frais liv) × nombre livra
 
 Si tu ne sais pas répondre à quelque chose de précis sur Teamly, dis-le honnêtement.`;
 
+const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
+const getAllowedOrigin = (event) => {
+  const origin = event.headers?.origin || event.headers?.Origin || "";
+  return ALLOWED.includes(origin) ? origin : ALLOWED[0];
+};
+
 exports.handler = async (event) => {
   const headers = {
-    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Origin": getAllowedOrigin(event),
     "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Vary": "Origin",
     "Content-Type": "application/json",
   };
 
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method not allowed" };
+  const origin = event.headers?.origin || event.headers?.Origin || "";
+  if (origin && !ALLOWED.includes(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
 
   if (!ANTHROPIC_API_KEY)
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Clé API non configurée" }) };
