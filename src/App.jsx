@@ -986,13 +986,13 @@ function AppInner() {
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
   };
 
-  const startWavePayment = async () => {
+  const startWavePayment = async (amount=14000, planKey="pro") => {
     if(!orgId||payLoading) return;
-    setPayLoading(true);
+    setPayLoading(planKey);
     try {
       const res = await fetch("/.netlify/functions/wave-checkout",{
         method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({orgId}),
+        body: JSON.stringify({orgId, amount: String(amount), plan: planKey}),
       });
       const data = await res.json();
       if(data.url) window.location.href = data.url;
@@ -2567,67 +2567,93 @@ function AppInner() {
       <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
-      {trialExpired&&(
-        <div style={{position:"fixed",inset:0,background:"linear-gradient(160deg,#0D1F14 0%,#1A3828 100%)",zIndex:9000,display:"flex",alignItems:"center",justifyContent:"center",padding:20,overflowY:"auto"}}>
-          <div style={{maxWidth:420,width:"100%"}}>
-            {/* Logo */}
-            <div style={{textAlign:"center",marginBottom:32}}>
-              <div style={{display:"inline-flex",alignItems:"center",gap:10,background:"rgba(255,255,255,0.06)",borderRadius:14,padding:"10px 20px"}}>
-                <TeamlyLogo size={1}/>
-              </div>
-            </div>
-
-            {/* Card principale */}
-            <div style={{background:"#FFF",borderRadius:20,overflow:"hidden",boxShadow:"0 32px 80px rgba(0,0,0,0.5)"}}>
-
-              {/* Header */}
-              <div style={{background:G.green,padding:"24px 28px"}}>
-                <div style={{fontSize:11,letterSpacing:2,color:"rgba(255,255,255,0.6)",fontWeight:600,marginBottom:6}}>PÉRIODE D'ESSAI TERMINÉE</div>
-                <div style={{fontWeight:800,fontSize:20,color:"#FFF",marginBottom:4}}>Passez au plan Pro</div>
-                <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>L'accès est suspendu pour toute votre équipe</div>
-              </div>
-
-              <div style={{padding:"24px 28px"}}>
-                {/* Prix */}
-                <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:4}}>
-                  <span style={{fontSize:44,fontWeight:800,color:G.dark,lineHeight:1}}>8 000</span>
-                  <span style={{fontSize:16,color:G.gray,fontWeight:500}}>CFA / mois</span>
+      {trialExpired&&(()=>{
+        const PLANS_PAY = [
+          {
+            key:"pro", name:"Pro", price:14000, priceLabel:"14 000",
+            members:"5 membres", orders:"200 commandes/mois",
+            features:["3 rôles (Admin, Closer, Livreur)","200 commandes / mois","5 membres","Shopify · WooCommerce · YouCan","GPS temps réel","Comptabilité & marges","Assistant IA","Gestion produits & stock"],
+            highlight:false,
+          },
+          {
+            key:"scale", name:"Scale", price:25000, priceLabel:"25 000",
+            members:"Membres illimités", orders:"Commandes illimitées",
+            features:["3 rôles (Admin, Closer, Livreur)","Commandes illimitées","Membres illimités","Shopify · WooCommerce · YouCan","GPS temps réel","Comptabilité & marges","Assistant IA","Gestion produits & stock","Export Excel clients","Support prioritaire"],
+            highlight:true,
+          },
+        ];
+        return (
+          <div style={{position:"fixed",inset:0,background:"linear-gradient(160deg,#0D1F14 0%,#1A3828 100%)",zIndex:9000,overflowY:"auto",padding:"24px 16px"}}>
+            <div style={{maxWidth:480,margin:"0 auto"}}>
+              {/* Logo */}
+              <div style={{textAlign:"center",marginBottom:24}}>
+                <div style={{display:"inline-flex",background:"rgba(255,255,255,0.07)",borderRadius:14,padding:"10px 20px"}}>
+                  <TeamlyLogo size={1}/>
                 </div>
-                <div style={{fontSize:12,color:G.gray,marginBottom:24}}>Déblocage immédiat · Renouvellement mensuel</div>
+              </div>
 
-                {/* Comparaison Free vs Pro */}
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:3,marginBottom:24}}>
-                  <div style={{background:"#F9FAFB",borderRadius:"10px 10px 0 0",padding:"8px 12px",fontSize:10,fontWeight:700,color:G.gray,letterSpacing:1}}>GRATUIT</div>
-                  <div style={{background:G.green,borderRadius:"10px 10px 0 0",padding:"8px 12px",fontSize:10,fontWeight:700,color:"#FFF",letterSpacing:1}}>PRO</div>
-                  {[
-                    ["100 commandes/mois","Illimité"],
-                    ["2 membres (1 livreur + 1 closer)","Équipe illimitée"],
-                    ["—","Export Excel clients"],
-                    ["—","Confirmation WhatsApp auto"],
-                    ["—","Shopify · WooCommerce · YouCan"],
-                    ["—","GPS temps réel"],
-                    ["—","Gestion produits & stock"],
-                    ["—","Comptabilité & marges"],
-                    ["—","Assistant IA"],
-                  ].map(([free,pro],i)=>(
-                    <React.Fragment key={i}>
-                      <div style={{background:"#F9FAFB",padding:"7px 12px",fontSize:11,color:free==="—"?"#D1D5DB":G.gray,borderBottom:"1px solid #F3F4F6"}}>{free}</div>
-                      <div style={{background:"#F0FDF4",padding:"7px 12px",fontSize:11,color:G.green,fontWeight:600,borderBottom:"1px solid #DCFCE7"}}>{pro}</div>
-                    </React.Fragment>
-                  ))}
+              {/* Titre */}
+              <div style={{textAlign:"center",marginBottom:24}}>
+                <div style={{fontSize:11,letterSpacing:2,color:"rgba(255,255,255,0.45)",fontWeight:600,marginBottom:8}}>PÉRIODE D'ESSAI TERMINÉE</div>
+                <div style={{fontWeight:800,fontSize:22,color:"#FFF",marginBottom:6}}>Choisissez votre plan</div>
+                <div style={{fontSize:13,color:"rgba(255,255,255,0.55)"}}>L'accès est suspendu pour toute votre équipe</div>
+              </div>
+
+              {/* Plan Starter — rappel gratuit */}
+              <div style={{background:"rgba(255,255,255,0.06)",borderRadius:16,padding:"14px 18px",marginBottom:12,border:"1px solid rgba(255,255,255,0.08)"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,color:"rgba(255,255,255,0.5)",letterSpacing:0.5}}>STARTER — ESSAI GRATUIT</div>
+                    <div style={{fontSize:12,color:"rgba(255,255,255,0.3)",marginTop:3}}>3 membres · 100 commandes/mois · 14 jours</div>
+                  </div>
+                  <div style={{fontWeight:800,fontSize:18,color:"rgba(255,255,255,0.3)"}}>0 CFA</div>
                 </div>
+              </div>
 
-                {/* Bouton Wave */}
-                <button onClick={startWavePayment} disabled={payLoading}
-                  style={{width:"100%",background:payLoading?"#9CA3AF":G.green,color:"#FFF",border:"none",borderRadius:12,padding:"15px 0",fontWeight:700,fontSize:15,cursor:payLoading?"not-allowed":"pointer",letterSpacing:0.3,marginBottom:10}}>
-                  {payLoading?"Connexion en cours...":"Payer avec Wave — 8 000 CFA"}
-                </button>
-                <div style={{textAlign:"center",fontSize:11,color:"#9CA3AF"}}>Paiement sécurisé via Wave · Sans engagement</div>
+              {/* Plans payants */}
+              {PLANS_PAY.map(p=>(
+                <div key={p.key} style={{background:p.highlight?"#FFF":"rgba(255,255,255,0.04)",borderRadius:18,overflow:"hidden",marginBottom:12,border:p.highlight?`2px solid ${G.gold}`:"1px solid rgba(255,255,255,0.1)",boxShadow:p.highlight?"0 20px 60px rgba(0,0,0,0.4)":"none"}}>
+                  {p.highlight&&(
+                    <div style={{background:G.gold,padding:"6px 18px",fontSize:10,fontWeight:800,color:"#1A1A1A",letterSpacing:1.5}}>RECOMMANDÉ</div>
+                  )}
+                  <div style={{padding:"20px 22px"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+                      <div>
+                        <div style={{fontWeight:800,fontSize:16,color:p.highlight?G.dark:"#FFF",letterSpacing:0.3}}>{p.name}</div>
+                        <div style={{fontSize:12,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",marginTop:2}}>{p.members} · {p.orders}</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{p.priceLabel}</div>
+                        <div style={{fontSize:11,color:p.highlight?G.gray:"rgba(255,255,255,0.4)"}}>CFA / mois</div>
+                      </div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:18}}>
+                      {p.features.map(f=>(
+                        <div key={f} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:p.highlight?G.dark:"rgba(255,255,255,0.7)"}}>
+                          <div style={{width:5,height:5,borderRadius:"50%",background:p.highlight?G.green:G.gold,flexShrink:0}}/>
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={()=>startWavePayment(p.price, p.key)}
+                      disabled={!!payLoading}
+                      style={{width:"100%",background:payLoading===p.key?"#9CA3AF":p.highlight?G.green:"rgba(240,165,0,0.15)",color:p.highlight?"#FFF":G.gold,border:p.highlight?"none":`1px solid ${G.gold}`,borderRadius:11,padding:"13px 0",fontWeight:700,fontSize:14,cursor:payLoading?"not-allowed":"pointer",letterSpacing:0.3}}>
+                      {payLoading===p.key?"Connexion Wave...":`Choisir ${p.name} — ${p.priceLabel} CFA`}
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8,paddingBottom:24}}>
+                Paiement sécurisé via Wave · Sans engagement
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── BANNIÈRE TRIAL (derniers 3 jours) ── */}
       {!isPro&&!trialExpired&&trialDaysLeft<=3&&(
@@ -2635,9 +2661,9 @@ function AppInner() {
           <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",fontWeight:500}}>
             <strong style={{color:"#F0A500"}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""}</strong> d'essai restants
           </div>
-          <button onClick={startWavePayment} disabled={payLoading}
+          <button onClick={()=>startWavePayment(14000,"pro")} disabled={!!payLoading}
             style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,letterSpacing:0.2}}>
-            {payLoading?"...":"Passer Pro — 8 000 CFA/mois"}
+            {payLoading?"...":"Passer Pro — 14 000 CFA/mois"}
           </button>
         </div>
       )}

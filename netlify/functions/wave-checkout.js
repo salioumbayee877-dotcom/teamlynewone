@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Wave API key non configurée" }) };
 
   try {
-    const { orgId } = JSON.parse(event.body || "{}");
+    const { orgId, amount = "14000", plan = "pro" } = JSON.parse(event.body || "{}");
     if (!orgId) return { statusCode: 400, headers, body: JSON.stringify({ error: "orgId requis" }) };
 
     const res = await fetch("https://api.wave.com/v1/checkout/sessions", {
@@ -39,7 +39,7 @@ exports.handler = async (event) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        amount: "8000",
+        amount: String(amount),
         currency: "XOF",
         error_url:   `${APP_URL}/?payment=error&org=${orgId}`,
         success_url: `${APP_URL}/?payment=success&org=${orgId}`,
