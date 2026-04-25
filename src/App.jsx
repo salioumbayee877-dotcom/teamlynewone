@@ -911,6 +911,7 @@ function AppInner() {
 
   // ── Export Excel/CSV ──
   const exportExcel = () => {
+    if(!canUseExport){ addToast("Export disponible à partir du plan Pro","🔒","#7C3AED"); setShowPlanModal(true); return; }
     const cols = ["Date","Client","Téléphone","Adresse","Produit","Prix","Statut","Livreur","Closer","Note"];
     const rows = orders.map(o=>[
       o.created_at ? new Date(o.created_at).toLocaleDateString("fr-FR") : "",
@@ -919,7 +920,7 @@ function AppInner() {
       o.livreur||"", o.closer||"", o.note||""
     ]);
     const csv = [cols, ...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(";")).join("\n");
-    const bom = "﻿"; // UTF-8 BOM pour Excel
+    const bom = "﻿";
     const blob = new Blob([bom+csv], {type:"text/csv;charset=utf-8;"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -2620,6 +2621,7 @@ function AppInner() {
   const canUseShopify = isOwner || isPro;
   const canUseCompta  = isOwner || isPro;
   const canUseAI      = isOwner || isPro;
+  const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((canUseCompta&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
@@ -3602,8 +3604,16 @@ function AppInner() {
 
               {/* Exports */}
               <div style={{display:'flex',gap:8}}>
-                <button onClick={()=>exportFile('excel')} style={{flex:1,background:G.green,color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer'}}>📊 Excel (.csv)</button>
-                <button onClick={()=>exportFile('csv')} style={{flex:1,background:'#0284C7',color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer'}}>📄 CSV</button>
+                <button onClick={()=>{ if(!canUseExport){addToast("Export disponible à partir du plan Pro","🔒","#7C3AED");setShowPlanModal(true);return;} exportFile('excel'); }}
+                  style={{flex:1,background:canUseExport?G.green:"#9CA3AF",color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                  {!canUseExport&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                  Excel (.csv)
+                </button>
+                <button onClick={()=>{ if(!canUseExport){addToast("Export disponible à partir du plan Pro","🔒","#7C3AED");setShowPlanModal(true);return;} exportFile('csv'); }}
+                  style={{flex:1,background:canUseExport?'#0284C7':"#9CA3AF",color:'#fff',border:'none',borderRadius:10,padding:'10px 0',fontSize:12,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                  {!canUseExport&&<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>}
+                  CSV
+                </button>
               </div>
 
               {/* Compteur */}
