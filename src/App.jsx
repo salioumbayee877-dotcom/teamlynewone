@@ -350,13 +350,14 @@ class ErrorBoundary extends React.Component {
 }
 
 
-function makeMarkerIcon(L, name) {
+function makeMarkerIcon(L, name, city="") {
   return L.divIcon({
     html:`<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
       <div style="background:#1A5C38;border:2px solid #F0A500;border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 3px 10px rgba(0,0,0,0.35)">🏍️</div>
       <div style="background:#1A5C38;color:#F0A500;font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,0.25);letter-spacing:0.3px">${name}</div>
+      ${city?`<div style="background:rgba(255,255,255,0.92);color:#1A5C38;font-size:9px;font-weight:700;padding:1px 6px;border-radius:6px;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.2)">📍 ${city}</div>`:""}
     </div>`,
-    className:"", iconSize:[80,58], iconAnchor:[40,48]
+    className:"", iconSize:[90, city?72:58], iconAnchor:[45, city?62:48]
   });
 }
 
@@ -396,7 +397,7 @@ function MapView({positions, role, isDesktop=false}) {
       Object.entries(positions).forEach(([name,pos])=>{
         if(!pos?.lat) return;
         const popup = `<div style="font-size:13px"><b>🏍️ ${name}</b>${pos.city?`<br><span style="color:#666;font-size:11px">📍 ${pos.city}</span>`:""}</div>`;
-        stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
+        stateRef.current.markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name,pos.city||"")}).addTo(map).bindPopup(popup);
       });
     };
 
@@ -419,8 +420,9 @@ function MapView({positions, role, isDesktop=false}) {
       const popup = `<div style="font-size:13px"><b>🏍️ ${name}</b>${pos.city?`<br><span style="color:#666;font-size:11px">📍 ${pos.city}</span>`:""}</div>`;
       if(markers[name]) {
         markers[name].setLatLng([pos.lat,pos.lng]).setPopupContent(popup);
+        markers[name].setIcon(makeMarkerIcon(L,name,pos.city||""));
       } else {
-        markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name)}).addTo(map).bindPopup(popup);
+        markers[name] = L.marker([pos.lat,pos.lng],{icon:makeMarkerIcon(L,name,pos.city||"")}).addTo(map).bindPopup(popup);
       }
     });
   },[positions]);
