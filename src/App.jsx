@@ -986,7 +986,7 @@ function AppInner() {
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
   };
 
-  const startWavePayment = async (amount=14000, planKey="pro") => {
+  const startWavePayment = async (amount=8000, planKey="basic") => {
     if(!orgId||payLoading) return;
     setPayLoading(planKey);
     try {
@@ -1923,39 +1923,40 @@ function AppInner() {
   const [inviteLink, setInviteLink] = useState({closer:"",livreur:""});
 
   const PLANS = [
-    {key:"starter", name:"Starter", price:"Gratuit 14 jours", maxMembers:3, maxOrders:100, color:G.green, bg:G.greenLight,
+    {key:"gratuit", name:"Gratuit", price:"0", maxMembers:2, maxOrders:50, color:G.gray, bg:G.grayLight,
+     features:[
+       "2 membres — Admin + 1 membre",
+       "50 commandes / mois",
+       "Création manuelle de commandes",
+       "Suivi livraisons",
+       "Chat équipe interne",
+       "Dashboard basique",
+     ]},
+    {key:"basic", name:"Basic", price:"8.000", maxMembers:3, maxOrders:100, color:G.green, bg:G.greenLight,
      features:[
        "3 membres — Admin + 1 Closer + 1 Livreur",
        "100 commandes / mois",
-       "3 rôles inclus",
-       "Suivi livraisons temps réel",
-       "Chat équipe interne",
-       "GPS livreur",
+       "Shopify · WooCommerce · YouCan Shop",
+       "Confirmation WhatsApp automatique",
+       "Gestion produits & stock",
+       "GPS livreur temps réel",
+       "Comptabilité & marges",
+       "Assistant IA",
      ]},
     {key:"pro", name:"Pro", price:"14.000", maxMembers:5, maxOrders:200, color:G.blue, bg:"#EFF6FF",
      features:[
        "5 membres — 3 rôles inclus",
        "200 commandes / mois",
-       "Shopify · WooCommerce · YouCan Shop",
-       "GPS temps réel",
-       "Comptabilité & marges",
-       "Gestion produits & stock",
-       "Assistant IA",
-       "Chat équipe interne",
+       "Toutes les fonctions Basic",
+       "Export Excel clients",
+       "Rapports avancés",
      ]},
     {key:"scale", name:"Scale", price:"25.000", maxMembers:null, maxOrders:null, color:"#7C3AED", bg:"#EDE9FE",
      features:[
-       "Membres illimités — 3 rôles inclus",
+       "Membres illimités",
        "Commandes illimitées",
-       "Shopify · WooCommerce · YouCan Shop",
-       "GPS temps réel",
-       "Comptabilité & marges",
-       "Gestion produits & stock",
-       "Assistant IA",
-       "Export Excel clients",
+       "Toutes les fonctions Pro",
        "Support prioritaire",
-       "✅ Comptabilité boutique",
-       "✅ Support prioritaire 24/7",
      ]},
   ];
 
@@ -2507,18 +2508,25 @@ function AppInner() {
 
   const trialExpired = !isPro && trialDaysLeft === 0;
 
-  // ── Limite de commandes par plan ─────────────────────────────────────────
-  const PLAN_ORDER_LIMITS = {starter:100, trial:100, pro:200, scale:Infinity};
-  const currentPlanKey    = settings.plan || "starter";
-  const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 100;
-  const THIS_MONTH        = new Date().toISOString().slice(0,7); // "2026-04"
+  // ── Plan actif et feature gating ─────────────────────────────────────────
+  const PLAN_ORDER_LIMITS = {gratuit:50, starter:50, trial:50, basic:100, pro:200, scale:Infinity};
+  const currentPlanKey    = isPro ? (settings.plan || "basic") : "gratuit";
+  const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 50;
+  const THIS_MONTH        = new Date().toISOString().slice(0,7);
   const ordersThisMonth   = orders.filter(o=>o.created_at?.slice(0,7)===THIS_MONTH).length;
   const orderLimitReached = isFinite(orderLimit) && ordersThisMonth >= orderLimit;
   const orderLimitWarning = isFinite(orderLimit) && ordersThisMonth >= Math.floor(orderLimit * 0.8);
+
+  // Fonctions bloquées sur plan gratuit
+  const isGratuit     = !isPro;
+  const canUseGPS     = !isGratuit;
+  const canUseShopify = !isGratuit;
+  const canUseCompta  = !isGratuit;
+  const canUseAI      = !isGratuit;
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((pC.closerFullControl||pC.closerCompta)?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
-    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"position",icon:"position",l:"Localisation"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((canUseCompta&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
   // Quand le trial expire → bloquer tout pour tous les rôles
   const tabDef = trialExpired
@@ -2576,15 +2584,9 @@ function AppInner() {
       {trialExpired&&(()=>{
         const PLANS_PAY = [
           {
-            key:"pro", name:"Pro", price:14000, priceLabel:"14 000",
-            members:"5 membres", orders:"200 commandes/mois",
-            features:["3 rôles (Admin, Closer, Livreur)","200 commandes / mois","5 membres","Shopify · WooCommerce · YouCan","GPS temps réel","Comptabilité & marges","Assistant IA","Gestion produits & stock"],
-            highlight:false,
-          },
-          {
-            key:"scale", name:"Scale", price:25000, priceLabel:"25 000",
-            members:"Membres illimités", orders:"Commandes illimitées",
-            features:["3 rôles (Admin, Closer, Livreur)","Commandes illimitées","Membres illimités","Shopify · WooCommerce · YouCan","GPS temps réel","Comptabilité & marges","Assistant IA","Gestion produits & stock","Export Excel clients","Support prioritaire"],
+            key:"basic", name:"Basic", price:8000, priceLabel:"8 000",
+            members:"3 membres", orders:"100 commandes/mois",
+            features:["Admin + 1 Closer + 1 Livreur","100 commandes / mois","Shopify · WooCommerce · YouCan","Confirmation WhatsApp automatique","GPS livreur temps réel","Gestion produits & stock","Comptabilité & marges","Assistant IA"],
             highlight:true,
           },
         ];
@@ -5744,7 +5746,7 @@ function AppInner() {
 
       {/* ── AI ASSISTANT ── */}
       {/* Floating button */}
-      {!aiOpen&&!trialExpired&&(
+      {!aiOpen&&!trialExpired&&canUseAI&&(
         <button onClick={()=>setAiOpen(true)} style={{
           position:"fixed",bottom:isDesktop?28:tab==="chat"?130:100,right:18,zIndex:8000,
           width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",

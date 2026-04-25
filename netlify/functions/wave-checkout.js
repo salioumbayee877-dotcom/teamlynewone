@@ -29,7 +29,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Wave API key non configurée" }) };
 
   try {
-    const { orgId, amount = "14000", plan = "pro" } = JSON.parse(event.body || "{}");
+    const { orgId, amount = "8000", plan = "basic" } = JSON.parse(event.body || "{}");
     if (!orgId) return { statusCode: 400, headers, body: JSON.stringify({ error: "orgId requis" }) };
 
     const res = await fetch("https://api.wave.com/v1/checkout/sessions", {
