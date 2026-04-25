@@ -3281,12 +3281,13 @@ function AppInner() {
                   {Object.keys(livreurPositions).filter(k=>livreurPositions[k]?.lat).length} actif(s)
                 </div>
               </div>
-              {Object.keys(livreurPositions).filter(k=>livreurPositions[k]?.lat).length===0
-                ? <div style={{padding:30,textAlign:"center",color:G.gray,fontSize:13}}>
-                    Aucun livreur GPS actif pour le moment
-                  </div>
-                : <MapView positions={livreurPositions} role="admin" isDesktop={isDesktop}/>
-              }
+              {(()=>{
+                const teamNoms = new Set([...teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom), currentUser.nom]);
+                const activePosns = Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat && teamNoms.has(k)));
+                return Object.keys(activePosns).length===0
+                  ? <div style={{padding:30,textAlign:"center",color:G.gray,fontSize:13}}>Aucun livreur GPS actif pour le moment</div>
+                  : <MapView positions={activePosns} role="admin" isDesktop={isDesktop}/>;
+              })()}
             </div>
 
             {/* Liste livreurs avec leurs livraisons actives */}
