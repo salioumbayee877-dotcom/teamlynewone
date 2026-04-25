@@ -1142,7 +1142,9 @@ function AppInner() {
               if(orgs&&orgs[0]) {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
-                const pro = ["pro","scale"].includes(org.plan) && org.plan_expires_at && new Date(org.plan_expires_at)>new Date();
+                const paidPlans = ["basic","pro","scale"];
+                const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at)>new Date();
+                const pro = paidPlans.includes(org.plan) && notExpired;
                 setIsPro(pro);
                 if(!pro) {
                   const days = Math.max(0, 14 - Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));
@@ -2062,7 +2064,9 @@ function AppInner() {
                     setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
                     if(orgs?.[0]) {
                       const org=orgs[0];
-                      const pro=org.plan==="pro"&&org.plan_expires_at&&new Date(org.plan_expires_at)>new Date();
+                      const paidPlans=["basic","pro","scale"];
+                      const notExpired=!org.plan_expires_at||new Date(org.plan_expires_at)>new Date();
+                      const pro=paidPlans.includes(org.plan)&&notExpired;
                       setIsPro(pro);
                       if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
                     }
@@ -2509,8 +2513,8 @@ function AppInner() {
   const trialExpired = !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
-  const PLAN_ORDER_LIMITS = {gratuit:50, starter:50, trial:50, basic:100, pro:200, scale:Infinity};
-  const currentPlanKey    = isPro ? (settings.plan || "basic") : "gratuit";
+  const PLAN_ORDER_LIMITS = {gratuit:50, starter:50, trial:50, basic:100, pro:200, scale:Infinity, pro:200};
+  const currentPlanKey    = isPro ? (settings.plan || "basic") : (trialDaysLeft > 0 ? "gratuit" : "gratuit");
   const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 50;
   const THIS_MONTH        = new Date().toISOString().slice(0,7);
   const ordersThisMonth   = orders.filter(o=>o.created_at?.slice(0,7)===THIS_MONTH).length;
