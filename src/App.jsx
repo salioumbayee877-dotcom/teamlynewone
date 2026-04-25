@@ -886,7 +886,7 @@ function AppInner() {
   const [authLoading, setAuthLoading] = useState(false);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"starter", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false, closerFullControl:false, closerDeleteOrder:false, closerManageTeam:false, closerManageProducts:false});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false, closerFullControl:false, closerDeleteOrder:false, closerManageTeam:false, closerManageProducts:false});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
@@ -1102,7 +1102,9 @@ function AppInner() {
         // Owner: always full access, just sync the plan label
         if(currentUserRef.current?.email === "salioumbayee877@gmail.com") {
           setIsPro(true);
-          if(org.plan) setSettings(s=>({...s, plan: org.plan}));
+          const validPlans=["gratuit","basic","pro","scale"];
+          const normalizedPlan=validPlans.includes(org.plan)?org.plan:(["basic","pro","scale"].includes(org.plan)?org.plan:"gratuit");
+          if(org.plan) setSettings(s=>({...s, plan: normalizedPlan}));
           return;
         }
         const paidPlans = ["basic","pro","scale"];
@@ -4039,7 +4041,7 @@ function AppInner() {
 
             {/* ── Inviter un membre (toujours visible, grisé si limite atteinte) ── */}
             {(()=>{
-              const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+              const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
               const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
@@ -5165,7 +5167,7 @@ function AppInner() {
 
             {/* Plan */}
             {(()=>{
-              const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+              const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
               const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
@@ -5243,7 +5245,7 @@ function AppInner() {
                 ))}
               </div>
               {(()=>{
-                const curPlan = PLANS.find(p=>p.key===settings.plan)||PLANS[0];
+                const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
                 const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 const canInvite = orgMemberCount !== null && !atLimit;
