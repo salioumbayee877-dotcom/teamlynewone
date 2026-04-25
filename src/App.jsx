@@ -2725,7 +2725,9 @@ function AppInner() {
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
           const leads = orders.filter(o=>o.status==="boutique");
-          const webhookUrl = `${window.location.origin}/.netlify/functions/shopify-webhook?org=${orgId}`;
+          const webhookUrl     = `${window.location.origin}/.netlify/functions/shopify-webhook?org=${orgId}`;
+          const wooUrl         = `${window.location.origin}/.netlify/functions/woocommerce-webhook?org=${orgId}`;
+          const youcanUrl      = `${window.location.origin}/.netlify/functions/youcanshop-webhook?org=${orgId}`;
           return (
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
               {/* Header */}
@@ -2818,57 +2820,27 @@ function AppInner() {
               <div style={{background:G.white,borderRadius:14,padding:14}}>
                 <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:12}}>🔗 Connecter ta boutique</div>
 
-                {/* URL à copier */}
-                <div style={{background:"#F8F8F8",borderRadius:9,padding:"10px 12px",marginBottom:10}}>
-                  <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:5,letterSpacing:0.5}}>TON URL WEBHOOK (à copier)</div>
-                  <div style={{fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",lineHeight:1.6,marginBottom:8}}>{webhookUrl}</div>
-                  <button onClick={()=>navigator.clipboard?.writeText(webhookUrl).then(()=>addToast("URL copiée ✅","✅",G.green))}
-                    style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                    📋 Copier l'URL
-                  </button>
-                </div>
-
-                {/* Shopify */}
-                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:8}}>
-                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
-                    🛒 Shopify
+                {[
+                  {icon:"🛒", label:"Shopify", url:webhookUrl, steps:["Va dans ton admin Shopify","Settings → Notifications → Webhooks","Clique \"Create webhook\"","Event: Order payment · Format: JSON","Colle l'URL ci-dessous → Save"]},
+                  {icon:"⚡", label:"YouCan Shop", url:youcanUrl, steps:["Va dans ton panel YouCan Shop","Settings → Webhooks","Clique \"Add webhook\"","Event: Order created","Colle l'URL ci-dessous → Save"]},
+                  {icon:"🔧", label:"WooCommerce", url:wooUrl, steps:["Va dans ton admin WordPress","WooCommerce → Settings → Advanced → Webhooks","Clique \"Add webhook\"","Topic: Order created · Format: JSON","Colle l'URL ci-dessous → Save"]},
+                ].map(p=>(
+                  <div key={p.label} style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:10}}>
+                    <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
+                      {p.icon} {p.label}
+                    </div>
+                    <div style={{padding:"10px 12px"}}>
+                      <div style={{fontSize:11,color:G.gray,lineHeight:1.8,marginBottom:8}}>
+                        {p.steps.map((s,i)=><div key={i}>{i+1}. {s}</div>)}
+                      </div>
+                      <div style={{background:"#F3F4F6",borderRadius:7,padding:"6px 10px",fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:6}}>{p.url}</div>
+                      <button onClick={()=>navigator.clipboard?.writeText(p.url).then(()=>addToast(`URL ${p.label} copiée ✅`,"✅",G.green))}
+                        style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:7,padding:"8px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                        📋 Copier l'URL {p.label}
+                      </button>
+                    </div>
                   </div>
-                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
-                    1. Va dans ton admin Shopify<br/>
-                    2. <b>Settings → Notifications → Webhooks</b><br/>
-                    3. Clique <b>"Create webhook"</b><br/>
-                    4. Event: <b>Order payment</b> · Format: <b>JSON</b><br/>
-                    5. Colle l'URL ci-dessus → <b>Save</b>
-                  </div>
-                </div>
-
-                {/* YouCan */}
-                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:8}}>
-                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
-                    ⚡ YouCan
-                  </div>
-                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
-                    1. Va dans ton panel YouCan<br/>
-                    2. <b>Settings → Webhooks</b><br/>
-                    3. Clique <b>"Add webhook"</b><br/>
-                    4. Event: <b>Order created</b> · Format: <b>JSON</b><br/>
-                    5. Colle l'URL ci-dessus → <b>Save</b>
-                  </div>
-                </div>
-
-                {/* WooCommerce */}
-                <div style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden"}}>
-                  <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
-                    🔧 WooCommerce
-                  </div>
-                  <div style={{padding:"10px 12px",fontSize:11,color:G.gray,lineHeight:1.7}}>
-                    1. Va dans ton admin WordPress<br/>
-                    2. <b>WooCommerce → Settings → Advanced → Webhooks</b><br/>
-                    3. Clique <b>"Add webhook"</b><br/>
-                    4. Topic: <b>Order created</b> · Format: <b>JSON</b><br/>
-                    5. Colle l'URL ci-dessus → <b>Save</b>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           );
