@@ -4402,10 +4402,11 @@ function AppInner() {
           };
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
-          const hasBottomBar = role === "admin" || role === "closer";
-          // Header ~54px, tab bar ~54px; margin cancels parent padding (14px top, 90/40px bottom)
-          const chatH = isDesktop ? "calc(100vh - 54px)" : hasBottomBar ? "calc(100vh - 54px - 54px)" : "calc(100vh - 54px)";
-          const chatMargin = isDesktop ? "-24px -24px -24px" : hasBottomBar ? "-14px -14px -90px" : "-14px -14px -40px";
+          const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
+          const chatH = isDesktop
+            ? "calc(100vh - 54px)"
+            : "calc(100dvh - 54px - 62px - env(safe-area-inset-bottom, 0px))";
+          const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
 
           return (
           <div style={{display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"}}>
