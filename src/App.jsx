@@ -792,7 +792,8 @@ function AppInner() {
   const [aiMsgs,   setAiMsgs]    = useState([]);
   const [aiInput,  setAiInput]   = useState("");
   const [aiLoading,setAiLoading] = useState(false);
-  const aiBottomRef = useRef(null);
+  const aiBottomRef  = useRef(null);
+  const aiScrollRef  = useRef(null);
 
   useEffect(()=>{
     const onResize = ()=>{ setIsDesktop(window.innerWidth>=900); setScreenW(window.innerWidth); };
@@ -1017,6 +1018,13 @@ function AppInner() {
       window.history.replaceState({},document.title,window.location.pathname);
     }
   },[orgId]);
+
+  // Scroll instantané au dernier message quand on ouvre le chat (comme WhatsApp)
+  useEffect(()=>{
+    if(aiOpen && aiMsgs.length > 0) {
+      setTimeout(()=>{ if(aiScrollRef.current) aiScrollRef.current.scrollTop = aiScrollRef.current.scrollHeight; }, 30);
+    }
+  },[aiOpen]);
 
   const sendAiMessage = async (text) => {
     if (!text.trim() || aiLoading) return;
@@ -5616,12 +5624,12 @@ function AppInner() {
       {/* Floating button */}
       {!aiOpen&&!trialExpired&&(
         <button onClick={()=>setAiOpen(true)} style={{
-          position:"fixed",bottom:isDesktop?28:80,right:18,zIndex:8000,
+          position:"fixed",bottom:isDesktop?28:tab==="chat"?130:100,right:18,zIndex:8000,
           width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",
           background:"linear-gradient(135deg,#1A5C38,#0D9488)",
           boxShadow:"0 4px 16px rgba(0,0,0,0.25)",
-          display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,
-        }}>🤖</button>
+          display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,
+        }}>🧑‍💼</button>
       )}
 
       {/* Chat panel */}
@@ -5637,10 +5645,10 @@ function AppInner() {
         }}>
           {/* Header */}
           <div style={{background:"linear-gradient(135deg,#1A5C38,#0D9488)",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
-            <div style={{fontSize:24}}>🤖</div>
+            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🧑‍💼</div>
             <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Assistant Teamly</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>IA • e-commerce COD</div>
+              <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Support Teamly</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>Assistant virtuel • répond en secondes</div>
             </div>
             {aiMsgs.length>0&&(
               <button onClick={()=>setAiMsgs([])} title="Effacer la conversation" style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:8,padding:"5px 9px",color:"rgba(255,255,255,0.85)",cursor:"pointer",fontSize:11,fontWeight:600,marginRight:4}}>🗑️</button>
@@ -5649,7 +5657,7 @@ function AppInner() {
           </div>
 
           {/* Messages */}
-          <div style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
+          <div ref={aiScrollRef} style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10,background:"#F8FAFC"}}>
             {aiMsgs.length===0&&(()=>{
               const aiByRole = {
                 livreur: {
@@ -5683,7 +5691,7 @@ function AppInner() {
               const ctx = aiByRole[role] || aiByRole.admin;
               return (
                 <div style={{textAlign:"center",padding:"24px 16px"}}>
-                  <div style={{fontSize:36,marginBottom:8}}>🤖</div>
+                  <div style={{width:64,height:64,borderRadius:"50%",background:"linear-gradient(135deg,#1A5C38,#0D9488)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32,margin:"0 auto 12px"}}>🧑‍💼</div>
                   <div style={{fontWeight:700,fontSize:14,color:"#1A5C38",marginBottom:4}}>Bonjour {currentUser?.nom||""} !</div>
                   <div style={{fontSize:12,color:"#6B7280",marginBottom:16}}>{ctx.intro}</div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -5692,6 +5700,14 @@ function AppInner() {
                         💬 {q}
                       </button>
                     ))}
+                    <div style={{marginTop:6,padding:"10px 12px",background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0",textAlign:"left"}}>
+                      <div style={{fontSize:11,color:"#166534",fontWeight:600,marginBottom:2}}>👤 Parler à un humain ?</div>
+                      <div style={{fontSize:11,color:"#166534"}}>Contacte l'équipe Teamly directement sur WhatsApp</div>
+                      <a href="https://wa.me/221771234567" target="_blank" rel="noreferrer"
+                        style={{display:"inline-block",marginTop:6,background:"#25D366",color:"#FFF",borderRadius:7,padding:"5px 12px",fontSize:11,fontWeight:700,textDecoration:"none"}}>
+                        💬 WhatsApp support
+                      </a>
+                    </div>
                   </div>
                 </div>
               );
