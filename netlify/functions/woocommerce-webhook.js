@@ -54,6 +54,20 @@ exports.handler = async (event) => {
     const price        = parseFloat(order.total || 0);
     const ref          = `#${order.number || order.id}`;
 
+    // ── Plan limit check ────────────────────────────────────────────────
+    const LIMITS = {starter:100, trial:100, pro:200, scale:999999};
+    try {
+      const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=plan&limit=1`, { headers: sbHeaders });
+      const orgData = await orgRes.json();
+      const plan    = orgData?.[0]?.plan || "starter";
+      const limit   = LIMITS[plan] ?? 100;
+      const month   = new Date().toISOString().slice(0,7);
+      const cntRes  = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&created_at=gte.${month}-01&select=id`, { headers: sbHeaders });
+      const cnt     = (await cntRes.json())?.length || 0;
+      if (cnt >= limit)
+        return { statusCode: 429, headers, body: JSON.stringify({ error: `Limite ${limit} commandes/mois atteinte (plan ${plan})` }) };
+    } catch(e) { console.error("Limit check error:", e.message); }
+
     // Duplicate check
     const checkRes = await fetch(
       `${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&note=like.Commande%20WooCommerce%20${encodeURIComponent(ref)}*&select=id`,

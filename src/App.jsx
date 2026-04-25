@@ -2509,6 +2509,15 @@ function AppInner() {
   const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
   const trialExpired = !isPro && trialDaysLeft === 0;
+
+  // ── Limite de commandes par plan ─────────────────────────────────────────
+  const PLAN_ORDER_LIMITS = {starter:100, trial:100, pro:200, scale:Infinity};
+  const currentPlanKey    = settings.plan || "starter";
+  const orderLimit        = PLAN_ORDER_LIMITS[currentPlanKey] ?? 100;
+  const THIS_MONTH        = new Date().toISOString().slice(0,7); // "2026-04"
+  const ordersThisMonth   = orders.filter(o=>o.created_at?.slice(0,7)===THIS_MONTH).length;
+  const orderLimitReached = isFinite(orderLimit) && ordersThisMonth >= orderLimit;
+  const orderLimitWarning = isFinite(orderLimit) && ordersThisMonth >= Math.floor(orderLimit * 0.8);
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"compta",icon:"compta",l:"Compta"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((pC.closerFullControl||pC.closerCompta)?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
@@ -2750,7 +2759,12 @@ function AppInner() {
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
-            <button onClick={()=>setShowAdd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Commande</button>
+            <button
+              onClick={()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passez au plan supérieur`,"🔒","#DC2626");return;} setShowAdd(true); }}
+              style={{background:orderLimitReached?"#9CA3AF":G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:orderLimitReached?"not-allowed":"pointer",fontWeight:700,fontSize:12,color:orderLimitReached?"#FFF":G.dark}}
+              title={orderLimitReached?`Limite de ${orderLimit} commandes/mois atteinte`:""}>
+              {orderLimitReached?"Limite atteinte":"+ Commande"}
+            </button>
           )}
           {role==="admin"&&tab==="stock"&&(
             <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Produit</button>
@@ -3016,7 +3030,7 @@ function AppInner() {
               <ST>⚡ ACTIONS RAPIDES</ST>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
-                  {icon:"📦",label:"+ Commande",action:()=>setShowAdd(true),bg:G.greenLight,color:G.green},
+                  {icon:"📦",label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
                   {icon:"📦",label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
                   {icon:"👤",label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
                   {icon:"🗺️",label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
@@ -3182,6 +3196,25 @@ function AppInner() {
         {/* ── COMMANDES / LIVRAISONS ── */}
         {dataReady&&(tab==="commandes"||tab==="livraisons")&&(
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
+
+            {/* Bannière limite commandes */}
+            {tab==="commandes"&&isFinite(orderLimit)&&orderLimitWarning&&(
+              <div style={{background:orderLimitReached?"#FEE2E2":"#FEF3C7",border:`1px solid ${orderLimitReached?"#FECACA":"#FDE68A"}`,borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13,color:orderLimitReached?"#991B1B":"#92400E"}}>
+                    {orderLimitReached?"Limite atteinte — création bloquée":`Attention : ${ordersThisMonth}/${orderLimit} commandes ce mois`}
+                  </div>
+                  <div style={{fontSize:11,color:orderLimitReached?"#DC2626":"#B45309",marginTop:2}}>
+                    {orderLimitReached?`Passez au plan supérieur pour continuer`:`Il reste ${orderLimit-ordersThisMonth} commande${orderLimit-ordersThisMonth>1?"s":""} disponible${orderLimit-ordersThisMonth>1?"s":""}`}
+                  </div>
+                </div>
+                {orderLimitReached&&(
+                  <button onClick={()=>setShowPlanModal(true)} style={{background:"#DC2626",color:"#FFF",border:"none",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>
+                    Changer de plan
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* ── Filtre par date ── */}
             {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
