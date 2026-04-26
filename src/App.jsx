@@ -2624,9 +2624,9 @@ function AppInner() {
   );
 
   const pC = settings; // permisos closer
-  const canEditStock        = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageProducts));
-  const canDeleteOrder      = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerDeleteOrder));
-  const canManageTeam       = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerManageTeam));
+  const canEditStock        = role==="admin" || role==="closer";
+  const canDeleteOrder      = role==="admin";
+  const canManageTeam       = role==="admin";
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
@@ -4354,7 +4354,7 @@ function AppInner() {
         )}
 
         {/* ── STOCK ── */}
-        {dataReady&&tab==="stock"&&(canEditStock)&&(
+        {dataReady&&tab==="stock"&&(role==="admin"||role==="closer")&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
