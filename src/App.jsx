@@ -887,7 +887,7 @@ function AppInner() {
   const [authLoading, setAuthLoading] = useState(false);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, closerSettings:false, closerFullControl:false, closerDeleteOrder:false, closerManageTeam:false, closerManageProducts:false});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
@@ -1140,11 +1140,10 @@ function AppInner() {
   useEffect(()=>{
     if(!orgId||!sbReady||role!=="admin") return;
     const t=setTimeout(()=>{
-      const s={closerCompta:settings.closerCompta,closerFullControl:settings.closerFullControl,closerDeleteOrder:settings.closerDeleteOrder,closerManageTeam:settings.closerManageTeam,closerManageProducts:settings.closerManageProducts};
-      sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:s},_authToken).catch(()=>{});
+      sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta}},_authToken).catch(()=>{});
     },1000);
     return ()=>clearTimeout(t);
-  },[settings.closerCompta,settings.closerFullControl,settings.closerDeleteOrder,settings.closerManageTeam,settings.closerManageProducts,orgId,sbReady]);
+  },[settings.closerCompta,orgId,sbReady]);
 
   // Save tab to localStorage when it changes
   useEffect(()=>{
@@ -1976,7 +1975,7 @@ function AppInner() {
             style={{flex:1,background:"#FAFAF9",color:"#78716C",border:"1px solid #E7E5E4",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
             📝 {o.note?"Note":"+ Note"}
           </button>
-          {(role==="admin"||(role==="closer"&&pC.closerFullControl))&&(
+          {(role==="admin"||role==="closer")&&(
             <button onClick={()=>setEditOrder({...o})}
               style={{flex:1,background:G.grayLight,color:G.dark,border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
               ✏️ Modifier
@@ -2628,7 +2627,7 @@ function AppInner() {
   const canDeleteOrder      = role==="admin";
   const canManageTeam       = role==="admin";
   const canEditOrders = role==="admin" || role==="closer";
-  const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
+  const canSeeCompta  = role==="admin" || (role==="closer" && pC.closerCompta);
 
   const isOwner       = OWNER_EMAILS.includes(currentUser.email);
   const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
@@ -5896,7 +5895,7 @@ function AppInner() {
                   style={{background:G.green,color:G.white,borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   📞 Appeler le client
                 </a>
-                {(role==="admin"||(role==="closer"&&(pC.closerFullControl||settings.closerModify)))&&(
+                {(role==="admin"||role==="closer")&&(
                   <button onClick={()=>{setOrderDetail(null);setEditOrder({...o});}}
                     style={{width:"100%",background:"#EFF6FF",color:G.blue,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
                     ✏️ Modifier la commande
@@ -6099,7 +6098,7 @@ function AppInner() {
         const boutiqueCnt  = orders.filter(o=>o.status==="boutique").length;
         const commandesCnt = orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;
         const livraisonsCnt= myLiv.filter(o=>!["entregado","rechazado"].includes(o.status)).length;
-        const canCompta    = role==="admin"||(role==="closer"&&(pC.closerCompta||pC.closerFullControl));
+        const canCompta    = role==="admin"||(role==="closer"&&pC.closerCompta);
 
         const ICONS = {
           livraisons: (c)=><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>,
