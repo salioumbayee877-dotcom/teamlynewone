@@ -6118,6 +6118,12 @@ function AppInner() {
           {k:"dashboard",  label:"Dashboard",  badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.dashboard},
           {k:"equipe",     label:"Équipe",     badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.equipe},
           ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position}]),
+        ] : role==="closer" ? [
+          {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:canCompta&&!trialExpired},
+          {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
+          {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
+          {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
         ] : [
           {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
