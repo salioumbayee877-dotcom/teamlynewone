@@ -1100,7 +1100,7 @@ function AppInner() {
         const org  = orgs?.[0];
         if(!org) return;
         // Owner: always full access, just sync the plan label
-        if(currentUserRef.current?.email === "salioumbayee877@gmail.com") {
+        if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(currentUserRef.current?.email)) {
           setIsPro(true);
           const validPlans=["gratuit","basic","pro","scale"];
           const normalizedPlan=validPlans.includes(org.plan)?org.plan:(["basic","pro","scale"].includes(org.plan)?org.plan:"gratuit");
@@ -1180,7 +1180,7 @@ function AppInner() {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
                 // Propriétaire → accès complet gratuit toujours
-                if(p.email === "salioumbayee877@gmail.com") {
+                if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(p.email)) {
                   setIsPro(true);
                   setTrialDaysLeft(999);
                 } else {
@@ -2144,8 +2144,9 @@ function AppInner() {
                   const data = await sbAuth(authForm.email, authForm.password, "login");
                   const tok = data.access_token;
                   _authToken = tok; setSbToken(tok);
-                  // Fetch profile using user JWT (RLS-enforced, by user ID from auth response)
-                  const profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
+                  // Fetch profile by user ID, fallback to email if not found
+                  let profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
+                  if(!profiles||profiles.length===0) profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`).catch(()=>null);
                   if(profiles&&profiles.length>0){
                     const p=profiles[0];
                     const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at`).catch(()=>null);
@@ -2155,7 +2156,7 @@ function AppInner() {
                     setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
                     if(orgs?.[0]) {
                       const org=orgs[0];
-                      if(authForm.email==="salioumbayee877@gmail.com"){
+                      if(authForm.email==="salioumbayee877@gmail.com"||authForm.email==="salioumbayeee261@gmail.com"){
                         setIsPro(true); setTrialDaysLeft(999);
                       } else {
                         const paidPlans=["basic","pro","scale"];
@@ -2832,7 +2833,7 @@ function AppInner() {
           })}
 
           {/* Tabs bloqués — plan gratuit */}
-          {isGratuit&&!trialExpired&&(()=>{
+          {isGratuit&&(()=>{
             const LOCKED_TABS = [
               ...(role==="admin"||role==="closer" ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
               {k:"compta",icon:"compta",l:"Comptabilité & marges"},
@@ -5422,6 +5423,7 @@ function AppInner() {
                             setSettings(s=>({...s, plan:p.key}));
                             const paidPlans = ["basic","pro","scale"];
                             if(paidPlans.includes(p.key)) setIsPro(true);
+                            else if(!isOwner) setIsPro(false);
                             setShowPlanModal(false);
                             // Sauvegarde en base
                             try {
