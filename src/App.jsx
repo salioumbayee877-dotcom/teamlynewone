@@ -3955,9 +3955,9 @@ function AppInner() {
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.nom}</div>
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
-                      {m.id!==currentUser.id&&m.email!==currentUser.email&&(
+                      {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
                           <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
                           <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
@@ -3973,12 +3973,12 @@ function AppInner() {
                   {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13,color:m.id===currentUser.id?G.green:G.dark}}>
-                          🏍️ {m.nom} {m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
+                        <div style={{fontWeight:700,fontSize:13,color:m.email===currentUser.email?G.green:G.dark}}>
+                          🏍️ {m.nom} {m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
                         </div>
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
                       </div>
-                      {m.id!==currentUser.id&&m.email!==currentUser.email&&(
+                      {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
                           <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
                           <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
@@ -4011,11 +4011,11 @@ function AppInner() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.id!==currentUser.id&&m.email!==currentUser.email&&`📱 ${m.phone} · `}📧 {m.email}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.email!==currentUser.email&&`📱 ${m.phone} · `}📧 {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
+                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
                         {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
                       </div>
                     </div>
@@ -4042,12 +4042,12 @@ function AppInner() {
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:m.id===currentUser.id?G.green:G.dark}}>🏍️ {m.nom}{m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
+                        <div style={{fontWeight:700,fontSize:14,color:m.email===currentUser.email?G.green:G.dark}}>🏍️ {m.nom}{m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
-                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
+                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
                         {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
                       </div>
                     </div>
