@@ -1125,6 +1125,17 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [orgId, sbReady]);
 
+  // Reset tab if it's not available for current role/plan
+  useEffect(()=>{
+    try {
+      const saved = localStorage.getItem("teamly_tab");
+      const validTabs = {admin:["dashboard","boutique","commandes","compta","tracking","clients","chat","equipe","stock"],closer:["dashboard","boutique","commandes","stock","compta","chat","equipe"],livreur:["livraisons","chat","dashboard","equipe","position"]};
+      if(saved && role && validTabs[role] && !validTabs[role].includes(saved)){
+        setTab(validTabs[role][0]);
+      }
+    } catch(e){}
+  },[role]);
+
   // Save closer permissions to DB when admin changes them
   useEffect(()=>{
     if(!orgId||!sbReady||role!=="admin") return;
@@ -2647,12 +2658,6 @@ function AppInner() {
   const tabDef = trialExpired
     ? {admin:[], closer:[], livreur:[]}
     : tabDefBase;
-  // Reset tab if current tab not available for this role/plan
-  useEffect(()=>{
-    if(tabDef[role]&&tabDef[role].length>0&&!tabDef[role].find(t=>t.k===tab)){
-      setTab(tabDef[role][0].k);
-    }
-  },[role,isPro,tab]);
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"} · ${settings.boutique||""}`,livreur:`🏍️ ${currentUser.nom||"Livreur"} · ${settings.boutique||""}`};
 
 
