@@ -2856,8 +2856,8 @@ function AppInner() {
             );
           })}
 
-          {/* Tabs bloqués — plan gratuit */}
-          {isGratuit&&(()=>{
+          {/* Tabs bloqués — plan gratuit (admin uniquement) */}
+          {isGratuit&&role==="admin"&&(()=>{
             const LOCKED_TABS = [
               ...(role==="admin"||role==="closer" ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
               ...(role==="admin"||role==="closer" ? [{k:"compta",icon:"compta",l:"Comptabilité & marges"}] : []),
