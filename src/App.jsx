@@ -2651,7 +2651,7 @@ function AppInner() {
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...((pC.closerFullControl||pC.closerManageProducts)?[{k:"stock",icon:"stock",l:"Produits"}]:[]),...((canUseCompta&&(pC.closerFullControl||pC.closerCompta))?[{k:"compta",icon:"compta",l:"Compta"}]:[]),{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(pC.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
   // Quand le trial expire → bloquer tout pour tous les rôles
@@ -5287,29 +5287,20 @@ function AppInner() {
               })()}
             </div>
 
-            {/* Permissions Closer */}
+            {/* Permission Closer — uniquement comptabilité */}
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5}}>🔐 PERMISSIONS CLOSER</div>
-              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Définit ce que les Closers peuvent faire par défaut</div>
-              <div style={{background:settings.closerFullControl?"#FEF3C7":"#F9FAFB",borderRadius:12,padding:"12px 14px",marginBottom:10,border:`1.5px solid ${settings.closerFullControl?"#F59E0B":G.grayLight}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div><div style={{fontSize:13,fontWeight:700,color:G.dark}}>👑 Contrôle total</div><div style={{fontSize:11,color:G.gray,marginTop:1}}>Le Closer a les mêmes droits que l'Admin</div></div>
-                  <button onClick={()=>setSettings(s=>({...s,closerFullControl:!s.closerFullControl,closerCompta:!s.closerFullControl,closerSettings:!s.closerFullControl,closerDeleteOrder:!s.closerFullControl,closerManageTeam:!s.closerFullControl,closerManageProducts:!s.closerFullControl}))}
-                    style={{background:settings.closerFullControl?"#F59E0B":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                    <div style={{position:"absolute",top:2,left:settings.closerFullControl?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
-                  </button>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5}}>🔐 PERMISSION CLOSER</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Le Closer voit déjà : dashboard, commandes, boutique, tracking, clients, produits, chat, équipe</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:G.grayLight,borderRadius:12}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:1}}>Revenus, bénéfices, statistiques</div>
                 </div>
+                <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                  style={{background:settings.closerCompta?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                  <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                </button>
               </div>
-              {[{key:"closerCompta",label:"📊 Voir la comptabilité",desc:"Revenus, bénéfices, statistiques"},{key:"closerManageProducts",label:"📦 Gérer produits & stock",desc:"Ajouter, modifier, supprimer des produits"},{key:"closerDeleteOrder",label:"🗑️ Supprimer des commandes",desc:"Effacer définitivement une commande"},{key:"closerManageTeam",label:"👥 Gérer l'équipe",desc:"Inviter et supprimer des membres"},{key:"closerSettings",label:"⚙️ Accès aux paramètres",desc:"Modifier les paramètres de la boutique"}].map(n=>(
-                <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:`1px solid ${G.grayLight}`,opacity:settings.closerFullControl?0.5:1}}>
-                  <div><div style={{fontSize:13,fontWeight:600,color:G.dark}}>{n.label}</div><div style={{fontSize:11,color:G.gray,marginTop:1}}>{n.desc}</div></div>
-                  <button onClick={()=>!settings.closerFullControl&&setSettings(s=>({...s,[n.key]:!s[n.key]}))}
-                    style={{background:settings[n.key]||settings.closerFullControl?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:settings.closerFullControl?"default":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                    <div style={{position:"absolute",top:2,left:(settings[n.key]||settings.closerFullControl)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
-                  </button>
-                </div>
-              ))}
-              <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",marginTop:10,fontSize:11,color:G.green}}>✅ Par défaut le Closer peut toujours : créer des commandes, confirmer boutique → traiter, assigner un livreur, modifier une commande</div>
             </div>
 
             {/* Supprimer compte admin */}
@@ -5413,28 +5404,20 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Permissions Closer */}
+            {/* Permission Closer — uniquement comptabilité */}
             {memberModal.role==="closer"&&(
               <div style={{marginBottom:14}}>
-                <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:10}}>Permissions</div>
-                {[
-                  {key:"closerFullControl", label:"Contrôle total", desc:"Mêmes droits que l'Admin"},
-                  {key:"closerCompta",      label:"Voir comptabilité", desc:"Accès aux marges et stats"},
-                  {key:"closerManageProducts", label:"Gérer produits", desc:"Modifier stock et produits"},
-                  {key:"closerDeleteOrder",    label:"Supprimer commandes", desc:""},
-                  {key:"closerManageTeam",     label:"Gérer l'équipe", desc:"Inviter des membres"},
-                ].map(p=>(
-                  <div key={p.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                    <div>
-                      <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{p.label}</div>
-                      {p.desc&&<div style={{fontSize:10,color:G.gray}}>{p.desc}</div>}
-                    </div>
-                    <button onClick={()=>setSettings(s=>({...s,[p.key]:!s[p.key]}))}
-                      style={{background:settings[p.key]?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                      <div style={{position:"absolute",top:2,left:settings[p.key]?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
-                    </button>
+                <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:10}}>Permission</div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0"}}>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
+                    <div style={{fontSize:10,color:G.gray}}>Revenus, marges et statistiques</div>
                   </div>
-                ))}
+                  <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                    style={{background:settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                    <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                  </button>
+                </div>
               </div>
             )}
 
