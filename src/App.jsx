@@ -2837,7 +2837,7 @@ function AppInner() {
           {isGratuit&&(()=>{
             const LOCKED_TABS = [
               ...(role==="admin"||role==="closer" ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
-              {k:"compta",icon:"compta",l:"Comptabilité & marges"},
+              ...(role==="admin"||role==="closer" ? [{k:"compta",icon:"compta",l:"Comptabilité & marges"}] : []),
               ...(role==="livreur"||role==="admin" ? [{k:"position",icon:"position",l:"GPS temps réel"}] : []),
             ].filter(t => !tabDef[role]?.find(x=>x.k===t.k));
             if(!LOCKED_TABS.length) return null;
