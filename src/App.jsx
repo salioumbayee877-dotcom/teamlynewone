@@ -808,6 +808,7 @@ function AppInner() {
   const [showGpsPrompt,setShowGpsPrompt] = useState(false);
   const [showIosInstall,setShowIosInstall] = useState(false);
   const [confirmModal,setConfirmModal]   = useState(null);
+  const [memberModal,setMemberModal]     = useState(null); // {member}
   const [assignLivreurModal,setAssignLivreurModal] = useState(null); // {order}
   const [assignSelLiv,setAssignSelLiv]             = useState(null); // selected livreur member
   const [assignDelStatus,setAssignDelStatus]       = useState("confirmado");
@@ -3994,6 +3995,7 @@ function AppInner() {
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
                         {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
                         {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
+                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -4022,10 +4024,11 @@ function AppInner() {
                         <div style={{fontWeight:700,fontSize:14,color:m.id===currentUser.id?G.green:G.dark}}>🏍️ {m.nom}{m.id===currentUser.id&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
                         {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
                       </div>
-                      {m.id!==currentUser.id&&m.email!==currentUser.email&&<div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>
-                        <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>
-                      </div>}
+                      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                        {m.id!==currentUser.id&&m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
+                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
+                      </div>
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} CFA encaissés</div>
                     <div style={{display:"flex",gap:6}}>
@@ -5341,6 +5344,90 @@ function AppInner() {
               🗑️ Supprimer mon compte
             </button>
             </>)}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL: Profil membre ── */}
+      {memberModal&&(
+        <div onClick={()=>setMemberModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:20,paddingBottom:32}}>
+            {/* Header */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:16,color:G.dark}}>{memberModal.nom}</div>
+                <div style={{fontSize:11,color:G.gray,marginTop:2}}>{memberModal.role==="closer"?"📞 Closer":"🏍️ Livreur"} · {memberModal.email}</div>
+              </div>
+              <button onClick={()=>setMemberModal(null)} style={{background:G.grayLight,border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontWeight:700}}>✕</button>
+            </div>
+
+            {/* Infos */}
+            <div style={{background:G.grayLight,borderRadius:12,padding:12,marginBottom:14}}>
+              <div style={{display:"flex",gap:12}}>
+                <div style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:18,fontWeight:800,color:G.green}}>
+                    {memberModal.role==="closer"
+                      ? orders.filter(o=>o.closer_id===memberModal.id&&o.status==="entregado").length
+                      : orders.filter(o=>o.livreur_id===memberModal.id&&o.status==="entregado").length}
+                  </div>
+                  <div style={{fontSize:10,color:G.gray}}>Livrées</div>
+                </div>
+                <div style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:18,fontWeight:800,color:G.red}}>
+                    {memberModal.role==="closer"
+                      ? orders.filter(o=>o.closer_id===memberModal.id&&o.status==="rechazado").length
+                      : orders.filter(o=>o.livreur_id===memberModal.id&&o.status==="rechazado").length}
+                  </div>
+                  <div style={{fontSize:10,color:G.gray}}>Rejetées</div>
+                </div>
+                <div style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:18,fontWeight:800,color:G.blue}}>
+                    {memberModal.role==="closer"
+                      ? orders.filter(o=>o.closer_id===memberModal.id).length
+                      : orders.filter(o=>o.livreur_id===memberModal.id).length}
+                  </div>
+                  <div style={{fontSize:10,color:G.gray}}>Total</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Permissions Closer */}
+            {memberModal.role==="closer"&&(
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:10}}>Permissions</div>
+                {[
+                  {key:"closerFullControl", label:"Contrôle total", desc:"Mêmes droits que l'Admin"},
+                  {key:"closerCompta",      label:"Voir comptabilité", desc:"Accès aux marges et stats"},
+                  {key:"closerManageProducts", label:"Gérer produits", desc:"Modifier stock et produits"},
+                  {key:"closerDeleteOrder",    label:"Supprimer commandes", desc:""},
+                  {key:"closerManageTeam",     label:"Gérer l'équipe", desc:"Inviter des membres"},
+                ].map(p=>(
+                  <div key={p.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                    <div>
+                      <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{p.label}</div>
+                      {p.desc&&<div style={{fontSize:10,color:G.gray}}>{p.desc}</div>}
+                    </div>
+                    <button onClick={()=>setSettings(s=>({...s,[p.key]:!s[p.key]}))}
+                      style={{background:settings[p.key]?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                      <div style={{position:"absolute",top:2,left:settings[p.key]?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Supprimer membre */}
+            <button onClick={async()=>{
+              if(!window.confirm(`Supprimer ${memberModal.nom} de l'équipe ?`)) return;
+              try {
+                await sbFetch(`profiles?id=eq.${memberModal.id}`,"DELETE");
+                setTeamMembers(t=>t.filter(m=>m.id!==memberModal.id));
+                addToast(`${memberModal.nom} retiré de l'équipe`,"✅",G.green);
+                setMemberModal(null);
+              } catch(e){ addToast("Erreur suppression","❌",G.red); }
+            }} style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+              Retirer de l'équipe
+            </button>
           </div>
         </div>
       )}
