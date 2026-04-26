@@ -1125,6 +1125,16 @@ function AppInner() {
     return () => clearInterval(interval);
   }, [orgId, sbReady]);
 
+  // Save closer permissions to DB when admin changes them
+  useEffect(()=>{
+    if(!orgId||!sbReady||role!=="admin") return;
+    const t=setTimeout(()=>{
+      const s={closerCompta:settings.closerCompta,closerFullControl:settings.closerFullControl,closerDeleteOrder:settings.closerDeleteOrder,closerManageTeam:settings.closerManageTeam,closerManageProducts:settings.closerManageProducts};
+      sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:s},_authToken).catch(()=>{});
+    },1000);
+    return ()=>clearTimeout(t);
+  },[settings.closerCompta,settings.closerFullControl,settings.closerDeleteOrder,settings.closerManageTeam,settings.closerManageProducts,orgId,sbReady]);
+
   // Save tab to localStorage when it changes
   useEffect(()=>{
     try { localStorage.setItem("teamly_tab", tab); } catch(e){}
@@ -1174,13 +1184,14 @@ function AppInner() {
             setOrgId(p.org_id);
             setSbReady(true);
             try {
-              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at`,"GET");
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`,"GET");
               const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
               if(orgs&&orgs[0]) {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
+                if(org.settings) setSettings(s=>({...s,...org.settings}));
                 // Propriétaire → accès complet gratuit toujours
                 if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(p.email)) {
                   setIsPro(true);
@@ -2151,11 +2162,11 @@ function AppInner() {
                   if(!profiles||profiles.length===0) profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`).catch(()=>null);
                   if(profiles&&profiles.length>0){
                     const p=profiles[0];
-                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at`).catch(()=>null);
+                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`).catch(()=>null);
                     const orgName  = orgs?.[0]?.name  || "Ma Boutique";
                     const orgPhone = orgs?.[0]?.whatsapp || "";
                     setOrgId(p.org_id); setSbReady(true);
-                    setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{})}));
+                    setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{}),...(orgs?.[0]?.settings||{})}));
                     if(orgs?.[0]) {
                       const org=orgs[0];
                       if(authForm.email==="salioumbayee877@gmail.com"||authForm.email==="salioumbayeee261@gmail.com"){
@@ -2636,6 +2647,12 @@ function AppInner() {
   const tabDef = trialExpired
     ? {admin:[], closer:[], livreur:[]}
     : tabDefBase;
+  // Reset tab if current tab not available for this role/plan
+  useEffect(()=>{
+    if(tabDef[role]&&tabDef[role].length>0&&!tabDef[role].find(t=>t.k===tab)){
+      setTab(tabDef[role][0].k);
+    }
+  },[role,isPro,tab]);
   const rlabel={admin:`👑 ${settings.nom||currentUser.nom}`,closer:`📞 ${currentUser.nom||"Closer"} · ${settings.boutique||""}`,livreur:`🏍️ ${currentUser.nom||"Livreur"} · ${settings.boutique||""}`};
 
 
