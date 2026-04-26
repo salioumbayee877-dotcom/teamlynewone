@@ -896,6 +896,7 @@ function AppInner() {
   const [saLoading,     setSaLoading]     = useState(false);
   const [saPlanEdit,    setSaPlanEdit]    = useState({});
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
+  const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"];
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`Cher(e) {client} 👋\n\n✅ Votre commande est *confirmée* !\n\n📦 Produit: {produit}\n💰 Montant COD: *{prix} CFA*\n📍 Livraison à: {adresse}\n🏍️ Notre livreur vous contactera avant de passer.\n\nMerci pour votre confiance 🙏\n_— {boutique}_`); // produit en cours d'édition
@@ -2606,7 +2607,7 @@ function AppInner() {
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && (pC.closerFullControl||pC.closerCompta));
 
-  const isOwner       = currentUser.email === OWNER_EMAIL;
+  const isOwner       = OWNER_EMAILS.includes(currentUser.email);
   const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
