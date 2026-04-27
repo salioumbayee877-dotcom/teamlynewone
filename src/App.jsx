@@ -894,9 +894,9 @@ function AppInner() {
   const [selMonth,   setSelMonth]       = useState(new Date().toISOString().slice(0,7));
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterDate,   setFilterDate]   = useState("today");
-  const [filterLivreur, setFilterLivreur] = useState("all");
+  const [filterStatus, setFilterStatus] = useState(()=>{try{return localStorage.getItem("teamly_fs")||"all"}catch(e){return "all"}});
+  const [filterDate,   setFilterDate]   = useState(()=>{try{return localStorage.getItem("teamly_fd")||"today"}catch(e){return "today"}});
+  const [filterLivreur, setFilterLivreur] = useState(()=>{try{return localStorage.getItem("teamly_fl")||"all"}catch(e){return "all"}});
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [editOrder, setEditOrder]       = useState(null);
@@ -972,6 +972,9 @@ function AppInner() {
   const [openModifId, setOpenModifId] = useState(null);
   useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
+  useEffect(()=>{try{localStorage.setItem("teamly_fs",filterStatus)}catch(e){}},[filterStatus]);
+  useEffect(()=>{try{localStorage.setItem("teamly_fd",filterDate)}catch(e){}},[filterDate]);
+  useEffect(()=>{try{localStorage.setItem("teamly_fl",filterLivreur)}catch(e){}},[filterLivreur]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1906,14 +1909,16 @@ function AppInner() {
             {/* Pulsing status dot */}
             {!["entregado","rechazado"].includes(o.status)&&<span className="soft-pulse" style={{"--pc":st.color,width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.9)",display:"inline-block",flexShrink:0}}/>}
             <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
-            {o.created_at&&<span style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>
+            {o.created_at&&<span style={{color:"rgba(255,255,255,0.92)",fontSize:11,fontWeight:600,background:"rgba(0,0,0,0.15)",borderRadius:5,padding:"1px 5px"}}>
               {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
             </span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:3}}>
             <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↑</button>
             <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↓</button>
-            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} style={{background:isPinned?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>📌</button>
+            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} title={isPinned?"Désépingler":"Épingler"} style={{background:"none",border:"none",cursor:"pointer",padding:"2px 5px",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span className={isPinned?"pin-glow":undefined} style={{display:"block",width:11,height:11,borderRadius:"50%",background:isPinned?"#F0A500":"rgba(255,255,255,0.28)",transition:"all 0.4s ease",flexShrink:0}}/>
+            </button>
             {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
@@ -2908,7 +2913,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
-      <style>{`@keyframes candleGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}.soft-pulse{animation:candleGlow 3.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.35))}50%{transform:scale(1.13);box-shadow:0 0 0 5px rgba(0,0,0,0)}}.step-active{animation:stepPulse 3.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes candleGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}.soft-pulse{animation:candleGlow 3.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.35))}50%{transform:scale(1.13);box-shadow:0 0 0 5px rgba(0,0,0,0)}}.step-active{animation:stepPulse 3.5s ease-in-out infinite}@keyframes pinCandle{0%,100%{box-shadow:0 0 4px 2px rgba(240,165,0,0.55);opacity:1}50%{box-shadow:0 0 12px 5px rgba(240,165,0,0.85);opacity:0.82}}.pin-glow{animation:pinCandle 3.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
@@ -3711,10 +3716,9 @@ function AppInner() {
               </div>
             )}
 
-            {/* ── Filtros ── */}
-            {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
+            {/* ── Filtros admin/closer ── */}
+            {tab==="commandes"&&(
               <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-                {/* Date */}
                 <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>📅 DATE</div>
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
                   {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
@@ -3724,7 +3728,6 @@ function AppInner() {
                     </button>
                   ))}
                 </div>
-                {/* Statut */}
                 <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ STATUT</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
                   <button onClick={()=>setFilterStatus("all")}
@@ -3735,6 +3738,20 @@ function AppInner() {
                     <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
                       style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ── Filtre livreur simplifié ── */}
+            {tab==="livraisons"&&role==="livreur"&&(
+              <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+                <div style={{display:"flex",gap:8}}>
+                  {[{k:"today",l:"📅 Aujourd'hui"},{k:"all",l:"Tout voir"}].map(d=>(
+                    <button key={d.k} onClick={()=>setFilterDate(d.k)}
+                      style={{flex:1,background:filterDate===d.k?G.green:"#E5E7EB",color:filterDate===d.k?"#fff":"#111",border:filterDate===d.k?`2px solid ${G.green}`:"2px solid transparent",borderRadius:9,padding:"13px 0",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+                      {d.l}
                     </button>
                   ))}
                 </div>
