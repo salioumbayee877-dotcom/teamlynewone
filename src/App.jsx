@@ -1950,22 +1950,8 @@ function AppInner() {
             {o.status==="colis_pris"&&(
               <>
                 <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600}}>
-                  📦 Étape 3 — Colis en main, préviens le client avant de partir
+                  📦 Étape 3 — Colis en main, pars vers le client
                 </div>
-                {/* Prévenir le client — WhatsApp ou appel */}
-                {o.phone&&(
-                  <div style={{display:"flex",gap:6}}>
-                    <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(`Bonjour ${o.client} ! 🏍️ Votre commande est prête, je pars chez vous dans quelques instants.\n\nJe vous appelle à mon arrivée.\n— ${currentUser.nom}`)}`}
-                      target="_blank" rel="noreferrer"
-                      style={{flex:2,background:"#25D366",color:"#fff",borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                      <span style={{fontSize:18}}>💬</span> Prévenir par WhatsApp
-                    </a>
-                    <a href={`tel:+221${o.phone.replace(/\s+/g,"")}`}
-                      style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:6,border:`1px solid #BFDBFE`}}>
-                      📞 Appeler
-                    </a>
-                  </div>
-                )}
                 <button onClick={()=>upSt(o.id,"en_camino")}
                   style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span style={{fontSize:20}}>🚀</span> Je pars vers le client
@@ -1979,6 +1965,17 @@ function AppInner() {
                 <div style={{background:"#E0F2FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#0284C7",fontWeight:600}}>
                   🚀 Étape 4 — En route vers {o.client}
                 </div>
+                {/* Rappel WhatsApp personnalisé */}
+                {o.phone&&(()=>{
+                  const msg=`Bonjour ${o.client} ! 🏍️\n\nVotre commande *${o.product}* est en route et arrive bientôt chez vous !\n\n💰 Préparez *${fmt(o.price)} CFA* pour le livreur\n\nMerci de rester disponible, votre livreur *${currentUser.nom}* est presque arrivé 🙏`;
+                  return (
+                    <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
+                      target="_blank" rel="noreferrer"
+                      style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                      <span style={{fontSize:20}}>💬</span> Rappeler le client par WhatsApp
+                    </a>
+                  );
+                })()}
                 <button onClick={()=>upSt(o.id,"chez_client")}
                   style={{width:"100%",background:"#0284C7",color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span style={{fontSize:20}}>📍</span> Je suis arrivé chez le client
