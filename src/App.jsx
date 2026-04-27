@@ -1905,7 +1905,7 @@ function AppInner() {
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             {/* Pulsing status dot */}
             {!["entregado","rechazado"].includes(o.status)&&<span className="soft-pulse" style={{"--pc":st.color,width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.9)",display:"inline-block",flexShrink:0}}/>}
-            <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
+            <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{role==="livreur"&&o.status==="en_camino"?"🚀 Je suis en route":st.label}</span>
             {o.created_at&&<span style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>
               {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
             </span>}
