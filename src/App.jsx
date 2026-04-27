@@ -2641,7 +2641,7 @@ function AppInner() {
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(pC.closerCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"compta",icon:"compta",l:"Compta"}],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"position",icon:"position",l:"Localisation"}],
   };
   // Quand le trial expire → bloquer tout pour tous les rôles
@@ -4099,6 +4099,18 @@ function AppInner() {
 
             </>
             )} {/* end admin/closer */}
+          </div>
+        )}
+
+        {/* ── COMPTA locked screen for closer without permission ── */}
+        {dataReady&&tab==="compta"&&role==="closer"&&!pC.closerCompta&&(
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:16,padding:24}}>
+            <div style={{width:72,height:72,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34}}>🔒</div>
+            <div style={{fontWeight:800,fontSize:17,color:"#374151",textAlign:"center"}}>Comptabilité bloquée</div>
+            <div style={{fontSize:13,color:"#6B7280",textAlign:"center",maxWidth:260,lineHeight:1.5}}>Demande à ton admin d'activer l'accès à la comptabilité dans ses paramètres.</div>
+            <div style={{background:"#F0FDF4",borderRadius:12,padding:"10px 16px",border:"1px solid #BBF7D0",fontSize:12,color:"#15803D",textAlign:"center",maxWidth:280}}>
+              ✅ Paramètres → Permission Closer → Activer Comptabilité
+            </div>
           </div>
         )}
 
@@ -6110,7 +6122,7 @@ function AppInner() {
           ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position}]),
         ] : role==="closer" ? [
           {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
-          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:canCompta&&!trialExpired},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired, locked:!pC.closerCompta},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
@@ -6140,8 +6152,9 @@ function AppInner() {
                   ) : (
                     <>
                       {t.badge>0&&<span style={{position:"absolute",top:4,right:"calc(50% - 18px)",background:t.badgeColor,color:t.badgeTxt,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1}}>{t.badge}</span>}
-                      {t.icon(active?G.green:"#9CA3AF")}
-                      <span style={{fontSize:9,fontWeight:active?700:400,color:active?G.green:"#9CA3AF",marginTop:3,letterSpacing:0.2}}>{t.label}</span>
+                      {t.locked&&<span style={{position:"absolute",top:3,right:"calc(50% - 20px)",fontSize:10,lineHeight:1}}>🔒</span>}
+                      {t.icon(t.locked?"#C4B5A0":active?G.green:"#9CA3AF")}
+                      <span style={{fontSize:9,fontWeight:active?700:400,color:t.locked?"#C4B5A0":active?G.green:"#9CA3AF",marginTop:3,letterSpacing:0.2}}>{t.label}</span>
                       {active&&<div style={{position:"absolute",bottom:0,width:24,height:2.5,background:G.green,borderRadius:2}}/>}
                     </>
                   )}
