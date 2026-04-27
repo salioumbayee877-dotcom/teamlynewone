@@ -2407,7 +2407,7 @@ function AppInner() {
                   <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600,fontFamily:"sans-serif",marginBottom:10}}>
                     🔐 Accès du Closer
                   </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
                     <div>
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
                       <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Revenus, bénéfices, CA par produit</div>
@@ -2416,15 +2416,6 @@ function AppInner() {
                       style={{background:settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                       <div style={{position:"absolute",top:3,left:settings.closerCompta?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
-                    <div>
-                      <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>🛍️ Modifier les produits</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Accès au stock et aux produits</div>
-                    </div>
-                    <div style={{background:"#22C55E",border:"none",borderRadius:20,width:46,height:26,position:"relative",flexShrink:0}}>
-                      <div style={{position:"absolute",top:3,left:22,width:20,height:20,background:G.white,borderRadius:"50%",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
-                    </div>
                   </div>
                   {settings.closerCompta&&(
                     <div style={{background:"rgba(34,197,94,0.15)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(34,197,94,0.3)"}}>
