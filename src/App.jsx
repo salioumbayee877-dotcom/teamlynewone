@@ -819,7 +819,11 @@ function AppInner() {
   const [chat,setChat]       = useState([]);
   const [chatMsg,setChatMsg] = useState("");
   const [tab,setTab]         = useState(()=>{
-    try { return localStorage.getItem("teamly_tab")||"dashboard"; } catch(e){ return "dashboard"; }
+    try {
+      const savedRole = localStorage.getItem("teamly_role");
+      if(savedRole==="closer") return "dashboard";
+      return localStorage.getItem("teamly_tab")||"dashboard";
+    } catch(e){ return "dashboard"; }
   });
   const [comptaView,setComptaView] = useState("produits");
   const [showAdd,setShowAdd] = useState(false);
@@ -962,6 +966,8 @@ function AppInner() {
   const [destPos, setDestPos]         = useState(null);
   const geocodedOrderRef              = useRef(null);
   const pendingOrderUpdates           = useRef({});
+  const dragItemRef                   = useRef(null);
+  const [localOrderIds, setLocalOrderIds] = useState([]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1860,17 +1866,29 @@ function AppInner() {
     const inDelivery  = curStep >= 0;
 
     return (
-      <div style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:`1px solid ${st.color}22`}}>
+      <div draggable onDragStart={()=>{dragItemRef.current=o.id;}} onDragOver={e=>e.preventDefault()} onDrop={()=>{
+        const from=dragItemRef.current; if(!from||from===o.id) return;
+        setLocalOrderIds(prev=>{
+          const base=prev.length>0?[...prev]:filteredOrders.map(x=>x.id);
+          const fi=base.indexOf(from), ti=base.indexOf(o.id);
+          if(fi<0||ti<0){const all=[...base];if(!all.includes(from))all.push(from);if(!all.includes(o.id))all.push(o.id);const nfi=all.indexOf(from),nti=all.indexOf(o.id);all.splice(nfi,1);all.splice(nti,0,from);return all;}
+          const next=[...base]; next.splice(fi,1); next.splice(ti,0,from); return next;
+        }); dragItemRef.current=null;
+      }} style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:`1px solid ${st.color}22`,cursor:"grab"}}>
 
         {/* ── Bande état colorée (top) ── */}
         <div style={{background:st.color,padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
+            {/* Pulsing status dot */}
+            {!["entregado","rechazado"].includes(o.status)&&<span className="soft-pulse" style={{"--pc":st.color,width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.9)",display:"inline-block",flexShrink:0}}/>}
             <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>{st.label}</span>
             {o.created_at&&<span style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>
               {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
             </span>}
           </div>
           <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {/* Drag handle */}
+            <span style={{color:"rgba(255,255,255,0.5)",fontSize:14,cursor:"grab",userSelect:"none",letterSpacing:-1}}>⠿</span>
             {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
@@ -1962,7 +1980,7 @@ function AppInner() {
                     const tc = done || active ? G.white : "#9CA3AF";
                     return (
                       <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                        <div style={{width:26,height:26,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?13:10,color:tc,flexShrink:0,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`,fontWeight:800,boxShadow:active?"0 0 0 3px rgba(240,165,0,0.25)":done?"0 0 0 2px rgba(26,92,56,0.15)":"none"}}>
+                        <div className={active?"step-active":undefined} style={{"--sc":"rgba(240,165,0,0.7)",width:26,height:26,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?13:10,color:tc,flexShrink:0,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`,fontWeight:800,boxShadow:active?"0 0 0 3px rgba(240,165,0,0.25)":done?"0 0 0 2px rgba(26,92,56,0.15)":"none"}}>
                           {i===5?"✓":ico}
                         </div>
                         {i<5&&<div style={{flex:1,height:3,background:done?G.green:G.grayLight,borderRadius:2}}/>}
@@ -2006,7 +2024,14 @@ function AppInner() {
                 <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600}}>
                   📦 Étape 3 — Colis en main, pars vers le client
                 </div>
-                <button onClick={()=>upSt(o.id,"en_camino")}
+                <button onClick={()=>{
+                  const activeDelivery=orders.find(x=>x.livreur_id===currentUser.id&&x.status==="en_camino"&&x.id!==o.id);
+                  if(activeDelivery){
+                    addToast(`⚠️ Termine d'abord la livraison de ${activeDelivery.client} !`,"⚠️","#F0A500");
+                    return;
+                  }
+                  upSt(o.id,"en_camino");
+                }}
                   style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span style={{fontSize:20}}>🚀</span> Je pars vers le client
                 </button>
@@ -2091,6 +2116,37 @@ function AppInner() {
                 </button>
               );
             })()}
+          </div>
+        )}
+
+        {/* Modifier statut — livreur */}
+        {role==="livreur"&&(
+          <div style={{marginTop:8,padding:"10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
+            <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+              {[
+                {s:"confirmado",     ico:"✅", l:"Confirmé"},
+                {s:"livreur_en_route",ico:"🏍️",l:"En route"},
+                {s:"colis_pris",     ico:"📦", l:"Colis pris"},
+                {s:"en_camino",      ico:"🚀", l:"Vers client"},
+                {s:"chez_client",    ico:"📍", l:"Chez client"},
+                {s:"entregado",      ico:"✅", l:"Livré"},
+                {s:"rechazado",      ico:"❌", l:"Rejeté"},
+                {s:"no_contesta",    ico:"📵", l:"Absent"},
+                {s:"reprogramar",    ico:"🔄", l:"Reporter"},
+              ].map(({s,ico,l})=>(
+                <button key={s} onClick={()=>{
+                  if(s==="en_camino"){
+                    const active=orders.find(x=>x.livreur_id===currentUser.id&&x.status==="en_camino"&&x.id!==o.id);
+                    if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
+                  }
+                  upSt(o.id,s);
+                }}
+                  style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                  <span>{ico}</span><span>{l}</span>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -2823,7 +2879,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
-      <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes softPulse{0%,100%{opacity:0.9;transform:scale(1)}50%{opacity:0.4;transform:scale(0.75)}}.soft-pulse{animation:softPulse 3s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
@@ -3642,6 +3698,11 @@ function AppInner() {
             )}
 
 
+            {localOrderIds.length>0&&(
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
+                <button onClick={()=>setLocalOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>↺ Ordre par défaut</button>
+              </div>
+            )}
             {filteredOrders.length===0&&(
               <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
                 <div style={{fontSize:32,marginBottom:8}}>🔍</div>
@@ -3658,8 +3719,19 @@ function AppInner() {
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
-              // Sort within each group: oldest first (longest waiting)
-              GROUP_ORDER.forEach(k=>{ if(groups[k]) groups[k].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0)); });
+              // Sort within each group: custom drag order if set, otherwise oldest first
+              GROUP_ORDER.forEach(k=>{
+                if(!groups[k]) return;
+                if(localOrderIds.length>0){
+                  groups[k].sort((a,b)=>{
+                    const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
+                    if(ia<0&&ib<0) return new Date(a.created_at||0)-new Date(b.created_at||0);
+                    if(ia<0) return 1; if(ib<0) return -1; return ia-ib;
+                  });
+                } else {
+                  groups[k].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
+                }
+              });
               return GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
                 const st = STATUS[k]||STATUS.pendiente;
                 return (
