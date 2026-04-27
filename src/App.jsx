@@ -1967,7 +1967,7 @@ function AppInner() {
                 </div>
                 {/* Rappel WhatsApp personnalisé */}
                 {o.phone&&(()=>{
-                  const msg=`Bonjour ${o.client} ! 🏍️\n\nVotre commande *${o.product}* est en route et arrive bientôt chez vous !\n\n💰 Préparez *${fmt(o.price)} CFA* pour le livreur\n\nMerci de rester disponible, votre livreur *${currentUser.nom}* est presque arrivé 🙏`;
+                  const msg=`Bonjour ${o.client} ! 👋\n\nJe suis *${currentUser.nom}*, votre livreur — je suis en route avec votre commande et j'arrive bientôt ! 🏍️\n\n📦 *${o.product}*\n💰 Préparez *${fmt(o.price)} CFA* s'il vous plaît\n\nMerci de rester disponible 🙏\n\n—\n🎁 *Enregistrez ce numéro dans vos contacts !*\nVous recevrez nos offres exclusives et réductions en avant-première 🔥\n— *${settings.boutique||"Notre boutique"}*`;
                   return (
                     <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
                       target="_blank" rel="noreferrer"
