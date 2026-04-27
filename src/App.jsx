@@ -372,10 +372,11 @@ async function geocodeAddress(address) {
   return null;
 }
 
-function MapView({positions, role, isDesktop=false, destination=null}) {
+function MapView({positions, role, isDesktop=false, destination=null, livreurPos=null}) {
   const containerRef   = useRef(null);
   const stateRef       = useRef({map:null, markers:{}, loaded:false});
-  const userMovedRef   = useRef(false); // true si el usuario ha tocado/zoomado el mapa
+  const routeLayerRef  = useRef(null);
+  const userMovedRef   = useRef(false);
   const [fullscreen, setFullscreen] = React.useState(false);
 
   useEffect(()=>{
@@ -456,6 +457,29 @@ function MapView({positions, role, isDesktop=false, destination=null}) {
     };
     tryAdd();
   },[destination]);
+
+  // OSRM route line: livreur → destination
+  React.useEffect(()=>{
+    if(!destination?.lat||!livreurPos?.lat) return;
+    const drawRoute=()=>{
+      const {map,loaded}=stateRef.current;
+      if(!loaded||!map||!window.L){setTimeout(drawRoute,400);return;}
+      const L=window.L;
+      // Remove old route
+      if(routeLayerRef.current){try{map.removeLayer(routeLayerRef.current);}catch(e){} routeLayerRef.current=null;}
+      const url=`https://router.project-osrm.org/route/v1/driving/${livreurPos.lng},${livreurPos.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+      fetch(url).then(r=>r.json()).then(data=>{
+        const coords=data.routes?.[0]?.geometry?.coordinates;
+        if(!coords) return;
+        const latlngs=coords.map(([lng,lat])=>[lat,lng]);
+        routeLayerRef.current=L.polyline(latlngs,{color:"#2563EB",weight:5,opacity:0.85,lineCap:"round",lineJoin:"round"}).addTo(map);
+        // Animate a dashed overlay on top for Bolt-like style
+        L.polyline(latlngs,{color:"#fff",weight:2,opacity:0.5,dashArray:"10,14",lineCap:"round"}).addTo(map);
+        if(!userMovedRef.current) map.fitBounds(routeLayerRef.current.getBounds(),{padding:[50,50]});
+      }).catch(()=>{});
+    };
+    drawRoute();
+  },[destination,livreurPos]);
 
   // Invalide la taille de la carte quand on change de mode
   React.useEffect(()=>{
@@ -3950,7 +3974,7 @@ function AppInner() {
                 <MapView positions={{
                   ...Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat&&teamMembers.some(m=>m.role==="livreur"&&m.nom===k))),
                   [currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"},
-                }} role="livreur" isDesktop={isDesktop} destination={destPos}/>
+                }} role="livreur" isDesktop={isDesktop} destination={destPos} livreurPos={gpsPos}/>
               </div>
             )}
 
