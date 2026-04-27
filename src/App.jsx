@@ -1913,7 +1913,7 @@ function AppInner() {
           <div style={{display:"flex",alignItems:"center",gap:3}}>
             <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↑</button>
             <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↓</button>
-            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} style={{background:isPinned?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>📌</button>
+            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} className={isPinned?"pin-glow":undefined} style={{background:isPinned?"#F0A500":"rgba(255,255,255,0.2)",border:"none",borderRadius:7,color:"#fff",fontSize:16,cursor:"pointer",padding:"2px 7px",lineHeight:"20px",transition:"background 0.3s"}}>📌</button>
             {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
@@ -2908,7 +2908,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
-      <style>{`@keyframes candleGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}.soft-pulse{animation:candleGlow 3.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.35))}50%{transform:scale(1.13);box-shadow:0 0 0 5px rgba(0,0,0,0)}}.step-active{animation:stepPulse 3.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes candleGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}.soft-pulse{animation:candleGlow 3.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.35))}50%{transform:scale(1.13);box-shadow:0 0 0 5px rgba(0,0,0,0)}}.step-active{animation:stepPulse 3.5s ease-in-out infinite}@keyframes pinCandle{0%,100%{box-shadow:0 0 4px 2px rgba(240,165,0,0.5)}50%{box-shadow:0 0 10px 4px rgba(240,165,0,0.85)}}.pin-glow{animation:pinCandle 3.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
