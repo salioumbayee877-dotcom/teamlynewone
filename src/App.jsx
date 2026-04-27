@@ -1881,6 +1881,8 @@ function AppInner() {
     });
   };
 
+  const activeEnCamino = role==="livreur" ? orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino") : null;
+
   // ── OCard ──
   const OCard = ({o,showPrendre=false}) => {
     const showModif = openModifId === o.id;
@@ -1906,15 +1908,11 @@ function AppInner() {
               {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
             </span>}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:4}}>
-            {/* ↑/↓ reorder + 📌 pin */}
-            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}}
-              style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1}}>↑</button>
-            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}}
-              style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1}}>↓</button>
-            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}}
-              style={{background:isPinned?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1,fontWeight:isPinned?900:400}}>📌</button>
-            {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
+          <div style={{display:"flex",alignItems:"center",gap:3}}>
+            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↑</button>
+            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↓</button>
+            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} style={{background:isPinned?"rgba(255,255,255,0.4)":"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>📌</button>
+            {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
         </div>
@@ -2119,12 +2117,21 @@ function AppInner() {
               </button>
             )}
 
+            {/* Bloqueo: otro pedido ya en camino */}
+            {activeEnCamino&&activeEnCamino.id!==o.id&&!["entregado","rechazado"].includes(o.status)&&(
+              <div style={{marginTop:6,background:"#FEF3C7",border:"2px solid #F0A500",borderRadius:10,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:20,flexShrink:0}}>⛔</span>
+                <div style={{fontSize:12,fontWeight:700,color:"#92400E"}}>
+                  Termina primero: <span style={{color:"#D97706"}}>{activeEnCamino.client}</span>
+                </div>
+              </div>
+            )}
+
             {/* Bouton correction — revenir étape précédente */}
             {(()=>{
               const PREV = {
                 "livreur_en_route": {s:"confirmado",         l:"← Annuler le départ"},
                 "colis_pris":       {s:"livreur_en_route",   l:"← Colis pas encore pris"},
-                "en_camino":        {s:"colis_pris",         l:"← Pas encore parti vers le client"},
                 "chez_client":      {s:"en_camino",          l:"← Pas encore chez le client"},
                 "no_contesta":      {s:"chez_client",        l:"← Retenter la livraison"},
                 "reprogramar":      {s:"chez_client",        l:"← Retenter la livraison"},
@@ -3717,33 +3724,29 @@ function AppInner() {
               </div>
             )}
 
-            {/* ── Filtre par date ── */}
+            {/* ── Filtros ── */}
             {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
-              <div style={{background:G.white,borderRadius:12,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>📅 FILTRER PAR DATE</div>
-                <div style={{display:"flex",gap:6}}>
-                  {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
+              <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
+                {/* Fecha */}
+                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>📅 DATE</div>
+                <div style={{display:"flex",gap:6,marginBottom:12}}>
+                  {[{k:"today",l:"Hoy"},{k:"yesterday",l:"Ayer"},{k:"week",l:"Semana"},{k:"all",l:"Todo"}].map(d=>(
                     <button key={d.k} onClick={()=>setFilterDate(d.k)}
-                      style={{flex:1,background:filterDate===d.k?G.green:"#F3F4F6",color:filterDate===d.k?"#fff":G.gray,border:"none",borderRadius:8,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      style={{flex:1,background:filterDate===d.k?G.green:"#E5E7EB",color:filterDate===d.k?"#fff":"#111",border:filterDate===d.k?`2px solid ${G.green}`:"2px solid transparent",borderRadius:9,padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {d.l}
                     </button>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* ── Filtre par statut (pills) ── */}
-            {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
-              <div style={{background:G.white,borderRadius:12,padding:"10px 12px"}}>
-                <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>🏷️ FILTRER PAR STATUT</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {/* Estado */}
+                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ ESTADO</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
                   <button onClick={()=>setFilterStatus("all")}
-                    style={{background:filterStatus==="all"?"#374151":"#F3F4F6",color:filterStatus==="all"?"#fff":G.gray,border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                    Tout
+                    style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                    Todo
                   </button>
                   {Object.entries(STATUS).map(([k,v])=>(
                     <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
-                      style={{background:filterStatus===k?v.color:"#F3F4F6",color:filterStatus===k?"#fff":v.color,border:`1.5px solid ${filterStatus===k?v.color:"transparent"}`,borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      style={{background:filterStatus===k?v.color:"#E5E7EB",color:filterStatus===k?"#fff":"#111",border:filterStatus===k?`2px solid ${v.color}`:"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {v.label}
                     </button>
                   ))}
@@ -3773,13 +3776,14 @@ function AppInner() {
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
-              // Sort within each group: pinned first, then custom order or oldest first
+              // Sort: pinned first in pin-order (FIFO), then custom order or oldest first
               GROUP_ORDER.forEach(k=>{
                 if(!groups[k]) return;
                 groups[k].sort((a,b)=>{
-                  const aPinned=pinnedOrderIds.includes(a.id), bPinned=pinnedOrderIds.includes(b.id);
-                  if(aPinned&&!bPinned) return -1;
-                  if(!aPinned&&bPinned) return 1;
+                  const ai=pinnedOrderIds.indexOf(a.id), bi=pinnedOrderIds.indexOf(b.id);
+                  if(ai>=0&&bi>=0) return ai-bi;
+                  if(ai>=0) return -1;
+                  if(bi>=0) return 1;
                   if(localOrderIds.length>0){
                     const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
                     if(ia<0&&ib<0) return new Date(a.created_at||0)-new Date(b.created_at||0);
