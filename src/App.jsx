@@ -941,6 +941,7 @@ function AppInner() {
   const [authLoading, setAuthLoading] = useState(false);
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
+  const [showNotifPanel, setShowNotifPanel]     = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -962,9 +963,6 @@ function AppInner() {
   const geocodedOrderRef              = useRef(null);
   const pendingOrderUpdates           = useRef({});
   const [livreurPositions, setLivreurPositions] = useState({
-    "Ibou":    {lat:14.7167, lng:-17.4677, name:"Ibou",    order:"Commande #4 — Yoff"},
-    "Mamadou": {lat:14.7255, lng:-17.4530, name:"Mamadou", order:"Commande #2 — Plateau"},
-    "Cheikh":  {lat:14.6953, lng:-17.4439, name:"Cheikh",  order:"Commande #5 — Ngor"},
   });
   const gpsWatchRef = useRef(null);
 
@@ -1370,7 +1368,7 @@ function AppInner() {
           mems.filter(m=>m.role==="livreur"&&m.lat&&m.lng).forEach(m=>{
             pos[m.nom] = {lat:m.lat, lng:m.lng, name:m.nom, city:m.city||""};
           });
-          if(Object.keys(pos).length>0) setLivreurPositions(pos);
+          setLivreurPositions(pos);
         }
         setDataReady(true);
         // Guardar en caché (sin mensajes porque son demasiado grandes)
@@ -3051,13 +3049,40 @@ function AppInner() {
             <svg viewBox="0 0 24 24" width={17} height={17} stroke="#fff" strokeWidth={2} fill="none" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
           </button>
           <div style={{position:"relative"}}>
-            <button onClick={()=>setTab("notifications")} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <button onClick={()=>setShowNotifPanel(v=>!v)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
               <NavIcon name="notifications" size={17} color="#fff"/>
             </button>
-            {alertCount>0&&<div style={{position:"absolute",top:-4,right:-4,background:G.red,color:G.white,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{alertCount}</div>}
+            {dbNotifs.length>0&&<div style={{position:"absolute",top:-4,right:-4,background:G.red,color:G.white,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{dbNotifs.length}</div>}
           </div>
         </div>
       </div>
+
+      {/* Notification panel */}
+      {showNotifPanel&&(
+        <div style={{position:"fixed",top:56,right:12,width:310,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(0,0,0,0.18)",zIndex:9999,overflow:"hidden",border:"1px solid #E5E7EB"}}>
+          <div style={{padding:"12px 16px",borderBottom:"1px solid #F3F4F6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontWeight:700,fontSize:14,color:G.dark}}>🔔 Notifications</span>
+            <button onClick={()=>setShowNotifPanel(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:G.gray}}>✕</button>
+          </div>
+          <div style={{maxHeight:360,overflowY:"auto"}}>
+            {dbNotifs.length===0?(
+              <div style={{padding:28,textAlign:"center",color:G.gray,fontSize:13}}>Aucune notification</div>
+            ):dbNotifs.map(n=>(
+              <div key={n.id} style={{padding:"12px 16px",borderBottom:"1px solid #F9FAFB",display:"flex",gap:10,alignItems:"flex-start"}}>
+                <span style={{fontSize:22,flexShrink:0}}>{n.type==="delivered"?"✅":n.type==="rejected"?"❌":n.type==="nouveau_colis"?"🔔":n.type==="status_update"?"📦":"🔔"}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.dark}}>{n.title}</div>
+                  {n.body&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>{n.body}</div>}
+                </div>
+                <button onClick={()=>{sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{});setDbNotifs(p=>p.filter(x=>x.id!==n.id));}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#9CA3AF",flexShrink:0,padding:2}}>✕</button>
+              </div>
+            ))}
+          </div>
+          {dbNotifs.length>0&&<div style={{padding:"10px 16px",borderTop:"1px solid #F3F4F6",textAlign:"center"}}>
+            <button onClick={()=>{dbNotifs.forEach(n=>sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{}));setDbNotifs([]);setShowNotifPanel(false);}} style={{background:"none",border:"none",color:G.gray,fontSize:12,cursor:"pointer"}}>Tout marquer comme lu</button>
+          </div>}
+        </div>
+      )}
 
       {/* Search bar */}
       {showSearch&&(
@@ -3520,21 +3545,6 @@ function AppInner() {
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Alertes Supabase temps réel */}
-            {dbNotifs.slice(0,3).map(n=>(
-              <div key={n.id} style={{background:"linear-gradient(135deg,#F0A500,#D97706)",borderRadius:14,padding:14,display:"flex",gap:12,alignItems:"center"}}>
-                <div style={{fontSize:26,flexShrink:0}}>{n.type==="nouveau_colis"?"🔔":n.type==="livraison_directe"?"🚀":"📦"}</div>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>{n.title}</div>
-                  <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",marginTop:2}}>{n.body}</div>
-                </div>
-                <button onClick={()=>{
-                  sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true});
-                  setDbNotifs(p=>p.filter(x=>x.id!==n.id));
-                }} style={{background:"rgba(0,0,0,0.2)",border:"none",borderRadius:"50%",width:28,height:28,color:"#FFF",cursor:"pointer",fontSize:14,flexShrink:0}}>✕</button>
-              </div>
-            ))}
-
             {/* Colis en attente d'acceptation */}
             {myLiv.filter(o=>o.status==="confirmado").length>0&&(
               <div style={{background:"#FFF8E7",border:"1px solid #FDE68A",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
@@ -3862,7 +3872,7 @@ function AppInner() {
                 </div>
               </div>
               {(()=>{
-                const teamNoms = new Set([...teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom), currentUser.nom]);
+                const teamNoms = new Set(teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom));
                 const activePosns = Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat && teamNoms.has(k)));
                 return Object.keys(activePosns).length===0
                   ? <div style={{padding:30,textAlign:"center",color:G.gray,fontSize:13}}>Aucun livreur GPS actif pour le moment</div>
