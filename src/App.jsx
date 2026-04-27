@@ -960,6 +960,7 @@ function AppInner() {
   const [gpsError, setGpsError]       = useState("");
   const [destPos, setDestPos]         = useState(null);
   const geocodedOrderRef              = useRef(null);
+  const pendingOrderUpdates           = useRef({});
   const [livreurPositions, setLivreurPositions] = useState({
     "Ibou":    {lat:14.7167, lng:-17.4677, name:"Ibou",    order:"Commande #4 — Yoff"},
     "Mamadou": {lat:14.7255, lng:-17.4530, name:"Mamadou", order:"Commande #2 — Plateau"},
@@ -1013,10 +1014,19 @@ function AppInner() {
       }
       return {...x,status:s};
     }));
+    pendingOrderUpdates.current[id] = Date.now();
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
     // Save to Supabase
-    if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>console.error("upSt error:",e));
+    if(!String(id).startsWith("tmp_")) {
+      sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>console.error("upSt error:",e));
+      // Notify closer + admin on key livreur status changes
+      if(orgId && order && (s==="entregado"||s==="rechazado"||s==="en_camino"||s==="chez_client")) {
+        const notifTitle = s==="entregado"?`✅ Livré — ${order.client} a payé ${fmt(order.price)} CFA`:s==="rechazado"?`❌ Rejeté — ${order.client}`:s==="en_camino"?`🚀 En route → ${order.client}`:s==="chez_client"?`📍 Arrivé chez ${order.client}`:"📦";
+        const notifType = s==="entregado"?"delivered":s==="rechazado"?"rejected":"status_update";
+        sbFetch("notifications","POST",{org_id:orgId,type:notifType,title:notifTitle,body:`${order.product} · ${fmt(order.price)} CFA`,role_target:"closer",read:false,data:{}}).catch(()=>{});
+      }
+    }
   };
   const upLiv = (id, livId) => {
     const mem = teamMembers.find(m=>m.id===livId);
@@ -1343,7 +1353,15 @@ function AppInner() {
         clearTimeout(readyFallback);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
         const mappedProds = prods ? mapProds(prods)   : null;
-        if(mappedOrds)  setOrders(mappedOrds);
+        if(mappedOrds) {
+          setOrders(prev=>{
+            const now=Date.now();
+            return mappedOrds.map(o=>{
+              const t=pendingOrderUpdates.current[o.id];
+              return (t&&now-t<10000)?(prev.find(p=>p.id===o.id)||o):o;
+            });
+          });
+        }
         if(mappedProds) setProducts(mappedProds);
         if(mems) {
           setTeamMembers(mems);
@@ -1410,6 +1428,9 @@ function AppInner() {
             let unread = 0;
             if(lastReadTime) {
               unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
+            } else {
+              const cutoff = new Date(Date.now()-24*60*60*1000).toISOString();
+              unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > cutoff).length;
             }
             // Cap at 99, don't show anything if 0
             if(unread > 0) setChatUnread(Math.min(unread, 99));
@@ -1449,10 +1470,29 @@ function AppInner() {
       }
     };
 
+    // ── Notifications Supabase ───────────────────────────────────────────────
+    const loadNotifs = async() => {
+      try {
+        const notifs = await sbFetch(`notifications?org_id=eq.${orgId}&read=eq.false&order=created_at.desc&limit=30`,"GET");
+        if(!notifs) return;
+        const userRole = currentUserRef.current?.role || role;
+        const userNom  = currentUserRef.current?.nom  || "";
+        const relevant = notifs.filter(n=>{
+          if(!n.role_target || n.role_target==="all") return true;
+          if(n.role_target !== userRole) return false;
+          if(userRole==="livreur" && n.livreur_name && n.livreur_name!==userNom) return false;
+          return true;
+        });
+        setDbNotifs(relevant);
+      } catch(e) {}
+    };
+
     loadChatRef.current = loadChat;
     loadMain();
     loadChat(true);
-    const intervalMain = setInterval(loadMain, 5000);
+    loadNotifs();
+    const intervalMain   = setInterval(loadMain, 5000);
+    const intervalNotifs = setInterval(loadNotifs, 20000);
     // Polling toutes les 8s — si chat vide, force un reload complet
     const intervalChat = setInterval(()=>{
       setChat(prev => {
@@ -1474,7 +1514,10 @@ function AppInner() {
             payload: {
               config: {
                 broadcast: {self: false},
-                postgres_changes: [{event:"INSERT", schema:"public", table:"messages", filter:`org_id=eq.${orgId}`}]
+                postgres_changes: [
+                  {event:"INSERT", schema:"public", table:"messages",      filter:`org_id=eq.${orgId}`},
+                  {event:"INSERT", schema:"public", table:"notifications",  filter:`org_id=eq.${orgId}`}
+                ]
               },
               access_token: _authToken || SB_KEY
             },
@@ -1490,7 +1533,9 @@ function AppInner() {
             const d = JSON.parse(evt.data);
             // Nouveau message INSERT détecté → charger immédiatement
             if(d.event === "postgres_changes" && d.payload?.data?.type === "INSERT") {
-              loadChat(false);
+              const tbl = d.payload?.data?.table;
+              if(!tbl || tbl === "messages")      loadChat(false);
+              if(!tbl || tbl === "notifications")  loadNotifs();
             }
           } catch(e) {}
         };
@@ -1508,6 +1553,7 @@ function AppInner() {
       clearTimeout(readyFallback);
       clearInterval(intervalMain);
       clearInterval(intervalChat);
+      clearInterval(intervalNotifs);
       clearInterval(wsHeartbeat);
       clearTimeout(wsReconnect);
       if(ws) { ws.onclose = null; ws.close(); }
