@@ -1098,9 +1098,11 @@ function AppInner() {
     if(!orgId || !sbReady) return;
     const checkPlan = async () => {
       try {
-        const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at`,"GET");
+        const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at,settings`,"GET");
         const org  = orgs?.[0];
         if(!org) return;
+        // Sync closer permissions from DB on every check
+        if(org.settings) setSettings(s=>({...s,...org.settings}));
         // Owner: always full access, just sync the plan label
         if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(currentUserRef.current?.email)) {
           setIsPro(true);
@@ -1136,14 +1138,7 @@ function AppInner() {
     } catch(e){}
   },[role]);
 
-  // Save closer permissions to DB when admin changes them
-  useEffect(()=>{
-    if(!orgId||!sbReady||role!=="admin") return;
-    const t=setTimeout(()=>{
-      sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta}},_authToken).catch(()=>{});
-    },1000);
-    return ()=>clearTimeout(t);
-  },[settings.closerCompta,orgId,sbReady]);
+  // closer permissions are saved directly on toggle click — no useEffect needed
 
   // Save tab to localStorage when it changes
   useEffect(()=>{
@@ -2412,7 +2407,7 @@ function AppInner() {
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
                       <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Revenus, bénéfices, CA par produit</div>
                     </div>
-                    <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                    <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
                       style={{background:settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                       <div style={{position:"absolute",top:3,left:settings.closerCompta?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
@@ -4364,7 +4359,7 @@ function AppInner() {
                 <div style={{fontWeight:700,fontSize:15,color:G.dark}}>📦 Gestion des produits</div>
                 <div style={{fontSize:11,color:G.gray,marginTop:2}}>Stock = initial − commandes livrées (automatique)</div>
               </div>
-              {role==="admin"&&<button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:9,padding:"8px 12px",fontSize:12,fontWeight:700,color:G.dark,cursor:"pointer"}}>+ Produit</button>}
+              {(role==="admin"||role==="closer")&&<button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:9,padding:"8px 12px",fontSize:12,fontWeight:700,color:G.dark,cursor:"pointer"}}>+ Produit</button>}
             </div>
 
             {/* Alerte stock bas */}
@@ -5298,7 +5293,7 @@ function AppInner() {
                   <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
                   <div style={{fontSize:11,color:G.gray,marginTop:1}}>Revenus, bénéfices, statistiques</div>
                 </div>
-                <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
                   style={{background:settings.closerCompta?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                   <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
@@ -5415,7 +5410,7 @@ function AppInner() {
                     <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
                     <div style={{fontSize:10,color:G.gray}}>Revenus, marges et statistiques</div>
                   </div>
-                  <button onClick={()=>setSettings(s=>({...s,closerCompta:!s.closerCompta}))}
+                  <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
                     style={{background:settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
@@ -6122,7 +6117,6 @@ function AppInner() {
           ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position}]),
         ] : role==="closer" ? [
           {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
-          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired, locked:!pC.closerCompta},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
