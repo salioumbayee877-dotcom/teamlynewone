@@ -1873,8 +1873,8 @@ function AppInner() {
         {/* Note (si existe) */}
         {o.note&&<div style={{fontSize:11,color:"#6B7280",background:"#F9FAFB",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:`3px solid ${st.color}`}}>📝 {o.note}</div>}
 
-        {/* Confirmation WhatsApp — admin/closer uniquement */}
-        {role!=="livreur"&&o.phone&&(()=>{
+        {/* Confirmation WhatsApp — closer uniquement */}
+        {role==="closer"&&o.phone&&(()=>{
           const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
           return (
             <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msgConf)}`}
@@ -3959,29 +3959,14 @@ function AppInner() {
               </button>
             </div>
 
-            {/* Active delivery info card */}
-            {gpsPos&&destPos&&(
-              <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:14,padding:14}}>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,letterSpacing:1,marginBottom:6}}>📦 LIVRAISON EN COURS</div>
-                <div style={{fontWeight:800,fontSize:16,color:"#fff",marginBottom:3}}>{destPos.client}</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginBottom:12}}>📍 {destPos.address}</div>
-                <div style={{display:"flex",gap:6}}>
-                  {destPos.phone&&<a href={`tel:+221${(destPos.phone||"").replace(/\s+/g,"")}`} style={{flex:1,background:"rgba(255,255,255,0.15)",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>📞 Appeler</a>}
-                  {destPos.address&&<a href={`https://waze.com/ul?q=${encodeURIComponent(destPos.address+", Dakar")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#009BDE",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>🌀 Waze</a>}
-                  {destPos.address&&<a href={`https://maps.google.com/?daddr=${encodeURIComponent(destPos.address+", Dakar")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#4285F4",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>🗺️ Maps</a>}
-                  {destPos.phone&&gpsPos&&<button onClick={()=>window.open(`https://wa.me/221${(destPos.phone||"").replace(/\s+/g,"")}?text=${encodeURIComponent(`Bonjour ${destPos.client} ! 🏍️ Votre commande est en route !\n\n📍 Ma position en temps réel :\nhttps://maps.google.com/maps?q=${gpsPos.lat},${gpsPos.lng}\n\n— ${currentUser.nom}`)}`,"_blank")} style={{flex:1,background:"#25D366",color:"#fff",border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center"}}>📲 WA Pos.</button>}
-                </div>
-              </div>
-            )}
-
-            {/* Carte position livreur */}
+            {/* Carte position livreur — position uniquement, pas de route ni destination */}
             {gpsPos&&(
               <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
                 <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green}}>📍 Équipe en temps réel</div>
                 <MapView positions={{
                   ...Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat&&teamMembers.some(m=>m.role==="livreur"&&m.nom===k))),
                   [currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"},
-                }} role="livreur" isDesktop={isDesktop} destination={destPos} livreurPos={gpsPos}/>
+                }} role="livreur" isDesktop={isDesktop}/>
               </div>
             )}
 
