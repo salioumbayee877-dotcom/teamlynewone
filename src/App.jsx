@@ -858,8 +858,6 @@ function AppInner() {
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
-  useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
-  useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   const [cashRemis,setCashRemis]       = useState("");
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
   const [dateFrom,setDateFrom]         = useState("");
@@ -972,6 +970,8 @@ function AppInner() {
   const [localOrderIds, setLocalOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_order")||"[]")}catch(e){return []}});
   const [pinnedOrderIds, setPinnedOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_pinned")||"[]")}catch(e){return []}});
   const [openModifId, setOpenModifId] = useState(null);
+  useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
+  useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
