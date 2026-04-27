@@ -858,6 +858,8 @@ function AppInner() {
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
+  useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
+  useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   const [cashRemis,setCashRemis]       = useState("");
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
   const [dateFrom,setDateFrom]         = useState("");
@@ -967,8 +969,8 @@ function AppInner() {
   const geocodedOrderRef              = useRef(null);
   const pendingOrderUpdates           = useRef({});
   const dragItemRef                   = useRef(null);
-  const [localOrderIds, setLocalOrderIds] = useState([]);
-  const [pinnedOrderIds, setPinnedOrderIds] = useState([]);
+  const [localOrderIds, setLocalOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_order")||"[]")}catch(e){return []}});
+  const [pinnedOrderIds, setPinnedOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_pinned")||"[]")}catch(e){return []}});
   const [openModifId, setOpenModifId] = useState(null);
   const [livreurPositions, setLivreurPositions] = useState({
   });
@@ -2108,7 +2110,7 @@ function AppInner() {
               <div style={{marginTop:6,background:"#FEF3C7",border:"2px solid #F0A500",borderRadius:10,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
                 <span style={{fontSize:20,flexShrink:0}}>⛔</span>
                 <div style={{fontSize:12,fontWeight:700,color:"#92400E"}}>
-                  Termina primero: <span style={{color:"#D97706"}}>{activeEnCamino.client}</span>
+                  Termine d'abord : <span style={{color:"#D97706"}}>{activeEnCamino.client}</span>
                 </div>
               </div>
             )}
@@ -3712,26 +3714,26 @@ function AppInner() {
             {/* ── Filtros ── */}
             {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
               <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
-                {/* Fecha */}
+                {/* Date */}
                 <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>📅 DATE</div>
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
-                  {[{k:"today",l:"Hoy"},{k:"yesterday",l:"Ayer"},{k:"week",l:"Semana"},{k:"all",l:"Todo"}].map(d=>(
+                  {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
                     <button key={d.k} onClick={()=>setFilterDate(d.k)}
                       style={{flex:1,background:filterDate===d.k?G.green:"#E5E7EB",color:filterDate===d.k?"#fff":"#111",border:filterDate===d.k?`2px solid ${G.green}`:"2px solid transparent",borderRadius:9,padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {d.l}
                     </button>
                   ))}
                 </div>
-                {/* Estado */}
-                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ ESTADO</div>
+                {/* Statut */}
+                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ STATUT</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
                   <button onClick={()=>setFilterStatus("all")}
                     style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                    Todo
+                    Tout
                   </button>
-                  {Object.entries(STATUS).map(([k,v])=>(
+                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="pendiente").map(([k,v])=>(
                     <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
-                      style={{background:filterStatus===k?v.color:"#E5E7EB",color:filterStatus===k?"#fff":"#111",border:filterStatus===k?`2px solid ${v.color}`:"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                      style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {v.label}
                     </button>
                   ))}
