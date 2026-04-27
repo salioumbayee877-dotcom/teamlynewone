@@ -969,6 +969,7 @@ function AppInner() {
   const dragItemRef                   = useRef(null);
   const [localOrderIds, setLocalOrderIds] = useState([]);
   const [pinnedOrderIds, setPinnedOrderIds] = useState([]);
+  const [openModifId, setOpenModifId] = useState(null);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1882,7 +1883,8 @@ function AppInner() {
 
   // ── OCard ──
   const OCard = ({o,showPrendre=false}) => {
-    const [showModif, setShowModif] = useState(false);
+    const showModif = openModifId === o.id;
+    const setShowModif = (val) => setOpenModifId(typeof val==="function" ? (val(showModif)?o.id:null) : (val?o.id:null));
     const st = STATUS[o.status]||STATUS.pendiente;
     const STEP_ICONS  = ["✅","🏍️","📦","🚀","📍","✓"];
     const STEP_COLORS = ["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
@@ -2145,7 +2147,7 @@ function AppInner() {
         {/* Modifier statut — livreur (toggle) */}
         {role==="livreur"&&(
           <div style={{marginTop:8}}>
-            <button onClick={()=>setShowModif(v=>!v)}
+            <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
               style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
               <span>{showModif?"▲":"✏️"}</span>
               <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
@@ -2171,7 +2173,7 @@ function AppInner() {
                         if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
                       }
                       upSt(o.id,s);
-                      setShowModif(false);
+                      setOpenModifId(null);
                     }}
                       style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
                       <span>{ico}</span><span>{l}</span>
@@ -2912,7 +2914,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
-      <style>{`@keyframes stepPulse{0%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}16.67%{transform:scale(1.4);box-shadow:0 0 0 10px rgba(0,0,0,0)}33.33%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}100%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 6s ease-in-out infinite}@keyframes softPulse{0%,100%{opacity:0.9;transform:scale(1)}50%{opacity:0.4;transform:scale(0.75)}}.soft-pulse{animation:softPulse 3s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes dotBlink{0%,100%{opacity:1;transform:scale(1)}8%{opacity:0.1;transform:scale(0.4)}16%{opacity:1;transform:scale(1)}}.soft-pulse{animation:dotBlink 2.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}8%{transform:scale(1.45);box-shadow:0 0 0 8px rgba(0,0,0,0)}16%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 2.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
