@@ -1101,8 +1101,8 @@ function AppInner() {
         const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at,settings`,"GET");
         const org  = orgs?.[0];
         if(!org) return;
-        // Sync closer permissions from DB on every check
-        if(org.settings) setSettings(s=>({...s,...org.settings}));
+        // Sync closer permissions from DB — only for closer/livreur (admin manages their own settings directly)
+        if(org.settings && currentUserRef.current?.role!=="admin") setSettings(s=>({...s,...org.settings}));
         // Owner: always full access, just sync the plan label
         if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(currentUserRef.current?.email)) {
           setIsPro(true);
