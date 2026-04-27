@@ -968,6 +968,7 @@ function AppInner() {
   const pendingOrderUpdates           = useRef({});
   const dragItemRef                   = useRef(null);
   const [localOrderIds, setLocalOrderIds] = useState([]);
+  const [pinnedOrderIds, setPinnedOrderIds] = useState([]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1856,8 +1857,32 @@ function AppInner() {
   const tPub  = calcProd.reduce((a,x)=>a+x.pub,0);
   const tMarge= tCA>0?tBen/tCA:0;
 
+  // ── Move card up/down within its status group ──
+  const moveInGroup = (id, direction) => {
+    const target = orders.find(o => o.id === id);
+    if (!target) return;
+    setLocalOrderIds(prev => {
+      const allIds = prev.length > 0 ? [...prev] : filteredOrders.map(x => x.id);
+      filteredOrders.forEach(o => { if (!allIds.includes(o.id)) allIds.push(o.id); });
+      const groupIds = allIds.filter(oid => {
+        const found = filteredOrders.find(o => o.id === oid);
+        return found && found.status === target.status;
+      });
+      const idx = groupIds.indexOf(id);
+      if (direction === 'up' && idx <= 0) return prev;
+      if (direction === 'down' && idx >= groupIds.length - 1) return prev;
+      const swapId = direction === 'up' ? groupIds[idx - 1] : groupIds[idx + 1];
+      const next = [...allIds];
+      const idxA = next.indexOf(id), idxB = next.indexOf(swapId);
+      if (idxA < 0 || idxB < 0) return prev;
+      [next[idxA], next[idxB]] = [next[idxB], next[idxA]];
+      return next;
+    });
+  };
+
   // ── OCard ──
   const OCard = ({o,showPrendre=false}) => {
+    const [showModif, setShowModif] = useState(false);
     const st = STATUS[o.status]||STATUS.pendiente;
     const STEP_ICONS  = ["✅","🏍️","📦","🚀","📍","✓"];
     const STEP_COLORS = ["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
@@ -1865,16 +1890,9 @@ function AppInner() {
     const curStep     = STEP_KEYS.indexOf(o.status);
     const inDelivery  = curStep >= 0;
 
+    const isPinned = pinnedOrderIds.includes(o.id);
     return (
-      <div draggable onDragStart={()=>{dragItemRef.current=o.id;}} onDragOver={e=>e.preventDefault()} onDrop={()=>{
-        const from=dragItemRef.current; if(!from||from===o.id) return;
-        setLocalOrderIds(prev=>{
-          const base=prev.length>0?[...prev]:filteredOrders.map(x=>x.id);
-          const fi=base.indexOf(from), ti=base.indexOf(o.id);
-          if(fi<0||ti<0){const all=[...base];if(!all.includes(from))all.push(from);if(!all.includes(o.id))all.push(o.id);const nfi=all.indexOf(from),nti=all.indexOf(o.id);all.splice(nfi,1);all.splice(nti,0,from);return all;}
-          const next=[...base]; next.splice(fi,1); next.splice(ti,0,from); return next;
-        }); dragItemRef.current=null;
-      }} style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:`1px solid ${st.color}22`,cursor:"grab"}}>
+      <div style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:isPinned?`2px solid ${st.color}`:`1px solid ${st.color}22`}}>
 
         {/* ── Bande état colorée (top) ── */}
         <div style={{background:st.color,padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1886,9 +1904,14 @@ function AppInner() {
               {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
             </span>}
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            {/* Drag handle */}
-            <span style={{color:"rgba(255,255,255,0.5)",fontSize:14,cursor:"grab",userSelect:"none",letterSpacing:-1}}>⠿</span>
+          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            {/* ↑/↓ reorder + 📌 pin */}
+            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}}
+              style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1}}>↑</button>
+            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}}
+              style={{background:"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1}}>↓</button>
+            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}}
+              style={{background:isPinned?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.18)",border:"none",borderRadius:6,color:"#fff",fontSize:13,cursor:"pointer",padding:"2px 5px",lineHeight:1,fontWeight:isPinned?900:400}}>📌</button>
             {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁 Bundle</span>}
             <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
           </div>
@@ -2025,7 +2048,7 @@ function AppInner() {
                   📦 Étape 3 — Colis en main, pars vers le client
                 </div>
                 <button onClick={()=>{
-                  const activeDelivery=orders.find(x=>x.livreur_id===currentUser.id&&x.status==="en_camino"&&x.id!==o.id);
+                  const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
                   if(activeDelivery){
                     addToast(`⚠️ Termine d'abord la livraison de ${activeDelivery.client} !`,"⚠️","#F0A500");
                     return;
@@ -2119,34 +2142,44 @@ function AppInner() {
           </div>
         )}
 
-        {/* Modifier statut — livreur */}
+        {/* Modifier statut — livreur (toggle) */}
         {role==="livreur"&&(
-          <div style={{marginTop:8,padding:"10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
-            <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-              {[
-                {s:"confirmado",     ico:"✅", l:"Confirmé"},
-                {s:"livreur_en_route",ico:"🏍️",l:"En route"},
-                {s:"colis_pris",     ico:"📦", l:"Colis pris"},
-                {s:"en_camino",      ico:"🚀", l:"Vers client"},
-                {s:"chez_client",    ico:"📍", l:"Chez client"},
-                {s:"entregado",      ico:"✅", l:"Livré"},
-                {s:"rechazado",      ico:"❌", l:"Rejeté"},
-                {s:"no_contesta",    ico:"📵", l:"Absent"},
-                {s:"reprogramar",    ico:"🔄", l:"Reporter"},
-              ].map(({s,ico,l})=>(
-                <button key={s} onClick={()=>{
-                  if(s==="en_camino"){
-                    const active=orders.find(x=>x.livreur_id===currentUser.id&&x.status==="en_camino"&&x.id!==o.id);
-                    if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
-                  }
-                  upSt(o.id,s);
-                }}
-                  style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                  <span>{ico}</span><span>{l}</span>
-                </button>
-              ))}
-            </div>
+          <div style={{marginTop:8}}>
+            <button onClick={()=>setShowModif(v=>!v)}
+              style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <span>{showModif?"▲":"✏️"}</span>
+              <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
+            </button>
+            {showModif&&(
+              <div style={{marginTop:6,padding:"10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                  {[
+                    {s:"confirmado",     ico:"✅", l:"Confirmé"},
+                    {s:"livreur_en_route",ico:"🏍️",l:"En route"},
+                    {s:"colis_pris",     ico:"📦", l:"Colis pris"},
+                    {s:"en_camino",      ico:"🚀", l:"Vers client"},
+                    {s:"chez_client",    ico:"📍", l:"Chez client"},
+                    {s:"entregado",      ico:"✅", l:"Livré"},
+                    {s:"rechazado",      ico:"❌", l:"Rejeté"},
+                    {s:"no_contesta",    ico:"📵", l:"Absent"},
+                    {s:"reprogramar",    ico:"🔄", l:"Reporter"},
+                  ].map(({s,ico,l})=>(
+                    <button key={s} onClick={()=>{
+                      if(s==="en_camino"){
+                        const active=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
+                        if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
+                      }
+                      upSt(o.id,s);
+                      setShowModif(false);
+                    }}
+                      style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                      <span>{ico}</span><span>{l}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3697,10 +3730,29 @@ function AppInner() {
               </div>
             )}
 
+            {/* ── Filtre par statut (pills) ── */}
+            {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
+              <div style={{background:G.white,borderRadius:12,padding:"10px 12px"}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>🏷️ FILTRER PAR STATUT</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  <button onClick={()=>setFilterStatus("all")}
+                    style={{background:filterStatus==="all"?"#374151":"#F3F4F6",color:filterStatus==="all"?"#fff":G.gray,border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                    Tout
+                  </button>
+                  {Object.entries(STATUS).map(([k,v])=>(
+                    <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
+                      style={{background:filterStatus===k?v.color:"#F3F4F6",color:filterStatus===k?"#fff":v.color,border:`1.5px solid ${filterStatus===k?v.color:"transparent"}`,borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                      {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            {localOrderIds.length>0&&(
-              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:4}}>
-                <button onClick={()=>setLocalOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>↺ Ordre par défaut</button>
+            {(localOrderIds.length>0||pinnedOrderIds.length>0)&&(
+              <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:4}}>
+                {pinnedOrderIds.length>0&&<button onClick={()=>setPinnedOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>📌 Tout désépingler</button>}
+                {localOrderIds.length>0&&<button onClick={()=>setLocalOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>↺ Ordre par défaut</button>}
               </div>
             )}
             {filteredOrders.length===0&&(
@@ -3719,18 +3771,20 @@ function AppInner() {
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
-              // Sort within each group: custom drag order if set, otherwise oldest first
+              // Sort within each group: pinned first, then custom order or oldest first
               GROUP_ORDER.forEach(k=>{
                 if(!groups[k]) return;
-                if(localOrderIds.length>0){
-                  groups[k].sort((a,b)=>{
+                groups[k].sort((a,b)=>{
+                  const aPinned=pinnedOrderIds.includes(a.id), bPinned=pinnedOrderIds.includes(b.id);
+                  if(aPinned&&!bPinned) return -1;
+                  if(!aPinned&&bPinned) return 1;
+                  if(localOrderIds.length>0){
                     const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
                     if(ia<0&&ib<0) return new Date(a.created_at||0)-new Date(b.created_at||0);
                     if(ia<0) return 1; if(ib<0) return -1; return ia-ib;
-                  });
-                } else {
-                  groups[k].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0));
-                }
+                  }
+                  return new Date(a.created_at||0)-new Date(b.created_at||0);
+                });
               });
               return GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
                 const st = STATUS[k]||STATUS.pendiente;
