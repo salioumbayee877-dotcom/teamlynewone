@@ -1873,7 +1873,17 @@ function AppInner() {
         {/* Note (si existe) */}
         {o.note&&<div style={{fontSize:11,color:"#6B7280",background:"#F9FAFB",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:`3px solid ${st.color}`}}>📝 {o.note}</div>}
 
-
+        {/* Confirmation WhatsApp — admin/closer uniquement */}
+        {role!=="livreur"&&o.phone&&(()=>{
+          const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+          return (
+            <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msgConf)}`}
+              target="_blank" rel="noreferrer"
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",marginBottom:8,boxShadow:"0 3px 10px rgba(37,211,102,0.3)"}}>
+              <span style={{fontSize:18}}>📲</span> Confirmer la commande par WhatsApp
+            </a>
+          );
+        })()}
 
         {/* Livreur — statut final bloqué (entregado / rechazado) */}
         {role==="livreur"&&(o.status==="entregado"||o.status==="rechazado")&&(
@@ -1967,7 +1977,7 @@ function AppInner() {
                 </div>
                 {/* Rappel WhatsApp personnalisé */}
                 {o.phone&&(()=>{
-                  const msg=`Bonjour ${o.client} ! 🚨\n\nJe suis *${currentUser.nom}*, votre livreur — *je suis juste à côté de chez vous !* 🏍️💨\n\nVotre commande *${o.product}* arrive dans quelques minutes !\n\n💰 Préparez *${fmt(o.price)} CFA* maintenant s'il vous plaît\n\n⚠️ *Soyez disponible, je sonne dans un instant !*\n\n—\n🎁 *Enregistrez ce numéro dans vos contacts !*\nVous recevrez nos offres exclusives et réductions en avant-première 🔥\n— *${settings.boutique||"Notre boutique"}*`;
+                  const msg=`Bonjour ${o.client} ! 🚨\n\nJe suis *${currentUser.nom}*, votre livreur — *je suis juste à côté de chez vous !* 🏍️💨\n\nVotre commande *${o.product}* arrive dans quelques minutes !\n\n💰 Préparez *${fmt(o.price)} CFA* maintenant s'il vous plaît\n\n⚠️ *Soyez disponible, je sonne dans un instant !*\n\n—\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées en exclusivité dans nos *statuts WhatsApp* 🔥\n— *${settings.boutique||"Notre boutique"}*`;
                   return (
                     <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
                       target="_blank" rel="noreferrer"
