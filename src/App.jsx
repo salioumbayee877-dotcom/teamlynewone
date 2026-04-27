@@ -2014,20 +2014,6 @@ function AppInner() {
               );
             })()}
 
-            {/* Étape: confirmado → livreur accepte la livraison */}
-            {o.status==="confirmado"&&(
-              <>
-                <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600}}>
-                  📋 Étape 1 — Accepter la livraison
-                </div>
-                <button onClick={()=>upSt(o.id,"livreur_en_route")}
-                  style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:`0 4px 12px ${G.green}44`}}>
-                  <span style={{fontSize:20}}>✅</span> Accepter le colis
-                </button>
-                {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"7px 0",fontSize:12,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Appeler le client avant</a>}
-              </>
-            )}
-
             {/* Étape: livreur en route → arrive chez admin */}
             {o.status==="livreur_en_route"&&(
               <>
@@ -2131,7 +2117,6 @@ function AppInner() {
             {(()=>{
               const PREV = {
                 "livreur_en_route": {s:"confirmado",         l:"← Annuler le départ"},
-                "colis_pris":       {s:"livreur_en_route",   l:"← Colis pas encore pris"},
                 "chez_client":      {s:"en_camino",          l:"← Pas encore chez le client"},
                 "no_contesta":      {s:"chez_client",        l:"← Retenter la livraison"},
                 "reprogramar":      {s:"chez_client",        l:"← Retenter la livraison"},
@@ -2921,7 +2906,7 @@ function AppInner() {
 
   return (
     <div style={{minHeight:"100vh",background:G.grayLight,fontFamily:"'Helvetica Neue',sans-serif",maxWidth:isDesktop?"none":480,margin:isDesktop?"0":"0 auto",display:isDesktop?"flex":"block"}}>
-      <style>{`@keyframes dotBlink{0%,100%{opacity:1;transform:scale(1)}8%{opacity:0.1;transform:scale(0.4)}16%{opacity:1;transform:scale(1)}}.soft-pulse{animation:dotBlink 2.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.7))}8%{transform:scale(1.45);box-shadow:0 0 0 8px rgba(0,0,0,0)}16%{transform:scale(1);box-shadow:0 0 0 0 rgba(0,0,0,0)}}.step-active{animation:stepPulse 2.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes candleGlow{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.45;transform:scale(0.78)}}.soft-pulse{animation:candleGlow 3.5s ease-in-out infinite}@keyframes stepPulse{0%,100%{transform:scale(1);box-shadow:0 0 0 0 var(--sc,rgba(46,139,87,0.35))}50%{transform:scale(1.13);box-shadow:0 0 0 5px rgba(0,0,0,0)}}.step-active{animation:stepPulse 3.5s ease-in-out infinite}@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
 
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
