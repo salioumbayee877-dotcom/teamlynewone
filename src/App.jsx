@@ -361,7 +361,18 @@ function makeMarkerIcon(L, name, city="") {
   });
 }
 
-function MapView({positions, role, isDesktop=false}) {
+async function geocodeAddress(address) {
+  if(!address) return null;
+  try {
+    const q = encodeURIComponent(address.trim()+", Sénégal");
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=fr`);
+    const d = await r.json();
+    if(d&&d.length>0) return {lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};
+  } catch(e) {}
+  return null;
+}
+
+function MapView({positions, role, isDesktop=false, destination=null}) {
   const containerRef   = useRef(null);
   const stateRef       = useRef({map:null, markers:{}, loaded:false});
   const userMovedRef   = useRef(false); // true si el usuario ha tocado/zoomado el mapa
@@ -426,6 +437,25 @@ function MapView({positions, role, isDesktop=false}) {
       }
     });
   },[positions]);
+
+  // Destination pin (red) for active delivery
+  React.useEffect(()=>{
+    if(!destination?.lat) return;
+    const tryAdd = ()=>{
+      const {map,markers,loaded}=stateRef.current;
+      if(!loaded||!map||!window.L){setTimeout(tryAdd,300);return;}
+      const L=window.L;
+      const icon=L.divIcon({html:`<div style="width:20px;height:20px;background:#EF4444;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.5)"></div>`,className:"",iconSize:[20,20],iconAnchor:[10,10]});
+      const popup=`<div style="font-size:13px"><b>📍 ${destination.client||"Livraison"}</b><br><span style="color:#666;font-size:11px">${destination.address||""}</span></div>`;
+      if(markers["__dest__"]){markers["__dest__"].setLatLng([destination.lat,destination.lng]).setPopupContent(popup);}
+      else{
+        markers["__dest__"]=L.marker([destination.lat,destination.lng],{icon,zIndexOffset:1000}).addTo(map).bindPopup(popup).openPopup();
+        const pts=Object.values(markers).filter(m=>m.getLatLng).map(m=>m.getLatLng());
+        if(pts.length>1){try{map.fitBounds(L.latLngBounds(pts),{padding:[40,40]});}catch(e){}}
+      }
+    };
+    tryAdd();
+  },[destination]);
 
   // Invalide la taille de la carte quand on change de mode
   React.useEffect(()=>{
@@ -904,6 +934,8 @@ function AppInner() {
   const [gpsActive, setGpsActive]     = useState(false);
   const [gpsPos, setGpsPos]           = useState(null);
   const [gpsError, setGpsError]       = useState("");
+  const [destPos, setDestPos]         = useState(null);
+  const geocodedOrderRef              = useRef(null);
   const [livreurPositions, setLivreurPositions] = useState({
     "Ibou":    {lat:14.7167, lng:-17.4677, name:"Ibou",    order:"Commande #4 — Yoff"},
     "Mamadou": {lat:14.7255, lng:-17.4530, name:"Mamadou", order:"Commande #2 — Plateau"},
@@ -1090,6 +1122,20 @@ function AppInner() {
     }, 1200);
     return ()=>clearTimeout(t);
   },[role, currentUser?.id]);
+
+  // Geocode active delivery for livreur destination pin
+  useEffect(()=>{
+    if(role!=="livreur"||!currentUser?.id){setDestPos(null);return;}
+    const active=orders.find(o=>o.livreur_id===currentUser.id&&["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
+    if(!active){setDestPos(null);geocodedOrderRef.current=null;return;}
+    const base={address:active.address,client:active.client,phone:active.phone,price:active.price,orderId:active.id};
+    setDestPos(d=>d?.orderId===active.id?d:base);
+    if(geocodedOrderRef.current===active.id) return;
+    geocodedOrderRef.current=active.id;
+    geocodeAddress(active.address).then(geo=>{
+      if(geo) setDestPos(d=>d?.orderId===active.id?{...d,...geo}:d);
+    });
+  },[orders,role,currentUser?.id]);
 
   // hCaptcha desactivado
 
@@ -3867,6 +3913,21 @@ function AppInner() {
               </button>
             </div>
 
+            {/* Active delivery info card */}
+            {gpsPos&&destPos&&(
+              <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:14,padding:14}}>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,letterSpacing:1,marginBottom:6}}>📦 LIVRAISON EN COURS</div>
+                <div style={{fontWeight:800,fontSize:16,color:"#fff",marginBottom:3}}>{destPos.client}</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",marginBottom:12}}>📍 {destPos.address}</div>
+                <div style={{display:"flex",gap:6}}>
+                  {destPos.phone&&<a href={`tel:+221${(destPos.phone||"").replace(/\s+/g,"")}`} style={{flex:1,background:"rgba(255,255,255,0.15)",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>📞 Appeler</a>}
+                  {destPos.address&&<a href={`https://waze.com/ul?q=${encodeURIComponent(destPos.address+", Dakar")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#009BDE",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>🌀 Waze</a>}
+                  {destPos.address&&<a href={`https://maps.google.com/?daddr=${encodeURIComponent(destPos.address+", Dakar")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#4285F4",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,textDecoration:"none",textAlign:"center"}}>🗺️ Maps</a>}
+                  {destPos.phone&&gpsPos&&<button onClick={()=>window.open(`https://wa.me/221${(destPos.phone||"").replace(/\s+/g,"")}?text=${encodeURIComponent(`Bonjour ${destPos.client} ! 🏍️ Votre commande est en route !\n\n📍 Ma position en temps réel :\nhttps://maps.google.com/maps?q=${gpsPos.lat},${gpsPos.lng}\n\n— ${currentUser.nom}`)}`,"_blank")} style={{flex:1,background:"#25D366",color:"#fff",border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",textAlign:"center"}}>📲 WA Pos.</button>}
+                </div>
+              </div>
+            )}
+
             {/* Carte position livreur */}
             {gpsPos&&(
               <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
@@ -3874,7 +3935,7 @@ function AppInner() {
                 <MapView positions={{
                   ...Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat&&teamMembers.some(m=>m.role==="livreur"&&m.nom===k))),
                   [currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"},
-                }} role="livreur" isDesktop={isDesktop}/>
+                }} role="livreur" isDesktop={isDesktop} destination={destPos}/>
               </div>
             )}
 
