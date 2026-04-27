@@ -1926,13 +1926,26 @@ function AppInner() {
             {o.status==="colis_pris"&&(
               <>
                 <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600}}>
-                  📦 Étape 3 — Colis en main, pars vers le client
+                  📦 Étape 3 — Colis en main, préviens le client avant de partir
                 </div>
+                {/* Prévenir le client — WhatsApp ou appel */}
+                {o.phone&&(
+                  <div style={{display:"flex",gap:6}}>
+                    <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(`Bonjour ${o.client} ! 🏍️ Votre commande est prête, je pars chez vous dans quelques instants.\n\nJe vous appelle à mon arrivée.\n— ${currentUser.nom}`)}`}
+                      target="_blank" rel="noreferrer"
+                      style={{flex:2,background:"#25D366",color:"#fff",borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                      <span style={{fontSize:18}}>💬</span> Prévenir par WhatsApp
+                    </a>
+                    <a href={`tel:+221${o.phone.replace(/\s+/g,"")}`}
+                      style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:6,border:`1px solid #BFDBFE`}}>
+                      📞 Appeler
+                    </a>
+                  </div>
+                )}
                 <button onClick={()=>upSt(o.id,"en_camino")}
                   style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span style={{fontSize:20}}>🚀</span> Je pars vers le client
                 </button>
-                {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"7px 0",fontSize:12,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Prévenir le client</a>}
               </>
             )}
 
@@ -3558,6 +3571,8 @@ function AppInner() {
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
+              // Sort within each group: oldest first (longest waiting)
+              GROUP_ORDER.forEach(k=>{ if(groups[k]) groups[k].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0)); });
               return GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
                 const st = STATUS[k]||STATUS.pendiente;
                 return (
