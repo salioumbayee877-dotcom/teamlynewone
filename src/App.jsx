@@ -962,7 +962,7 @@ function AppInner() {
   const [saLoading,     setSaLoading]     = useState(false);
   const [saPlanEdit,    setSaPlanEdit]    = useState({});
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
-  const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com"];
+  const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com","diarriag@gmail.com"];
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`✅ Commande confirmée !\n\n📦 {produit}\n💰 {prix} CFA (paiement à la livraison)\n📍 {adresse}\n📲 Enregistrez notre numéro pour ne pas rater aucune promotion !\nNos meilleures offres sont publiées dans nos statuts WhatsApp 🔥`); // produit en cours d'édition
