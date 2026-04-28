@@ -3628,23 +3628,12 @@ function AppInner() {
 
         {/* ── LIVREUR DASHBOARD ── */}
         {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
-          const aRecuperer = myLiv.filter(o=>o.status==="confirmado"||o.status==="livreur_en_route");
+          const aRecuperer = myLiv.filter(o=>o.status==="confirmado");
           const aLivrer    = myLiv.filter(o=>o.status==="colis_pris");
           const enRoute    = myLiv.filter(o=>o.status==="en_camino"||o.status==="chez_client");
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Colis en attente d'acceptation */}
-            {myLiv.filter(o=>o.status==="confirmado").length>0&&(
-              <div style={{background:"#FFF8E7",border:"1px solid #FDE68A",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:20}}>🔔</span>
-                <div style={{flex:1}}>
-                  <div style={{fontWeight:700,fontSize:13,color:"#92400E"}}>{myLiv.filter(o=>o.status==="confirmado").length} colis à accepter</div>
-                  <div style={{fontSize:11,color:"#92400E",marginTop:1}}>Va dans Livraisons pour accepter</div>
-                </div>
-                <button onClick={()=>setTab("livraisons")} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Voir →</button>
-              </div>
-            )}
 
             {/* ── BLOC TOURNÉE — colis à récupérer ── */}
             {aRecuperer.length>0&&(
