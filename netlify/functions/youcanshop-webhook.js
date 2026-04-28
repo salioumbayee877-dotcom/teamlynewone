@@ -74,12 +74,12 @@ exports.handler = async (event) => {
     const ref   = `#${order.reference || order.ref || order.id || Date.now()}`;
 
     // ── Plan limit check ────────────────────────────────────────────────
-    const LIMITS = {starter:100, trial:100, pro:200, scale:999999};
+    const LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:2000, scale:999999};
     try {
       const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=plan&limit=1`, { headers: sbHeaders });
       const orgData = await orgRes.json();
-      const plan    = orgData?.[0]?.plan || "starter";
-      const limit   = LIMITS[plan] ?? 100;
+      const plan    = orgData?.[0]?.plan || "gratuit";
+      const limit   = LIMITS[plan] ?? 30;
       const month   = new Date().toISOString().slice(0,7);
       const cntRes  = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&created_at=gte.${month}-01&select=id`, { headers: sbHeaders });
       const cnt     = (await cntRes.json())?.length || 0;

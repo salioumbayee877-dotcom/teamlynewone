@@ -1254,6 +1254,66 @@ function AppInner() {
 
   // ── Restore session from localStorage on startup ───────────────────────
   useEffect(()=>{
+    // ── Detect Supabase email confirmation callback ──────────────────────
+    const _hash = window.location.hash;
+    const _qp   = new URLSearchParams(window.location.search);
+    const _hp   = new URLSearchParams(_hash.startsWith("#") ? _hash.slice(1) : "");
+    const _confirmToken = _hp.get("access_token");
+    const _confirmType  = _hp.get("type") || _qp.get("type");
+    const _tokenHash    = _qp.get("token_hash");
+    if((_confirmToken && _confirmType === "signup") || (_tokenHash && _confirmType === "email")) {
+      (async()=>{
+        try {
+          let jwt = _confirmToken;
+          if(!jwt && _tokenHash) {
+            const vRes = await fetchWithTimeout(`${SB_URL}/auth/v1/verify`,{
+              method:"POST",
+              headers:{"Content-Type":"application/json","apikey":SB_KEY},
+              body:JSON.stringify({type:"email",token_hash:_tokenHash}),
+            },15000);
+            const vData = await vRes.json();
+            jwt = vData.access_token;
+          }
+          if(!jwt) { setAppLoading(false); return; }
+          const uRes = await fetchWithTimeout(`${SB_URL}/auth/v1/user`,{
+            headers:{"Authorization":`Bearer ${jwt}`,"apikey":SB_KEY},
+          },10000);
+          const uData = await uRes.json();
+          const userId = uData.id;
+          if(!userId) { setAppLoading(false); return; }
+          let pending = null;
+          try { pending = JSON.parse(localStorage.getItem("teamly_pending_signup")||"null"); } catch(e){}
+          if(pending) {
+            _authToken = jwt; setSbToken(jwt);
+            const {nom,phone,boutique,orgId:newOrgId,email} = pending;
+            await sbFetch("organizations","POST",{id:newOrgId,name:boutique||"Ma Boutique",whatsapp:phone||""});
+            await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom:nom||"Admin",phone:phone||"",email,role:"admin"});
+            setOrgId(newOrgId); setSbReady(true);
+            setCurrentUser({id:userId,nom,email,role:"admin"});
+            setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
+            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:null});
+            try{
+              localStorage.setItem("teamly_org",newOrgId);
+              localStorage.setItem("teamly_token",jwt);
+              localStorage.setItem("teamly_email",email);
+              localStorage.setItem("teamly_role","admin");
+              localStorage.setItem("teamly_userId",userId);
+              localStorage.setItem("teamly_nom",nom||"Admin");
+              localStorage.removeItem("teamly_pending_signup");
+            }catch(e){}
+            window.history.replaceState(null,"",window.location.pathname);
+            setAppLoading(false);
+            setAuthStep("plan");
+            return;
+          }
+          // No pending signup — just log in with the confirmed token
+          _authToken = jwt; setSbToken(jwt);
+          window.history.replaceState(null,"",window.location.pathname);
+        } catch(e) { console.error("Email confirmation error:",e); }
+        setAppLoading(false);
+      })();
+      return;
+    }
     try {
       // If this is an invite link, ignore any saved session
       const inviteCheck = new URLSearchParams(window.location.search);
@@ -2386,6 +2446,16 @@ function AppInner() {
     setAuthError("");
     sbAuth(authForm.email, authForm.password, "register")
       .then(async(data)=>{
+        if(!data.access_token) {
+          // Supabase email confirmation is enabled — save pending data, show verify screen
+          const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+          try { localStorage.setItem("teamly_pending_signup", JSON.stringify({
+            userId: data.user?.id, email: authForm.email, nom: authForm.nom,
+            phone: authForm.phone, boutique: authForm.boutique, orgId: newOrgId,
+          })); } catch(e) {}
+          setAuthStep("verify-email");
+          return;
+        }
         const tok=data.access_token; _authToken=tok; setSbToken(tok);
         // Generate org UUID client-side so we don't need to read it back
         const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
@@ -2414,8 +2484,8 @@ function AppInner() {
     const closerToken  = genToken();
     const livreurToken = genToken();
     setInviteLink({
-      closer:  `https://admirable-gingersnap-0038d8.netlify.app?org=${realOrgId}&role=closer&token=${closerToken}`,
-      livreur: `https://admirable-gingersnap-0038d8.netlify.app?org=${realOrgId}&role=livreur&token=${livreurToken}`,
+      closer:  `${window.location.origin}?org=${realOrgId}&role=closer&token=${closerToken}`,
+      livreur: `${window.location.origin}?org=${realOrgId}&role=livreur&token=${livreurToken}`,
     });
     setAuthStep("invite");
   };
@@ -2926,6 +2996,56 @@ function AppInner() {
 
             <div style={{textAlign:"center"}}>
               <button onClick={()=>setAuthStep("login")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {authStep==="verify-email"&&(
+        <div style={{minHeight:"100dvh",background:"#0F1923",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif"}}>
+          <div style={{width:"100%",maxWidth:400,display:"flex",flexDirection:"column",gap:20}}>
+            <div style={{textAlign:"center",marginBottom:4}}>
+              <div style={{display:"inline-flex",alignItems:"center",gap:10,marginBottom:24}}>
+                <div style={{width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#1A5C38,#2E8B57)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20 7L12 3L4 7V17L12 21L20 17V7Z" stroke="white" strokeWidth="2" strokeLinejoin="round"/></svg>
+                </div>
+                <span style={{color:"#fff",fontWeight:800,fontSize:22,letterSpacing:-0.5}}>Teamly</span>
+              </div>
+              <div style={{width:72,height:72,borderRadius:"50%",background:"rgba(240,165,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}>
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="3" stroke="#F0A500" strokeWidth="2"/><path d="M2 7L12 13L22 7" stroke="#F0A500" strokeWidth="2"/></svg>
+              </div>
+              <div style={{color:"#fff",fontWeight:800,fontSize:22,marginBottom:10}}>Vérifie ton email</div>
+              <div style={{color:"rgba(255,255,255,0.55)",fontSize:14,lineHeight:1.7}}>
+                Un lien de confirmation a été envoyé à<br/>
+                <span style={{color:"#F0A500",fontWeight:600}}>{authForm.email||"ton adresse email"}</span>.<br/>
+                Clique sur le lien pour activer ton compte.
+              </div>
+            </div>
+            <div style={{background:"rgba(255,255,255,0.05)",borderRadius:16,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
+              {[{n:1,t:"Ouvre ta boîte mail"},{n:2,t:"Clique sur le lien de confirmation Teamly"},{n:3,t:"Tu seras connecté automatiquement"}].map(({n,t})=>(
+                <div key={n} style={{display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(240,165,0,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#F0A500",fontWeight:800,fontSize:13}}>{n}</div>
+                  <span style={{color:"rgba(255,255,255,0.8)",fontSize:14}}>{t}</span>
+                </div>
+              ))}
+            </div>
+            <button onClick={()=>{
+              const em = authForm.email || (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_signup")||"{}").email||"";}catch(e){return "";}})();
+              if(!em) return;
+              setAuthError("");
+              fetchWithTimeout(`${SB_URL}/auth/v1/resend`,{
+                method:"POST",
+                headers:{"Content-Type":"application/json","apikey":SB_KEY},
+                body:JSON.stringify({type:"signup",email:em}),
+              },15000)
+                .then(()=>setAuthError("✓ Email renvoyé !"))
+                .catch(()=>setAuthError("Erreur — réessaie dans quelques secondes"));
+            }} style={{background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"13px 0",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"sans-serif"}}>
+              Renvoyer l'email de confirmation
+            </button>
+            {authError&&<div style={{background:authError.startsWith("✓")?"rgba(26,92,56,0.3)":"rgba(220,38,38,0.2)",border:`1px solid ${authError.startsWith("✓")?"rgba(26,92,56,0.5)":"rgba(220,38,38,0.4)"}`,borderRadius:10,padding:"10px 14px",color:authError.startsWith("✓")?"#4ADE80":"#FCA5A5",fontSize:13,textAlign:"center"}}>{authError}</div>}
+            <div style={{textAlign:"center"}}>
+              <button onClick={()=>{setAuthStep("login");setAuthError("");}} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour à la connexion</button>
             </div>
           </div>
         </div>
@@ -4453,7 +4573,7 @@ function AppInner() {
                       <button key={r.role} onClick={()=>{
                         if(atLimit){ setShowPlanModal(true); return; }
                         const token=Math.random().toString(36).substring(2,10).toUpperCase();
-                        const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;
+                        const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;
                         window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
                       }} style={{
                         flex:1,
@@ -5716,7 +5836,7 @@ function AppInner() {
                 return (<>
                   {canInvite&&<div style={{marginTop:10,display:"flex",gap:6}}>
                     {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                      <button key={r.role} onClick={()=>{const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`https://admirable-gingersnap-0038d8.netlify.app?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
+                      <button key={r.role} onClick={()=>{const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
                         style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
                     ))}
                   </div>}
