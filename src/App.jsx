@@ -27,10 +27,15 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
       body: body ? JSON.stringify(body) : undefined,
     }, 8000);
     if(!res.ok) { const e=await res.text(); throw new Error(e); }
-    if(method==="DELETE") return null;
     const text = await res.text();
     if(!text||text.trim()==="") return null;
-    try { return JSON.parse(text); } catch(e) { return null; }
+    let data;
+    try { data = JSON.parse(text); } catch(e) { return null; }
+    // Supabase returns 200 + [] when RLS silently blocks a write — detect it
+    if((method==="PATCH"||method==="DELETE") && Array.isArray(data) && data.length===0) {
+      throw new Error("Permission refusée — aucune ligne modifiée (RLS)");
+    }
+    return data;
   } catch(e) {
     if(e.name==="AbortError") throw new Error("Délai dépassé — vérifie ta connexion");
     console.error("sbFetch error:", path, e.message);
