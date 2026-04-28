@@ -2624,19 +2624,24 @@ function AppInner() {
                   <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600,fontFamily:"sans-serif",marginBottom:10}}>
                     🔐 Accès du Closer
                   </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",opacity:isGratuit?0.5:1}}>
                     <div>
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>Revenus, bénéfices, CA par produit</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, CA par produit"}</div>
                     </div>
-                    <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
-                      style={{background:settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                      <div style={{position:"absolute",top:3,left:settings.closerCompta?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
+                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
+                      style={{background:isGratuit?"rgba(255,255,255,0.1)":settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                      <div style={{position:"absolute",top:3,left:(!isGratuit&&settings.closerCompta)?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
                   </div>
-                  {settings.closerCompta&&(
+                  {!isGratuit&&settings.closerCompta&&(
                     <div style={{background:"rgba(34,197,94,0.15)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(34,197,94,0.3)"}}>
                       <div style={{fontSize:11,color:"#86EFAC",fontFamily:"sans-serif"}}>✅ Le Closer verra un onglet Compta dans son dashboard</div>
+                    </div>
+                  )}
+                  {isGratuit&&(
+                    <div style={{background:"rgba(240,165,0,0.1)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(240,165,0,0.25)"}}>
+                      <div style={{fontSize:11,color:"#FCD34D",fontFamily:"sans-serif"}}>🔒 Passez au plan Basic pour activer cette option</div>
                     </div>
                   )}
                 </div>
@@ -5569,14 +5574,14 @@ function AppInner() {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5}}>🔐 PERMISSION CLOSER</div>
               <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Le Closer voit déjà : dashboard, commandes, boutique, tracking, clients, produits, chat, équipe</div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:G.grayLight,borderRadius:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:G.grayLight,borderRadius:12,opacity:isGratuit?0.6:1}}>
                 <div>
                   <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
-                  <div style={{fontSize:11,color:G.gray,marginTop:1}}>Revenus, bénéfices, statistiques</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:1}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, statistiques"}</div>
                 </div>
-                <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
-                  style={{background:settings.closerCompta?G.green:G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                  <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
+                  style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                  <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
               </div>
             </div>
@@ -5686,14 +5691,14 @@ function AppInner() {
             {memberModal.role==="closer"&&(
               <div style={{marginBottom:14}}>
                 <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:10}}>Permission</div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",opacity:isGratuit?0.6:1}}>
                   <div>
                     <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
-                    <div style={{fontSize:10,color:G.gray}}>Revenus, marges et statistiques</div>
+                    <div style={{fontSize:10,color:isGratuit?G.gold:G.gray}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, marges et statistiques"}</div>
                   </div>
-                  <button onClick={()=>{const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
-                    style={{background:settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
-                    <div style={{position:"absolute",top:2,left:settings.closerCompta?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).catch(()=>{});}}
+                    style={{background:isGratuit?"#E5E7EB":settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                    <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
                 </div>
               </div>
