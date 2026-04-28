@@ -1192,10 +1192,12 @@ function AppInner() {
         const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at,settings`,"GET");
         const org  = orgs?.[0];
         if(!org) return;
-        // Sync closer permissions from DB — only for closer/livreur (admin manages their own settings directly)
+        // Sync org.settings for non-admin roles (closerCompta, etc.)
         if(org.settings && currentUserRef.current?.role!=="admin") setSettings(s=>({...s,...org.settings}));
+        // Sync closerCompta for admin too (so it reflects DB state after reload)
+        if(currentUserRef.current?.role==="admin" && org.settings?.closerCompta!==undefined) setSettings(s=>({...s,closerCompta:org.settings.closerCompta}));
         // Owner: always full access, just sync the plan label
-        if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(currentUserRef.current?.email)) {
+        if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com"].includes(currentUserRef.current?.email)) {
           setIsPro(true);
           const validPlans=["gratuit","basic","pro","scale"];
           const normalizedPlan=validPlans.includes(org.plan)?org.plan:(["basic","pro","scale"].includes(org.plan)?org.plan:"gratuit");
@@ -1266,7 +1268,7 @@ function AppInner() {
       // Restore immediately from cache so dashboard shows data while verifying
       if(savedOrg && savedRole && savedId) {
         setOrgId(savedOrg);
-        setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole});
+        setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole,phone:localStorage.getItem("teamly_phone")||"",birthday:localStorage.getItem("teamly_birthday")||""});
         setRole(savedRole);
         setSbReady(true);
         setAppLoading(false);
@@ -1311,6 +1313,8 @@ function AppInner() {
               localStorage.setItem("teamly_role",p.role||"admin");
               localStorage.setItem("teamly_userId",p.id||"");
               localStorage.setItem("teamly_nom",p.nom||"");
+              localStorage.setItem("teamly_phone",p.phone||"");
+              localStorage.setItem("teamly_birthday",p.birthday||"");
             } catch(e){}
           }
           setAppLoading(false);
@@ -3756,7 +3760,7 @@ function AppInner() {
                     style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                     Tout
                   </button>
-                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="pendiente").map(([k,v])=>(
+                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="pendiente"&&(role!=="livreur"||k!=="boutique")).map(([k,v])=>(
                     <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
                       style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {v.label}
@@ -5653,6 +5657,8 @@ function AppInner() {
               await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null}).catch(()=>{});
               setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
               try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
+              try{localStorage.setItem("teamly_phone",profileEdit.phone||"");}catch(e){}
+              try{localStorage.setItem("teamly_birthday",profileEdit.birthday||"");}catch(e){}
               addToast("Profil mis à jour ✅","✅",G.green);
               setShowSettings(false);
             }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:10}}>
