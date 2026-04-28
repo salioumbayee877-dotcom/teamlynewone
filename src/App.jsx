@@ -1291,6 +1291,14 @@ function AppInner() {
           clearTimeout(safetyTimer);
           if(profiles&&profiles.length>0){
             const p=profiles[0];
+            // Member was removed from the team — block access immediately
+            if(!p.org_id){
+              try{localStorage.clear();}catch(e){}
+              _authToken=null;
+              setRole(null);setOrgId(null);setSbReady(false);setAppLoading(false);
+              setAuthError("Ton compte a été retiré de cette équipe. Contacte l'administrateur.");
+              return;
+            }
             setOrgId(p.org_id);
             setSbReady(true);
             try {
@@ -2444,6 +2452,11 @@ function AppInner() {
                   if(!profiles||profiles.length===0) profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`).catch(()=>null);
                   if(profiles&&profiles.length>0){
                     const p=profiles[0];
+                    // Account removed from team — block login
+                    if(!p.org_id){
+                      setAuthError("Ton compte a été retiré de cette équipe. Contacte l'administrateur.");
+                      setAuthLoading(false); return;
+                    }
                     const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`).catch(()=>null);
                     const orgName  = orgs?.[0]?.name  || "Ma Boutique";
                     const orgPhone = orgs?.[0]?.whatsapp || "";
@@ -5659,7 +5672,7 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
-                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{await sbFetch(`profiles?id=eq.${m.id}`,"DELETE",null,_authToken);const chk=await sbFetch(`profiles?id=eq.${m.id}&select=id`,"GET");if(chk&&chk.length>0)await sbFetch(`profiles?id=eq.${m.id}`,"PATCH",{org_id:null},_authToken).catch(()=>{});setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}catch(e){addToast("Erreur de suppression — réessaie","❌",G.red);}}})}
+                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({memberId:m.id,orgId,adminJwt:_authToken})});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Erreur");setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe ✅`,"✅",G.green);}catch(e){addToast(`Erreur: ${e.message}`,"❌",G.red);}}})}
                         style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>🗑️</button>
                     </div>
                   </div>
@@ -5832,14 +5845,14 @@ function AppInner() {
             <button onClick={async()=>{
               if(!window.confirm(`Supprimer ${memberModal.nom} de l'équipe ?`)) return;
               try {
-                await sbFetch(`profiles?id=eq.${memberModal.id}`,"DELETE",null,_authToken);
-                const chk=await sbFetch(`profiles?id=eq.${memberModal.id}&select=id`,"GET");
-                if(chk&&chk.length>0) await sbFetch(`profiles?id=eq.${memberModal.id}`,"PATCH",{org_id:null},_authToken).catch(()=>{});
+                const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({memberId:memberModal.id,orgId,adminJwt:_authToken})});
+                const d=await r.json();
+                if(!r.ok||!d.success) throw new Error(d.error||"Erreur serveur");
                 setTeamMembers(t=>t.filter(m=>m.id!==memberModal.id));
                 setOrgMemberCount(c=>c!==null?c-1:c);
-                addToast(`${memberModal.nom} retiré de l'équipe`,"✅",G.green);
+                addToast(`${memberModal.nom} retiré de l'équipe ✅`,"✅",G.green);
                 setMemberModal(null);
-              } catch(e){ addToast("Erreur suppression","❌",G.red); }
+              } catch(e){ addToast(`Erreur: ${e.message}`,"❌",G.red); }
             }} style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:12,padding:"12px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
               Retirer de l'équipe
             </button>
