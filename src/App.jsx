@@ -956,6 +956,7 @@ function AppInner() {
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
+  const [isOwnerOrg,    setIsOwnerOrg]    = useState(false);
   const [payLoading,    setPayLoading]    = useState(false);
   const [saClients,     setSaClients]     = useState([]);
   const [saLoading,     setSaLoading]     = useState(false);
@@ -1201,14 +1202,24 @@ function AppInner() {
         // Sync org.settings for non-admin roles (closerCompta, etc.)
         const currentRole = currentUserRef.current?.role || localStorage.getItem("teamly_role");
         if(org.settings && currentRole!=="admin") setSettings(s=>({...s,...org.settings}));
+        const OWNER_MAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com"];
         // Owner: always full access, just sync the plan label
-        if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com"].includes(currentUserRef.current?.email)) {
-          setIsPro(true);
+        if(OWNER_MAILS.includes(currentUserRef.current?.email)) {
+          setIsPro(true); setIsOwnerOrg(true);
           const validPlans=["gratuit","basic","pro","scale"];
           const normalizedPlan=validPlans.includes(org.plan)?org.plan:(["basic","pro","scale"].includes(org.plan)?org.plan:"gratuit");
           if(org.plan) setSettings(s=>({...s, plan: normalizedPlan}));
           return;
         }
+        // Check if org admin is an owner email — if so, all members get Scale access
+        try {
+          const adminProfiles = await sbFetch(`profiles?org_id=eq.${orgId}&role=eq.admin&select=email&limit=5`,"GET");
+          if(Array.isArray(adminProfiles) && adminProfiles.some(p=>OWNER_MAILS.includes(p.email))) {
+            setIsPro(true); setIsOwnerOrg(true);
+            setSettings(s=>({...s, plan:"scale"}));
+            return;
+          }
+        } catch(e){}
         const paidPlans = ["basic","pro","scale"];
         const notExpired = !org.plan_expires_at || new Date(org.plan_expires_at) > new Date();
         const pro = paidPlans.includes(org.plan) && notExpired;
@@ -3061,7 +3072,7 @@ function AppInner() {
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && pC.closerCompta);
 
-  const isOwner       = OWNER_EMAILS.includes(currentUser.email);
+  const isOwner       = OWNER_EMAILS.includes(currentUser.email) || isOwnerOrg;
   const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
