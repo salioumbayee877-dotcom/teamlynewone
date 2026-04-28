@@ -1193,7 +1193,8 @@ function AppInner() {
         const org  = orgs?.[0];
         if(!org) return;
         // Sync org.settings for non-admin roles (closerCompta, etc.)
-        if(org.settings && currentUserRef.current?.role!=="admin") setSettings(s=>({...s,...org.settings}));
+        const currentRole = currentUserRef.current?.role || localStorage.getItem("teamly_role");
+        if(org.settings && currentRole!=="admin") setSettings(s=>({...s,...org.settings}));
         // Owner: always full access, just sync the plan label
         if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com"].includes(currentUserRef.current?.email)) {
           setIsPro(true);
