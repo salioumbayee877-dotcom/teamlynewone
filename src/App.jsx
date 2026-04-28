@@ -1274,8 +1274,8 @@ function AppInner() {
         setRole(savedRole);
         if(savedRole==="admin"){
           const cc=localStorage.getItem(`teamly_cc_${savedOrg}`)||localStorage.getItem("teamly_closerCompta");
-          const sb=localStorage.getItem(`teamly_boutique_${savedOrg}`);
-          const sw=localStorage.getItem(`teamly_whatsapp_${savedOrg}`);
+          const sb=localStorage.getItem(`teamly_boutique_${savedOrg}`)||localStorage.getItem("teamly_boutique");
+          const sw=localStorage.getItem(`teamly_whatsapp_${savedOrg}`)||localStorage.getItem("teamly_whatsapp");
           const sn=localStorage.getItem("teamly_nom");
           if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
           if(sb)setSettings(s=>({...s,boutique:sb}));
@@ -1321,8 +1321,8 @@ function AppInner() {
             // Always apply localStorage overrides AFTER org fetch — runs even if org returns [] or throws
             if(p.role==="admin"){
               const cc=localStorage.getItem(`teamly_cc_${p.org_id}`)||localStorage.getItem("teamly_closerCompta");
-              const sb=localStorage.getItem(`teamly_boutique_${p.org_id}`);
-              const sw=localStorage.getItem(`teamly_whatsapp_${p.org_id}`);
+              const sb=localStorage.getItem(`teamly_boutique_${p.org_id}`)||localStorage.getItem("teamly_boutique");
+              const sw=localStorage.getItem(`teamly_whatsapp_${p.org_id}`)||localStorage.getItem("teamly_whatsapp");
               const sn=localStorage.getItem("teamly_nom");
               if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
               if(sb)setSettings(s=>({...s,boutique:sb}));
@@ -2449,6 +2449,15 @@ function AppInner() {
                     const orgPhone = orgs?.[0]?.whatsapp || "";
                     setOrgId(p.org_id); setSbReady(true);
                     setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName,...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{}),...(orgs?.[0]?.settings||{})}));
+                    // Apply localStorage overrides — user-saved values take priority over DB defaults
+                    if((p.role||"admin")==="admin"){
+                      const sbLS=localStorage.getItem(`teamly_boutique_${p.org_id}`)||localStorage.getItem("teamly_boutique");
+                      const swLS=localStorage.getItem(`teamly_whatsapp_${p.org_id}`)||localStorage.getItem("teamly_whatsapp");
+                      const ccLS=localStorage.getItem(`teamly_cc_${p.org_id}`)||localStorage.getItem("teamly_closerCompta");
+                      if(sbLS)setSettings(s=>({...s,boutique:sbLS}));
+                      if(swLS)setSettings(s=>({...s,whatsapp:swLS}));
+                      if(ccLS!==null)setSettings(s=>({...s,closerCompta:ccLS==="true"}));
+                    }
                     if(orgs?.[0]) {
                       const org=orgs[0];
                       if(authForm.email==="salioumbayee877@gmail.com"||authForm.email==="salioumbayeee261@gmail.com"){
@@ -4687,6 +4696,51 @@ function AppInner() {
                 ])}
               />
             </div>
+
+            {/* ⬇️ Export CSV / Excel */}
+            {(()=>{
+              const doExport=(type)=>{
+                const period=selDate==="mois"?selMonth:selDate==="plage"?`${dateFrom||"debut"}_${dateTo||"fin"}`:selDate;
+                const bn=(settings.boutique||"Teamly").replace(/[^\w]/g,"_");
+                const STATUS_FR={pendiente:"En attente",confirmado:"Confirmé",livreur_en_route:"Livreur en route",colis_pris:"Colis pris",en_camino:"En route",chez_client:"Chez client",entregado:"Livré",rechazado:"Rejeté",no_contesta:"Absent",reprogramar:"Reporté"};
+                const rows=[
+                  [`Rapport Comptabilité — ${settings.boutique||"Teamly"}`,`Période : ${period}`,"","","","","","","",""],
+                  [],
+                  ["RÉSUMÉ GLOBAL"],
+                  ["CA Total (CFA)",tCA,"Bénéfice Net (CFA)",tBen,"Marge",Math.round(tMarge*100)+"%"],
+                  ["CAMV Total (CFA)",tCamv,"Frais Livraison (CFA)",tFrais,"Pub Total (CFA)",tPub],
+                  [],
+                  ["PAR PRODUIT"],
+                  ["Produit","Livrés","Rejetés","CA (CFA)","CAMV (CFA)","Frais (CFA)","Pub (CFA)","Échouées (CFA)","Bénéfice (CFA)","Marge %"],
+                  ...calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>[prod.name,nLiv,nRej,ca,camv,frais,pub,echouees,ben,Math.round(marge*100)+"%"]),
+                  ["TOTAL","","",tCA,tCamv,tFrais,tPub,"",tBen,Math.round(tMarge*100)+"%"],
+                  [],
+                  ["COMMANDES"],
+                  ["Date","Client","Téléphone","Produit","Prix (CFA)","Statut","Livreur","Closer"],
+                  ...orders.map(o=>[o.created_at?.slice(0,10)||"",o.client||"",o.phone||"",o.product||"",o.price||0,STATUS_FR[o.status]||o.status||"",o.livreur||"",o.closer||""]),
+                ];
+                if(type==="csv"){
+                  const csv="﻿"+rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
+                  const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})),download:`compta_${bn}_${period}.csv`});
+                  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+                } else {
+                  const tr=r=>`<tr>${r.map(c=>`<td>${String(c==null?"":c).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</td>`).join("")}</tr>`;
+                  const xls=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="UTF-8"><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Compta</x:Name><x:WorksheetOptions/></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml></head><body><table>${rows.map(tr).join("")}</table></body></html>`;
+                  const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([xls],{type:"application/vnd.ms-excel;charset=utf-8"})),download:`compta_${bn}_${period}.xls`});
+                  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+                }
+              };
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:16}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:3}}>⬇️ Exporter le rapport</div>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Résumé par produit + toutes les commandes</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>doExport("csv")} style={{flex:1,background:"#EFF6FF",color:G.blue,border:"1.5px solid #BFDBFE",borderRadius:10,padding:"12px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 CSV</button>
+                    <button onClick={()=>doExport("xls")} style={{flex:1,background:"#F0FDF4",color:G.green,border:"1.5px solid #BBF7D0",borderRadius:10,padding:"12px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>📊 Excel (.xls)</button>
+                  </div>
+                </div>
+              );
+            })()}
 
           </div>
         )}
