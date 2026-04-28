@@ -902,7 +902,7 @@ function AppInner() {
   const [editOrder, setEditOrder]       = useState(null);
   const [showArchived, setShowArchived]   = useState(false);
   const [orderDetail, setOrderDetail]     = useState(null);
-  const [dismissedNotifs,setDismissedNotifs] = useState(new Set());
+  const [dismissedNotifs,setDismissedNotifs] = useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("teamly_dismissed")||"[]"))}catch(e){return new Set()}});
   const [isRecording,setIsRecording]       = useState(false);
   const isRecordingRef                     = useRef(false); // ref avoids stale closure in stopRecord
   const [audioChunks,setAudioChunks]       = useState([]);
@@ -972,6 +972,7 @@ function AppInner() {
   const [openModifId, setOpenModifId] = useState(null);
   useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
+  useEffect(()=>{try{localStorage.setItem("teamly_dismissed",JSON.stringify([...dismissedNotifs]))}catch(e){}},[dismissedNotifs]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -2857,8 +2858,8 @@ function AppInner() {
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"},{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},{k:"tracking",icon:"tracking",l:"Livreurs"},{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"compta",icon:"compta",l:"Compta"}],
-    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"position",icon:"position",l:"Localisation"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
+    livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
   // Quand le trial expire → bloquer tout pour tous les rôles
   const tabDef = trialExpired
@@ -2897,7 +2898,7 @@ function AppInner() {
   const filteredOrders = baseOrders.filter(o=>{
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
-    const matchStatus = filterStatus==="all" ||
+    const matchStatus = role==="livreur" || filterStatus==="all" ||
       (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
     const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
     const d = o.created_at?.slice(0,10)||"";
@@ -3062,12 +3063,13 @@ function AppInner() {
             );
           })}
 
-          {/* Tabs bloqués — plan gratuit (admin uniquement) */}
-          {isGratuit&&role==="admin"&&(()=>{
+          {/* Tabs bloqués — plan gratuit */}
+          {isGratuit&&(()=>{
             const LOCKED_TABS = [
-              ...(role==="admin"||role==="closer" ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
-              ...(role==="admin"||role==="closer" ? [{k:"compta",icon:"compta",l:"Comptabilité & marges"}] : []),
-              ...(role==="livreur"||role==="admin" ? [{k:"position",icon:"position",l:"GPS temps réel"}] : []),
+              ...((role==="admin"||role==="closer") ? [{k:"boutique",icon:"boutique",l:"Boutique en ligne"}] : []),
+              ...((role==="admin"||role==="closer") ? [{k:"compta",icon:"compta",l:"Comptabilité & marges"}] : []),
+              ...(role==="admin" ? [{k:"tracking",icon:"tracking",l:"Suivi Livreurs"}] : []),
+              ...(role==="livreur" ? [{k:"position",icon:"position",l:"GPS temps réel"}] : []),
             ].filter(t => !tabDef[role]?.find(x=>x.k===t.k));
             if(!LOCKED_TABS.length) return null;
             return (
@@ -5015,6 +5017,7 @@ function AppInner() {
                 const canDel = isMe || role==="admin";
                 const prevFrom = i>0?chat[i-1].from:null;
                 const showAvatar = !isMe && msg.from!==prevFrom;
+                const ROLE_LABEL = {admin:"Admin",closer:"Closer",livreur:"Livreur"};
                 const rc = ROLE_COLOR[msg.role]||G.gray;
                 const isSelected = selectedMsgId===msg.id;
                 return (
@@ -5027,7 +5030,7 @@ function AppInner() {
                     )}
                     <div onClick={()=>msg.id&&canDel&&setSelectedMsgId(isSelected?null:msg.id)}
                       style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative",cursor:msg.id&&canDel?"pointer":"default",outline:isSelected?"2px solid #EF4444":"none"}}>
-                      {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3}}>{msg.from}</div>}
+                      {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3,display:"flex",alignItems:"center",gap:5}}><span>{msg.from}</span>{msg.role&&<span style={{background:rc+"22",borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:600,color:rc,textTransform:"capitalize"}}>{ROLE_LABEL[msg.role]||msg.role}</span>}</div>}
                       {msg.type==="image"?(
                         <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
                       ):msg.audio?(
@@ -5077,8 +5080,9 @@ function AppInner() {
                       ):(
                         <div style={{fontSize:13,lineHeight:1.5,wordBreak:"break-word"}}>{msg.text}</div>
                       )}
-                      <div style={{fontSize:10,color:"#8a9a8a",textAlign:"right",marginTop:msg.type==="image"?4:2}}>
-                        {msg.time}{isMe&&" ✓✓"}
+                      <div style={{fontSize:10,color:"#8a9a8a",textAlign:"right",marginTop:msg.type==="image"?4:2,display:"flex",alignItems:"center",justifyContent:"flex-end",gap:3}}>
+                        <span>{msg.time}</span>
+                        {isMe&&<span style={{color:msg.read?"#53BDEB":"#8a9a8a",fontSize:13,lineHeight:1}}>✓✓</span>}
                       </div>
                     </div>
                     </div>
@@ -6383,17 +6387,18 @@ function AppInner() {
           {k:"chat",       label:"Chat",       badge:chatUnread,    badgeColor:"#25D366",  badgeTxt:"#fff", icon:ICONS.chat},
           {k:"dashboard",  label:"Dashboard",  badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.dashboard},
           {k:"equipe",     label:"Équipe",     badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.equipe},
-          ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position}]),
+          ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position, locked:isGratuit}]),
         ] : role==="closer" ? [
-          {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
+          {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired, locked:isGratuit},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
         ] : [
-          {k:"boutique",  label:"Boutique",  badge:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired},
+          {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
-          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:canCompta&&!trialExpired},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:canCompta&&!trialExpired, locked:isGratuit},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
         ];
         const tabs = allTabs.filter(t=>t.show!==false);
@@ -6403,7 +6408,7 @@ function AppInner() {
               const active = tab===t.k;
               const isCenter = t.k==="dashboard" && i===Math.floor(tabs.length/2);
               return (
-                <button key={t.k} onClick={()=>setTab(t.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:isCenter?"0 0 10px":"8px 0 10px",background:"none",border:"none",cursor:"pointer",position:"relative",outline:"none"}}>
+                <button key={t.k} onClick={()=>t.locked?setShowPlanModal(true):setTab(t.k)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:isCenter?"0 0 10px":"8px 0 10px",background:"none",border:"none",cursor:"pointer",position:"relative",outline:"none"}}>
                   {isCenter ? (
                     <>
                       <div style={{width:54,height:54,borderRadius:"50%",background:active?"#0D3D25":G.green,display:"flex",alignItems:"center",justifyContent:"center",position:"absolute",top:-26,boxShadow:"0 4px 16px rgba(26,92,56,0.4)",border:"3px solid #fff",transition:"background .2s"}}>
