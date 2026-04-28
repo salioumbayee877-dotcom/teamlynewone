@@ -2451,9 +2451,14 @@ function AppInner() {
 
   const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
 
+  const DISPOSABLE_DOMAINS = ["mailinator.com","guerrillamail.com","tempmail.com","10minutemail.com","throwam.com","yopmail.com","sharklasers.com","guerrillamailblock.com","grr.la","guerrillamail.info","spam4.me","trashmail.com","trashmail.me","trashmail.net","fakeinbox.com","maildrop.cc","dispostable.com","mailnull.com","spamgourmet.com","getairmail.com","filzmail.com","throwam.com","mailnesia.com","meltmail.com","tempr.email","discard.email","spamspot.com","spamevade.com","deadaddress.com","spamfree24.org","mt2015.com","dingbone.com","fudgerub.com","lookugly.com","shitmail.me","tempe-mail.com","temp-mail.org","temp-mail.io"];
   const handleRegister = () => {
     if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.nom||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
     if(authForm.password.length<6) { setAuthError("Mot de passe: 6 caractères minimum"); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if(!emailRegex.test(authForm.email)) { setAuthError("Adresse email invalide"); return; }
+    const emailDomain = authForm.email.split("@")[1]?.toLowerCase();
+    if(DISPOSABLE_DOMAINS.includes(emailDomain)) { setAuthError("Les emails temporaires ne sont pas autorisés — utilise une vraie adresse email"); return; }
     setAuthError("");
     sbAuth(authForm.email, authForm.password, "register")
       .then(async(data)=>{
