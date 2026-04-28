@@ -2858,7 +2858,7 @@ function AppInner() {
   const isGratuit     = !isOwner && !isPro;
   const canUseGPS     = isOwner || isPro;
   const canUseShopify = isOwner || isPro;
-  const canUseCompta  = isOwner || isPro || (role==="closer" && settings.closerCompta);
+  const canUseCompta  = isOwner || (isPro && role!=="closer") || (role==="closer" && settings.closerCompta);
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
