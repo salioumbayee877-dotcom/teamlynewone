@@ -970,9 +970,11 @@ function AppInner() {
   const [localOrderIds, setLocalOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_order")||"[]")}catch(e){return []}});
   const [pinnedOrderIds, setPinnedOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_pinned")||"[]")}catch(e){return []}});
   const [openModifId, setOpenModifId] = useState(null);
+  const [waSentIds, setWaSentIds] = useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("teamly_wa_sent")||"[]"))}catch(e){return new Set()}});
   useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_dismissed",JSON.stringify([...dismissedNotifs]))}catch(e){}},[dismissedNotifs]);
+  useEffect(()=>{try{localStorage.setItem("teamly_wa_sent",JSON.stringify([...waSentIds]))}catch(e){}},[waSentIds]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1963,15 +1965,40 @@ function AppInner() {
         {/* Note (si existe) */}
         {o.note&&<div style={{fontSize:11,color:"#6B7280",background:"#F9FAFB",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:`3px solid ${st.color}`}}>📝 {o.note}</div>}
 
-        {/* Confirmation WhatsApp — closer uniquement */}
-        {role==="closer"&&o.phone&&(()=>{
+        {/* WhatsApp — admin et closer */}
+        {(role==="admin"||role==="closer")&&o.phone&&(()=>{
+          const waSent = waSentIds.has(o.id);
+          const phone = `221${o.phone.replace(/\s+/g,"")}`;
           const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+          const msgLibre=`Bonjour ${o.client} 👋\n\nC'est *${settings.boutique||"Notre boutique"}* — nous vous contactons au sujet de votre commande *${o.product}*.\n\n`;
           return (
-            <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msgConf)}`}
-              target="_blank" rel="noreferrer"
-              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",marginBottom:8,boxShadow:"0 3px 10px rgba(37,211,102,0.3)"}}>
-              <span style={{fontSize:18}}>📲</span> Confirmer la commande par WhatsApp
-            </a>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
+              {/* Indicateur "WA envoyé" */}
+              {waSent&&(
+                <div style={{display:"flex",alignItems:"center",gap:6,background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"5px 10px"}}>
+                  <span style={{fontSize:13}}>✅</span>
+                  <span style={{fontSize:11,fontWeight:700,color:"#15803D"}}>Confirmation WhatsApp envoyée</span>
+                  <button onClick={()=>setWaSentIds(prev=>{const n=new Set(prev);n.delete(o.id);return n;})}
+                    style={{marginLeft:"auto",background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>
+                    Réinitialiser
+                  </button>
+                </div>
+              )}
+              {/* Bouton confirmation */}
+              <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
+                target="_blank" rel="noreferrer"
+                onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
+                style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:11,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.25)"}}>
+                <span style={{fontSize:17}}>📲</span>
+                {waSent?"Renvoyer la confirmation WA":"Confirmer la commande par WhatsApp"}
+              </a>
+              {/* Bouton écrire librement */}
+              <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgLibre)}`}
+                target="_blank" rel="noreferrer"
+                style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#F0FDF4",color:"#15803D",borderRadius:11,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",border:"1.5px solid #BBF7D0"}}>
+                <span style={{fontSize:15}}>💬</span> Écrire au client
+              </a>
+            </div>
           );
         })()}
 
