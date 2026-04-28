@@ -1135,10 +1135,11 @@ function AppInner() {
     }
   };
 
-  // Auto-start GPS when livreur logs in
+  // Auto-start GPS when livreur logs in — skip if user previously manually stopped it
   useEffect(()=>{
     if(role!=="livreur" || !currentUser?.id || gpsActive) return;
     if(!navigator?.geolocation) return;
+    try { if(localStorage.getItem(`teamly_gps_off_${currentUser.id}`)==="true") return; } catch(e){}
     const t = setTimeout(()=>{
       try {
         gpsWatchRef.current = navigator.geolocation.watchPosition(
@@ -1216,7 +1217,9 @@ function AppInner() {
     };
     checkPlan();
     const interval = setInterval(checkPlan, 30 * 1000); // toutes les 30s
-    return () => clearInterval(interval);
+    const onVisible = () => { if(document.visibilityState==="visible") checkPlan(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { clearInterval(interval); document.removeEventListener("visibilitychange", onVisible); };
   }, [orgId, sbReady]);
 
   // Reset tab if it's not available for current role/plan
@@ -1270,9 +1273,9 @@ function AppInner() {
         setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole,phone:localStorage.getItem("teamly_phone")||"",birthday:localStorage.getItem("teamly_birthday")||""});
         setRole(savedRole);
         if(savedRole==="admin"){
-          const cc=localStorage.getItem("teamly_closerCompta");
-          const sb=localStorage.getItem("teamly_boutique");
-          const sw=localStorage.getItem("teamly_whatsapp");
+          const cc=localStorage.getItem(`teamly_cc_${savedOrg}`)||localStorage.getItem("teamly_closerCompta");
+          const sb=localStorage.getItem(`teamly_boutique_${savedOrg}`);
+          const sw=localStorage.getItem(`teamly_whatsapp_${savedOrg}`);
           const sn=localStorage.getItem("teamly_nom");
           if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
           if(sb)setSettings(s=>({...s,boutique:sb}));
@@ -1317,9 +1320,9 @@ function AppInner() {
             } catch(e){}
             // Always apply localStorage overrides AFTER org fetch — runs even if org returns [] or throws
             if(p.role==="admin"){
-              const cc=localStorage.getItem("teamly_closerCompta");
-              const sb=localStorage.getItem("teamly_boutique");
-              const sw=localStorage.getItem("teamly_whatsapp");
+              const cc=localStorage.getItem(`teamly_cc_${p.org_id}`)||localStorage.getItem("teamly_closerCompta");
+              const sb=localStorage.getItem(`teamly_boutique_${p.org_id}`);
+              const sw=localStorage.getItem(`teamly_whatsapp_${p.org_id}`);
               const sn=localStorage.getItem("teamly_nom");
               if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
               if(sb)setSettings(s=>({...s,boutique:sb}));
@@ -2681,7 +2684,7 @@ function AppInner() {
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
                       <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, CA par produit"}</div>
                     </div>
-                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                       style={{background:isGratuit?"rgba(255,255,255,0.1)":settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                       <div style={{position:"absolute",top:3,left:(!isGratuit&&settings.closerCompta)?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
@@ -3685,7 +3688,7 @@ function AppInner() {
 
         {/* ── LIVREUR DASHBOARD ── */}
         {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
-          const aRecuperer = myLiv.filter(o=>o.status==="confirmado");
+          const aRecuperer = myLiv.filter(o=>["confirmado","livreur_en_route","pendiente"].includes(o.status));
           const aLivrer    = myLiv.filter(o=>o.status==="colis_pris");
           const enRoute    = myLiv.filter(o=>o.status==="en_camino"||o.status==="chez_client");
           return (
@@ -4168,6 +4171,7 @@ function AppInner() {
               <button onClick={()=>{
                 if(gpsActive) {
                   try { if(gpsWatchRef.current) navigator.geolocation.clearWatch(gpsWatchRef.current); } catch(e){}
+                  try { localStorage.setItem(`teamly_gps_off_${currentUser.id}`,"true"); } catch(e){}
                   setGpsActive(false); setGpsPos(null); setGpsError("");
                 } else {
                   if(!navigator?.geolocation) { setGpsError("GPS non disponible — utilisez Chrome ou Safari sur votre téléphone"); return; }
@@ -4195,6 +4199,7 @@ function AppInner() {
                       },
                       {enableHighAccuracy:true,timeout:15000,maximumAge:10000}
                     );
+                    try { localStorage.removeItem(`teamly_gps_off_${currentUser.id}`); } catch(e){}
                     setGpsActive(true);
                   } catch(e) { setGpsError("GPS non disponible dans cet environnement"); }
                 }
@@ -4217,9 +4222,9 @@ function AppInner() {
             {/* Livraisons en cours */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📦 MES LIVRAISONS</div>
-              {myLiv.filter(o=>["en_camino","chez_client","colis_pris"].includes(o.status)).length===0
+              {myLiv.filter(o=>!["entregado","rechazado","no_contesta","reprogramar"].includes(o.status)).length===0
                 ?<div style={{fontSize:13,color:G.gray,textAlign:"center",padding:"16px 0"}}>Aucune livraison en cours</div>
-                :myLiv.filter(o=>["en_camino","chez_client","colis_pris"].includes(o.status)).map(o=>(
+                :myLiv.filter(o=>!["entregado","rechazado","no_contesta","reprogramar"].includes(o.status)).map(o=>(
                   <div key={o.id} style={{padding:"9px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <div style={{fontWeight:700,fontSize:13}}>{o.client}</div>
                     <div style={{fontSize:11,color:G.gray}}>📍 {o.address}</div>
@@ -5600,7 +5605,7 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
-                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{await sbFetch(`profiles?id=eq.${m.id}`,"DELETE",null,_authToken);setTeamMembers(p=>p.filter(x=>x.id!==m.id));addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}catch(e){addToast("Erreur de suppression — réessaie","❌",G.red);}}})}
+                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{await sbFetch(`profiles?id=eq.${m.id}`,"DELETE",null,_authToken);const chk=await sbFetch(`profiles?id=eq.${m.id}&select=id`,"GET");if(chk&&chk.length>0)await sbFetch(`profiles?id=eq.${m.id}`,"PATCH",{org_id:null},_authToken).catch(()=>{});setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}catch(e){addToast("Erreur de suppression — réessaie","❌",G.red);}}})}
                         style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>🗑️</button>
                     </div>
                   </div>
@@ -5608,7 +5613,7 @@ function AppInner() {
               </div>
               {(()=>{
                 const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
-                const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
+                const membersUsed = teamMembers.length + 1;
                 const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 const canInvite = orgMemberCount !== null && !atLimit;
                 return (<>
@@ -5631,7 +5636,7 @@ function AppInner() {
                   <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
                   <div style={{fontSize:11,color:G.gray,marginTop:1}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, statistiques"}</div>
                 </div>
-                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                   style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                   <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
@@ -5661,8 +5666,8 @@ function AppInner() {
               setCurrentUser(u=>({...u,nom:settings.nom}));
               try{
                 localStorage.setItem("teamly_nom",settings.nom);
-                localStorage.setItem("teamly_boutique",settings.boutique||"");
-                localStorage.setItem("teamly_whatsapp",settings.whatsapp||"");
+                localStorage.setItem(`teamly_boutique_${orgId}`,settings.boutique||"");
+                localStorage.setItem(`teamly_whatsapp_${orgId}`,settings.whatsapp||"");
               }catch(e){}
               addToast("Paramètres sauvegardés ✅","✅",G.green);
               setShowSettings(false);
@@ -5761,7 +5766,7 @@ function AppInner() {
                     <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
                     <div style={{fontSize:10,color:isGratuit?G.gold:G.gray}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, marges et statistiques"}</div>
                   </div>
-                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                     style={{background:isGratuit?"#E5E7EB":settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
@@ -5773,8 +5778,11 @@ function AppInner() {
             <button onClick={async()=>{
               if(!window.confirm(`Supprimer ${memberModal.nom} de l'équipe ?`)) return;
               try {
-                await sbFetch(`profiles?id=eq.${memberModal.id}`,"DELETE");
+                await sbFetch(`profiles?id=eq.${memberModal.id}`,"DELETE",null,_authToken);
+                const chk=await sbFetch(`profiles?id=eq.${memberModal.id}&select=id`,"GET");
+                if(chk&&chk.length>0) await sbFetch(`profiles?id=eq.${memberModal.id}`,"PATCH",{org_id:null},_authToken).catch(()=>{});
                 setTeamMembers(t=>t.filter(m=>m.id!==memberModal.id));
+                setOrgMemberCount(c=>c!==null?c-1:c);
                 addToast(`${memberModal.nom} retiré de l'équipe`,"✅",G.green);
                 setMemberModal(null);
               } catch(e){ addToast("Erreur suppression","❌",G.red); }
@@ -6383,8 +6391,12 @@ function AppInner() {
             {/* Boutons confirmer */}
             {(()=>{
               const doConfirm = () => {
-                upSt(o.id, assignDelStatus);
-                upLiv(o.id, assignSelLiv.id);
+                // Update local state
+                setOrders(prev=>prev.map(x=>x.id===o.id?{...x,livreur:assignSelLiv.nom,livreur_id:assignSelLiv.id,status:assignDelStatus}:x));
+                pendingOrderUpdates.current[o.id]=Date.now();
+                // Single PATCH ensures DB stays consistent (no race between two separate calls)
+                if(!String(o.id).startsWith("tmp_"))
+                  sbFetch(`orders?id=eq.${o.id}`,"PATCH",{status:assignDelStatus,livreur:assignSelLiv.nom,livreur_id:assignSelLiv.id}).catch(()=>{});
                 addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
                 setAssignLivreurModal(null);
               };
