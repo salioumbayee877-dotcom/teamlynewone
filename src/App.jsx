@@ -1299,19 +1299,6 @@ function AppInner() {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
                 if(org.settings) setSettings(s=>({...s,...org.settings}));
-                // Admin: localStorage overrides DB (persists across refresh even if org PATCH failed)
-                if(p.role==="admin"){
-                  const cc=localStorage.getItem("teamly_closerCompta");
-                  const sb=localStorage.getItem("teamly_boutique");
-                  const sw=localStorage.getItem("teamly_whatsapp");
-                  const sn=localStorage.getItem("teamly_nom");
-                  if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
-                  if(sb)setSettings(s=>({...s,boutique:sb}));
-                  if(sw)setSettings(s=>({...s,whatsapp:sw}));
-                  if(sn)setSettings(s=>({...s,nom:sn}));
-                }
-                // Closer: read org-scoped closerCompta (works when admin+closer on same device)
-                if(p.role==="closer"){const cc=localStorage.getItem(`teamly_cc_${p.org_id}`);if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));}
                 // Propriétaire → accès complet gratuit toujours
                 if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(p.email)) {
                   setIsPro(true);
@@ -1328,6 +1315,18 @@ function AppInner() {
                 }
               }
             } catch(e){}
+            // Always apply localStorage overrides AFTER org fetch — runs even if org returns [] or throws
+            if(p.role==="admin"){
+              const cc=localStorage.getItem("teamly_closerCompta");
+              const sb=localStorage.getItem("teamly_boutique");
+              const sw=localStorage.getItem("teamly_whatsapp");
+              const sn=localStorage.getItem("teamly_nom");
+              if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));
+              if(sb)setSettings(s=>({...s,boutique:sb}));
+              if(sw)setSettings(s=>({...s,whatsapp:sw}));
+              if(sn)setSettings(s=>({...s,nom:sn}));
+            }
+            if(p.role==="closer"){const cc=localStorage.getItem(`teamly_cc_${p.org_id}`);if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));}
             setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
             setRole(p.role||"admin");
             try {
