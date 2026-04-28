@@ -1269,6 +1269,7 @@ function AppInner() {
         setOrgId(savedOrg);
         setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole,phone:localStorage.getItem("teamly_phone")||"",birthday:localStorage.getItem("teamly_birthday")||""});
         setRole(savedRole);
+        if(savedRole==="admin"){const cc=localStorage.getItem("teamly_closerCompta");if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));}
         setSbReady(true);
         setAppLoading(false);
       }
@@ -5580,7 +5581,7 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
-                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:()=>{sbFetch(`profiles?id=eq.${m.id}`,"DELETE").catch(()=>{});setTeamMembers(p=>p.filter(x=>x.id!==m.id));addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}})}
+                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{await sbFetch(`profiles?id=eq.${m.id}`,"DELETE",null,_authToken);setTeamMembers(p=>p.filter(x=>x.id!==m.id));addToast(`${m.nom} retiré de l'équipe`,"✅",G.green);}catch(e){addToast("Erreur de suppression — réessaie","❌",G.red);}}})}
                         style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>🗑️</button>
                     </div>
                   </div>
@@ -5635,7 +5636,14 @@ function AppInner() {
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
               🗑️ Supprimer mon compte
             </button>
-            <button onClick={()=>setShowSettings(false)} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+            <button onClick={async()=>{
+              try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
+              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{name:settings.boutique,whatsapp:settings.whatsapp},_authToken);}catch(e){}
+              setCurrentUser(u=>({...u,nom:settings.nom}));
+              try{localStorage.setItem("teamly_nom",settings.nom);}catch(e){}
+              addToast("Paramètres sauvegardés ✅","✅",G.green);
+              setShowSettings(false);
+            }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
               ✅ Enregistrer
             </button>
             </>) : (<>
