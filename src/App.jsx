@@ -2853,7 +2853,7 @@ function AppInner() {
   const isGratuit     = !isOwner && !isPro;
   const canUseGPS     = isOwner || isPro;
   const canUseShopify = isOwner || isPro;
-  const canUseCompta  = isOwner || isPro;
+  const canUseCompta  = isOwner || isPro || (role==="closer" && settings.closerCompta);
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
@@ -6400,7 +6400,7 @@ function AppInner() {
           {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
-          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired, locked:isGratuit},
+          {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired, locked:isGratuit&&!settings.closerCompta},
           {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
         ] : [
           {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
