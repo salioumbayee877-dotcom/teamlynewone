@@ -532,8 +532,8 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
   const TN={quantite:"Pack Qté",bxgyf:"Buy X Get Y",kit:"Kit"};
   const TL={quantite:"#2563EB",bxgyf:"#7C3AED",kit:"#D97706"};
   return (
-    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:window.innerWidth>=900?"center":"flex-end"}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:window.innerWidth>=900?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
         <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouvelle commande confirmée</div>
         <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>👤 Nom client *</div>
@@ -1215,7 +1215,7 @@ function AppInner() {
       } catch(e) {}
     };
     checkPlan();
-    const interval = setInterval(checkPlan, 2 * 60 * 1000); // toutes les 2 min
+    const interval = setInterval(checkPlan, 30 * 1000); // toutes les 30s
     return () => clearInterval(interval);
   }, [orgId, sbReady]);
 
@@ -5228,8 +5228,8 @@ function AppInner() {
 
       {/* ── MODAL: Ajouter produit ── */}
       {showAddProd&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouveau produit</div>
 
             <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:11,color:G.blue,fontWeight:600}}>
@@ -5436,8 +5436,8 @@ function AppInner() {
 
       {/* ── MODAL: Créer bundel ── */}
       {showAddBundle&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>🎁 Créer un bundel</div>
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3}}>Nom du bundel</div>
@@ -5500,8 +5500,8 @@ function AppInner() {
 
       {/* ── MODAL: Paramètres ── */}
       {showSettings&&(
-        <div onClick={()=>setShowSettings(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+        <div onClick={()=>setShowSettings(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{display:"flex",justifyContent:"center",marginBottom:14}}>
               <div style={{width:40,height:4,borderRadius:2,background:G.grayLight}}/>
             </div>
@@ -5711,8 +5711,8 @@ function AppInner() {
 
       {/* ── MODAL: Profil membre ── */}
       {memberModal&&(
-        <div onClick={()=>setMemberModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",width:"100%",maxWidth:480,padding:20,paddingBottom:32}}>
+        <div onClick={()=>setMemberModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:600,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",width:"100%",maxWidth:480,padding:20,paddingBottom:32}}>
             {/* Header */}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div>
@@ -5928,8 +5928,8 @@ function AppInner() {
 
       {/* ── MODAL: Nouvelle livraison assignée (Livreur) ── */}
       {newAssignment&&role==="livreur"&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-          <div style={{background:G.white,borderRadius:"24px 24px 0 0",padding:28,width:"100%",maxWidth:480,boxShadow:"0 -8px 40px rgba(0,0,0,0.3)"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:300,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?24:"24px 24px 0 0",padding:28,width:"100%",maxWidth:480,boxShadow:"0 -8px 40px rgba(0,0,0,0.3)"}}>
             {/* Header */}
             <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
               <div style={{background:G.greenLight,borderRadius:"50%",width:52,height:52,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>
@@ -6024,8 +6024,8 @@ function AppInner() {
 
       {/* ── MODAL: Modifier commande ── */}
       {editOrder&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16}}>✏️ Modifier la commande #{editOrder.id}</div>
 
             {[
@@ -6092,8 +6092,8 @@ function AppInner() {
 
       {/* ── MODAL: Modifier produit ── */}
       {editProd&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:4}}>✏️ Modifier le produit</div>
             <div style={{fontSize:11,color:G.gray,marginBottom:16}}>{editProd.name}</div>
 
@@ -6192,8 +6192,8 @@ function AppInner() {
         const cur=steps.indexOf(o.status);
         const isEntregado=o.status==="entregado";
         return (
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:400,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={()=>setOrderDetail(null)}>
-            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"24px 24px 0 0",padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:400,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}} onClick={()=>setOrderDetail(null)}>
+            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?24:"24px 24px 0 0",padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
               <div style={{width:40,height:4,background:G.grayLight,borderRadius:2,margin:"0 auto 20px"}}/>
               <div style={{background:st.bg,borderRadius:14,padding:16,textAlign:"center",marginBottom:16,border:`2px solid ${st.color}`}}>
                 <div style={{fontSize:32,marginBottom:4}}>{isEntregado?"✅":o.status==="rechazado"?"❌":o.status==="en_camino"?"🚀":o.status==="chez_client"?"📍":"📦"}</div>
@@ -6289,8 +6289,8 @@ function AppInner() {
 
       {/* ── MODAL: Note ── */}
       {noteModal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:"flex-end"}}>
-          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto"}}>
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
+          <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto"}}>
             <div style={{fontWeight:700,fontSize:15,color:G.green,marginBottom:10}}>📝 Note commande</div>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Ex: Client demande livraison avant 14h..."
               style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:12,fontSize:13,outline:"none",minHeight:80,resize:"none",boxSizing:"border-box"}}/>
@@ -6315,9 +6315,9 @@ function AppInner() {
         ];
         const canConfirm = !!assignSelLiv;
         return (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}
           onClick={()=>setAssignLivreurModal(null)}>
-          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"88vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom,0px))"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:20,width:"100%",maxWidth:480,maxHeight:"88vh",overflowY:"auto",paddingBottom:"calc(20px + env(safe-area-inset-bottom,0px))"}}>
             <div style={{width:36,height:4,background:"#E5E7EB",borderRadius:2,margin:"0 auto 16px"}}/>
 
             {/* Header commande */}
