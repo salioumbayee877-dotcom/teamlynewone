@@ -1288,6 +1288,8 @@ function AppInner() {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
                 if(org.settings) setSettings(s=>({...s,...org.settings}));
+                // Admin: localStorage overrides DB for closerCompta (toggle persists across refresh)
+                if(p.role==="admin"){const cc=localStorage.getItem("teamly_closerCompta");if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));}
                 // Propriétaire → accès complet gratuit toujours
                 if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(p.email)) {
                   setIsPro(true);
@@ -2658,7 +2660,7 @@ function AppInner() {
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
                       <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, CA par produit"}</div>
                     </div>
-                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                       style={{background:isGratuit?"rgba(255,255,255,0.1)":settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                       <div style={{position:"absolute",top:3,left:(!isGratuit&&settings.closerCompta)?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
@@ -5608,7 +5610,7 @@ function AppInner() {
                   <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
                   <div style={{fontSize:11,color:G.gray,marginTop:1}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, statistiques"}</div>
                 </div>
-                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                   style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                   <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
@@ -5727,7 +5729,7 @@ function AppInner() {
                     <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
                     <div style={{fontSize:10,color:isGratuit?G.gold:G.gray}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, marges et statistiques"}</div>
                   </div>
-                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem("teamly_closerCompta",String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — permission refusée","❌","#DC2626");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem("teamly_closerCompta",String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                     style={{background:isGratuit?"#E5E7EB":settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>
