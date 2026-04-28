@@ -3300,7 +3300,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:(role==="admin"||(role==="closer"&&sbReady))?"calc(90px + env(safe-area-inset-bottom,0px))":"calc(40px + env(safe-area-inset-bottom,0px))",maxWidth:isWide?1400:isDesktop?1100:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
+      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:tab==="chat"?"0px":(role==="admin"||(role==="closer"&&sbReady))?"calc(90px + env(safe-area-inset-bottom,0px))":"calc(40px + env(safe-area-inset-bottom,0px))",maxWidth:isWide?1400:isDesktop?1100:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
@@ -4285,12 +4285,6 @@ function AppInner() {
         {dataReady&&tab==="equipe"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-            {/* Bouton Chat de groupe */}
-            <button onClick={()=>setTab("chat")} style={{background:"linear-gradient(135deg,#25D366,#128C7E)",color:"#fff",border:"none",borderRadius:14,padding:"14px 18px",fontWeight:700,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:"0 4px 14px rgba(37,211,102,0.3)"}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-              Ouvrir le Chat de groupe
-            </button>
-
             {/* Vue simplifiée pour le Livreur — contacts équipe */}
             {role==="livreur"&&(
               <>
@@ -5085,6 +5079,20 @@ function AppInner() {
                 })}
               </div>
             )}
+
+            {/* ── Barre chat fixe en bas de la section Équipe ── */}
+            <div onClick={()=>setTab("chat")} style={{marginTop:8,background:"linear-gradient(135deg,#25D366,#128C7E)",borderRadius:16,padding:"16px 20px",display:"flex",alignItems:"center",gap:14,cursor:"pointer",boxShadow:"0 6px 20px rgba(37,211,102,0.3)",position:"relative",overflow:"hidden"}}>
+              <div style={{width:46,height:46,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:800,fontSize:14,color:"#fff",marginBottom:2}}>Chat de l'équipe</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.75)"}}>{teamMembers.length+1} membres · Discutez en temps réel</div>
+              </div>
+              {chatUnread>0&&<div style={{background:"#fff",color:"#25D366",borderRadius:"50%",width:24,height:24,fontSize:11,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{chatUnread}</div>}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+
           </div>
           );
         })()}
@@ -5121,7 +5129,7 @@ function AppInner() {
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
           const chatH = isDesktop
             ? "calc(100vh - 54px)"
-            : "calc(100dvh - 54px - 62px - env(safe-area-inset-bottom, 0px))";
+            : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
           const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
 
           return (
@@ -5189,7 +5197,7 @@ function AppInner() {
                     )}
                     <div onClick={()=>msg.id&&canDel&&setSelectedMsgId(isSelected?null:msg.id)}
                       style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative",cursor:msg.id&&canDel?"pointer":"default",outline:isSelected?"2px solid #EF4444":"none"}}>
-                      {!isMe&&showAvatar&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3,display:"flex",alignItems:"center",gap:5}}><span>{msg.from}</span>{msg.role&&<span style={{background:rc+"22",borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:600,color:rc,textTransform:"capitalize"}}>{ROLE_LABEL[msg.role]||msg.role}</span>}</div>}
+                      {!isMe&&(showAvatar||msg.audio)&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3,display:"flex",alignItems:"center",gap:5}}><span>{msg.from}</span>{msg.role&&<span style={{background:rc+"22",borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:600,color:rc,textTransform:"capitalize"}}>{ROLE_LABEL[msg.role]||msg.role}</span>}</div>}
                       {msg.type==="image"?(
                         <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
                       ):msg.audio?(
