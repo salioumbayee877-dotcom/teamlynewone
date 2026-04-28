@@ -2892,7 +2892,7 @@ function AppInner() {
 
   // ── Filtered orders ──
   const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
-  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id) : allOrders;
+  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id&&o.status!=="confirmado") : allOrders;
   const YESTERDAY = new Date(Date.now()-86400000).toISOString().slice(0,10);
   const WEEK_AGO  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
   const filteredOrders = baseOrders.filter(o=>{
@@ -3748,22 +3748,22 @@ function AppInner() {
               </div>
             )}
             {(()=>{
-              // Groupe par statut pour mieux s'y retrouver
               const GROUP_ORDER = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","pendiente"];
+              // Pinned orders: always at the very top, FIFO, regardless of status
+              const pinnedOrders = filteredOrders
+                .filter(o=>pinnedOrderIds.includes(o.id))
+                .sort((a,b)=>pinnedOrderIds.indexOf(a.id)-pinnedOrderIds.indexOf(b.id));
+              const pinnedSet = new Set(pinnedOrders.map(o=>o.id));
+              // Remaining orders grouped by status
               const groups = {};
-              filteredOrders.forEach(o=>{
+              filteredOrders.filter(o=>!pinnedSet.has(o.id)).forEach(o=>{
                 const k = o.status||"pendiente";
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
-              // Sort: pinned first in pin-order (FIFO), then custom order or oldest first
               GROUP_ORDER.forEach(k=>{
                 if(!groups[k]) return;
                 groups[k].sort((a,b)=>{
-                  const ai=pinnedOrderIds.indexOf(a.id), bi=pinnedOrderIds.indexOf(b.id);
-                  if(ai>=0&&bi>=0) return ai-bi;
-                  if(ai>=0) return -1;
-                  if(bi>=0) return 1;
                   if(localOrderIds.length>0){
                     const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
                     if(ia<0&&ib<0) return new Date(a.created_at||0)-new Date(b.created_at||0);
@@ -3772,22 +3772,41 @@ function AppInner() {
                   return new Date(a.created_at||0)-new Date(b.created_at||0);
                 });
               });
-              return GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
-                const st = STATUS[k]||STATUS.pendiente;
-                return (
-                  <div key={k}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
-                      <div style={{width:10,height:10,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-                      <span style={{fontSize:11,fontWeight:700,color:st.color,letterSpacing:0.3}}>{st.label.toUpperCase()}</span>
-                      <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
-                      <div style={{flex:1,height:1,background:`${st.color}33`}}/>
+              return (
+                <>
+                  {/* Section épinglés — reste en haut quel que soit le statut */}
+                  {pinnedOrders.length>0&&(
+                    <div style={{marginBottom:8}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                        <span style={{fontSize:13}}>📌</span>
+                        <span style={{fontSize:11,fontWeight:700,color:"#F0A500",letterSpacing:0.3}}>ÉPINGLÉS</span>
+                        <span style={{fontSize:11,color:G.gray}}>({pinnedOrders.length})</span>
+                        <div style={{flex:1,height:1,background:"#F0A50033"}}/>
+                      </div>
+                      <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
+                        {pinnedOrders.map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                      </div>
                     </div>
-                    <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
-                      {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
-                    </div>
-                  </div>
-                );
-              });
+                  )}
+                  {/* Groupes par statut pour les non-épinglés */}
+                  {GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
+                    const st = STATUS[k]||STATUS.pendiente;
+                    return (
+                      <div key={k}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                          <div style={{width:10,height:10,borderRadius:"50%",background:st.color,flexShrink:0}}/>
+                          <span style={{fontSize:11,fontWeight:700,color:st.color,letterSpacing:0.3}}>{st.label.toUpperCase()}</span>
+                          <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
+                          <div style={{flex:1,height:1,background:`${st.color}33`}}/>
+                        </div>
+                        <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
+                          {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </>
+              );
             })()}
           </div>
         )}
