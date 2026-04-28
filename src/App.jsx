@@ -1540,6 +1540,22 @@ function AppInner() {
     loadNotifs();
     const intervalMain   = setInterval(loadMain, 5000);
     const intervalNotifs = setInterval(loadNotifs, 20000);
+
+    // Kick out if admin removes this user while they're active
+    const checkSelfProfile = async () => {
+      const uid = currentUserRef.current?.id;
+      if (!uid) return;
+      try {
+        const data = await sbFetch(`profiles?id=eq.${uid}&select=org_id&limit=1`);
+        if (Array.isArray(data) && data.length > 0 && data[0].org_id === null) {
+          try { localStorage.clear(); } catch(e) {}
+          _authToken = null;
+          setRole(null); setOrgId(null); setSbReady(false); setAppLoading(false);
+          setAuthError("Ton compte a été retiré de cette équipe. Contacte l'administrateur.");
+        }
+      } catch(e) {}
+    };
+    const intervalSelf = setInterval(checkSelfProfile, 60000);
     // Polling toutes les 8s — si chat vide, force un reload complet
     const intervalChat = setInterval(()=>{
       setChat(prev => {
@@ -1601,6 +1617,7 @@ function AppInner() {
       clearInterval(intervalMain);
       clearInterval(intervalChat);
       clearInterval(intervalNotifs);
+      clearInterval(intervalSelf);
       clearInterval(wsHeartbeat);
       clearTimeout(wsReconnect);
       if(ws) { ws.onclose = null; ws.close(); }
@@ -4417,7 +4434,7 @@ function AppInner() {
             {/* ── Inviter un membre (toujours visible, grisé si limite atteinte) ── */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
-              const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
+              const membersUsed = teamMembers.length + 1;
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{background:G.white,borderRadius:14,padding:14,marginTop:4}}>
@@ -5602,7 +5619,7 @@ function AppInner() {
             {/* Plan */}
             {(()=>{
               const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
-              const membersUsed = orgMemberCount !== null ? orgMemberCount : (teamMembers.length + 1);
+              const membersUsed = teamMembers.length + 1;
               const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
               return (
                 <div style={{marginBottom:18}}>
