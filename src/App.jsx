@@ -64,6 +64,30 @@ const sbAuth = async (email, password, type="login") => {
 };
 
 
+const sendPhoneOtp = async (fullPhone) => {
+  const res = await fetchWithTimeout(`${SB_URL}/auth/v1/otp`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SB_KEY},
+    body:JSON.stringify({phone:fullPhone,channel:"sms"}),
+  },15000);
+  const text = await res.text();
+  let data; try{data=JSON.parse(text);}catch(e){throw new Error("Erreur serveur");}
+  if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||`Erreur ${res.status}`);
+  return data;
+};
+
+const verifyPhoneOtp = async (fullPhone, token) => {
+  const res = await fetchWithTimeout(`${SB_URL}/auth/v1/verify`,{
+    method:"POST",
+    headers:{"Content-Type":"application/json","apikey":SB_KEY},
+    body:JSON.stringify({type:"sms",phone:fullPhone,token}),
+  },15000);
+  const text = await res.text();
+  let data; try{data=JSON.parse(text);}catch(e){throw new Error("Erreur serveur");}
+  if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||`Erreur ${res.status}`);
+  return data;
+};
+
 const G = {
   green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
   gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
@@ -936,12 +960,14 @@ function AppInner() {
     return "login";
   });
   const [authMode, setAuthMode]   = useState("login");
+  const [phoneOtpSent,    setPhoneOtpSent]    = useState(false);
+  const [phoneCountryCode,setPhoneCountryCode] = useState("+34");
   const [authForm, setAuthForm]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     const org  = params.get("org")  || "";
     const role = params.get("role") || "";
     const tok  = params.get("token")|| "";
-    return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",
+    return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",otp:"",
       inviteOrg:org, inviteRole:role, inviteToken:tok,
       inviteUrl: org ? window.location.href : ""
     };
@@ -1024,6 +1050,7 @@ function AppInner() {
     const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
+    const prevOrders = orders;
     setOrders(o=>o.map(x=>{
       if(x.id!==id) return x;
       if(s==="entregado"&&x.status!=="entregado") {
@@ -1034,9 +1061,13 @@ function AppInner() {
     pendingOrderUpdates.current[id] = Date.now();
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
-    // Save to Supabase
+    // Save to Supabase — rollback local state if it fails
     if(!String(id).startsWith("tmp_")) {
-      sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>console.error("upSt error:",e));
+      sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>{
+        console.error("upSt error:",e);
+        setOrders(prevOrders);
+        addToast("Statut non sauvegardé — vérifie ta connexion","⚠️",G.red);
+      });
       // Notify closer + admin on key livreur status changes
       if(orgId && order && (s==="entregado"||s==="rechazado"||s==="en_camino"||s==="chez_client")) {
         const notifTitle = s==="entregado"?`✅ Livré — ${order.client} a payé ${fmt(order.price)} CFA`:s==="rechazado"?`❌ Rejeté — ${order.client}`:s==="en_camino"?`🚀 En route → ${order.client}`:s==="chez_client"?`📍 Arrivé chez ${order.client}`:"📦";
@@ -2529,9 +2560,9 @@ function AppInner() {
         <div style={{width:"100%",maxWidth:360}}>
           {/* Toggle */}
           <div style={{display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:12,padding:3,gap:3,marginBottom:20}}>
-            {[{k:"login",l:"Se connecter"},{k:"register",l:"Créer un compte"}].map(m=>(
-              <button key={m.k} onClick={()=>setAuthMode(m.k)}
-                style={{flex:1,padding:"9px 0",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"sans-serif",background:authMode===m.k?G.gold:"none",color:authMode===m.k?G.dark:"rgba(255,255,255,0.7)"}}>
+            {[{k:"login",l:"Email"},{k:"phone",l:"📱 SMS"},{k:"register",l:"S'inscrire"}].map(m=>(
+              <button key={m.k} onClick={()=>{setAuthMode(m.k);setAuthError("");setPhoneOtpSent(false);}}
+                style={{flex:1,padding:"9px 0",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"sans-serif",background:authMode===m.k?G.gold:"none",color:authMode===m.k?G.dark:"rgba(255,255,255,0.7)"}}>
                 {m.l}
               </button>
             ))}
@@ -2642,6 +2673,113 @@ function AppInner() {
                 <span style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Tu as un lien d'invitation ? </span>
                 <button onClick={()=>setAuthStep("join")} style={{background:"none",border:"none",color:G.gold,fontSize:11,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>Rejoindre une équipe</button>
               </div>
+            </div>
+          )}
+
+          {/* Phone OTP */}
+          {authMode==="phone"&&(
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {!phoneOtpSent ? (
+                <>
+                  <div style={{textAlign:"center",marginBottom:4}}>
+                    <div style={{fontSize:36,marginBottom:8}}>🔐</div>
+                    <div style={{color:"#fff",fontWeight:800,fontSize:17,marginBottom:4}}>Connexion rapide et sécurisée</div>
+                    <div style={{color:"rgba(255,255,255,0.5)",fontSize:12}}>Reçois un code SMS en quelques secondes</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>📱 Numéro de téléphone</div>
+                    <div style={{display:"flex",gap:8}}>
+                      <select value={phoneCountryCode} onChange={e=>setPhoneCountryCode(e.target.value)}
+                        style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 8px",color:"#fff",fontSize:13,outline:"none",flexShrink:0,width:95,fontFamily:"sans-serif"}}>
+                        <option value="+34">🇪🇸 +34</option>
+                        <option value="+221">🇸🇳 +221</option>
+                        <option value="+33">🇫🇷 +33</option>
+                        <option value="+212">🇲🇦 +212</option>
+                        <option value="+225">🇨🇮 +225</option>
+                        <option value="+32">🇧🇪 +32</option>
+                        <option value="+1">🇺🇸 +1</option>
+                      </select>
+                      <input type="tel" inputMode="numeric" autoFocus
+                        value={authForm.phone}
+                        onChange={e=>setAuthForm(p=>({...p,phone:e.target.value.replace(/\D/g,"")}))}
+                        placeholder="667 331 838"
+                        style={{flex:1,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:15,color:"#fff",outline:"none",boxSizing:"border-box",letterSpacing:2,fontFamily:"sans-serif",fontWeight:600}}
+                      />
+                    </div>
+                    <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:5,fontFamily:"sans-serif"}}>Numéro complet : {phoneCountryCode}{authForm.phone||"667331838"}</div>
+                  </div>
+                  {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+                  <button onClick={async()=>{
+                    const num=(authForm.phone||"").replace(/\D/g,"");
+                    if(!num||num.length<6){setAuthError("Numéro invalide");return;}
+                    setAuthError("");setAuthLoading(true);
+                    try{await sendPhoneOtp(phoneCountryCode+num);setPhoneOtpSent(true);}
+                    catch(e){setAuthError(e.message||"Erreur envoi SMS");}
+                    setAuthLoading(false);
+                  }} disabled={authLoading}
+                    style={{background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:authLoading?"not-allowed":"pointer",fontFamily:"sans-serif",marginTop:4}}>
+                    {authLoading?"Envoi en cours...":"Recevoir un code →"}
+                  </button>
+                </>
+              ):(
+                <>
+                  <div style={{textAlign:"center",marginBottom:4}}>
+                    <div style={{fontSize:36,marginBottom:8}}>📩</div>
+                    <div style={{color:"#fff",fontWeight:800,fontSize:17,marginBottom:4}}>Code envoyé !</div>
+                    <div style={{color:"rgba(255,255,255,0.5)",fontSize:12}}>Code envoyé au {phoneCountryCode} {authForm.phone}<br/>Valable 10 minutes</div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>🔢 Code à 6 chiffres</div>
+                    <input type="text" inputMode="numeric" maxLength={6} autoFocus
+                      value={authForm.otp||""}
+                      onChange={e=>setAuthForm(p=>({...p,otp:e.target.value.replace(/\D/g,"")}))}
+                      placeholder="000000"
+                      style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:12,padding:"16px",fontSize:28,color:"#fff",outline:"none",boxSizing:"border-box",textAlign:"center",letterSpacing:10,fontWeight:800,fontFamily:"monospace"}}
+                    />
+                  </div>
+                  {authError&&<div style={{fontSize:11,color:authError.startsWith("✓")?"#4ADE80":"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+                  <button onClick={async()=>{
+                    const otp=(authForm.otp||"").replace(/\D/g,"");
+                    if(otp.length<6){setAuthError("Code incomplet — 6 chiffres requis");return;}
+                    const fullPhone=phoneCountryCode+(authForm.phone||"").replace(/\D/g,"");
+                    setAuthError("");setAuthLoading(true);
+                    try{
+                      const data=await verifyPhoneOtp(fullPhone,otp);
+                      const tok=data.access_token;
+                      _authToken=tok;setSbToken(tok);
+                      const phone=(authForm.phone||"").replace(/\D/g,"");
+                      let profiles=await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
+                      if(!profiles||profiles.length===0) profiles=await sbFetch(`profiles?phone=like.*${phone}*&limit=1`).catch(()=>null);
+                      if(profiles&&profiles.length>0){
+                        const p=profiles[0];
+                        if(!p.org_id){setAuthError("Compte retiré de l'équipe");setAuthLoading(false);return;}
+                        const orgs=await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`).catch(()=>null);
+                        setOrgId(p.org_id);setSbReady(true);
+                        setSettings(s=>({...s,nom:p.nom||s.nom,boutique:orgs?.[0]?.name||s.boutique,...(orgs?.[0]?.settings||{})}));
+                        setCurrentUser({id:p.id,nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||""});
+                        setRole(p.role||"admin");setTab("dashboard");
+                        try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",p.email||"");localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
+                      } else {
+                        setAuthError("Aucun compte trouvé pour ce numéro — crée un compte email d'abord");
+                      }
+                    }catch(e){setAuthError(e.message||"Code incorrect ou expiré");}
+                    setAuthLoading(false);
+                  }} disabled={authLoading}
+                    style={{background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:authLoading?"not-allowed":"pointer",fontFamily:"sans-serif"}}>
+                    {authLoading?"Vérification...":"Valider le code →"}
+                  </button>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                    <button onClick={()=>{setPhoneOtpSent(false);setAuthForm(p=>({...p,otp:""}));setAuthError("");}}
+                      style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>← Changer de numéro</button>
+                    <button onClick={async()=>{
+                      const fullPhone=phoneCountryCode+(authForm.phone||"").replace(/\D/g,"");
+                      setAuthError("");
+                      try{await sendPhoneOtp(fullPhone);setAuthError("✓ Code renvoyé !");}
+                      catch(e){setAuthError(e.message||"Erreur");}
+                    }} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",textDecoration:"underline"}}>Renvoyer le code</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -5263,13 +5401,22 @@ function AppInner() {
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
-          const chatH = isDesktop
-            ? "calc(100vh - 54px)"
-            : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
-          const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
+          const chatH = "calc(100vh - 54px)";
+          const chatMargin = isDesktop ? "-24px -24px -24px" : "0px";
+
+          const chatContainerStyle = isDesktop ? {
+            display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"
+          } : {
+            position:"fixed",
+            top:"calc(58px + env(safe-area-inset-top, 0px))",
+            bottom:"calc(54px + env(safe-area-inset-bottom, 0px))",
+            left:0, right:0,
+            display:"flex", flexDirection:"column",
+            zIndex:50
+          };
 
           return (
-          <div style={{display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"}}>
+          <div style={chatContainerStyle}>
 
             {/* Header groupe style WhatsApp */}
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -6837,11 +6984,12 @@ function AppInner() {
                       </button>
                     ))}
                     <div style={{marginTop:6,padding:"10px 12px",background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0",textAlign:"left"}}>
-                      <div style={{fontSize:11,color:"#166534",fontWeight:600,marginBottom:2}}>👤 Parler à un humain ?</div>
-                      <div style={{fontSize:11,color:"#166534"}}>Contacte l'équipe Teamly directement sur WhatsApp</div>
-                      <a href="https://wa.me/221771234567" target="_blank" rel="noreferrer"
-                        style={{display:"inline-block",marginTop:6,background:"#25D366",color:"#FFF",borderRadius:7,padding:"5px 12px",fontSize:11,fontWeight:700,textDecoration:"none"}}>
-                        💬 WhatsApp support
+                      <div style={{fontSize:12,color:"#166534",fontWeight:700,marginBottom:4}}>💬 Besoin d'aide ?</div>
+                      <div style={{fontSize:11,color:"#166534",marginBottom:8}}>Contactez-nous sur WhatsApp</div>
+                      <a href="https://wa.me/2216673318387?text=Bonjour%2C%20j%27ai%20besoin%20d%27aide%20avec%20Teamly" target="_blank" rel="noreferrer"
+                        style={{display:"flex",alignItems:"center",gap:8,background:"#25D366",color:"#FFF",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:700,textDecoration:"none",justifyContent:"center"}}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.52 5.845L0 24l6.335-1.489A11.942 11.942 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.651-.502-5.178-1.381l-.371-.22-3.862.908.951-3.768-.241-.388A9.942 9.942 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+                        Contacter sur WhatsApp
                       </a>
                     </div>
                   </div>
