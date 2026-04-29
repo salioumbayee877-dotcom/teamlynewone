@@ -115,6 +115,39 @@ const pct = n => (Number(n||0)*100).toFixed(1)+"%";
 const TODAY = new Date().toISOString().split("T")[0];
 const FRAIS_LIV = 1500;
 
+// ── West Africa delivery zones ──────────────────────────────────────────────
+const WA_ZONES = [
+  // ── Sénégal ─────────────────────────────────────────────────────────────
+  {key:"sn_dakar",  country:"SN", flag:"🇸🇳", label:"Dakar / Banlieue",   price:1500,  prepaid:false, color:"#22C55E",
+   kw:["dakar","medina","medine","plateau","almadies","yoff","ngor","ouakam","mermoz","fann","hlm","liberte","pikine","guediawaye","rufisque","bargny","keur massar","malika","thiaroye","mbao","grand yoff","parcelles","sicap","camberene","dalifort","niayes","hann","biscuiterie","gueule tapee","point e","fass","colobane","rebeuss","usine","patte d'oie","sotrac","kip","dakar plateau"]},
+  {key:"sn_centre", country:"SN", flag:"🇸🇳", label:"Sénégal (Centre)",   price:3000,  prepaid:false, color:"#F59E0B",
+   kw:["thies","mbour","kaolack","diourbel","touba","fatick","saly","joal","tivaouane","bambey","gossas","mbacke","mboro","khombole","ngaparou","somone","popenguine","pout","sindia","saint-louis","louga","kebemer","linguere","ndioum","richard-toll"]},
+  {key:"sn_remote", country:"SN", flag:"🇸🇳", label:"Sénégal (Sud/Est)",  price:5000,  prepaid:false, color:"#F97316",
+   kw:["ziguinchor","kolda","tambacounda","matam","kedougou","sedhiou","velingara","saraya","kaffrine","kidira","bakel","goudiry","koungheul","bignona","oussouye","mlomp","kafountine","medina yoro foulah"]},
+  // ── International CEDEAO ────────────────────────────────────────────────
+  {key:"ml", country:"ML", flag:"🇲🇱", label:"Mali",           price:9000,  prepaid:true, color:"#DC2626",
+   kw:["mali","bamako","sikasso","segou","kayes","mopti","gao","tombouctou","kidal","koulikoro","bougouni","san","markala","niono"]},
+  {key:"ci", country:"CI", flag:"🇨🇮", label:"Côte d'Ivoire",  price:11000, prepaid:true, color:"#DC2626",
+   kw:["côte d'ivoire","cote d'ivoire","cote divoire","abidjan","bouake","bouaké","yamoussoukro","korhogo","daloa","san pedro","man","gagnoa","divo","agboville","abengourou","bondoukou","odienne"]},
+  {key:"tg", country:"TG", flag:"🇹🇬", label:"Togo",           price:11000, prepaid:true, color:"#DC2626",
+   kw:["togo","lomé","lome","kpalimé","kpalime","atakpame","atakpamé","sokode","kara","dapaong","tsevie","anecho","vogan","mango"]},
+  {key:"bf", country:"BF", flag:"🇧🇫", label:"Burkina Faso",   price:10000, prepaid:true, color:"#DC2626",
+   kw:["burkina","ouagadougou","ouaga","bobo-dioulasso","bobo dioulasso","koudougou","banfora","ouahigouya","dedougou","fada ngourma","tenkodogo","kaya","leo"]},
+  {key:"bj", country:"BJ", flag:"🇧🇯", label:"Bénin",          price:11000, prepaid:true, color:"#DC2626",
+   kw:["benin","bénin","cotonou","porto-novo","porto novo","parakou","abomey","natitingou","lokossa","ouidah","bohicon","kandi","djougou"]},
+];
+const PAYMENT_METHODS = [
+  {key:"cod",      label:"Espèces (COD)", icon:"💵", color:"#22C55E"},
+  {key:"orange",   label:"Orange Money",  icon:"🟠", color:"#F97316"},
+  {key:"wave",     label:"Wave",          icon:"💙", color:"#3B82F6"},
+  {key:"sendwave", label:"Sendwave",      icon:"💸", color:"#8B5CF6"},
+  {key:"free",     label:"Free Money",    icon:"💚", color:"#10B981"},
+];
+const _nz = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const detectZone = addr => WA_ZONES.find(z => z.kw.some(k => _nz(addr).includes(k))) || WA_ZONES[0];
+const parseProd  = str  => (str||"").split(" + ").map(p => { const m = p.match(/^(.+?)\s+[x×](\d+)/i); return {name:(m?m[1]:p).trim(), qty:m?parseInt(m[2]):1}; });
+const totalItems = str  => parseProd(str).reduce((s,p) => s+p.qty, 0);
+
 // ── SVG Icon set ────────────────────────────────────────────────────────────
 const NavIcon = ({name, size=20, color="#fff"}) => {
   const s = {width:size,height:size,display:"block"};
@@ -554,7 +587,8 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
   const basePrice = prod ? prod.price * qty : 0;
   const bundleSelected = prod?.bundles?.find(b=>String(b.id)===newOrder.bundle);
   const finalPrice = bundleSelected ? bundleSelected.prixVente : (disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice);
-  const margeTotal = prod ? finalPrice - prod.cost*qty - (prod.fraisLiv||FRAIS_LIV) : 0;
+  const fraisZone  = newOrder.fraisLiv || prod?.fraisLiv || FRAIS_LIV;
+  const margeTotal = prod ? finalPrice - prod.cost*qty - fraisZone : 0;
   const clientSuggestions = newOrder.phone?.length>=3
     ? [...new Map(orders.filter(o=>o.phone?.includes(newOrder.phone)||o.client?.toLowerCase().includes((newOrder.phone||"").toLowerCase())).map(o=>[o.phone,o])).values()].slice(0,3)
     : [];
@@ -589,8 +623,67 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
         </div>
         <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse</div>
-          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder({...newOrder,address:e.target.value})} placeholder="Médina, Dakar"
+          <input type="text" value={newOrder.address||""} onChange={e=>{
+            const val=e.target.value;
+            const z=detectZone(val);
+            setNewOrder(p=>({...p,address:val,zone:z.key,fraisLiv:z.price}));
+          }} placeholder="Médina, Dakar"
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        {/* Zone de livraison */}
+        {(()=>{
+          const selZ = WA_ZONES.find(z=>z.key===(newOrder.zone||"sn_dakar"))||WA_ZONES[0];
+          const isIntl = selZ.prepaid;
+          return (
+            <div style={{marginBottom:10,background:isIntl?"#FFF7ED":"#F0FDF4",borderRadius:12,padding:"10px 12px",border:`1.5px solid ${isIntl?"#FED7AA":"#BBF7D0"}`}}>
+              <div style={{fontSize:11,fontWeight:700,color:isIntl?"#92400E":"#166534",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span>🗺️ Zone de livraison</span>
+                <span style={{background:selZ.color+"22",color:selZ.color,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>
+                  {selZ.flag} {selZ.label} · {fmt(selZ.price)} F
+                </span>
+              </div>
+              {isIntl&&<div style={{fontSize:10,background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"4px 8px",marginBottom:8,fontWeight:700}}>
+                ⚠️ PRÉPAIEMENT REQUIS — livraison internationale
+              </div>}
+              {/* Sénégal */}
+              <div style={{fontSize:9,color:G.gray,fontWeight:600,marginBottom:4}}>🇸🇳 SÉNÉGAL</div>
+              <div style={{display:"flex",gap:4,marginBottom:8}}>
+                {WA_ZONES.filter(z=>z.country==="SN").map(z=>{
+                  const sel=(newOrder.zone||"sn_dakar")===z.key;
+                  return <button key={z.key} onClick={()=>setNewOrder(p=>({...p,zone:z.key,fraisLiv:z.price}))}
+                    style={{flex:1,background:sel?z.color+"22":"#F9FAFB",border:`2px solid ${sel?z.color:"#E5E7EB"}`,borderRadius:8,padding:"6px 2px",cursor:"pointer",textAlign:"center"}}>
+                    <div style={{fontSize:12}}>{z.flag}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:sel?z.color:"#6B7280",lineHeight:1.3}}>{z.label.split(" (")[0]}</div>
+                    <div style={{fontSize:9,color:sel?z.color:"#9CA3AF"}}>{fmt(z.price)}</div>
+                  </button>;
+                })}
+              </div>
+              {/* International */}
+              <div style={{fontSize:9,color:G.gray,fontWeight:600,marginBottom:4}}>🌍 INTERNATIONAL</div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                {WA_ZONES.filter(z=>z.country!=="SN").map(z=>{
+                  const sel=(newOrder.zone||"sn_dakar")===z.key;
+                  return <button key={z.key} onClick={()=>setNewOrder(p=>({...p,zone:z.key,fraisLiv:z.price}))}
+                    style={{background:sel?"#FEF3C7":"#F9FAFB",border:`2px solid ${sel?"#F59E0B":"#E5E7EB"}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?"#92400E":"#6B7280"}}>
+                    {z.flag} {z.label.split(" ")[0]}{z.label.split(" ")[1]?" "+z.label.split(" ")[1]:""}
+                  </button>;
+                })}
+              </div>
+            </div>
+          );
+        })()}
+        {/* Mode de paiement */}
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>💳 Mode de paiement</div>
+          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            {PAYMENT_METHODS.map(pm=>{
+              const sel=(newOrder.paymentMethod||"cod")===pm.key;
+              return <button key={pm.key} onClick={()=>setNewOrder(p=>({...p,paymentMethod:pm.key}))}
+                style={{background:sel?pm.color+"22":"#F9FAFB",border:`2px solid ${sel?pm.color:"#E5E7EB"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?pm.color:"#6B7280"}}>
+                {pm.icon} {pm.label}
+              </button>;
+            })}
+          </div>
         </div>
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Produit *</div>
@@ -651,6 +744,10 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
               <span style={{fontSize:13,color:G.gray,fontWeight:600}}>💰 Prix COD</span>
               <span style={{fontSize:24,fontWeight:700,color:G.green}}>{fmt(finalPrice)} CFA</span>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+              <span style={{fontSize:11,color:G.gray}}>🚚 Livraison ({(WA_ZONES.find(z=>z.key===(newOrder.zone||"sn_dakar"))||WA_ZONES[0]).label})</span>
+              <span style={{fontSize:11,color:G.gray}}>−{fmt(fraisZone)} CFA</span>
             </div>
             <div style={{display:"flex",justifyContent:"space-between"}}>
               <span style={{fontSize:11,color:G.gray}}>Marge estimée</span>
@@ -862,7 +959,7 @@ function AppInner() {
   const [showAddBundle,setShowAddBundle] = useState(false);
   const [noteModal,setNoteModal] = useState(null);
   const [noteText,setNoteText]   = useState("");
-  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:""});
+  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
@@ -924,7 +1021,7 @@ function AppInner() {
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-  const [filterDate,   setFilterDate]   = useState("today");
+  const [filterDate,   setFilterDate]   = useState("all");
   const [filterLivreur, setFilterLivreur] = useState("all");
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
@@ -951,7 +1048,8 @@ function AppInner() {
   const chatScrollRef                      = useRef(null);
   const tabRef                             = useRef(tab);
   const currentUserRef                     = useRef(currentUser);
-  const loadChatRef                        = useRef(null); // ref to call loadChat from outside the effect
+  const loadChatRef                        = useRef(null);
+  const loadMainRef                        = useRef(null);
   const [chatShowNew, setChatShowNew]      = useState(false);
   const [chatLoading, setChatLoading]      = useState(true);
   const [authStep, setAuthStep]   = useState(()=>{
@@ -977,7 +1075,7 @@ function AppInner() {
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [showNotifPanel, setShowNotifPanel]     = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar"});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
@@ -1642,6 +1740,7 @@ function AppInner() {
     };
 
     loadChatRef.current = loadChat;
+    loadMainRef.current = loadMain;
     loadMain();
     loadChat(true);
     loadNotifs();
@@ -1844,10 +1943,16 @@ function AppInner() {
     const tempId = "tmp_" + Date.now();
     const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
     const deliveryStatus = newOrder.deliveryStatus;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund};
+    const _zone = WA_ZONES.find(z=>z.key===(newOrder.zone||"sn_dakar"))||WA_ZONES[0];
+    const _pmLabel = PAYMENT_METHODS.find(p=>p.key===(newOrder.paymentMethod||"cod"))?.label||"Espèces (COD)";
+    const _noteExtra = [
+      _zone.prepaid ? "⚠️ Prépaiement requis" : "",
+      newOrder.paymentMethod!=="cod" ? `PM: ${_pmLabel}` : "",
+    ].filter(Boolean).join(" · ");
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:_noteExtra,isBundle:!!bund,paymentMethod:newOrder.paymentMethod||"cod",zone:_zone.key};
     setOrders(o=>[...o,order]);
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_zone.price})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
@@ -1882,7 +1987,7 @@ function AppInner() {
       setShowWA(true);
     }
 
-    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:""});
+    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
     setShowAdd(false);
   };
 
@@ -2005,15 +2110,25 @@ function AppInner() {
   const calcProd = products.map(prod=>{
     const op      = orders.filter(o=>o.product?.startsWith(prod.name));
     const nLiv    = op.filter(o=>o.status==="entregado").length;
-    const nRej    = op.filter(o=>o.status==="rechazado").length; // info seulement — pas dans la formule
+    const nRej    = op.filter(o=>o.status==="rechazado").length;
     const ca      = nLiv*prod.price;
     const camv    = nLiv*prod.cost;
-    const frais   = nLiv*(prod.fraisLiv||FRAIS_LIV);
+    // Zone-aware frais: use order-level frais_liv if available, else detect from address
+    const livOps  = op.filter(o=>o.status==="entregado");
+    const frais   = livOps.reduce((s,o)=>{
+      if(o.fraisLiv) return s+o.fraisLiv;
+      return s+detectZone(o.address).price;
+    },0)||nLiv*(prod.fraisLiv||FRAIS_LIV);
+    // Zone breakdown for display
+    const zoneBreakdown = WA_ZONES.map(z=>({
+      zone:z,
+      count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
+    })).filter(x=>x.count>0);
     const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
     const pub     = parseFloat(adSpend[prod.id]||0);
-    const ben     = ca-camv-frais-echouees-pub; // rejets exclus de la formule
+    const ben     = ca-camv-frais-echouees-pub;
     const marge   = ca>0?ben/ca:0;
-    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge};
+    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown};
   });
   const tCA   = calcProd.reduce((a,x)=>a+x.ca,0);
   const tBen  = calcProd.reduce((a,x)=>a+x.ben,0);
@@ -2087,10 +2202,35 @@ function AppInner() {
         {/* ── Corps — cliquable ── */}
         <div onClick={()=>setOrderDetail(o)} style={{background:st.bg,padding:"12px 14px 10px",cursor:"pointer"}}>
           <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>{o.client}</div>
-          <div style={{fontSize:12,color:"#374151",fontWeight:600,marginBottom:3}}>📦 {o.product}</div>
-          <div style={{display:"flex",gap:10,fontSize:11,color:"#6B7280",flexWrap:"wrap"}}>
+          {/* Product lines with parsed qty */}
+          {(()=>{
+            const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
+            const isMulti=tot>1||items.length>1;
+            return (
+              <div style={{marginBottom:4}}>
+                {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
+                  📦 BUNDLE · {tot} article{tot>1?"s":""}</div>}
+                {items.map((p,pi)=>(
+                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,color:"#374151",fontWeight:600,marginBottom:pi<items.length-1?2:0}}>
+                    <span>📦 {p.name}</span>
+                    <span style={{background:p.qty>1?"#FEF3C7":"#F3F4F6",color:p.qty>1?"#92400E":"#6B7280",borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:800}}>×{p.qty}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+          <div style={{display:"flex",gap:8,fontSize:11,color:"#6B7280",flexWrap:"wrap",alignItems:"center"}}>
             {o.address&&<span>📍 {o.address}</span>}
             {o.phone&&<span>📱 {o.phone}</span>}
+            {(()=>{
+              const z=detectZone(o.address);
+              const pm=o.note?.match(/PM:\s*([^·\n]+)/)?.[1]?.trim();
+              return <>
+                <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>{z.flag} {z.label} · {fmt(z.price)} F</span>
+                {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠️ Prépayé</span>}
+                {pm&&<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>💳 {pm}</span>}
+              </>;
+            })()}
           </div>
           {o.livreur&&(
             <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
@@ -3271,16 +3411,23 @@ function AppInner() {
   // ── Filtered orders ──
   const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
   const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id&&o.status!=="confirmado") : allOrders;
-  const YESTERDAY = new Date(Date.now()-86400000).toISOString().slice(0,10);
-  const WEEK_AGO  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+  const _now       = new Date();
+  const _pad       = n => String(n).padStart(2,"0");
+  const TODAY_STR  = `${_now.getFullYear()}-${_pad(_now.getMonth()+1)}-${_pad(_now.getDate())}`;
+  const _yest      = new Date(_now); _yest.setDate(_yest.getDate()-1);
+  const YESTERDAY  = `${_yest.getFullYear()}-${_pad(_yest.getMonth()+1)}-${_pad(_yest.getDate())}`;
+  // Monday of the current week (local time)
+  const _mon       = new Date(_now); _mon.setDate(_now.getDate() - ((_now.getDay()+6)%7));
+  const WEEK_START = `${_mon.getFullYear()}-${_pad(_mon.getMonth()+1)}-${_pad(_mon.getDate())}`;
   const filteredOrders = baseOrders.filter(o=>{
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
-    const matchStatus = role==="livreur" || filterStatus==="all" ||
+    const matchStatus = filterStatus==="all" ||
       (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
     const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
-    const d = o.created_at?.slice(0,10)||"";
-    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_AGO);
+    // Convert UTC created_at to local date string for comparison
+    const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
+    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START);
     return matchSearch && matchStatus && matchLivreur && matchDate;
   });
 
@@ -3627,30 +3774,38 @@ function AppInner() {
                                 🕐 {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
                               </span>}
                             </div>
-                            <div style={{fontSize:12,marginTop:3,display:"flex",flexDirection:"column",gap:3}}>
-                              {(o.product||"").split(" + ").map((part,pi)=>{
-                                const m = part.match(/^(.+?)\s+x(\d+)$/);
-                                const name = m ? m[1] : part;
-                                const qty  = m ? parseInt(m[2]) : 1;
-                                return (
-                                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-                                    <span style={{color:G.gray}}>📦 {name}</span>
-                                    <span style={{background: qty>1?"#FEF3C7":"#F3F4F6",color:qty>1?"#92400E":G.gray,borderRadius:6,padding:"1px 8px",fontSize:11,fontWeight:800,flexShrink:0}}>
-                                      × {qty}
-                                    </span>
-                                    {pi===0&&(isMatched||catalogMatch
-                                      ? <span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
-                                      : isAutoCreated
-                                        ? <span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté</span>
-                                        : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
-                                    )}
+                            {(()=>{
+                              const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
+                              const isMulti=tot>1||items.length>1;
+                              const z=detectZone(o.address);
+                              return (
+                                <div style={{marginTop:3}}>
+                                  {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
+                                    📦 BUNDLE · {tot} article{tot>1?"s":""}</div>}
+                                  <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                                    {items.map((p,pi)=>(
+                                      <div key={pi} style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                                        <span style={{fontSize:12,color:G.gray}}>📦 {p.name}</span>
+                                        <span style={{background:p.qty>1?"#FEF3C7":"#F3F4F6",color:p.qty>1?"#92400E":G.gray,borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:800,flexShrink:0}}>×{p.qty}</span>
+                                        {pi===0&&(isMatched||catalogMatch
+                                          ?<span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
+                                          :isAutoCreated
+                                            ?<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté</span>
+                                            :<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
-                                );
-                              })}
-                            </div>
-                            <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
-                            <div style={{fontSize:12,color:G.gray,marginTop:1}}>📱 {o.phone||"—"}</div>
-                            {o.note&&!o.note.startsWith("Commande Shopify")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:4,display:"inline-block"}}>{o.note.replace(" ✓","")}</div>}
+                                  <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap",alignItems:"center"}}>
+                                    <span style={{fontSize:11,color:G.gray}}>📍 {o.address||"—"}</span>
+                                    <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {fmt(z.price)} F</span>
+                                    {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>⚠️ Prépayé</span>}
+                                  </div>
+                                  <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
+                                  {o.note&&!o.note.startsWith("Commande Shopify")&&!o.note.startsWith("Commande WooCommerce")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:3,display:"inline-block"}}>{o.note.replace(/ [✓★]/g,"")}</div>}
+                                </div>
+                              );
+                            })()}
                           </div>
                           <div style={{textAlign:"right",flexShrink:0}}>
                             <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
@@ -4114,7 +4269,7 @@ function AppInner() {
                     style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                     Tout
                   </button>
-                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="pendiente"&&(role!=="livreur"||k!=="boutique")).map(([k,v])=>(
+                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&(role!=="livreur"||k!=="boutique")).map(([k,v])=>(
                     <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
                       style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
                       {v.label}
@@ -4124,6 +4279,17 @@ function AppInner() {
               </div>
             )}
 
+            {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:2,marginBottom:2}}>
+                <span style={{fontSize:12,fontWeight:700,color:G.gray,padding:"3px 0"}}>
+                  {filteredOrders.length} commande{filteredOrders.length!==1?"s":""}
+                </span>
+                <button onClick={()=>loadMainRef.current?.()}
+                  style={{background:"none",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:G.green,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
+                  ↺ Actualiser
+                </button>
+              </div>
+            )}
             {(localOrderIds.length>0||pinnedOrderIds.length>0)&&(
               <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:4}}>
                 {pinnedOrderIds.length>0&&<button onClick={()=>setPinnedOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>📌 Tout désépingler</button>}
@@ -4811,7 +4977,46 @@ function AppInner() {
               ℹ️ CA, CAMV et frais calculés automatiquement. Saisis uniquement pub et livraisons échouées.
             </div>
 
-            {calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>{
+            {/* ── Résumé global livraisons par zone ── */}
+            {(()=>{
+              const allLivres = orders.filter(o=>o.status==="entregado");
+              const byZone = WA_ZONES.map(z=>({
+                zone:z,
+                count:allLivres.filter(o=>detectZone(o.address).key===z.key).length,
+                total:allLivres.filter(o=>detectZone(o.address).key===z.key).reduce((s,o)=>s+(o.fraisLiv||detectZone(o.address).price),0),
+              })).filter(x=>x.count>0);
+              if(byZone.length===0) return null;
+              const hasIntl = byZone.some(x=>x.zone.prepaid);
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:14,border:`1.5px solid ${hasIntl?"#FED7AA":"#E2E8F0"}`}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🗺️ Livraisons par zone géographique</div>
+                  {byZone.map(({zone:z,count,total})=>(
+                    <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:7}}>
+                        <span style={{fontSize:16}}>{z.flag}</span>
+                        <div>
+                          <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{z.label}</div>
+                          <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                            <span style={{fontSize:10,color:G.gray}}>{fmt(z.price)} F/cmd</span>
+                            {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9,fontWeight:700}}>PRÉPAYÉ</span>}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:13,fontWeight:700,color:z.color}}>{fmt(total)} F</div>
+                        <div style={{fontSize:10,color:G.gray}}>{count} livraison{count>1?"s":""}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,paddingTop:8,borderTop:"2px solid #E2E8F0"}}>
+                    <span style={{fontSize:12,fontWeight:700,color:G.dark}}>Total frais livraison</span>
+                    <span style={{fontSize:14,fontWeight:800,color:G.dark}}>{fmt(byZone.reduce((s,x)=>s+x.total,0))} F</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown})=>{
               const notConfigured = !prod.cost || prod.cost===0;
               const costEdit = comptaCostEdit[prod.id]||{};
               const showCostForm = notConfigured || !!comptaCostEdit[prod.id];
@@ -4895,6 +5100,30 @@ function AppInner() {
                     <span style={{fontSize:12,fontWeight:700,color:r.c}}>{r.v}</span>
                   </div>
                 ))}
+
+                {/* Zone breakdown — livraisons par zone géographique */}
+                {zoneBreakdown.length>0&&(
+                  <div style={{marginTop:4,marginBottom:4,padding:"8px 10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
+                    <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:6,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Répartition par zone</div>
+                    {zoneBreakdown.map(({zone:z,count})=>(
+                      <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{fontSize:11}}>{z.flag}</span>
+                          <span style={{fontSize:11,color:G.dark}}>{z.label}</span>
+                          {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9,fontWeight:700}}>PRÉPAYÉ</span>}
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:11,color:G.gray}}>{count} cmd{count>1?"s":""}</span>
+                          <span style={{fontSize:11,fontWeight:700,color:z.color}}>{fmt(count*z.price)} F</span>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{display:"flex",justifyContent:"space-between",paddingTop:5,marginTop:3,borderTop:"1px solid #E2E8F0"}}>
+                      <span style={{fontSize:11,fontWeight:700,color:G.dark}}>Total livraison</span>
+                      <span style={{fontSize:11,fontWeight:700,color:G.dark}}>{fmt(frais)} F</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Rejetées — info seulement, pas dans la formule */}
                 {nRej>0&&(
@@ -6026,6 +6255,38 @@ function AppInner() {
               </div>
             </div>
 
+            {/* Zone de base du marchand */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:6,letterSpacing:0.5}}>🗺️ VOTRE ZONE DE BASE</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:10}}>Utilisée pour classifier chaque livraison (locale / nationale / internationale)</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {/* Sénégal zones */}
+                <div style={{fontSize:10,color:G.gray,fontWeight:600,marginBottom:2}}>🇸🇳 SÉNÉGAL</div>
+                <div style={{display:"flex",gap:5}}>
+                  {WA_ZONES.filter(z=>z.country==="SN").map(z=>{
+                    const sel=(settings.baseZone||"sn_dakar")===z.key;
+                    return <button key={z.key} onClick={()=>setSettings(s=>({...s,baseZone:z.key}))}
+                      style={{flex:1,background:sel?z.color+"20":"#F9FAFB",border:`2px solid ${sel?z.color:"#E5E7EB"}`,borderRadius:9,padding:"7px 3px",cursor:"pointer",textAlign:"center"}}>
+                      <div style={{fontSize:13}}>{z.flag}</div>
+                      <div style={{fontSize:10,fontWeight:700,color:sel?z.color:"#6B7280",lineHeight:1.2}}>{z.label.replace(" (Centre)","").replace(" (Sud/Est)","")}</div>
+                      <div style={{fontSize:9,color:sel?z.color:"#9CA3AF"}}>{fmt(z.price)} F</div>
+                    </button>;
+                  })}
+                </div>
+                {/* International zones */}
+                <div style={{fontSize:10,color:G.gray,fontWeight:600,marginTop:4,marginBottom:2}}>🌍 INTERNATIONAL (si basé hors Sénégal)</div>
+                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {WA_ZONES.filter(z=>z.country!=="SN").map(z=>{
+                    const sel=(settings.baseZone||"sn_dakar")===z.key;
+                    return <button key={z.key} onClick={()=>setSettings(s=>({...s,baseZone:z.key}))}
+                      style={{background:sel?"#FEF3C7":"#F9FAFB",border:`2px solid ${sel?"#F59E0B":"#E5E7EB"}`,borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?"#92400E":"#6B7280"}}>
+                      {z.flag} {z.label}
+                    </button>;
+                  })}
+                </div>
+              </div>
+            </div>
+
             {/* Supprimer compte admin */}
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Toutes les données (commandes, produits, équipe) seront effacées. Cette action est irréversible.",danger:true,onConfirm:async()=>{
               const doLogout=()=>{try{localStorage.clear();}catch(e){}_authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);};
@@ -6046,11 +6307,15 @@ function AppInner() {
             <button onClick={async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
               try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{name:settings.boutique,whatsapp:settings.whatsapp},_authToken);}catch(e){}
-              setCurrentUser(u=>({...u,nom:settings.nom}));
+              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar"}},_authToken);}catch(e){}
+              const fresh = await sbFetch(`profiles?id=eq.${currentUser.id}&select=*`).catch(()=>null);
+              if(fresh?.[0]) setCurrentUser(u=>({...u,...fresh[0]}));
+              else setCurrentUser(u=>({...u,nom:settings.nom}));
               try{
                 localStorage.setItem("teamly_nom",settings.nom);
                 localStorage.setItem(`teamly_boutique_${orgId}`,settings.boutique||"");
                 localStorage.setItem(`teamly_whatsapp_${orgId}`,settings.whatsapp||"");
+                localStorage.setItem(`teamly_baseZone_${orgId}`,settings.baseZone||"sn_dakar");
               }catch(e){}
               addToast("Paramètres sauvegardés ✅","✅",G.green);
               setShowSettings(false);
@@ -6075,7 +6340,10 @@ function AppInner() {
             </div>
             <button onClick={async()=>{
               await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null}).catch(()=>{});
-              setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
+              // Re-fetch from DB to keep currentUser in sync with any server-side changes
+              const fresh = await sbFetch(`profiles?id=eq.${currentUser.id}&select=*`).catch(()=>null);
+              if(fresh?.[0]) setCurrentUser(u=>({...u,...fresh[0]}));
+              else setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
               try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
               try{localStorage.setItem("teamly_phone",profileEdit.phone||"");}catch(e){}
               try{localStorage.setItem("teamly_birthday",profileEdit.birthday||"");}catch(e){}
@@ -6462,7 +6730,15 @@ function AppInner() {
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{
-                setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...editOrder,price:parseInt(editOrder.price)||x.price}:x));
+                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price};
+                setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...updated}:x));
+                if(orgId&&!String(editOrder.id).startsWith("tmp_")){
+                  sbFetch(`orders?id=eq.${editOrder.id}`,"PATCH",{
+                    client:updated.client,phone:updated.phone,address:updated.address,
+                    product:updated.product,price:updated.price,
+                    status:updated.status,livreur:updated.livreur||null,note:updated.note||""
+                  }).catch(e=>{console.error("edit save:",e);addToast("Erreur sauvegarde","⚠️",G.red);});
+                }
                 setEditOrder(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 ✅ Enregistrer
@@ -6658,29 +6934,67 @@ function AppInner() {
                   <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{o.address}</span>
                 </div>
               </div>
-              <div style={{background:G.greenLight,borderRadius:12,padding:"14px 16px",marginBottom:14}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:11,color:G.gray,marginBottom:6}}>📦 Produit{(o.product||"").includes(" + ")?"s":""}</div>
-                    {(o.product||"").split(" + ").map((part,pi)=>{
-                      const m=part.match(/^(.+?)\s+x(\d+)$/);
-                      const name=m?m[1]:part; const qty=m?parseInt(m[2]):1;
-                      return (
-                        <div key={pi} style={{display:"flex",alignItems:"center",gap:8,marginBottom:pi<(o.product||"").split(" + ").length-1?6:0}}>
-                          <span style={{fontSize:14,fontWeight:700,color:G.dark,flex:1}}>{name}</span>
-                          <span style={{background:qty>1?"#F0A500":G.green,color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:13,fontWeight:800,flexShrink:0}}>
-                            × {qty}
-                          </span>
+              {(()=>{
+                const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
+                const isMulti=tot>1||items.length>1;
+                const z=detectZone(o.address);
+                return (
+                  <>
+                    {/* Packing summary */}
+                    <div style={{background:"#F0FDF4",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #BBF7D0"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"#166534"}}>
+                          {isMulti?"📦 Récapitulatif colis":"📦 Produit"}
+                          {isMulti&&<span style={{marginLeft:6,background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"1px 8px",fontSize:10,fontWeight:800}}>BUNDLE · {tot} articles</span>}
                         </div>
-                      );
-                    })}
-                  </div>
-                  <div style={{textAlign:"right",flexShrink:0}}>
-                    <div style={{fontSize:11,color:G.gray}}>Montant COD</div>
-                    <div style={{fontSize:22,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
-                  </div>
-                </div>
-              </div>
+                        <div style={{textAlign:"right"}}>
+                          <div style={{fontSize:10,color:G.gray}}>Montant COD</div>
+                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+                        </div>
+                      </div>
+                      {items.map((p,pi)=>(
+                        <div key={pi} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderTop:pi>0?"1px solid #D1FAE5":"none"}}>
+                          <span style={{fontSize:13,fontWeight:700,color:G.dark,flex:1}}>{p.name}</span>
+                          <span style={{background:p.qty>1?"#F0A500":"#22C55E",color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:13,fontWeight:800,flexShrink:0}}>×{p.qty}</span>
+                        </div>
+                      ))}
+                      {isMulti&&<div style={{marginTop:8,paddingTop:8,borderTop:"1px solid #BBF7D0",display:"flex",justifyContent:"space-between",fontSize:12}}>
+                        <span style={{color:"#166534",fontWeight:700}}>Total à préparer</span>
+                        <span style={{fontWeight:800,color:"#166534"}}>{tot} unité{tot>1?"s":""}</span>
+                      </div>}
+                    </div>
+                    {/* Zone + delivery cost + payment */}
+                    <div style={{background:z.prepaid?"#FFF7ED":"#F8FAFC",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${z.prepaid?"#FED7AA":"#E2E8F0"}`}}>
+                      <div style={{fontSize:11,fontWeight:700,color:z.prepaid?"#92400E":G.gray,marginBottom:8,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Zone & Livraison</div>
+                      {z.prepaid&&<div style={{background:"#FEF3C7",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,fontWeight:700,color:"#92400E"}}>
+                        ⚠️ PRÉPAIEMENT REQUIS — Livraison internationale {z.flag} {z.label}
+                      </div>}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:13,color:G.dark}}>{o.address||"—"}</span>
+                        <span style={{background:z.color+"18",color:z.color,borderRadius:6,padding:"3px 9px",fontSize:12,fontWeight:700}}>{z.flag} {z.label}</span>
+                      </div>
+                      {/* Payment method */}
+                      {(()=>{
+                        const pm = o.note?.match(/PM:\s*([^·\n]+)/)?.[1]?.trim();
+                        const pmObj = pm ? PAYMENT_METHODS.find(p=>p.label.toLowerCase().includes(pm.toLowerCase())) : null;
+                        return pm ? <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,padding:"5px 8px",background:"#EDE9FE",borderRadius:7}}>
+                          <span style={{fontSize:12}}>{pmObj?.icon||"💳"}</span>
+                          <span style={{fontSize:11,fontWeight:700,color:"#5B21B6"}}>Mode de paiement : {pm}</span>
+                        </div> : null;
+                      })()}
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
+                        <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,marginTop:3}}>
+                        <span>Frais livraison {z.prepaid?"(prépayé)":""}</span><span style={{fontWeight:600,color:z.color}}>{fmt(z.price)} F</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
+                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+z.price).toLocaleString("fr-FR")} F</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
               <div style={{display:"flex",gap:8,marginBottom:14}}>
                 {o.closer&&<div style={{flex:1,background:"#EFF6FF",borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Closer</div><div style={{fontSize:13,fontWeight:700,color:G.blue}}>📞 {o.closer}</div></div>}
                 {o.livreur&&<div style={{flex:1,background:G.greenLight,borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Livreur</div><div style={{fontSize:13,fontWeight:700,color:G.green}}>🏍️ {o.livreur}</div></div>}

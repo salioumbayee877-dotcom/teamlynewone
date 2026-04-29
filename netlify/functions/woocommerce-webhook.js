@@ -46,10 +46,11 @@ exports.handler = async (event) => {
     const clientName = `${firstName} ${lastName}`.trim() || order.billing?.email || "Client WooCommerce";
     const phone      = fmtPhone(order.billing?.phone || order.shipping?.phone || "");
     const addr       = order.shipping || order.billing;
-    const address    = addr ? [addr.address_1, addr.city, addr.country].filter(Boolean).join(", ") : "";
+    const address    = addr ? [addr.address_1, addr.city, addr.state, addr.country].filter(Boolean).join(", ") : "";
 
     const lineItems    = order.line_items || [];
     const rawProduct   = lineItems.map(i=>`${i.name} x${i.quantity||1}`).join(" + ") || "Produit WooCommerce";
+    const totalQty     = lineItems.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
     const unitPrice    = lineItems.length > 0 ? parseFloat(lineItems[0].price || lineItems[0].total || 0) : parseFloat(order.total || 0);
     const price        = parseFloat(order.total || 0);
     const ref          = `#${order.number || order.id}`;
@@ -108,7 +109,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:false }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1 }),
     });
 
     if (!res.ok) {

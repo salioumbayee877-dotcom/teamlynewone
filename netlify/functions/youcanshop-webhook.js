@@ -57,15 +57,17 @@ exports.handler = async (event) => {
     const address = [
       addrObj.address || addrObj.address_1 || addrObj.street,
       addrObj.city,
-      addrObj.country
+      addrObj.province || addrObj.state || addrObj.region,
+      addrObj.country_code || addrObj.country
     ].filter(Boolean).join(", ");
 
     const items      = order.products || order.items || order.line_items || [];
     const rawProduct = items.map(i => {
       const name = i.name || i.title || i.product_name || "Produit";
       const qty  = parseInt(i.quantity || i.qty || 1);
-      return `${name}${qty > 1 ? ` x${qty}` : ""}`;
+      return `${name} x${qty}`;
     }).join(" + ") || "Produit YouCan Shop";
+    const totalQty   = items.reduce((s,i) => s + (parseInt(i.quantity || i.qty || 1)), 0);
 
     const unitPrice = items.length > 0
       ? parseFloat(items[0].price || items[0].unit_price || 0)
@@ -127,7 +129,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:false }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1 }),
     });
 
     if (!res.ok) {

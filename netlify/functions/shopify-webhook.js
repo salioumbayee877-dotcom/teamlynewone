@@ -46,11 +46,13 @@ exports.handler = async (event) => {
     const digits     = rawPhone.replace(/\D/g,"").replace(/^00/,"");
     const phone      = digits.startsWith("221") ? digits : digits.startsWith("0") ? "221" + digits.slice(1) : digits.length >= 8 ? "221" + digits.slice(-9) : digits;
     const addr       = order.shipping_address;
-    const address    = addr ? [addr.address1, addr.city, addr.country].filter(Boolean).join(", ") : "";
+    const addressParts = addr ? [addr.address1, addr.city, addr.province, addr.country_code||addr.country].filter(Boolean) : [];
+    const address    = addressParts.join(", ") || "";
 
     // Build clean product name from Shopify line items (without size/variant details)
     const lineItems     = order.line_items || [];
     const shopifyProduct = lineItems.map(i=>`${i.title||i.name} x${i.quantity||1}`).join(" + ") || "Produit Shopify";
+    const totalQty       = lineItems.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
     const unitPrice      = lineItems.length > 0 ? parseFloat(lineItems[0].price || 0) : parseFloat(order.total_price || 0);
     const price          = parseFloat(order.total_price || 0);
     const shopifyRef     = `#${order.order_number || order.id}`;
@@ -150,7 +152,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         org_id: orgId, client: clientName, phone, address,
         product: finalProduct, price,
-        status: "boutique", note, archived: false, is_bundle: false,
+        status: "boutique", note, archived: false, is_bundle: totalQty > 1 || lineItems.length > 1,
       }),
     });
 
