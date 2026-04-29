@@ -3574,7 +3574,7 @@ function AppInner() {
       )}
 
 
-      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:tab==="chat"?"0px":(role==="admin"||(role==="closer"&&sbReady))?"calc(90px + env(safe-area-inset-bottom,0px))":"calc(40px + env(safe-area-inset-bottom,0px))",maxWidth:isWide?1400:isDesktop?1100:"none",margin:isDesktop?"0 auto":"0",width:"100%"}}>
+      <div style={{padding:isDesktop?32:14,paddingBottom:isDesktop?32:tab==="chat"?"0px":(role==="admin"||(role==="closer"&&sbReady))?"calc(90px + env(safe-area-inset-bottom,0px))":"calc(40px + env(safe-area-inset-bottom,0px))",maxWidth:isWide?1400:isDesktop?1100:"none",margin:isDesktop?"0 auto":"0",width:"100%",overflow:(!isDesktop&&tab==="chat")?"hidden":undefined}}>
 
         {/* ── LEADS SHOPIFY (pedidos sin confirmar) ── */}
         {tab==="boutique"&&(role==="admin"||role==="closer")&&(()=>{
@@ -3627,14 +3627,26 @@ function AppInner() {
                                 🕐 {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
                               </span>}
                             </div>
-                            <div style={{fontSize:12,marginTop:3,display:"flex",alignItems:"center",gap:5}}>
-                              <span style={{color:G.gray}}>📦 {o.product}</span>
-                              {isMatched||catalogMatch
-                                ? <span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
-                                : isAutoCreated
-                                  ? <span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté — Ajoute le coût</span>
-                                  : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
-                              }
+                            <div style={{fontSize:12,marginTop:3,display:"flex",flexDirection:"column",gap:3}}>
+                              {(o.product||"").split(" + ").map((part,pi)=>{
+                                const m = part.match(/^(.+?)\s+x(\d+)$/);
+                                const name = m ? m[1] : part;
+                                const qty  = m ? parseInt(m[2]) : 1;
+                                return (
+                                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+                                    <span style={{color:G.gray}}>📦 {name}</span>
+                                    <span style={{background: qty>1?"#FEF3C7":"#F3F4F6",color:qty>1?"#92400E":G.gray,borderRadius:6,padding:"1px 8px",fontSize:11,fontWeight:800,flexShrink:0}}>
+                                      × {qty}
+                                    </span>
+                                    {pi===0&&(isMatched||catalogMatch
+                                      ? <span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
+                                      : isAutoCreated
+                                        ? <span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté</span>
+                                        : <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
+                                    )}
+                                  </div>
+                                );
+                              })}
                             </div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📍 {o.address||"—"}</div>
                             <div style={{fontSize:12,color:G.gray,marginTop:1}}>📱 {o.phone||"—"}</div>
@@ -5429,7 +5441,7 @@ function AppInner() {
                 const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
                 if(atBottom) setChatShowNew(false);
               }}
-              style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
+              style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",overscrollBehavior:"contain",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
               {chatLoading&&chat.length===0&&(
                 <div style={{display:"flex",flexDirection:"column",gap:10,padding:"12px 4px"}}>
                   {[1,2,3,4].map((i)=>(
@@ -6646,14 +6658,27 @@ function AppInner() {
                   <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{o.address}</span>
                 </div>
               </div>
-              <div style={{background:G.greenLight,borderRadius:12,padding:"14px 16px",marginBottom:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div>
-                  <div style={{fontSize:11,color:G.gray}}>📦 Produit</div>
-                  <div style={{fontSize:15,fontWeight:700,color:G.dark,marginTop:2}}>{o.product}</div>
-                </div>
-                <div style={{textAlign:"right"}}>
-                  <div style={{fontSize:11,color:G.gray}}>Montant COD</div>
-                  <div style={{fontSize:24,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+              <div style={{background:G.greenLight,borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:11,color:G.gray,marginBottom:6}}>📦 Produit{(o.product||"").includes(" + ")?"s":""}</div>
+                    {(o.product||"").split(" + ").map((part,pi)=>{
+                      const m=part.match(/^(.+?)\s+x(\d+)$/);
+                      const name=m?m[1]:part; const qty=m?parseInt(m[2]):1;
+                      return (
+                        <div key={pi} style={{display:"flex",alignItems:"center",gap:8,marginBottom:pi<(o.product||"").split(" + ").length-1?6:0}}>
+                          <span style={{fontSize:14,fontWeight:700,color:G.dark,flex:1}}>{name}</span>
+                          <span style={{background:qty>1?"#F0A500":G.green,color:"#fff",borderRadius:8,padding:"3px 10px",fontSize:13,fontWeight:800,flexShrink:0}}>
+                            × {qty}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{textAlign:"right",flexShrink:0}}>
+                    <div style={{fontSize:11,color:G.gray}}>Montant COD</div>
+                    <div style={{fontSize:22,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+                  </div>
                 </div>
               </div>
               <div style={{display:"flex",gap:8,marginBottom:14}}>

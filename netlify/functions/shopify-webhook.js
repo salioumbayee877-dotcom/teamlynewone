@@ -50,7 +50,7 @@ exports.handler = async (event) => {
 
     // Build clean product name from Shopify line items (without size/variant details)
     const lineItems     = order.line_items || [];
-    const shopifyProduct = lineItems.map(i=>`${i.title||i.name}${i.quantity>1?` x${i.quantity}`:""}`).join(" + ") || "Produit Shopify";
+    const shopifyProduct = lineItems.map(i=>`${i.title||i.name} x${i.quantity||1}`).join(" + ") || "Produit Shopify";
     const unitPrice      = lineItems.length > 0 ? parseFloat(lineItems[0].price || 0) : parseFloat(order.total_price || 0);
     const price          = parseFloat(order.total_price || 0);
     const shopifyRef     = `#${order.order_number || order.id}`;

@@ -49,7 +49,7 @@ exports.handler = async (event) => {
     const address    = addr ? [addr.address_1, addr.city, addr.country].filter(Boolean).join(", ") : "";
 
     const lineItems    = order.line_items || [];
-    const rawProduct   = lineItems.map(i=>`${i.name}${i.quantity>1?` x${i.quantity}`:""}`).join(" + ") || "Produit WooCommerce";
+    const rawProduct   = lineItems.map(i=>`${i.name} x${i.quantity||1}`).join(" + ") || "Produit WooCommerce";
     const unitPrice    = lineItems.length > 0 ? parseFloat(lineItems[0].price || lineItems[0].total || 0) : parseFloat(order.total || 0);
     const price        = parseFloat(order.total || 0);
     const ref          = `#${order.number || order.id}`;
