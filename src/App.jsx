@@ -5401,22 +5401,13 @@ function AppInner() {
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
-          const chatH = "calc(100vh - 54px)";
-          const chatMargin = isDesktop ? "-24px -24px -24px" : "0px";
-
-          const chatContainerStyle = isDesktop ? {
-            display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative"
-          } : {
-            position:"fixed",
-            top:"calc(58px + env(safe-area-inset-top, 0px))",
-            bottom:"calc(54px + env(safe-area-inset-bottom, 0px))",
-            left:0, right:0,
-            display:"flex", flexDirection:"column",
-            zIndex:50
-          };
+          const chatH = isDesktop
+            ? "calc(100vh - 54px)"
+            : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
+          const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
 
           return (
-          <div style={chatContainerStyle}>
+          <div style={{display:"flex",flexDirection:"column",margin:chatMargin,height:chatH,position:"relative",overflow:"hidden"}}>
 
             {/* Header groupe style WhatsApp */}
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
@@ -5438,7 +5429,7 @@ function AppInner() {
                 const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
                 if(atBottom) setChatShowNew(false);
               }}
-              style={{flex:1,overflowY:"auto",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
+              style={{flex:1,minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",padding:"10px 12px",display:"flex",flexDirection:"column",gap:1,background:"#ECE5DD"}}>
               {chatLoading&&chat.length===0&&(
                 <div style={{display:"flex",flexDirection:"column",gap:10,padding:"12px 4px"}}>
                   {[1,2,3,4].map((i)=>(
@@ -6575,32 +6566,75 @@ function AppInner() {
       {orderDetail&&(()=>{
         const o=orderDetail;
         const st=STATUS[o.status]||STATUS.pendiente;
-        const steps=["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
-        const icons=["✅","🏍️","📦","🚀","📍","✓"];
-        const cur=steps.indexOf(o.status);
-        const isEntregado=o.status==="entregado";
+        const isRejected=["rechazado","no_contesta","reprogramar"].includes(o.status);
+        const PSTEPS=[
+          {key:"pendiente",       label:"En attente",        sub:"Commande reçue",                  icon:"🕐", color:"#F0A500"},
+          {key:"confirmado",      label:"Confirmé",          sub:"Client a confirmé",                icon:"✅", color:"#2E8B57"},
+          {key:"livreur_en_route",label:"Livreur en route",  sub:"Se dirige vers le dépôt",          icon:"🏍️", color:"#7C3AED"},
+          {key:"colis_pris",      label:"Colis en main",     sub:"Livreur a récupéré le colis",      icon:"📦", color:"#2563EB"},
+          {key:"en_camino",       label:"En livraison",      sub:"En route vers le client",          icon:"🚀", color:"#0284C7"},
+          {key:"chez_client",     label:"Chez le client",    sub:"Livreur est à destination",        icon:"📍", color:"#D97706"},
+          {key:"entregado",       label:"Livré & Encaissé",  sub:"Paiement COD reçu ✓",             icon:"💰", color:"#1A5C38"},
+        ];
+        const activeIdx=PSTEPS.findIndex(s=>s.key===o.status);
         return (
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:400,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}} onClick={()=>setOrderDetail(null)}>
-            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?24:"24px 24px 0 0",padding:24,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?24:"24px 24px 0 0",padding:24,width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto"}}>
               <div style={{width:40,height:4,background:G.grayLight,borderRadius:2,margin:"0 auto 20px"}}/>
-              <div style={{background:st.bg,borderRadius:14,padding:16,textAlign:"center",marginBottom:16,border:`2px solid ${st.color}`}}>
-                <div style={{fontSize:32,marginBottom:4}}>{isEntregado?"✅":o.status==="rechazado"?"❌":o.status==="en_camino"?"🚀":o.status==="chez_client"?"📍":"📦"}</div>
-                <div style={{fontSize:18,fontWeight:800,color:st.color}}>{st.label}</div>
-                {isEntregado&&<div style={{fontSize:13,color:G.green,marginTop:4,fontWeight:600}}>💵 Cash encaissé</div>}
+
+              {/* Status badge */}
+              <div style={{background:st.bg,borderRadius:14,padding:"14px 16px",textAlign:"center",marginBottom:20,border:`2px solid ${st.color}`}}>
+                <div style={{fontSize:28,marginBottom:4}}>{isRejected?"❌":PSTEPS[Math.max(0,activeIdx)]?.icon||"📦"}</div>
+                <div style={{fontSize:17,fontWeight:800,color:st.color}}>{st.label}</div>
+                {o.status==="entregado"&&<div style={{fontSize:12,color:G.green,marginTop:3,fontWeight:600}}>💵 {Number(o.price).toLocaleString("fr-FR")} F encaissé</div>}
               </div>
-              {cur>=0&&(
-                <div style={{display:"flex",alignItems:"center",marginBottom:16}}>
-                  {icons.map((ico,i)=>{
-                    const done=isEntregado||i<cur; const active=!isEntregado&&i===cur;
+
+              {/* Progress Tracker — vertical stepper */}
+              {!isRejected&&(
+                <div style={{marginBottom:20,padding:"16px",background:"#F8FAFC",borderRadius:16,border:"1px solid #E2E8F0"}}>
+                  <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:14,textTransform:"uppercase",letterSpacing:0.5}}>📊 Suivi de commande</div>
+                  {PSTEPS.map((step,i)=>{
+                    const done = activeIdx>i || o.status==="entregado";
+                    const active = activeIdx===i && o.status!=="entregado";
+                    const isLast = i===PSTEPS.length-1;
                     return (
-                      <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                        <div style={{width:30,height:30,borderRadius:"50%",background:done?G.green:active?"#F0A500":G.grayLight,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?14:11,color:done||active?G.white:"#9CA3AF",flexShrink:0,fontWeight:800,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`}}>
-                          {i===5?"✓":ico}
+                      <div key={step.key} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                        {/* Left: circle + line */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0}}>
+                          <div style={{
+                            width:32,height:32,borderRadius:"50%",
+                            background:done?G.green:active?step.color:"#E5E7EB",
+                            display:"flex",alignItems:"center",justifyContent:"center",
+                            fontSize:done?13:15,
+                            border:`2px solid ${done?"#6EE7B7":active?step.color:"#D1D5DB"}`,
+                            boxShadow:active?`0 0 0 4px ${step.color}22`:"none",
+                            transition:"all 0.3s",
+                            flexShrink:0,
+                          }}>
+                            {done ? <span style={{color:"#fff",fontWeight:800,fontSize:13}}>✓</span>
+                                  : <span style={{fontSize:14}}>{step.icon}</span>}
+                          </div>
+                          {!isLast&&<div style={{width:2,flex:1,minHeight:20,background:done?"#6EE7B7":"#E5E7EB",marginTop:2,marginBottom:2,borderRadius:1}}/>}
                         </div>
-                        {i<5&&<div style={{flex:1,height:3,background:done?G.green:G.grayLight,borderRadius:2}}/>}
+                        {/* Right: text */}
+                        <div style={{paddingBottom:isLast?0:16,paddingTop:4,flex:1}}>
+                          <div style={{fontSize:13,fontWeight:active||done?700:500,color:done?G.green:active?step.color:"#9CA3AF"}}>
+                            {step.label}
+                            {active&&<span style={{marginLeft:6,background:step.color,color:"#fff",borderRadius:10,padding:"1px 8px",fontSize:10,fontWeight:700}}>EN COURS</span>}
+                          </div>
+                          <div style={{fontSize:11,color:done?"#6EE7B7":active?"#9CA3AF":"#C4B5A0",marginTop:1}}>{step.sub}</div>
+                        </div>
                       </div>
                     );
                   })}
+                </div>
+              )}
+
+              {/* Rejected state */}
+              {isRejected&&(
+                <div style={{background:"#FEF2F2",borderRadius:14,padding:14,marginBottom:16,border:"1px solid #FECACA",textAlign:"center"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:G.red,marginBottom:4}}>{STATUS[o.status]?.label||o.status}</div>
+                  <div style={{fontSize:11,color:"#EF4444"}}>Relancer le client ou clôturer la commande</div>
                 </div>
               )}
               <div style={{marginBottom:14}}>
@@ -6986,7 +7020,7 @@ function AppInner() {
                     <div style={{marginTop:6,padding:"10px 12px",background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0",textAlign:"left"}}>
                       <div style={{fontSize:12,color:"#166534",fontWeight:700,marginBottom:4}}>💬 Besoin d'aide ?</div>
                       <div style={{fontSize:11,color:"#166534",marginBottom:8}}>Contactez-nous sur WhatsApp</div>
-                      <a href="https://wa.me/2216673318387?text=Bonjour%2C%20j%27ai%20besoin%20d%27aide%20avec%20Teamly" target="_blank" rel="noreferrer"
+                      <a href="https://wa.me/34673318387?text=Bonjour%2C%20j%27ai%20besoin%20d%27aide%20avec%20Teamly" target="_blank" rel="noreferrer"
                         style={{display:"flex",alignItems:"center",gap:8,background:"#25D366",color:"#FFF",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:700,textDecoration:"none",justifyContent:"center"}}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.553 4.116 1.52 5.845L0 24l6.335-1.489A11.942 11.942 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.651-.502-5.178-1.381l-.371-.22-3.862.908.951-3.768-.241-.388A9.942 9.942 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
                         Contacter sur WhatsApp
