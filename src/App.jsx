@@ -145,6 +145,19 @@ const PAYMENT_METHODS = [
 ];
 const _nz = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const detectZone = addr => WA_ZONES.find(z => z.kw.some(k => _nz(addr).includes(k))) || WA_ZONES[0];
+
+// ── Zone de livraison configurable ─────────────────────────────────────────
+const _normCity = s => (s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+const detectDeliveryZone = (city, main, others) => {
+  const t = _normCity(city);
+  if (!t) return {type:"unknown"};
+  if (main?.cities?.some(c => _normCity(c) === t)) return {type:"main", name:main.name, price:main.price};
+  for (const r of (others||[])) {
+    if (r.cities?.some(c => _normCity(c) === t)) return {type:"other", name:r.name, price:r.price};
+  }
+  return {type:"unknown"};
+};
+const fmtCity = s => s.trim().replace(/\b\w/g, c => c.toUpperCase());
 const parseProd  = str  => (str||"").split(" + ").map(p => { const m = p.match(/^(.+?)\s+[x×](\d+)/i); return {name:(m?m[1]:p).trim(), qty:m?parseInt(m[2]):1}; });
 const totalItems = str  => parseProd(str).reduce((s,p) => s+p.qty, 0);
 
@@ -579,7 +592,7 @@ function MapView({positions, role, isDesktop=false, destination=null, livreurPos
   );
 }
 
-function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly"}) {
+function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly", mainRegion=null, otherRegions=[]}) {
   const [showWAPreview, setShowWAPreview] = useState(false);
   const prod = products.find(p=>p.name===newOrder.product);
   const qty  = parseInt(newOrder.qty||1);
@@ -587,8 +600,9 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
   const basePrice = prod ? prod.price * qty : 0;
   const bundleSelected = prod?.bundles?.find(b=>String(b.id)===newOrder.bundle);
   const finalPrice = bundleSelected ? bundleSelected.prixVente : (disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice);
-  const fraisZone  = newOrder.fraisLiv || prod?.fraisLiv || FRAIS_LIV;
+  const fraisZone  = parseInt(newOrder.deliveryFee||0) || newOrder.fraisLiv || prod?.fraisLiv || FRAIS_LIV;
   const margeTotal = prod ? finalPrice - prod.cost*qty - fraisZone : 0;
+  const zoneInfo   = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions);
   const clientSuggestions = newOrder.phone?.length>=3
     ? [...new Map(orders.filter(o=>o.phone?.includes(newOrder.phone)||o.client?.toLowerCase().includes((newOrder.phone||"").toLowerCase())).map(o=>[o.phone,o])).values()].slice(0,3)
     : [];
@@ -623,12 +637,42 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
         </div>
         <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse</div>
-          <input type="text" value={newOrder.address||""} onChange={e=>{
-            const val=e.target.value;
-            const z=detectZone(val);
-            setNewOrder(p=>({...p,address:val,zone:z.key,fraisLiv:z.price}));
-          }} placeholder="Médina, Dakar"
+          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, Dakar"
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+
+        {/* ── Ville + détection de zone ── */}
+        <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
+          <input type="text" value={newOrder.city||""} onChange={e=>{
+            const city = e.target.value;
+            const z = detectDeliveryZone(city, mainRegion, otherRegions);
+            const autoFee = z.type!=="unknown" ? String(z.price) : "";
+            setNewOrder(p=>({
+              ...p, city,
+              deliveryZoneType: z.type,
+              deliveryZoneName: z.name||"",
+              deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
+            }));
+          }} placeholder="Dakar, Thiès, Saint-Louis..."
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {newOrder.city && (
+            <div style={{marginTop:5}}>
+              {zoneInfo.type==="main"  && <span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 Région principale — {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="other" && <span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région — {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="unknown"&& <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville non reconnue — saisir le prix manuellement</span>}
+            </div>
+          )}
+        </div>
+
+        {/* ── Frais de livraison (auto-rempli, modifiable) ── */}
+        <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Frais de livraison (CFA)</div>
+          <input type="number" min="0" value={newOrder.deliveryFee||""} onChange={e=>{
+            setNewOrder(p=>({...p,deliveryFee:e.target.value,deliveryFeeOverridden:true}));
+          }} placeholder="ex: 1500"
+            style={{width:"100%",border:`1.5px solid ${newOrder.deliveryFeeOverridden?"#F59E0B":G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          {newOrder.deliveryFeeOverridden && <div style={{fontSize:10,color:"#92400E",marginTop:3}}>✏️ Modifié manuellement</div>}
         </div>
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Produit *</div>
@@ -904,7 +948,12 @@ function AppInner() {
   const [showAddBundle,setShowAddBundle] = useState(false);
   const [noteModal,setNoteModal] = useState(null);
   const [noteText,setNoteText]   = useState("");
-  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
+  const [mainRegion,   setMainRegion]   = useState(null);
+  const [otherRegions, setOtherRegions] = useState([]);
+  const [showZoneConfig, setShowZoneConfig] = useState(false);
+  const [zoneMainEdit,  setZoneMainEdit]  = useState(null);
+  const [zoneOtherEdit, setZoneOtherEdit] = useState(null);
+  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
@@ -1512,7 +1561,7 @@ function AppInner() {
   useEffect(()=>{
     if(!sbReady||!orgId) return;
 
-    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id}));
+    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden}));
     const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,fraisLivExtra:p.frais_liv_extra,stockInitial:p.stock_initial}));
     const mapMsgs   = (msgs) => msgs.map(m=>{
       const t=m.text||"";
@@ -1541,11 +1590,15 @@ function AppInner() {
     const loadMain = async() => {
       const reqId = ++mainReqId;
       try {
-        const [ords, prods, mems] = await Promise.all([
+        const [ords, prods, mems, zMain, zOthers] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)&select=id,nom,phone,email,role,lat,lng,city`),
+          sbFetch(`delivery_main_region?org_id=eq.${orgId}&limit=1`).catch(()=>null),
+          sbFetch(`delivery_other_regions?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
         ]);
+        if (zMain?.[0]) setMainRegion(zMain[0]);
+        if (Array.isArray(zOthers)) setOtherRegions(zOthers);
         if(reqId !== mainReqId) return; // discard stale parallel response
         clearTimeout(readyFallback);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
@@ -1888,16 +1941,16 @@ function AppInner() {
     const tempId = "tmp_" + Date.now();
     const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
     const deliveryStatus = newOrder.deliveryStatus;
-    const _zone = WA_ZONES.find(z=>z.key===(newOrder.zone||"sn_dakar"))||WA_ZONES[0];
-    const _pmLabel = PAYMENT_METHODS.find(p=>p.key===(newOrder.paymentMethod||"cod"))?.label||"Espèces (COD)";
-    const _noteExtra = [
-      _zone.prepaid ? "⚠️ Prépaiement requis" : "",
-      newOrder.paymentMethod!=="cod" ? `PM: ${_pmLabel}` : "",
-    ].filter(Boolean).join(" · ");
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:_noteExtra,isBundle:!!bund,paymentMethod:newOrder.paymentMethod||"cod",zone:_zone.key};
+    // Zone de livraison : depuis la détection dynamique ou fallback WA_ZONES
+    const _dynZone = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions);
+    const _deliveryFee = parseInt(newOrder.deliveryFee||0) || (_dynZone.price||FRAIS_LIV);
+    const _zoneType = _dynZone.type;
+    const _zoneName = _dynZone.name || newOrder.deliveryZoneName || "";
+    const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden};
     setOrders(o=>[...o,order]);
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_zone.price})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,delivery_zone_type:_zoneType,delivery_zone_name:_zoneName,delivery_fee:_deliveryFee,delivery_fee_overridden:_zoneOverridden})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
@@ -1932,7 +1985,7 @@ function AppInner() {
       setShowWA(true);
     }
 
-    setNewOrder({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
+    setNewOrder({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
     setShowAdd(false);
   };
 
@@ -5803,8 +5856,190 @@ function AppInner() {
         products={products} orders={orders} newOrder={newOrder} setNewOrder={setNewOrder}
         addOrder={addOrder} onClose={()=>setShowAdd(false)} G={G} fmt={fmt} FRAIS_LIV={FRAIS_LIV}
         livreurs={teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom).filter(Boolean)} waTemplate={waTemplate} setWaTemplate={setWaTemplate}
-        boutique={settings.boutique}
+        boutique={settings.boutique} mainRegion={mainRegion} otherRegions={otherRegions}
       />}
+
+      {/* ── MODAL: Zones de livraison ── */}
+      {showZoneConfig&&role==="admin"&&(()=>{
+        const allCities = [...(mainRegion?.cities||[]), ...(otherRegions.flatMap(r=>r.cities||[]))];
+        const dupCheck = (city, excludeRegionId=null) => {
+          const t = _normCity(city);
+          if (mainRegion && excludeRegionId!==mainRegion.id && mainRegion.cities?.some(c=>_normCity(c)===t)) return mainRegion.name;
+          for(const r of otherRegions) {
+            if(r.id===excludeRegionId) continue;
+            if(r.cities?.some(c=>_normCity(c)===t)) return r.name;
+          }
+          return null;
+        };
+        const saveMainRegion = async() => {
+          if(!zoneMainEdit.name.trim()){addToast("Nom de la région obligatoire","⚠️","#F59E0B");return;}
+          if(!zoneMainEdit.price||parseInt(zoneMainEdit.price)<=0){addToast("Prix invalide (> 0)","⚠️","#F59E0B");return;}
+          if(!zoneMainEdit.cities?.length){addToast("Au moins une ville obligatoire","⚠️","#F59E0B");return;}
+          const payload = {org_id:orgId, name:zoneMainEdit.name.trim(), price:parseInt(zoneMainEdit.price), cities:zoneMainEdit.cities};
+          try{
+            let saved;
+            if(mainRegion?.id){ saved = await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",payload); setMainRegion(r=>({...r,...payload})); }
+            else { const res = await sbFetch("delivery_main_region","POST",{...payload,Prefer:"return=representation"}); saved=res; setMainRegion(Array.isArray(res)?res[0]:res); }
+            addToast(`${payload.name} enregistré ✅`,"✅",G.green);
+            setZoneMainEdit(null);
+          }catch(e){addToast("Erreur sauvegarde","❌",G.red);}
+        };
+        const saveOtherRegion = async() => {
+          if(!zoneOtherEdit.name.trim()){addToast("Nom de la région obligatoire","⚠️","#F59E0B");return;}
+          if(!zoneOtherEdit.price||parseInt(zoneOtherEdit.price)<=0){addToast("Prix invalide (> 0)","⚠️","#F59E0B");return;}
+          if(!zoneOtherEdit.cities?.length){addToast("Au moins une ville obligatoire","⚠️","#F59E0B");return;}
+          const payload = {org_id:orgId, name:zoneOtherEdit.name.trim(), price:parseInt(zoneOtherEdit.price), cities:zoneOtherEdit.cities};
+          try{
+            if(zoneOtherEdit.id){
+              await sbFetch(`delivery_other_regions?id=eq.${zoneOtherEdit.id}`,"PATCH",payload);
+              setOtherRegions(prev=>prev.map(r=>r.id===zoneOtherEdit.id?{...r,...payload}:r));
+            } else {
+              const res = await sbFetch("delivery_other_regions","POST",{...payload});
+              const saved = Array.isArray(res)?res[0]:res;
+              if(saved?.id) setOtherRegions(prev=>[...prev,{...payload,id:saved.id}]);
+            }
+            addToast(`${payload.name} enregistré ✅`,"✅",G.green);
+            setZoneOtherEdit(null);
+          }catch(e){addToast("Erreur sauvegarde","❌",G.red);}
+        };
+        const addCityToEdit = (editObj, setEdit, isMain=false) => {
+          const city = fmtCity(editObj.cityInput||"");
+          if(!city){return;}
+          const dup = dupCheck(city, isMain?mainRegion?.id:editObj.id);
+          if(dup){addToast(`"${city}" est déjà dans la région ${dup}`,"⚠️","#F59E0B");return;}
+          if(editObj.cities?.some(c=>_normCity(c)===_normCity(city))){addToast("Ville déjà dans cette région","⚠️","#F59E0B");return;}
+          setEdit(p=>({...p,cities:[...(p.cities||[]),city],cityInput:""}));
+        };
+        const TagInput = ({edit, setEdit, isMain=false}) => (
+          <div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
+              {(edit.cities||[]).map((c,i)=>(
+                <span key={i} style={{background:"#E0F2FE",color:"#0369A1",borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
+                  {c}
+                  <button onClick={()=>setEdit(p=>({...p,cities:p.cities.filter((_,j)=>j!==i)}))} style={{background:"none",border:"none",cursor:"pointer",color:"#0369A1",fontSize:14,padding:0,lineHeight:1}}>×</button>
+                </span>
+              ))}
+              {!(edit.cities?.length) && <span style={{fontSize:11,color:"#9CA3AF",padding:"3px 0"}}>Aucune ville ajoutée</span>}
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <input type="text" value={edit.cityInput||""} placeholder="Ajouter une ville…"
+                onChange={e=>setEdit(p=>({...p,cityInput:e.target.value}))}
+                onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();addCityToEdit(edit,setEdit,isMain);}}}
+                style={{flex:1,border:"1.5px solid #BFDBFE",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              <button onClick={()=>addCityToEdit(edit,setEdit,isMain)}
+                style={{background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>+ Ajouter</button>
+            </div>
+          </div>
+        );
+        return (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+          <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,fontSize:17,color:G.green,marginBottom:4}}>🗺️ Zones de livraison</div>
+            <div style={{fontSize:12,color:G.gray,marginBottom:18}}>Configurez vos zones pour que les frais soient appliqués automatiquement à la création d'une commande.</div>
+
+            {/* ── Région principale ── */}
+            <div style={{background:"#F0FDF4",borderRadius:14,padding:14,marginBottom:14,border:"1.5px solid #86EFAC"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#166534",marginBottom:10}}>🏍️ Région principale de vente</div>
+              {zoneMainEdit ? (
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{display:"flex",gap:6}}>
+                    <input type="text" value={zoneMainEdit.name} onChange={e=>setZoneMainEdit(p=>({...p,name:e.target.value}))} placeholder="ex: Dakar"
+                      style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                    <input type="number" value={zoneMainEdit.price} onChange={e=>setZoneMainEdit(p=>({...p,price:e.target.value}))} placeholder="1500"
+                      style={{width:90,border:"1.5px solid #86EFAC",borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                    <span style={{lineHeight:"38px",fontSize:11,color:G.gray,flexShrink:0}}>FCFA</span>
+                  </div>
+                  <TagInput edit={zoneMainEdit} setEdit={setZoneMainEdit} isMain={true}/>
+                  <div style={{display:"flex",gap:8,marginTop:4}}>
+                    <button onClick={saveMainRegion} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>✅ Enregistrer</button>
+                    <button onClick={()=>setZoneMainEdit(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 14px",fontSize:13,cursor:"pointer"}}>Annuler</button>
+                  </div>
+                </div>
+              ) : mainRegion ? (
+                <div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <div>
+                      <span style={{fontWeight:700,fontSize:14,color:G.dark}}>{mainRegion.name}</span>
+                      <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} F</span>
+                    </div>
+                    <button onClick={()=>setZoneMainEdit({...mainRegion,cityInput:""})}
+                      style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Modifier</button>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                    {mainRegion.cities?.map((c,i)=><span key={i} style={{background:"#DCFCE7",color:"#166534",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:600}}>{c}</span>)}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{fontSize:12,color:G.gray,marginBottom:8}}>Aucune région principale configurée.</div>
+                  <button onClick={()=>setZoneMainEdit({name:"",price:"",cities:[],cityInput:""})}
+                    style={{background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"9px 18px",fontWeight:700,fontSize:13,cursor:"pointer"}}>+ Configurer</button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Autres régions ── */}
+            <div style={{background:"#EFF6FF",borderRadius:14,padding:14,marginBottom:14,border:"1.5px solid #BFDBFE"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:700,color:"#1E40AF"}}>🌍 Autres régions</div>
+                {!zoneOtherEdit&&<button onClick={()=>setZoneOtherEdit({name:"",price:"",cities:[],cityInput:""})}
+                  style={{background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>+ Ajouter</button>}
+              </div>
+
+              {/* Formulaire ajout/édition */}
+              {zoneOtherEdit&&(
+                <div style={{background:"#DBEAFE",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #93C5FD"}}>
+                  <div style={{fontWeight:700,fontSize:12,color:"#1E40AF",marginBottom:8}}>{zoneOtherEdit.id?"✏️ Modifier":"➕ Nouvelle région"}</div>
+                  <div style={{display:"flex",gap:6,marginBottom:8}}>
+                    <input type="text" value={zoneOtherEdit.name} onChange={e=>setZoneOtherEdit(p=>({...p,name:e.target.value}))} placeholder="ex: Thiès"
+                      style={{flex:1,border:"1.5px solid #93C5FD",borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box",background:"#fff"}}/>
+                    <input type="number" value={zoneOtherEdit.price} onChange={e=>setZoneOtherEdit(p=>({...p,price:e.target.value}))} placeholder="3000"
+                      style={{width:90,border:"1.5px solid #93C5FD",borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box",background:"#fff"}}/>
+                    <span style={{lineHeight:"38px",fontSize:11,color:G.gray,flexShrink:0}}>FCFA</span>
+                  </div>
+                  <TagInput edit={zoneOtherEdit} setEdit={setZoneOtherEdit}/>
+                  <div style={{display:"flex",gap:8,marginTop:8}}>
+                    <button onClick={saveOtherRegion} style={{flex:1,background:"#1E40AF",color:"#fff",border:"none",borderRadius:10,padding:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>✅ Enregistrer</button>
+                    <button onClick={()=>setZoneOtherEdit(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 14px",fontSize:13,cursor:"pointer"}}>Annuler</button>
+                  </div>
+                </div>
+              )}
+
+              {/* Liste des autres régions */}
+              {otherRegions.length===0&&!zoneOtherEdit&&<div style={{fontSize:12,color:G.gray}}>Aucune autre région configurée.</div>}
+              {otherRegions.map(r=>(
+                <div key={r.id} style={{background:"#fff",borderRadius:10,padding:"10px 12px",marginBottom:8,border:"1px solid #BFDBFE"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <div>
+                      <span style={{fontWeight:700,fontSize:13,color:G.dark}}>{r.name}</span>
+                      <span style={{fontSize:13,color:"#1E40AF",fontWeight:700,marginLeft:10}}>{fmt(r.price)} F</span>
+                    </div>
+                    <div style={{display:"flex",gap:5}}>
+                      <button onClick={()=>setZoneOtherEdit({...r,cityInput:""})}
+                        style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️</button>
+                      <button onClick={()=>setConfirmModal({msg:`Supprimer la région "${r.name}" ?`,sub:"Les commandes existantes ne sont pas affectées.",danger:true,onConfirm:async()=>{
+                        await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"DELETE").catch(()=>{});
+                        setOtherRegions(prev=>prev.filter(x=>x.id!==r.id));
+                        addToast(`${r.name} supprimée`,"🗑️",G.gray);
+                      }})}
+                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️</button>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                    {r.cities?.map((c,i)=><span key={i} style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:20,padding:"2px 8px",fontSize:11,fontWeight:600}}>{c}</span>)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={()=>setShowZoneConfig(false)}
+              style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              ✕ Fermer
+            </button>
+          </div>
+        </div>
+        );
+      })()}
 
       {/* ── MODAL: Ajouter produit ── */}
       {showAddProd&&(
@@ -6295,6 +6530,10 @@ function AppInner() {
             }})}
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
               🗑️ Supprimer mon compte
+            </button>
+            <button onClick={()=>{setShowSettings(false);setShowZoneConfig(true);}}
+              style={{width:"100%",background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
+              🗺️ Configurer les zones de livraison
             </button>
             <button onClick={async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
