@@ -148,16 +148,19 @@ const detectZone = addr => WA_ZONES.find(z => z.kw.some(k => _nz(addr).includes(
 
 // ── Zone de livraison configurable ─────────────────────────────────────────
 const _normCity = s => (s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-const detectDeliveryZone = (city, main, others) => {
+const _parseCity = s => { const idx=(s||"").lastIndexOf("|"); return idx===-1?{name:s||"",price:null}:{name:s.slice(0,idx),price:parseInt(s.slice(idx+1))||null}; };
+const detectDeliveryZone = (city, mainZone, others, defaultPrice=3500) => {
   const t = _normCity(city);
-  if (!t) return {type:"unknown"};
-  if (main?.cities?.some(c => _normCity(c) === t)) return {type:"main", name:main.name, price:main.price};
-  for (const r of (others||[])) {
-    if (r.cities?.some(c => _normCity(c) === t)) return {type:"other", name:r.name, price:r.price};
+  if(!t) return {type:"unknown",price:defaultPrice};
+  if(mainZone?.cities?.length) { for(const cs of mainZone.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"main",name:mainZone.name,cityName:name,price:price??mainZone.price??defaultPrice}; } }
+  for(const r of (others||[])) {
+    if(_normCity(r.name)===t) return {type:"other",name:r.name,cityName:r.name,price:r.price??defaultPrice};
+    if(r.cities?.length) { for(const cs of r.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"other",name:r.name,cityName:name,price:price??r.price??defaultPrice}; } }
   }
-  return {type:"unknown"};
+  return {type:"unknown",price:defaultPrice};
 };
 const fmtCity = s => s.trim().replace(/\b\w/g, c => c.toUpperCase());
+const detectCountryFromPhone = phone => { const n=(phone||"").replace(/\s+/g,"").replace(/^\+/,""); if(n.startsWith("221"))return{code:"SN",flag:"🇸🇳",name:"Sénégal"}; if(n.startsWith("223"))return{code:"ML",flag:"🇲🇱",name:"Mali"}; if(n.startsWith("225"))return{code:"CI",flag:"🇨🇮",name:"Côte d'Ivoire"}; if(n.startsWith("228"))return{code:"TG",flag:"🇹🇬",name:"Togo"}; if(n.startsWith("226"))return{code:"BF",flag:"🇧🇫",name:"Burkina Faso"}; if(n.startsWith("229"))return{code:"BJ",flag:"🇧🇯",name:"Bénin"}; return null; };
 const parseProd  = str  => (str||"").split(" + ").map(p => { const m = p.match(/^(.+?)\s+[x×](\d+)/i); return {name:(m?m[1]:p).trim(), qty:m?parseInt(m[2]):1}; });
 const totalItems = str  => parseProd(str).reduce((s,p) => s+p.qty, 0);
 
@@ -227,6 +230,15 @@ const NavIcon = ({name, size=20, color="#fff"}) => {
         <path {...p} d="M16 8h4l3 4.5V20h-7V8z"/>
         <circle {...p} cx="5.5" cy="18.5" r="2"/>
         <circle {...p} cx="18.5" cy="18.5" r="2"/>
+      </svg>
+    ),
+    frais: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <rect {...p} x="1" y="3" width="15" height="13" rx="2"/>
+        <path {...p} d="M16 8h4l3 4.5V20h-7V8z"/>
+        <circle {...p} cx="5.5" cy="18.5" r="2"/>
+        <circle {...p} cx="18.5" cy="18.5" r="2"/>
+        <line {...p} x1="4" y1="9" x2="10" y2="9"/>
       </svg>
     ),
     position: (
@@ -592,7 +604,7 @@ function MapView({positions, role, isDesktop=false, destination=null, livreurPos
   );
 }
 
-function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly", mainRegion=null, otherRegions=[]}) {
+function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly", mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500}) {
   const [showWAPreview, setShowWAPreview] = useState(false);
   const prod = products.find(p=>p.name===newOrder.product);
   const qty  = parseInt(newOrder.qty||1);
@@ -602,7 +614,7 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
   const finalPrice = bundleSelected ? bundleSelected.prixVente : (disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice);
   const fraisZone  = parseInt(newOrder.deliveryFee||0) || newOrder.fraisLiv || prod?.fraisLiv || FRAIS_LIV;
   const margeTotal = prod ? finalPrice - prod.cost*qty - fraisZone : 0;
-  const zoneInfo   = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions);
+  const zoneInfo   = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions, defaultDeliveryPrice);
   const clientSuggestions = newOrder.phone?.length>=3
     ? [...new Map(orders.filter(o=>o.phone?.includes(newOrder.phone)||o.client?.toLowerCase().includes((newOrder.phone||"").toLowerCase())).map(o=>[o.phone,o])).values()].slice(0,3)
     : [];
@@ -646,8 +658,8 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
           <input type="text" value={newOrder.city||""} onChange={e=>{
             const city = e.target.value;
-            const z = detectDeliveryZone(city, mainRegion, otherRegions);
-            const autoFee = z.type!=="unknown" ? String(z.price) : "";
+            const z = detectDeliveryZone(city, mainRegion, otherRegions, defaultDeliveryPrice);
+            const autoFee = z.price ? String(z.price) : "";
             setNewOrder(p=>({
               ...p, city,
               deliveryZoneType: z.type,
@@ -950,9 +962,12 @@ function AppInner() {
   const [noteText,setNoteText]   = useState("");
   const [mainRegion,   setMainRegion]   = useState(null);
   const [otherRegions, setOtherRegions] = useState([]);
-  const [showZoneConfig, setShowZoneConfig] = useState(false);
-  const [zoneMainEdit,  setZoneMainEdit]  = useState(null);
-  const [zoneOtherEdit, setZoneOtherEdit] = useState(null);
+  const [fraisConfigTab,    setFraisConfigTab]    = useState("config");
+  const [fraisTestCity,     setFraisTestCity]     = useState("");
+  const [fraisMainNameEdit, setFraisMainNameEdit] = useState(null);
+  const [fraisNewMain,      setFraisNewMain]      = useState({city:"",price:""});
+  const [fraisNewOther,     setFraisNewOther]     = useState({city:"",price:""});
+  const [fraisEditCity,     setFraisEditCity]     = useState(null);
   const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
@@ -1069,7 +1084,7 @@ function AppInner() {
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [showNotifPanel, setShowNotifPanel]     = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar"});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
@@ -1365,7 +1380,7 @@ function AppInner() {
   useEffect(()=>{
     try {
       const saved = localStorage.getItem("teamly_tab");
-      const validTabs = {admin:["dashboard","boutique","commandes","compta","tracking","clients","chat","equipe","stock"],closer:["dashboard","boutique","commandes","stock","compta","chat","equipe"],livreur:["livraisons","chat","dashboard","equipe","position"]};
+      const validTabs = {admin:["dashboard","boutique","commandes","compta","tracking","clients","chat","equipe","stock","frais"],closer:["dashboard","boutique","commandes","stock","compta","chat","equipe"],livreur:["livraisons","chat","dashboard","equipe","position"]};
       if(saved && role && validTabs[role] && !validTabs[role].includes(saved)){
         setTab(validTabs[role][0]);
       }
@@ -1942,7 +1957,7 @@ function AppInner() {
     const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
     const deliveryStatus = newOrder.deliveryStatus;
     // Zone de livraison : depuis la détection dynamique ou fallback WA_ZONES
-    const _dynZone = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions);
+    const _dynZone = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions, settings.defaultDeliveryPrice||3500);
     const _deliveryFee = parseInt(newOrder.deliveryFee||0) || (_dynZone.price||FRAIS_LIV);
     const _zoneType = _dynZone.type;
     const _zoneName = _dynZone.name || newOrder.deliveryZoneName || "";
@@ -2231,6 +2246,14 @@ function AppInner() {
               </>;
             })()}
           </div>
+          {(o.deliveryFee>0||o.deliveryZoneName)&&(
+            <div style={{marginTop:5,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+              <span style={{background:"#F0F9FF",color:"#0369A1",borderRadius:5,padding:"1px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>
+                🚚 {o.deliveryFee>0?`${fmt(o.deliveryFee)} F`:"—"}{o.deliveryZoneName?` · ${o.deliveryZoneName}`:""}
+              </span>
+              {o.deliveryFeeOverridden&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>✏️ Manuel</span>}
+            </div>
+          )}
           {o.livreur&&(
             <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
               <span style={{background:"rgba(37,99,235,0.12)",color:"#1D4ED8",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
@@ -3374,7 +3397,7 @@ function AppInner() {
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
@@ -3641,7 +3664,7 @@ function AppInner() {
           {!isDesktop&&<TeamlyLogo size={0.85}/>}
           {isDesktop&&<div>
             <div style={{fontWeight:800,fontSize:18,color:G.white,letterSpacing:0.3}}>{
-              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":"Teamly"
+              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":tab==="frais"?"Frais de livraison":"Teamly"
             }</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:1}}>{settings.boutique}</div>
           </div>}
@@ -4980,40 +5003,21 @@ function AppInner() {
               ℹ️ CA, CAMV et frais calculés automatiquement. Saisis uniquement pub et livraisons échouées.
             </div>
 
-            {/* ── Résumé global livraisons par zone ── */}
+            {/* ── Frais de livraison encaissés ── */}
             {(()=>{
-              const allLivres = orders.filter(o=>o.status==="entregado");
-              const byZone = WA_ZONES.map(z=>({
-                zone:z,
-                count:allLivres.filter(o=>detectZone(o.address).key===z.key).length,
-                total:allLivres.filter(o=>detectZone(o.address).key===z.key).reduce((s,o)=>s+(o.fraisLiv||detectZone(o.address).price),0),
-              })).filter(x=>x.count>0);
-              if(byZone.length===0) return null;
-              const hasIntl = byZone.some(x=>x.zone.prepaid);
+              const livrees = orders.filter(o=>o.status==="entregado");
+              const totalFrais = livrees.reduce((s,o)=>s+(o.deliveryFee||0),0);
+              const nFrais = livrees.filter(o=>o.deliveryFee>0).length;
+              if(livrees.length===0) return null;
               return (
-                <div style={{background:G.white,borderRadius:14,padding:14,border:`1.5px solid ${hasIntl?"#FED7AA":"#E2E8F0"}`}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🗺️ Livraisons par zone géographique</div>
-                  {byZone.map(({zone:z,count,total})=>(
-                    <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid #F3F4F6"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:7}}>
-                        <span style={{fontSize:16}}>{z.flag}</span>
-                        <div>
-                          <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{z.label}</div>
-                          <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                            <span style={{fontSize:10,color:G.gray}}>{fmt(z.price)} F/cmd</span>
-                            {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9,fontWeight:700}}>PRÉPAYÉ</span>}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{textAlign:"right"}}>
-                        <div style={{fontSize:13,fontWeight:700,color:z.color}}>{fmt(total)} F</div>
-                        <div style={{fontSize:10,color:G.gray}}>{count} livraison{count>1?"s":""}</div>
-                      </div>
+                <div style={{background:G.white,borderRadius:14,padding:14,border:"1.5px solid #BFDBFE"}}>
+                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🚚 Frais de livraison encaissés</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <div style={{fontSize:22,fontWeight:800,color:"#1E40AF"}}>{fmt(totalFrais)} F</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>{nFrais} commande{nFrais>1?"s":""} avec frais · sur {livrees.length} livrée{livrees.length>1?"s":""}</div>
                     </div>
-                  ))}
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8,paddingTop:8,borderTop:"2px solid #E2E8F0"}}>
-                    <span style={{fontSize:12,fontWeight:700,color:G.dark}}>Total frais livraison</span>
-                    <span style={{fontSize:14,fontWeight:800,color:G.dark}}>{fmt(byZone.reduce((s,x)=>s+x.total,0))} F</span>
+                    <button onClick={()=>setTab("frais")} style={{background:"#EFF6FF",color:"#1E40AF",border:"1px solid #BFDBFE",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>⚙️ Configurer</button>
                   </div>
                 </div>
               );
@@ -5849,6 +5853,207 @@ function AppInner() {
           </div>
           );
         })()}
+
+        {/* ── FRAIS DE LIVRAISON ── */}
+        {dataReady&&tab==="frais"&&role==="admin"&&(()=>{
+          const mainCities = (mainRegion?.cities||[]).map(s=>{ const {name,price}=_parseCity(s); return {name,price:price??mainRegion?.price??3500,raw:s}; });
+          const defaultPrice = settings.defaultDeliveryPrice||3500;
+          const allNames = [...mainCities.map(c=>c.name),...otherRegions.map(r=>r.name)];
+
+          const seedData = async() => {
+            const SEED = ["Plateau|1500","Almadies|1500","Mermoz|1500","Ouakam|1500","Yoff|2000","Pikine|2000","Guédiawaye|2000","Parcelles Assainies|2000","Rufisque|2500"];
+            const SEED_OTHER = [{name:"Thiès",price:3000},{name:"Mbour",price:3000},{name:"Saint-Louis",price:3500},{name:"Touba",price:3500},{name:"Kaolack",price:3500},{name:"Ziguinchor",price:4000},{name:"Tambacounda",price:4000}];
+            if(mainRegion?.id){ await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{name:"Dakar",price:1500,cities:SEED}).catch(()=>{}); setMainRegion(r=>({...r,name:"Dakar",price:1500,cities:SEED})); }
+            else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:"Dakar",price:1500,cities:SEED}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setMainRegion(s); }
+            for(const c of SEED_OTHER){ const res=await sbFetch("delivery_other_regions","POST",{org_id:orgId,name:c.name,price:c.price,cities:[c.name]}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setOtherRegions(prev=>[...prev,s]); }
+            addToast("Données Sénégal ajoutées ✅","✅",G.green);
+          };
+
+          return (
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              {/* Sub-tabs */}
+              <div style={{display:"flex",gap:0,background:"#F3F4F6",borderRadius:12,padding:3}}>
+                {[["config","⚙️ Configuration"],["test","🧪 Test commande"]].map(([k,l])=>(
+                  <button key={k} onClick={()=>setFraisConfigTab(k)} style={{flex:1,background:fraisConfigTab===k?"#fff":"transparent",border:"none",borderRadius:10,padding:"8px 0",fontSize:12,fontWeight:700,color:fraisConfigTab===k?G.dark:G.gray,cursor:"pointer",transition:"background 0.15s"}}>{l}</button>
+                ))}
+              </div>
+
+              {fraisConfigTab==="config"&&(
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {!mainRegion?.cities?.length&&!otherRegions.length&&(
+                    <div style={{background:"#FFFBEB",border:"1.5px solid #FCD34D",borderRadius:14,padding:14}}>
+                      <div style={{fontWeight:700,fontSize:13,color:"#92400E",marginBottom:4}}>🌍 Aucune zone configurée</div>
+                      <div style={{fontSize:12,color:"#92400E",marginBottom:10}}>Pré-remplir avec les villes et tarifs du Sénégal ?</div>
+                      <button onClick={seedData} style={{background:"#F59E0B",color:"#fff",border:"none",borderRadius:8,padding:"8px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>🌍 Pré-remplir données Sénégal</button>
+                    </div>
+                  )}
+
+                  {/* Card A — Principale */}
+                  <div style={{background:"#F0FDF4",borderRadius:14,padding:14,border:"1.5px solid #86EFAC"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                      {fraisMainNameEdit!==null
+                        ? <div style={{display:"flex",gap:6,flex:1}}>
+                            <input type="text" value={fraisMainNameEdit} onChange={e=>setFraisMainNameEdit(e.target.value)}
+                              style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:8,padding:"6px 10px",fontSize:14,fontWeight:700,outline:"none"}}/>
+                            <button onClick={async()=>{
+                              const name=(fraisMainNameEdit||"").trim();
+                              if(!name){setFraisMainNameEdit(null);return;}
+                              if(mainRegion?.id){ await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{name}).catch(()=>{}); setMainRegion(r=>({...r,name})); }
+                              else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name,price:1500,cities:[]}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setMainRegion(s); }
+                              setFraisMainNameEdit(null);
+                            }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"6px 12px",fontWeight:700,cursor:"pointer"}}>✓</button>
+                            <button onClick={()=>setFraisMainNameEdit(null)} style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer"}}>✕</button>
+                          </div>
+                        : <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <div style={{fontSize:14,fontWeight:800,color:"#166534"}}>🏍️ {mainRegion?.name||"Région principale"}</div>
+                            <button onClick={()=>setFraisMainNameEdit(mainRegion?.name||"")} style={{background:"none",border:"none",cursor:"pointer",color:G.gray,fontSize:15,padding:0}}>✏️</button>
+                          </div>
+                      }
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+                      {mainCities.map((c,i)=>(
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:"#fff",borderRadius:8,border:"1px solid #BBF7D0"}}>
+                          {fraisEditCity?.isMain&&fraisEditCity?.idx===i
+                            ? <div style={{display:"flex",gap:5,flex:1}}>
+                                <input type="text" value={fraisEditCity.name} onChange={e=>setFraisEditCity(p=>({...p,name:e.target.value}))}
+                                  style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:7,padding:"5px 8px",fontSize:12,outline:"none"}}/>
+                                <input type="number" min="0" value={fraisEditCity.price} onChange={e=>setFraisEditCity(p=>({...p,price:e.target.value}))}
+                                  style={{width:68,border:"1.5px solid #86EFAC",borderRadius:7,padding:"5px 8px",fontSize:12,outline:"none"}}/>
+                                <button onClick={async()=>{
+                                  const upd=[...mainCities]; upd[i]={name:fmtCity(fraisEditCity.name||""),price:parseInt(fraisEditCity.price)||0};
+                                  const raw=upd.map(x=>`${x.name}|${x.price}`);
+                                  await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:raw}).catch(()=>{});
+                                  setMainRegion(r=>({...r,cities:raw})); setFraisEditCity(null);
+                                }} style={{background:G.green,color:"#fff",border:"none",borderRadius:7,padding:"5px 9px",fontWeight:700,cursor:"pointer"}}>✓</button>
+                                <button onClick={()=>setFraisEditCity(null)} style={{background:"#F3F4F6",border:"none",borderRadius:7,padding:"5px 8px",cursor:"pointer"}}>✕</button>
+                              </div>
+                            : <>
+                                <span style={{fontSize:13,fontWeight:600,color:G.dark}}>{c.name}</span>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <span style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(c.price)} F</span>
+                                  <button onClick={()=>setFraisEditCity({isMain:true,idx:i,name:c.name,price:String(c.price)})} style={{background:"none",border:"none",cursor:"pointer",color:"#6B7280",fontSize:13,padding:0}}>✏️</button>
+                                  <button onClick={async()=>{
+                                    const raw=mainCities.filter((_,j)=>j!==i).map(x=>`${x.name}|${x.price}`);
+                                    await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:raw}).catch(()=>{});
+                                    setMainRegion(r=>({...r,cities:raw}));
+                                  }} style={{background:"none",border:"none",cursor:"pointer",color:G.red,fontSize:13,padding:0}}>🗑️</button>
+                                </div>
+                              </>
+                          }
+                        </div>
+                      ))}
+                      {mainCities.length===0&&<div style={{fontSize:11,color:G.gray,textAlign:"center",padding:"6px 0"}}>Aucune ville configurée</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <input list="frais-main-cities" type="text" value={fraisNewMain.city} onChange={e=>setFraisNewMain(p=>({...p,city:e.target.value}))} placeholder="Ville (ex: Plateau)"
+                        style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none"}}/>
+                      <input type="number" min="0" value={fraisNewMain.price} onChange={e=>setFraisNewMain(p=>({...p,price:e.target.value}))} placeholder="Prix"
+                        style={{width:68,border:"1.5px solid #86EFAC",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none"}}/>
+                      <button onClick={async()=>{
+                        const city=fmtCity(fraisNewMain.city||""); const price=parseInt(fraisNewMain.price)||0;
+                        if(!city||!price){addToast("Ville et prix requis","⚠️","#F59E0B");return;}
+                        if(allNames.some(n=>_normCity(n)===_normCity(city))){addToast("Ville déjà configurée","⚠️","#F59E0B");return;}
+                        const raw=[...(mainRegion?.cities||[]),`${city}|${price}`];
+                        if(mainRegion?.id){ await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:raw}).catch(()=>{}); setMainRegion(r=>({...r,cities:raw})); }
+                        else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:"Dakar",price:1500,cities:raw}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setMainRegion(s); }
+                        setFraisNewMain({city:"",price:""}); addToast(`${city} ajouté ✅`,"✅",G.green);
+                      }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>+</button>
+                    </div>
+                  </div>
+
+                  {/* Card B — Autres régions */}
+                  <div style={{background:"#EFF6FF",borderRadius:14,padding:14,border:"1.5px solid #BFDBFE"}}>
+                    <div style={{fontSize:14,fontWeight:800,color:"#1E40AF",marginBottom:10}}>🌍 Autres régions</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:"#DBEAFE",borderRadius:8,marginBottom:10,border:"1px solid #93C5FD"}}>
+                      <span style={{fontSize:12,fontWeight:700,color:"#1E40AF"}}>⚠️ Tarif par défaut (ville inconnue)</span>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <input type="number" min="0" value={settings.defaultDeliveryPrice||3500} onChange={e=>{
+                          const v=parseInt(e.target.value)||3500;
+                          setSettings(s=>({...s,defaultDeliveryPrice:v}));
+                          sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...settings,defaultDeliveryPrice:v}},_authToken).catch(()=>{});
+                        }} style={{width:68,border:"1.5px solid #93C5FD",borderRadius:7,padding:"5px 8px",fontSize:12,fontWeight:700,outline:"none",textAlign:"right"}}/>
+                        <span style={{fontSize:11,color:"#1E40AF"}}>F</span>
+                      </div>
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
+                      {otherRegions.map(r=>(
+                        <div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:"#fff",borderRadius:8,border:"1px solid #BFDBFE"}}>
+                          {fraisEditCity?.id===r.id
+                            ? <div style={{display:"flex",gap:5,flex:1}}>
+                                <input type="text" value={fraisEditCity.name} onChange={e=>setFraisEditCity(p=>({...p,name:e.target.value}))}
+                                  style={{flex:1,border:"1.5px solid #93C5FD",borderRadius:7,padding:"5px 8px",fontSize:12,outline:"none"}}/>
+                                <input type="number" min="0" value={fraisEditCity.price} onChange={e=>setFraisEditCity(p=>({...p,price:e.target.value}))}
+                                  style={{width:68,border:"1.5px solid #93C5FD",borderRadius:7,padding:"5px 8px",fontSize:12,outline:"none"}}/>
+                                <button onClick={async()=>{
+                                  const name=fmtCity(fraisEditCity.name||""); const price=parseInt(fraisEditCity.price)||0;
+                                  if(!name||!price){setFraisEditCity(null);return;}
+                                  await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"PATCH",{name,price,cities:[name]}).catch(()=>{});
+                                  setOtherRegions(prev=>prev.map(x=>x.id===r.id?{...x,name,price}:x)); setFraisEditCity(null);
+                                }} style={{background:"#1E40AF",color:"#fff",border:"none",borderRadius:7,padding:"5px 9px",fontWeight:700,cursor:"pointer"}}>✓</button>
+                                <button onClick={()=>setFraisEditCity(null)} style={{background:"#F3F4F6",border:"none",borderRadius:7,padding:"5px 8px",cursor:"pointer"}}>✕</button>
+                              </div>
+                            : <>
+                                <span style={{fontSize:13,fontWeight:600,color:G.dark}}>{r.name}</span>
+                                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                                  <span style={{fontSize:13,fontWeight:700,color:"#1E40AF"}}>{fmt(r.price)} F</span>
+                                  <button onClick={()=>setFraisEditCity({id:r.id,name:r.name,price:String(r.price)})} style={{background:"none",border:"none",cursor:"pointer",color:"#6B7280",fontSize:13,padding:0}}>✏️</button>
+                                  <button onClick={()=>setConfirmModal({msg:`Supprimer "${r.name}" ?`,danger:true,onConfirm:async()=>{
+                                    await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"DELETE").catch(()=>{});
+                                    setOtherRegions(prev=>prev.filter(x=>x.id!==r.id)); addToast(`${r.name} supprimée`,"🗑️",G.gray);
+                                  }})} style={{background:"none",border:"none",cursor:"pointer",color:G.red,fontSize:13,padding:0}}>🗑️</button>
+                                </div>
+                              </>
+                          }
+                        </div>
+                      ))}
+                      {otherRegions.length===0&&<div style={{fontSize:11,color:G.gray,textAlign:"center",padding:"6px 0"}}>Aucune autre ville configurée</div>}
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <input type="text" value={fraisNewOther.city} onChange={e=>setFraisNewOther(p=>({...p,city:e.target.value}))} placeholder="Ville (ex: Thiès)"
+                        style={{flex:1,border:"1.5px solid #93C5FD",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none"}}/>
+                      <input type="number" min="0" value={fraisNewOther.price} onChange={e=>setFraisNewOther(p=>({...p,price:e.target.value}))} placeholder="Prix"
+                        style={{width:68,border:"1.5px solid #93C5FD",borderRadius:8,padding:"8px 10px",fontSize:12,outline:"none"}}/>
+                      <button onClick={async()=>{
+                        const city=fmtCity(fraisNewOther.city||""); const price=parseInt(fraisNewOther.price)||0;
+                        if(!city||!price){addToast("Ville et prix requis","⚠️","#F59E0B");return;}
+                        if(allNames.some(n=>_normCity(n)===_normCity(city))){addToast("Ville déjà configurée","⚠️","#F59E0B");return;}
+                        const res=await sbFetch("delivery_other_regions","POST",{org_id:orgId,name:city,price,cities:[city]}).catch(()=>null);
+                        const s=Array.isArray(res)?res[0]:res;
+                        if(s){setOtherRegions(prev=>[...prev,s]);addToast(`${city} ajouté ✅`,"✅",G.green);}
+                        setFraisNewOther({city:"",price:""});
+                      }} style={{background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"8px 12px",fontWeight:700,fontSize:13,cursor:"pointer"}}>+</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {fraisConfigTab==="test"&&(()=>{
+                const z=detectDeliveryZone(fraisTestCity,mainRegion,otherRegions,defaultPrice);
+                return (
+                  <div style={{background:G.white,borderRadius:14,padding:16,border:"1.5px solid #E2E8F0"}}>
+                    <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🏙️ Testez une ville</div>
+                    <input list="frais-test-cities" type="text" value={fraisTestCity} onChange={e=>setFraisTestCity(e.target.value)}
+                      placeholder="ex: Plateau, Thiès, Saint-Louis..."
+                      style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:9,padding:"10px 12px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+                    <datalist id="frais-test-cities">{allNames.map(c=><option key={c} value={c}/>)}</datalist>
+                    {fraisTestCity&&(
+                      <div style={{padding:"12px 14px",borderRadius:10,border:"1.5px solid",
+                        background:z.type==="main"?"#DCFCE7":z.type==="other"?"#DBEAFE":"#FEF3C7",
+                        borderColor:z.type==="main"?"#86EFAC":z.type==="other"?"#93C5FD":"#FCD34D"}}>
+                        <div style={{fontSize:13,fontWeight:800,color:z.type==="main"?"#166534":z.type==="other"?"#1E40AF":"#92400E"}}>
+                          {z.type==="main"?"🟢 Région principale":z.type==="other"?"🔵 Autre région":"⚠️ Ville non reconnue"}
+                          {z.type!=="unknown"&&` — ${z.cityName||z.name}`}
+                        </div>
+                        <div style={{fontSize:18,fontWeight:800,color:G.dark,marginTop:4}}>🚚 {fmt(z.price)} FCFA</div>
+                        {z.type==="unknown"&&<div style={{fontSize:11,color:"#92400E",marginTop:4}}>Tarif par défaut appliqué : {fmt(defaultPrice)} F</div>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── MODAL: Ajouter commande ── */}
@@ -5857,10 +6062,11 @@ function AppInner() {
         addOrder={addOrder} onClose={()=>setShowAdd(false)} G={G} fmt={fmt} FRAIS_LIV={FRAIS_LIV}
         livreurs={teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom).filter(Boolean)} waTemplate={waTemplate} setWaTemplate={setWaTemplate}
         boutique={settings.boutique} mainRegion={mainRegion} otherRegions={otherRegions}
+        defaultDeliveryPrice={settings.defaultDeliveryPrice||3500}
       />}
 
-      {/* ── MODAL: Zones de livraison ── */}
-      {showZoneConfig&&role==="admin"&&(()=>{
+      {/* ── MODAL: Zones de livraison — removed, use tab "frais" ── */}
+      {false&&(()=>{
         const allCities = [...(mainRegion?.cities||[]), ...(otherRegions.flatMap(r=>r.cities||[]))];
         const dupCheck = (city, excludeRegionId=null) => {
           const t = _normCity(city);
@@ -6482,38 +6688,6 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Zone de base du marchand */}
-            <div style={{marginBottom:18}}>
-              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:6,letterSpacing:0.5}}>🗺️ VOTRE ZONE DE BASE</div>
-              <div style={{fontSize:11,color:G.gray,marginBottom:10}}>Utilisée pour classifier chaque livraison (locale / nationale / internationale)</div>
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {/* Sénégal zones */}
-                <div style={{fontSize:10,color:G.gray,fontWeight:600,marginBottom:2}}>🇸🇳 SÉNÉGAL</div>
-                <div style={{display:"flex",gap:5}}>
-                  {WA_ZONES.filter(z=>z.country==="SN").map(z=>{
-                    const sel=(settings.baseZone||"sn_dakar")===z.key;
-                    return <button key={z.key} onClick={()=>setSettings(s=>({...s,baseZone:z.key}))}
-                      style={{flex:1,background:sel?z.color+"20":"#F9FAFB",border:`2px solid ${sel?z.color:"#E5E7EB"}`,borderRadius:9,padding:"7px 3px",cursor:"pointer",textAlign:"center"}}>
-                      <div style={{fontSize:13}}>{z.flag}</div>
-                      <div style={{fontSize:10,fontWeight:700,color:sel?z.color:"#6B7280",lineHeight:1.2}}>{z.label.replace(" (Centre)","").replace(" (Sud/Est)","")}</div>
-                      <div style={{fontSize:9,color:sel?z.color:"#9CA3AF"}}>{fmt(z.price)} F</div>
-                    </button>;
-                  })}
-                </div>
-                {/* International zones */}
-                <div style={{fontSize:10,color:G.gray,fontWeight:600,marginTop:4,marginBottom:2}}>🌍 INTERNATIONAL (si basé hors Sénégal)</div>
-                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                  {WA_ZONES.filter(z=>z.country!=="SN").map(z=>{
-                    const sel=(settings.baseZone||"sn_dakar")===z.key;
-                    return <button key={z.key} onClick={()=>setSettings(s=>({...s,baseZone:z.key}))}
-                      style={{background:sel?"#FEF3C7":"#F9FAFB",border:`2px solid ${sel?"#F59E0B":"#E5E7EB"}`,borderRadius:8,padding:"5px 8px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?"#92400E":"#6B7280"}}>
-                      {z.flag} {z.label}
-                    </button>;
-                  })}
-                </div>
-              </div>
-            </div>
-
             {/* Supprimer compte admin */}
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Toutes les données (commandes, produits, équipe) seront effacées. Cette action est irréversible.",danger:true,onConfirm:async()=>{
               const doLogout=()=>{try{localStorage.clear();}catch(e){}_authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);};
@@ -6531,14 +6705,14 @@ function AppInner() {
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
               🗑️ Supprimer mon compte
             </button>
-            <button onClick={()=>{setShowSettings(false);setShowZoneConfig(true);}}
+            <button onClick={()=>{setShowSettings(false);setTab("frais");}}
               style={{width:"100%",background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
-              🗺️ Configurer les zones de livraison
+              🚚 Frais de livraison
             </button>
             <button onClick={async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
               try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{name:settings.boutique,whatsapp:settings.whatsapp},_authToken);}catch(e){}
-              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar"}},_authToken);}catch(e){}
+              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500}},_authToken);}catch(e){}
               const fresh = await sbFetch(`profiles?id=eq.${currentUser.id}&select=*`).catch(()=>null);
               if(fresh?.[0]) setCurrentUser(u=>({...u,...fresh[0]}));
               else setCurrentUser(u=>({...u,nom:settings.nom}));
@@ -6923,8 +7097,9 @@ function AppInner() {
               {key:"phone",    label:"📱 Téléphone",          ph:"77 123 45 67",    type:"text"},
               {key:"address",  label:"📍 Adresse",            ph:"Médina, Dakar",   type:"text"},
               {key:"product",  label:"📦 Produit",            ph:"Chaussures Nike", type:"text"},
+              {key:"city",     label:"🏙️ Ville",               ph:"Dakar, Thiès…",   type:"text"},
               {key:"price",    label:"💰 Prix COD (CFA)",     ph:"25000",           type:"number"},
-              {key:"fraisLiv", label:"🏍️ Frais livraison (CFA)", ph:"1500",        type:"number"},
+              {key:"fraisLiv", label:"🚚 Frais livraison (CFA)", ph:"1500",        type:"number"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
@@ -6962,12 +7137,13 @@ function AppInner() {
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{
-                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:parseFloat(editOrder.fraisLiv)||editOrder.fraisLiv};
+                const _fl=parseFloat(editOrder.fraisLiv)||editOrder.fraisLiv;
+                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:_fl,deliveryFee:_fl};
                 setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...updated}:x));
                 if(orgId&&!String(editOrder.id).startsWith("tmp_")){
                   sbFetch(`orders?id=eq.${editOrder.id}`,"PATCH",{
-                    client:updated.client,phone:updated.phone,address:updated.address,
-                    product:updated.product,price:updated.price,frais_liv:updated.fraisLiv||null,
+                    client:updated.client,phone:updated.phone,address:updated.address,city:updated.city||null,
+                    product:updated.product,price:updated.price,frais_liv:_fl||null,delivery_fee:_fl||null,
                     status:updated.status,livreur:updated.livreur||null,note:updated.note||""
                   }).catch(e=>{console.error("edit save:",e);addToast("Erreur sauvegarde","⚠️",G.red);});
                 }
