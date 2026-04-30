@@ -1005,6 +1005,9 @@ function AppInner() {
   const [assignLivreurModal,setAssignLivreurModal] = useState(null); // {order}
   const [assignSelLiv,setAssignSelLiv]             = useState(null); // selected livreur member
   const [assignDelStatus,setAssignDelStatus]       = useState("confirmado");
+  const [pricingRules,   setPricingRules]   = useState([]);
+  const [pricingPopup,   setPricingPopup]   = useState(null);
+  const [pricingChecked, setPricingChecked] = useState(new Set());
   const [sbToken,setSbToken]             = useState(null);  // JWT token
   const [orgId,setOrgId]                 = useState(null);
   const [sbReady,setSbReady]             = useState(false);
@@ -1212,6 +1215,37 @@ function AppInner() {
     const id = Date.now();
     setToasts(t=>[...t,{id,msg,icon,color}]);
     setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
+  };
+
+  // ── Détection intelligente des prix produits ──────────────────────────────
+  const detectPricingIssues = (order) => {
+    const items = parseProd(order.product);
+    const totalQty = items.reduce((s,p)=>s+p.qty, 0);
+    const orderPrice = parseInt(order.price)||0;
+    const issues = [];
+    for(const item of items) {
+      const rule = pricingRules.find(r=>_normCity(r.product_name)===_normCity(item.name));
+      const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
+      const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
+      if(!rule) {
+        issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
+      } else {
+        let expectedPrice = (rule.reference_price_unit||0) * item.qty;
+        if(rule.type==="bundle" && rule.reference_price_bundle && item.qty===rule.bundle_quantity) expectedPrice = rule.reference_price_bundle;
+        const tol = Math.max(50, expectedPrice * 0.02);
+        if(expectedPrice>0 && itemPrice > expectedPrice + tol) issues.push({case:2, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
+        else if(expectedPrice>0 && itemPrice < expectedPrice - tol && itemPrice > 0) issues.push({case:3, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
+      }
+    }
+    return issues;
+  };
+
+  const handleTraiterOrder = (order) => {
+    setAssignSelLiv(null); setAssignDelStatus("confirmado");
+    if(pricingChecked.has(order.id)||!order.product) { setAssignLivreurModal(order); return; }
+    const issues = detectPricingIssues(order);
+    if(issues.length===0) { setPricingChecked(prev=>new Set([...prev, order.id])); setAssignLivreurModal(order); }
+    else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
   };
 
   const startWavePayment = async (amount=8000, planKey="basic") => {
@@ -1605,15 +1639,17 @@ function AppInner() {
     const loadMain = async() => {
       const reqId = ++mainReqId;
       try {
-        const [ords, prods, mems, zMain, zOthers] = await Promise.all([
+        const [ords, prods, mems, zMain, zOthers, zPricing] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
           sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)&select=id,nom,phone,email,role,lat,lng,city`),
           sbFetch(`delivery_main_region?org_id=eq.${orgId}&limit=1`).catch(()=>null),
           sbFetch(`delivery_other_regions?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
+          sbFetch(`product_pricing_rules?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
         ]);
         if (zMain?.[0]) setMainRegion(zMain[0]);
         if (Array.isArray(zOthers)) setOtherRegions(zOthers);
+        if (Array.isArray(zPricing)) setPricingRules(zPricing);
         if(reqId !== mainReqId) return; // discard stale parallel response
         clearTimeout(readyFallback);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
@@ -2224,12 +2260,18 @@ function AppInner() {
               <div style={{marginBottom:4}}>
                 {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
                   📦 BUNDLE · {tot} article{tot>1?"s":""}</div>}
-                {items.map((p,pi)=>(
-                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,color:"#374151",fontWeight:600,marginBottom:pi<items.length-1?2:0}}>
+                {items.map((p,pi)=>{
+                  const pr=pricingRules.find(r=>_normCity(r.product_name)===_normCity(p.name));
+                  return (
+                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,color:"#374151",fontWeight:600,marginBottom:pi<items.length-1?2:0,flexWrap:"wrap"}}>
                     <span>📦 {p.name}</span>
                     <span style={{background:p.qty>1?"#FEF3C7":"#F3F4F6",color:p.qty>1?"#92400E":"#6B7280",borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:800}}>×{p.qty}</span>
+                    {pr&&pr.type==="bundle"&&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🔵 Bundle ×{pr.bundle_quantity}</span>}
+                    {pr&&pr.type==="unit"&&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🟢 Unitaire</span>}
+                    {pr&&pr.type==="discount"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🟡 Remise {pr.discount_percentage}%</span>}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })()}
@@ -3847,7 +3889,7 @@ function AppInner() {
                           style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           ❌
                         </button>
-                        <button onClick={()=>{setAssignLivreurModal(o);setAssignSelLiv(null);setAssignDelStatus("confirmado");}}
+                        <button onClick={()=>handleTraiterOrder(o)}
                           style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
                           → Cmd à traiter
                         </button>
@@ -7502,6 +7544,135 @@ function AppInner() {
         </div>
       )}
 
+      {/* ── MODAL PRICING DETECTION ── */}
+      {pricingPopup&&(()=>{
+        const {orderId, order:pOrder, items:pItems, responses:pResp} = pricingPopup;
+        const allResolved = pResp.every(r=>r.resolved);
+        const updResp = (idx,upd) => setPricingPopup(p=>({...p,responses:p.responses.map((r,i)=>i===idx?{...r,...upd}:r)}));
+
+        const handleValidate = async() => {
+          for(let i=0;i<pItems.length;i++){
+            const item=pItems[i]; const resp=pResp[i];
+            const existing=pricingRules.find(r=>_normCity(r.product_name)===_normCity(item.name));
+            if(item.case===1){
+              const bq=parseInt(resp.bundleQty)||2;
+              const refUnit=resp.type==="bundle"?Math.round(item.price/bq):item.price;
+              const payload={org_id:orgId,product_name:item.name,type:resp.type||"unit",bundle_quantity:resp.type==="bundle"?bq:null,reference_price_unit:refUnit,reference_price_bundle:resp.type==="bundle"?item.price:null,discount_percentage:null,discount_type:null,updated_at:new Date().toISOString()};
+              const res=await sbFetch("product_pricing_rules","POST",payload).catch(()=>null);
+              const saved=Array.isArray(res)?res[0]:res; if(saved)setPricingRules(prev=>[...prev,saved]);
+            } else if(item.case===2&&resp.bundleQty){
+              const bq=parseInt(resp.bundleQty)||2;
+              const patch={type:"bundle",bundle_quantity:bq,reference_price_bundle:item.price,reference_price_unit:Math.round(item.price/bq),updated_at:new Date().toISOString()};
+              if(existing){await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{});setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r));}
+            } else if(item.case===3&&resp.type==="discount"){
+              const patch={type:"discount",discount_percentage:parseFloat(resp.discountPct)||0,discount_type:resp.discountType||"ponctuel",reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit),updated_at:new Date().toISOString()};
+              if(existing){await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{});setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r));}
+            }
+          }
+          setPricingChecked(prev=>new Set([...prev,orderId]));
+          setPricingPopup(null);
+          setAssignLivreurModal(pOrder);
+        };
+
+        return (
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.72)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:"20px 18px 28px",width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto"}}>
+              <div style={{width:36,height:4,background:"#E5E7EB",borderRadius:2,margin:"0 auto 14px"}}/>
+              <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:3}}>🔍 Analyse des produits</div>
+              <div style={{fontSize:12,color:G.gray,marginBottom:14}}>{pItems.length} produit{pItems.length>1?"s nécessitent":" nécessite"} une réponse avant de continuer</div>
+
+              {pItems.map((item,idx)=>{
+                const resp=pResp[idx];
+                return (
+                  <div key={idx} style={{background:resp.resolved?"#F0FDF4":"#F9FAFB",borderRadius:14,padding:14,marginBottom:10,border:`1.5px solid ${resp.resolved?G.green:"#E5E7EB"}`}}>
+                    {/* CAS 1 — Nouveau produit */}
+                    {item.case===1&&(
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:2}}>🆕 Nouveau produit détecté</div>
+                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>"{item.name}" · {fmt(item.price)} F — Comment vendez-vous ce produit ?</div>
+                        <div style={{display:"flex",gap:6,marginBottom:8}}>
+                          <button onClick={()=>updResp(idx,{type:"unit",resolved:true})}
+                            style={{flex:1,background:resp.type==="unit"?G.green:"#E5E7EB",color:resp.type==="unit"?"#fff":G.dark,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>🟢 Prix unitaire</button>
+                          <button onClick={()=>updResp(idx,{type:"bundle",bundleQty:resp.bundleQty||2,resolved:false})}
+                            style={{flex:1,background:resp.type==="bundle"?"#3B82F6":"#E5E7EB",color:resp.type==="bundle"?"#fff":G.dark,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>🔵 Bundle</button>
+                        </div>
+                        {resp.type==="bundle"&&(
+                          <div>
+                            <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Nombre d'unités dans ce bundle :</div>
+                            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
+                              {[2,3,4,5,6,7,8,9,10].map(n=>(
+                                <button key={n} onClick={()=>updResp(idx,{bundleQty:n,resolved:true})}
+                                  style={{width:36,height:36,background:(resp.bundleQty||2)===n?"#3B82F6":"#E5E7EB",color:(resp.bundleQty||2)===n?"#fff":G.dark,border:"none",borderRadius:8,fontWeight:800,fontSize:14,cursor:"pointer"}}>{n}</button>
+                              ))}
+                            </div>
+                            {resp.bundleQty&&<div style={{fontSize:11,color:"#1E40AF",fontWeight:600}}>Prix unitaire calculé : {fmt(Math.round(item.price/resp.bundleQty))} F</div>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {/* CAS 2 — Prix plus élevé */}
+                    {item.case===2&&(
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:"#1E40AF",marginBottom:2}}>🔵 Nouveau prix détecté — {item.name}</div>
+                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>{fmt(item.price)} F <span style={{color:G.gray}}>(réf: {fmt(item.rule.reference_price_unit)} F/u)</span> — Est-ce un bundle ?</div>
+                        <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Nombre d'unités :</div>
+                        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                          {[2,3,4,5,6,7,8,9,10].map(n=>(
+                            <button key={n} onClick={()=>updResp(idx,{bundleQty:n,resolved:true})}
+                              style={{width:36,height:36,background:resp.bundleQty===n?"#3B82F6":"#E5E7EB",color:resp.bundleQty===n?"#fff":G.dark,border:"none",borderRadius:8,fontWeight:800,fontSize:14,cursor:"pointer"}}>{n}</button>
+                          ))}
+                        </div>
+                        {resp.bundleQty&&<div style={{fontSize:11,color:"#1E40AF",fontWeight:600,marginTop:6}}>Prix unitaire : {fmt(Math.round(item.price/resp.bundleQty))} F</div>}
+                      </div>
+                    )}
+                    {/* CAS 3 — Prix inférieur */}
+                    {item.case===3&&(
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:"#D97706",marginBottom:2}}>🟡 Prix inférieur détecté — {item.name}</div>
+                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>{fmt(item.price)} F <span style={{color:G.gray}}>(réf: {fmt(item.rule.reference_price_unit)} F/u)</span> — Est-ce une remise ?</div>
+                        <div style={{display:"flex",gap:6,marginBottom:10}}>
+                          <button onClick={()=>updResp(idx,{type:"discount",discountType:resp.discountType||"ponctuel",resolved:false})}
+                            style={{flex:1,background:resp.type==="discount"?"#F59E0B":"#E5E7EB",color:resp.type==="discount"?"#fff":G.dark,border:"none",borderRadius:10,padding:"9px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>✅ Oui, remise</button>
+                          <button onClick={()=>updResp(idx,{type:"no_discount",resolved:true})}
+                            style={{flex:1,background:resp.type==="no_discount"?"#6B7280":"#E5E7EB",color:resp.type==="no_discount"?"#fff":G.dark,border:"none",borderRadius:10,padding:"9px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>Non, erreur</button>
+                        </div>
+                        {resp.type==="discount"&&(
+                          <div style={{background:"#FFFBEB",borderRadius:10,padding:10,border:"1px solid #FCD34D"}}>
+                            <div style={{fontSize:11,color:"#92400E",marginBottom:5}}>Pourcentage de remise :</div>
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
+                              <input type="number" min="1" max="99" value={resp.discountPct||""} onChange={e=>updResp(idx,{discountPct:e.target.value})}
+                                placeholder="ex: 15" style={{flex:1,border:"1.5px solid #FCD34D",borderRadius:7,padding:"7px 10px",fontSize:13,outline:"none"}}/>
+                              <span style={{fontSize:13,color:"#92400E",fontWeight:700}}>%</span>
+                            </div>
+                            <div style={{fontSize:11,color:"#92400E",marginBottom:5}}>Cette remise est :</div>
+                            <div style={{display:"flex",gap:6,marginBottom:8}}>
+                              <button onClick={()=>updResp(idx,{discountType:"ponctuel"})} style={{flex:1,background:resp.discountType==="ponctuel"?"#F59E0B":"#E5E7EB",color:resp.discountType==="ponctuel"?"#fff":"#6B7280",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:11,cursor:"pointer"}}>Ponctuelle</button>
+                              <button onClick={()=>updResp(idx,{discountType:"permanent"})} style={{flex:1,background:resp.discountType==="permanent"?"#EF4444":"#E5E7EB",color:resp.discountType==="permanent"?"#fff":"#6B7280",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:11,cursor:"pointer"}}>Permanente</button>
+                            </div>
+                            {resp.discountPct&&<button onClick={()=>updResp(idx,{resolved:true})}
+                              style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>✓ Confirmer</button>}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {resp.resolved&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:G.green}}>✅ Répondu</div>}
+                  </div>
+                );
+              })}
+
+              <button onClick={handleValidate} disabled={!allResolved}
+                style={{width:"100%",background:allResolved?G.green:"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:allResolved?"pointer":"not-allowed",marginBottom:8}}>
+                {allResolved?"✅ Valider et continuer →":"Répondre à tous les produits pour continuer"}
+              </button>
+              <button onClick={()=>{setPricingChecked(prev=>new Set([...prev,orderId]));setPricingPopup(null);setAssignLivreurModal(pOrder);}}
+                style={{width:"100%",background:"none",color:G.gray,border:"none",padding:"8px 0",fontSize:12,cursor:"pointer"}}>
+                Ignorer — continuer sans enregistrer
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── MODAL ASSIGNER LIVREUR (Cmdes boutique → obligatoire) ── */}
       {assignLivreurModal&&(()=>{
         const o = assignLivreurModal;
@@ -7513,7 +7684,7 @@ function AppInner() {
           {v:"en_camino",        label:"🚀 En route vers le client",          sub:"Le livreur est en chemin pour livrer"},
           {v:"chez_client",      label:"📍 Déjà chez le client",              sub:"Livraison en cours maintenant"},
         ];
-        const canConfirm = !!assignSelLiv;
+        const canConfirm = !!assignSelLiv && pricingChecked.has(o.id);
         return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}
           onClick={()=>setAssignLivreurModal(null)}>
