@@ -4165,7 +4165,7 @@ function AppInner() {
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>📋 MES COMMANDES</ST>
               <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
-                rows={myClo.map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
+                rows={[...myClo].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
               />
             </div>
           </div>
@@ -4219,7 +4219,7 @@ function AppInner() {
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>📋 MES LIVRAISONS</ST>
               <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
-                rows={myLiv.map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
+                rows={[...myLiv].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
               />
             </div>
           </div>
@@ -4322,10 +4322,14 @@ function AppInner() {
                 groups[k].sort((a,b)=>{
                   if(localOrderIds.length>0){
                     const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
-                    if(ia<0&&ib<0) return new Date(a.created_at||0)-new Date(b.created_at||0);
+                    if(ia<0&&ib<0) return role==="livreur"
+                      ? new Date(a.created_at||0)-new Date(b.created_at||0)
+                      : new Date(b.created_at||0)-new Date(a.created_at||0);
                     if(ia<0) return 1; if(ib<0) return -1; return ia-ib;
                   }
-                  return new Date(a.created_at||0)-new Date(b.created_at||0);
+                  return role==="livreur"
+                    ? new Date(a.created_at||0)-new Date(b.created_at||0)
+                    : new Date(b.created_at||0)-new Date(a.created_at||0);
                 });
               });
               return (
@@ -5037,9 +5041,15 @@ function AppInner() {
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
                       <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Frais de livraison (CFA/commande)</div>
-                        <input type="number" min="0" placeholder="ex: 1500"
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Livraison région principale (CFA) <span style={{color:G.red}}>*</span></div>
+                        <input type="number" min="0" placeholder="ex: 1500 (Dakar)"
                           value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
+                          style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🌍 Livraison autres régions (CFA) <span style={{color:G.red}}>*</span></div>
+                        <input type="number" min="0" placeholder="ex: 3000 (intérieur/international)"
+                          value={costEdit.fraisLivExtra??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLivExtra:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
                       <div>
@@ -5049,16 +5059,16 @@ function AppInner() {
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
                       <button onClick={()=>{
-                          const newCost   = parseFloat(String(costEdit.cost||"").replace(",","."));
-                          const newFrais  = parseFloat(String(costEdit.fraisLiv||"").replace(",","."))||FRAIS_LIV;
-                          const newStock  = parseInt(costEdit.stock||0)||0;
+                          const newCost       = parseFloat(String(costEdit.cost||"").replace(",","."));
+                          const newFrais      = parseFloat(String(costEdit.fraisLiv||"").replace(",","."));
+                          const newFraisExtra = parseFloat(String(costEdit.fraisLivExtra||"").replace(",","."));
+                          const newStock      = parseInt(costEdit.stock||0)||0;
                           if(!newCost||newCost<=0){ addToast("Entre le coût du produit","⚠️","#F59E0B"); return; }
-                          // Fermer le formulaire immédiatement
+                          if(!newFrais||newFrais<=0){ addToast("Entre le tarif région principale","⚠️","#F59E0B"); return; }
+                          if(!newFraisExtra||newFraisExtra<=0){ addToast("Entre le tarif autres régions","⚠️","#F59E0B"); return; }
                           setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
-                          // Mise à jour locale
-                          setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,fraisLiv:newFrais,stock:newStock,stockInitial:newStock}:x));
-                          // Sync Supabase (pattern identique au reste de l'app)
-                          sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,frais_liv:newFrais,stock:newStock,stock_initial:newStock},_authToken)
+                          setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,fraisLiv:newFrais,fraisLivExtra:newFraisExtra,stock:newStock,stockInitial:newStock}:x));
+                          sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,frais_liv:newFrais,frais_liv_extra:newFraisExtra,stock:newStock,stock_initial:newStock},_authToken)
                             .then(()=>addToast(`${prod.name} enregistré ✅`,"✅",G.green))
                             .catch(e=>{ console.error("cost save:",e.message); addToast("Erreur de sauvegarde","❌",G.red); });
                         }}
@@ -5078,7 +5088,7 @@ function AppInner() {
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
-                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||FRAIS_LIV,stock:prod.stock||""}}))}
+                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||FRAIS_LIV,fraisLivExtra:prod.fraisLivExtra||"",stock:prod.stock||""}}))}
                       style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       ✏️ Modifier
                     </button>
@@ -6688,11 +6698,12 @@ function AppInner() {
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16}}>✏️ Modifier la commande #{editOrder.id}</div>
 
             {[
-              {key:"client",  label:"👤 Nom client",  ph:"Moussa Diallo",    type:"text"},
-              {key:"phone",   label:"📱 Téléphone",    ph:"77 123 45 67",     type:"text"},
-              {key:"address", label:"📍 Adresse",      ph:"Médina, Dakar",    type:"text"},
-              {key:"product", label:"📦 Produit",      ph:"Chaussures Nike",  type:"text"},
-              {key:"price",   label:"💰 Prix COD (CFA)", ph:"25000",         type:"number"},
+              {key:"client",   label:"👤 Nom client",        ph:"Moussa Diallo",   type:"text"},
+              {key:"phone",    label:"📱 Téléphone",          ph:"77 123 45 67",    type:"text"},
+              {key:"address",  label:"📍 Adresse",            ph:"Médina, Dakar",   type:"text"},
+              {key:"product",  label:"📦 Produit",            ph:"Chaussures Nike", type:"text"},
+              {key:"price",    label:"💰 Prix COD (CFA)",     ph:"25000",           type:"number"},
+              {key:"fraisLiv", label:"🏍️ Frais livraison (CFA)", ph:"1500",        type:"number"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
@@ -6730,12 +6741,12 @@ function AppInner() {
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{
-                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price};
+                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:parseFloat(editOrder.fraisLiv)||editOrder.fraisLiv};
                 setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...updated}:x));
                 if(orgId&&!String(editOrder.id).startsWith("tmp_")){
                   sbFetch(`orders?id=eq.${editOrder.id}`,"PATCH",{
                     client:updated.client,phone:updated.phone,address:updated.address,
-                    product:updated.product,price:updated.price,
+                    product:updated.product,price:updated.price,frais_liv:updated.fraisLiv||null,
                     status:updated.status,livreur:updated.livreur||null,note:updated.note||""
                   }).catch(e=>{console.error("edit save:",e);addToast("Erreur sauvegarde","⚠️",G.red);});
                 }
