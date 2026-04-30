@@ -630,61 +630,6 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           }} placeholder="Médina, Dakar"
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
         </div>
-        {/* Zone de livraison */}
-        {(()=>{
-          const selZ = WA_ZONES.find(z=>z.key===(newOrder.zone||"sn_dakar"))||WA_ZONES[0];
-          const isIntl = selZ.prepaid;
-          return (
-            <div style={{marginBottom:10,background:isIntl?"#FFF7ED":"#F0FDF4",borderRadius:12,padding:"10px 12px",border:`1.5px solid ${isIntl?"#FED7AA":"#BBF7D0"}`}}>
-              <div style={{fontSize:11,fontWeight:700,color:isIntl?"#92400E":"#166534",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span>🗺️ Zone de livraison</span>
-                <span style={{background:selZ.color+"22",color:selZ.color,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:800}}>
-                  {selZ.flag} {selZ.label} · {fmt(selZ.price)} F
-                </span>
-              </div>
-              {isIntl&&<div style={{fontSize:10,background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"4px 8px",marginBottom:8,fontWeight:700}}>
-                ⚠️ PRÉPAIEMENT REQUIS — livraison internationale
-              </div>}
-              {/* Sénégal */}
-              <div style={{fontSize:9,color:G.gray,fontWeight:600,marginBottom:4}}>🇸🇳 SÉNÉGAL</div>
-              <div style={{display:"flex",gap:4,marginBottom:8}}>
-                {WA_ZONES.filter(z=>z.country==="SN").map(z=>{
-                  const sel=(newOrder.zone||"sn_dakar")===z.key;
-                  return <button key={z.key} onClick={()=>setNewOrder(p=>({...p,zone:z.key,fraisLiv:z.price}))}
-                    style={{flex:1,background:sel?z.color+"22":"#F9FAFB",border:`2px solid ${sel?z.color:"#E5E7EB"}`,borderRadius:8,padding:"6px 2px",cursor:"pointer",textAlign:"center"}}>
-                    <div style={{fontSize:12}}>{z.flag}</div>
-                    <div style={{fontSize:9,fontWeight:700,color:sel?z.color:"#6B7280",lineHeight:1.3}}>{z.label.split(" (")[0]}</div>
-                    <div style={{fontSize:9,color:sel?z.color:"#9CA3AF"}}>{fmt(z.price)}</div>
-                  </button>;
-                })}
-              </div>
-              {/* International */}
-              <div style={{fontSize:9,color:G.gray,fontWeight:600,marginBottom:4}}>🌍 INTERNATIONAL</div>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                {WA_ZONES.filter(z=>z.country!=="SN").map(z=>{
-                  const sel=(newOrder.zone||"sn_dakar")===z.key;
-                  return <button key={z.key} onClick={()=>setNewOrder(p=>({...p,zone:z.key,fraisLiv:z.price}))}
-                    style={{background:sel?"#FEF3C7":"#F9FAFB",border:`2px solid ${sel?"#F59E0B":"#E5E7EB"}`,borderRadius:7,padding:"4px 7px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?"#92400E":"#6B7280"}}>
-                    {z.flag} {z.label.split(" ")[0]}{z.label.split(" ")[1]?" "+z.label.split(" ")[1]:""}
-                  </button>;
-                })}
-              </div>
-            </div>
-          );
-        })()}
-        {/* Mode de paiement */}
-        <div style={{marginBottom:10}}>
-          <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>💳 Mode de paiement</div>
-          <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-            {PAYMENT_METHODS.map(pm=>{
-              const sel=(newOrder.paymentMethod||"cod")===pm.key;
-              return <button key={pm.key} onClick={()=>setNewOrder(p=>({...p,paymentMethod:pm.key}))}
-                style={{background:sel?pm.color+"22":"#F9FAFB",border:`2px solid ${sel?pm.color:"#E5E7EB"}`,borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:11,fontWeight:sel?700:400,color:sel?pm.color:"#6B7280"}}>
-                {pm.icon} {pm.label}
-              </button>;
-            })}
-          </div>
-        </div>
         <div style={{marginBottom:10}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Produit *</div>
           <select value={newOrder.product||""} onChange={e=>setNewOrder({...newOrder,product:e.target.value,bundle:"",qty:"1",discount:""})}
@@ -5042,14 +4987,21 @@ function AppInner() {
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
                       <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Livraison région principale (CFA) <span style={{color:G.red}}>*</span></div>
-                        <input type="number" min="0" placeholder="ex: 1500 (Dakar)"
-                          value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
-                          style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Zone principale de vente (CFA) <span style={{color:G.red}}>*</span></div>
+                        <div style={{fontSize:10,color:"#9CA3AF",marginBottom:4}}>Tarif livraison dans ta zone de vente habituelle</div>
+                        <div style={{display:"flex",gap:6}}>
+                          <input type="text" placeholder="Nom zone (ex: Dakar)"
+                            value={costEdit.zoneLabel??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,zoneLabel:e.target.value}}))}
+                            style={{flex:"0 0 45%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                          <input type="number" min="0" placeholder="1500"
+                            value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
+                            style={{flex:1,border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
+                        </div>
                       </div>
                       <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🌍 Livraison autres régions (CFA) <span style={{color:G.red}}>*</span></div>
-                        <input type="number" min="0" placeholder="ex: 3000 (intérieur/international)"
+                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🌍 Autres régions (CFA) <span style={{color:G.red}}>*</span></div>
+                        <div style={{fontSize:10,color:"#9CA3AF",marginBottom:4}}>Tarif quand le client est hors de ta zone principale</div>
+                        <input type="number" min="0" placeholder="ex: 3000"
                           value={costEdit.fraisLivExtra??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLivExtra:e.target.value}}))}
                           style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
                       </div>
@@ -5089,7 +5041,7 @@ function AppInner() {
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
-                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||FRAIS_LIV,fraisLivExtra:prod.fraisLivExtra||"",stock:prod.stock||""}}))}
+                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||FRAIS_LIV,fraisLivExtra:prod.fraisLivExtra||"",zoneLabel:prod.zoneLabel||"",stock:prod.stock||""}}))}
                       style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
                       ✏️ Modifier
                     </button>
@@ -5897,25 +5849,26 @@ function AppInner() {
             <div style={{background:"#F0FDF4",borderRadius:10,padding:"10px 12px",marginBottom:12,border:"1.5px solid #BBF7D0"}}>
               <div style={{fontSize:11,fontWeight:700,color:G.green,marginBottom:8}}>🚚 Tarifs de livraison *</div>
               <div style={{marginBottom:8}}>
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
                   {prodErrors.fraisLiv&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
-                  <div style={{fontSize:11,color:prodErrors.fraisLiv?G.red:G.dark,fontWeight:600}}>
-                    🏍️ Zone locale — ta ville principale *
-                  </div>
+                  <div style={{fontSize:11,color:prodErrors.fraisLiv?G.red:G.dark,fontWeight:600}}>🏍️ Zone principale de vente *</div>
                 </div>
-                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : Dakar, Lomé, Abidjan — livraison rapide</div>
-                <input type="number" value={newProd.fraisLiv||""} placeholder="1500"
-                  onChange={e=>{setNewProd(p=>({...p,fraisLiv:e.target.value}));if(prodErrors.fraisLiv)setProdErrors(p=>({...p,fraisLiv:false}));}}
-                  style={{width:"100%",border:`2px solid ${prodErrors.fraisLiv?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLiv?"#FFF5F5":G.white}}/>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>Tarif dans ta zone de vente habituelle (ex: Dakar, Lomé…)</div>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="text" value={newProd.zoneLabel||""} placeholder="Nom zone (ex: Dakar)"
+                    onChange={e=>setNewProd(p=>({...p,zoneLabel:e.target.value}))}
+                    style={{flex:"0 0 45%",border:`2px solid ${prodErrors.fraisLiv?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLiv?"#FFF5F5":G.white}}/>
+                  <input type="number" value={newProd.fraisLiv||""} placeholder="1500"
+                    onChange={e=>{setNewProd(p=>({...p,fraisLiv:e.target.value}));if(prodErrors.fraisLiv)setProdErrors(p=>({...p,fraisLiv:false}));}}
+                    style={{flex:1,border:`2px solid ${prodErrors.fraisLiv?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLiv?"#FFF5F5":G.white}}/>
+                </div>
               </div>
               <div>
-                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
                   {prodErrors.fraisLivExtra&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
-                  <div style={{fontSize:11,color:prodErrors.fraisLivExtra?G.red:G.dark,fontWeight:600}}>
-                    🌍 Hors zone — régions & autres pays *
-                  </div>
+                  <div style={{fontSize:11,color:prodErrors.fraisLivExtra?G.red:G.dark,fontWeight:600}}>🌍 Autres régions *</div>
                 </div>
-                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : intérieur du pays, Mali, Togo — livraison plus chère</div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>Tarif quand le client est hors de ta zone principale</div>
                 <input type="number" value={newProd.fraisLivExtra||""} placeholder="3000"
                   onChange={e=>{setNewProd(p=>({...p,fraisLivExtra:e.target.value}));if(prodErrors.fraisLivExtra)setProdErrors(p=>({...p,fraisLivExtra:false}));}}
                   style={{width:"100%",border:`2px solid ${prodErrors.fraisLivExtra?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLivExtra?"#FFF5F5":G.white}}/>
@@ -6820,15 +6773,20 @@ function AppInner() {
             <div style={{background:"#F0FDF4",borderRadius:10,padding:"10px 12px",marginBottom:10,border:"1.5px solid #BBF7D0"}}>
               <div style={{fontSize:11,fontWeight:700,color:G.green,marginBottom:8}}>🚚 Tarifs de livraison</div>
               <div style={{marginBottom:8}}>
-                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🏍️ Zone locale — ta ville principale</div>
-                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : Dakar, Lomé, Abidjan — livraison rapide</div>
-                <input type="number" value={editProd.fraisLiv||""} placeholder="1500"
-                  onChange={e=>setEditProd(p=>({...p,fraisLiv:e.target.value}))}
-                  style={{width:"100%",border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🏍️ Zone principale de vente</div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>Tarif dans ta zone de vente habituelle</div>
+                <div style={{display:"flex",gap:6}}>
+                  <input type="text" value={editProd.zoneLabel||""} placeholder="Nom zone (ex: Dakar)"
+                    onChange={e=>setEditProd(p=>({...p,zoneLabel:e.target.value}))}
+                    style={{flex:"0 0 45%",border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  <input type="number" value={editProd.fraisLiv||""} placeholder="1500"
+                    onChange={e=>setEditProd(p=>({...p,fraisLiv:e.target.value}))}
+                    style={{flex:1,border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                </div>
               </div>
               <div>
-                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🌍 Hors zone — régions & autres pays</div>
-                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : intérieur du pays, Mali, Togo — livraison plus chère</div>
+                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🌍 Autres régions</div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>Tarif quand le client est hors de ta zone principale</div>
                 <input type="number" value={editProd.fraisLivExtra||""} placeholder="3000"
                   onChange={e=>setEditProd(p=>({...p,fraisLivExtra:e.target.value}))}
                   style={{width:"100%",border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
