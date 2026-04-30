@@ -960,7 +960,7 @@ function AppInner() {
   const [noteModal,setNoteModal] = useState(null);
   const [noteText,setNoteText]   = useState("");
   const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
-  const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
+  const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
   const [adSpend,setAdSpend]           = useState({});
@@ -1568,7 +1568,7 @@ function AppInner() {
     if(!sbReady||!orgId) return;
 
     const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id}));
-    const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,stockInitial:p.stock_initial}));
+    const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,fraisLivExtra:p.frais_liv_extra,stockInitial:p.stock_initial}));
     const mapMsgs   = (msgs) => msgs.map(m=>{
       const t=m.text||"";
       const isImg=t.startsWith("IMG:");
@@ -2001,22 +2001,23 @@ function AppInner() {
     if(!newProd.cost)    errors.cost     = true;
     if(!newProd.price)   errors.price    = true;
     if(!newProd.stock && newProd.stock!=="0") errors.stock = true;
-    if(!newProd.fraisLiv) errors.fraisLiv = true;
+    if(!newProd.fraisLiv)      errors.fraisLiv      = true;
+    if(!newProd.fraisLivExtra) errors.fraisLivExtra = true;
     if(!newProd.niche)   errors.niche    = true;
     if(Object.keys(errors).length>0) { setProdErrors(errors); return; }
     setProdErrors({});
     const tempProdId = "tmp_" + Date.now();
-    const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:parseInt(newProd.fraisLiv)||1500,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
+    const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:parseInt(newProd.fraisLiv)||1500,fraisLivExtra:parseInt(newProd.fraisLivExtra)||3000,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
     setProducts(p=>[...p,newProduct]);
     if(orgId) { console.log("Saving product to org:", orgId);
-      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,niche:newProduct.niche,archived:false})
+      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,frais_liv_extra:newProduct.fraisLivExtra,niche:newProduct.niche,archived:false})
         .then(res=>{
           const saved=Array.isArray(res)?res[0]:res;
           if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
           else console.error("addProduct: no id returned", res);
         }).catch(e=>console.error("addProduct error:",e.message));
     }
-    setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});
+    setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});
     setNewBundleForm({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
     setShowAddProd(false);
   };
@@ -5875,11 +5876,10 @@ function AppInner() {
             )}
 
             {[
-              {key:"name",      label:"📦 Nom du produit *",             ph:"Chaussures Nike",  type:"text",   req:true},
-              {key:"cost",      label:"💰 Prix de revient (CFA) *",     ph:"7000",             type:"number", req:true},
-              {key:"price",     label:"💰 Prix de vente (CFA) *",       ph:"25000",            type:"number", req:true},
-              {key:"stock",     label:"📦 Stock initial *",              ph:"50",               type:"number", req:true},
-              {key:"fraisLiv",  label:"🏍️ Frais livraison/cmd (CFA) *", ph:"1500",             type:"number", req:true},
+              {key:"name",  label:"📦 Nom du produit *",          ph:"Chaussures Nike", type:"text",   req:true},
+              {key:"cost",  label:"💰 Prix de revient (CFA) *",  ph:"7000",            type:"number", req:true},
+              {key:"price", label:"💰 Prix de vente (CFA) *",    ph:"25000",           type:"number", req:true},
+              {key:"stock", label:"📦 Stock initial *",            ph:"50",              type:"number", req:true},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:9,position:"relative"}}>
                 <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
@@ -5892,6 +5892,35 @@ function AppInner() {
                   style={{width:"100%",border:`2px solid ${prodErrors[f.key]?G.red:"#93C5FD"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors[f.key]?"#FFF5F5":G.white}}/>
               </div>
             ))}
+
+            {/* ── Frais livraison — deux zones ── */}
+            <div style={{background:"#F0FDF4",borderRadius:10,padding:"10px 12px",marginBottom:12,border:"1.5px solid #BBF7D0"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.green,marginBottom:8}}>🚚 Tarifs de livraison *</div>
+              <div style={{marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                  {prodErrors.fraisLiv&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
+                  <div style={{fontSize:11,color:prodErrors.fraisLiv?G.red:G.dark,fontWeight:600}}>
+                    🏍️ Zone locale — ta ville principale *
+                  </div>
+                </div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : Dakar, Lomé, Abidjan — livraison rapide</div>
+                <input type="number" value={newProd.fraisLiv||""} placeholder="1500"
+                  onChange={e=>{setNewProd(p=>({...p,fraisLiv:e.target.value}));if(prodErrors.fraisLiv)setProdErrors(p=>({...p,fraisLiv:false}));}}
+                  style={{width:"100%",border:`2px solid ${prodErrors.fraisLiv?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLiv?"#FFF5F5":G.white}}/>
+              </div>
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                  {prodErrors.fraisLivExtra&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
+                  <div style={{fontSize:11,color:prodErrors.fraisLivExtra?G.red:G.dark,fontWeight:600}}>
+                    🌍 Hors zone — régions & autres pays *
+                  </div>
+                </div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : intérieur du pays, Mali, Togo — livraison plus chère</div>
+                <input type="number" value={newProd.fraisLivExtra||""} placeholder="3000"
+                  onChange={e=>{setNewProd(p=>({...p,fraisLivExtra:e.target.value}));if(prodErrors.fraisLivExtra)setProdErrors(p=>({...p,fraisLivExtra:false}));}}
+                  style={{width:"100%",border:`2px solid ${prodErrors.fraisLivExtra?G.red:"#86EFAC"}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:prodErrors.fraisLivExtra?"#FFF5F5":G.white}}/>
+              </div>
+            </div>
 
             {/* Niche avec suggestions */}
             <div style={{marginBottom:12}}>
@@ -6055,7 +6084,7 @@ function AppInner() {
               <button onClick={addProduct} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
                 Enregistrer le produit
               </button>
-              <button onClick={()=>{setShowAddProd(false);setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",niche:"",bundles:[]});setProdErrors({});}} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
+              <button onClick={()=>{setShowAddProd(false);setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});setProdErrors({});}} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
             </div>
           </div>
         </div>
@@ -6776,10 +6805,9 @@ function AppInner() {
             <div style={{fontSize:11,color:G.gray,marginBottom:16}}>{editProd.name}</div>
 
             {[
-              {key:"name",     label:"📦 Nom du produit *",           type:"text",   ph:"Chaussures Nike"},
-              {key:"cost",     label:"💰 Prix de revient (CFA) *",   type:"number", ph:"7000"},
-              {key:"price",    label:"💰 Prix de vente (CFA) *",     type:"number", ph:"25000"},
-              {key:"fraisLiv", label:"🏍️ Frais livraison (CFA) *",  type:"number", ph:"1500"},
+              {key:"name",  label:"📦 Nom du produit *",          type:"text",   ph:"Chaussures Nike"},
+              {key:"cost",  label:"💰 Prix de revient (CFA) *",  type:"number", ph:"7000"},
+              {key:"price", label:"💰 Prix de vente (CFA) *",    type:"number", ph:"25000"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
@@ -6787,6 +6815,25 @@ function AppInner() {
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               </div>
             ))}
+
+            {/* ── Frais livraison — deux zones ── */}
+            <div style={{background:"#F0FDF4",borderRadius:10,padding:"10px 12px",marginBottom:10,border:"1.5px solid #BBF7D0"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.green,marginBottom:8}}>🚚 Tarifs de livraison</div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🏍️ Zone locale — ta ville principale</div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : Dakar, Lomé, Abidjan — livraison rapide</div>
+                <input type="number" value={editProd.fraisLiv||""} placeholder="1500"
+                  onChange={e=>setEditProd(p=>({...p,fraisLiv:e.target.value}))}
+                  style={{width:"100%",border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <div>
+                <div style={{fontSize:11,color:G.dark,fontWeight:600,marginBottom:2}}>🌍 Hors zone — régions & autres pays</div>
+                <div style={{fontSize:10,color:G.gray,marginBottom:4}}>ex : intérieur du pays, Mali, Togo — livraison plus chère</div>
+                <input type="number" value={editProd.fraisLivExtra||""} placeholder="3000"
+                  onChange={e=>setEditProd(p=>({...p,fraisLivExtra:e.target.value}))}
+                  style={{width:"100%",border:`1.5px solid #86EFAC`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            </div>
 
             {/* Niche */}
             <div style={{marginBottom:10}}>
@@ -6825,16 +6872,24 @@ function AppInner() {
 
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>{
-                setProducts(p=>p.map(x=>x.id===editProd.id?{
-                  ...x,
-                  name:editProd.name||x.name,
-                  cost:parseInt(editProd.cost)||x.cost,
-                  price:parseInt(editProd.price)||x.price,
-                  fraisLiv:parseInt(editProd.fraisLiv)||x.fraisLiv,
-                  niche:editProd.niche||x.niche,
-                  stock:parseInt(editProd.stock)||x.stock,
-                  stockInitial:parseInt(editProd.stock)||x.stockInitial,
-                }:x));
+                const updProd = {
+                  ...editProd,
+                  name:editProd.name,
+                  cost:parseInt(editProd.cost)||0,
+                  price:parseInt(editProd.price)||0,
+                  fraisLiv:parseInt(editProd.fraisLiv)||1500,
+                  fraisLivExtra:parseInt(editProd.fraisLivExtra)||0,
+                  niche:editProd.niche,
+                  stock:parseInt(editProd.stock)||0,
+                  stockInitial:parseInt(editProd.stock)||0,
+                };
+                setProducts(p=>p.map(x=>x.id===editProd.id?{...x,...updProd}:x));
+                if(!String(editProd.id).startsWith("tmp_"))
+                  sbFetch(`products?id=eq.${editProd.id}`,"PATCH",{
+                    name:updProd.name,cost:updProd.cost,price:updProd.price,
+                    frais_liv:updProd.fraisLiv,frais_liv_extra:updProd.fraisLivExtra,
+                    niche:updProd.niche,stock:updProd.stock,stock_initial:updProd.stockInitial,
+                  }).catch(e=>console.error("editProd save:",e.message));
                 setEditProd(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 ✅ Enregistrer
