@@ -605,6 +605,90 @@ function MapView({positions, role, isDesktop=false, destination=null, livreurPos
   );
 }
 
+function CityComboBox({value="", onCityChange, mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, G, fmt}) {
+  const [open, setOpen] = useState(false);
+  const [hoverIdx, setHoverIdx] = useState(-1);
+  const wrapRef = useRef(null);
+
+  const options = [
+    ...(mainRegion?.cities||[]).map(s=>{
+      const {name,price}=_parseCity(s);
+      return {name, region:mainRegion?.name||"Région principale", type:"main", price:price??mainRegion?.price??defaultDeliveryPrice};
+    }),
+    ...otherRegions.map(r=>({
+      name:r.name, region:"Autre région", type:"other",
+      price:(r.price||0)+(r.interurbain_price||0)
+    }))
+  ];
+
+  const q = _normCity(value);
+  const filtered = value
+    ? options.filter(o=>_normCity(o.name).includes(q)||_normCity(o.region).includes(q))
+    : options;
+
+  useEffect(()=>{
+    const h=e=>{if(wrapRef.current&&!wrapRef.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+
+  const select = opt => {
+    onCityChange(opt.name, {type:opt.type, name:opt.region, cityName:opt.name, price:opt.price});
+    setOpen(false);
+    setHoverIdx(-1);
+  };
+
+  const handleType = e => {
+    const v = e.target.value;
+    const match = options.find(o=>_normCity(o.name)===_normCity(v));
+    if(match) onCityChange(match.name, {type:match.type, name:match.region, cityName:match.name, price:match.price});
+    else onCityChange(v, {type:"unknown", price:defaultDeliveryPrice});
+    setOpen(true);
+    setHoverIdx(-1);
+  };
+
+  return (
+    <div ref={wrapRef} style={{position:"relative"}}>
+      <div style={{display:"flex",border:`1.5px solid ${G.grayLight}`,borderRadius:8,overflow:"hidden",background:"#fff"}}>
+        <input type="text" value={value} onChange={handleType} onFocus={()=>setOpen(true)}
+          placeholder="Dakar, Thiès, Saint-Louis..."
+          style={{flex:1,border:"none",padding:"9px 12px",fontSize:13,outline:"none",background:"transparent"}}/>
+        <button type="button" onClick={()=>setOpen(o=>!o)}
+          style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 11px",cursor:"pointer",color:G.gray,fontSize:13,display:"flex",alignItems:"center"}}>
+          {open?"▲":"▾"}
+        </button>
+      </div>
+      {open&&(
+        <div style={{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",maxHeight:210,overflowY:"auto",zIndex:600}}>
+          {filtered.length===0&&(
+            <div style={{padding:"10px 14px",fontSize:12,color:G.gray,fontStyle:"italic"}}>
+              Ville inconnue — saisie libre, frais à remplir manuellement
+            </div>
+          )}
+          {filtered.map((opt,i)=>(
+            <div key={i}
+              onMouseDown={e=>{e.preventDefault();select(opt);}}
+              onMouseEnter={()=>setHoverIdx(i)} onMouseLeave={()=>setHoverIdx(-1)}
+              style={{padding:"9px 14px",cursor:"pointer",borderBottom:i<filtered.length-1?"1px solid #F1F5F9":"none",
+                display:"flex",justifyContent:"space-between",alignItems:"center",
+                background:hoverIdx===i?"#F0F9FF":"#fff"}}>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{opt.name}</div>
+                <div style={{fontSize:10,fontWeight:600,marginTop:1,color:opt.type==="main"?"#166534":"#1E40AF"}}>
+                  {opt.type==="main"?"🟢":"🔵"} {opt.region}
+                </div>
+              </div>
+              <div style={{fontSize:12,fontWeight:800,color:opt.type==="main"?"#166534":"#1E40AF",whiteSpace:"nowrap",marginLeft:8}}>
+                {fmt(opt.price)} F
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly", mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, onOpenFraisConfig=null}) {
   const [showWAPreview, setShowWAPreview] = useState(false);
   const prod = products.find(p=>p.name===newOrder.product);
@@ -649,31 +733,34 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           )}
         </div>
         <div style={{marginBottom:9}}>
-          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse</div>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse du client</div>
           <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, Dakar"
             style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
         </div>
 
-        {/* ── Ville + détection de zone ── */}
+        {/* ── Ville du client — combo box ── */}
         <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
-          <input type="text" value={newOrder.city||""} onChange={e=>{
-            const city = e.target.value;
-            const z = detectDeliveryZone(city, mainRegion, otherRegions, defaultDeliveryPrice);
-            const autoFee = z.price ? String(z.price) : "";
-            setNewOrder(p=>({
-              ...p, city,
-              deliveryZoneType: z.type,
-              deliveryZoneName: z.name||"",
-              deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
-            }));
-          }} placeholder="Dakar, Thiès, Saint-Louis..."
-            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-          {newOrder.city && (
+          <CityComboBox
+            value={newOrder.city||""}
+            onCityChange={(cityName, zoneInfo)=>{
+              const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : "";
+              setNewOrder(p=>({
+                ...p, city:cityName,
+                deliveryZoneType: zoneInfo.type,
+                deliveryZoneName: zoneInfo.name||"",
+                deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
+                deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
+              }));
+            }}
+            mainRegion={mainRegion} otherRegions={otherRegions}
+            defaultDeliveryPrice={defaultDeliveryPrice} G={G} fmt={fmt}
+          />
+          {newOrder.city&&(
             <div style={{marginTop:5}}>
-              {zoneInfo.type==="main"  && <span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 Région principale — {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
-              {zoneInfo.type==="other" && <span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région — {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
-              {zoneInfo.type==="unknown"&& <span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville non reconnue — saisir le prix manuellement</span>}
+              {zoneInfo.type==="main"  &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="other" &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — sera enregistrée</span>}
             </div>
           )}
         </div>
@@ -7247,9 +7334,8 @@ function AppInner() {
             {[
               {key:"client",   label:"👤 Nom client",        ph:"Moussa Diallo",   type:"text"},
               {key:"phone",    label:"📱 Téléphone",          ph:"77 123 45 67",    type:"text"},
-              {key:"address",  label:"📍 Adresse",            ph:"Médina, Dakar",   type:"text"},
+              {key:"address",  label:"📍 Adresse du client",  ph:"Médina, Dakar",   type:"text"},
               {key:"product",  label:"📦 Produit",            ph:"Chaussures Nike", type:"text"},
-              {key:"city",     label:"🏙️ Ville",               ph:"Dakar, Thiès…",   type:"text"},
               {key:"price",    label:"💰 Prix COD (CFA)",     ph:"25000",           type:"number"},
               {key:"fraisLiv", label:"🚚 Frais livraison (CFA)", ph:"1500",        type:"number"},
             ].map(f=>(
@@ -7259,6 +7345,29 @@ function AppInner() {
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               </div>
             ))}
+
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
+              <CityComboBox
+                value={editOrder.city||""}
+                onCityChange={(cityName, zoneInfo)=>{
+                  const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : (editOrder.fraisLiv||"");
+                  setEditOrder(p=>({...p, city:cityName, fraisLiv:autoFee, deliveryZoneType:zoneInfo.type, deliveryZoneName:zoneInfo.name||""}));
+                }}
+                mainRegion={mainRegion} otherRegions={otherRegions}
+                defaultDeliveryPrice={settings.defaultDeliveryPrice||3500} G={G} fmt={fmt}
+              />
+              {editOrder.city&&(()=>{
+                const z=detectDeliveryZone(editOrder.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
+                return (
+                  <div style={{marginTop:5}}>
+                    {z.type==="main"  &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {mainRegion?.name} · {fmt(z.price)} F</span>}
+                    {z.type==="other" &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région · {fmt(z.price)} F</span>}
+                    {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue</span>}
+                  </div>
+                );
+              })()}
+            </div>
 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
@@ -7298,6 +7407,13 @@ function AppInner() {
                     product:updated.product,price:updated.price,frais_liv:_fl||null,delivery_fee:_fl||null,
                     status:updated.status,livreur:updated.livreur||null,note:updated.note||""
                   }).catch(e=>{console.error("edit save:",e);addToast("Erreur sauvegarde","⚠️",G.red);});
+                }
+                // Auto-save unknown city with manual fee
+                if(orgId&&updated.city&&updated.deliveryZoneType==="unknown"&&_fl>0){
+                  const cityName=fmtCity(updated.city);
+                  const already=otherRegions.some(r=>_normCity(r.name)===_normCity(cityName));
+                  if(!already) sbFetch("delivery_other_regions","POST",{org_id:orgId,name:cityName,price:_fl,interurbain_price:0,cities:[cityName]})
+                    .then(res=>{const s=Array.isArray(res)?res[0]:res;if(s?.id)setOtherRegions(prev=>[...prev,s]);}).catch(()=>{});
                 }
                 setEditOrder(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
