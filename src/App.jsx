@@ -110,7 +110,7 @@ const TeamlyLogo = ({size=1, dark=false}) => (
     <span style={{fontFamily:"Georgia,serif",fontWeight:700,fontSize:22*size,color:dark?"#1A1A1A":"#F0A500",letterSpacing:0.5,lineHeight:1}}>eamly</span>
   </div>
 );
-const fmt = n => Number(n||0).toLocaleString("fr-FR");
+const fmt = n => Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const pct = n => (Number(n||0)*100).toFixed(1)+"%";
 const TODAY = new Date().toISOString().split("T")[0];
 const FRAIS_LIV = 1500;
@@ -149,14 +149,109 @@ const detectZone = addr => WA_ZONES.find(z => z.kw.some(k => _nz(addr).includes(
 // ── Zone de livraison configurable ─────────────────────────────────────────
 const _normCity = s => (s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 const _parseCity = s => { const idx=(s||"").lastIndexOf("|"); return idx===-1?{name:s||"",price:null}:{name:s.slice(0,idx),price:parseInt(s.slice(idx+1))||null}; };
+
+// ── Base géographique complète du Sénégal ────────────────────────────────────
+const SENEGAL_CITIES = [
+  // DAKAR
+  {city:"Dakar",department:"Dakar",region:"Dakar"},{city:"Plateau",department:"Dakar",region:"Dakar"},
+  {city:"Medina",department:"Dakar",region:"Dakar"},{city:"Fann",department:"Dakar",region:"Dakar"},
+  {city:"Almadies",department:"Dakar",region:"Dakar"},{city:"Ouakam",department:"Dakar",region:"Dakar"},
+  {city:"Ngor",department:"Dakar",region:"Dakar"},{city:"Yoff",department:"Dakar",region:"Dakar"},
+  {city:"Grand Dakar",department:"Dakar",region:"Dakar"},{city:"Biscuiterie",department:"Dakar",region:"Dakar"},
+  {city:"HLM",department:"Dakar",region:"Dakar"},{city:"Pikine",department:"Pikine",region:"Dakar"},
+  {city:"Pikine Nord",department:"Pikine",region:"Dakar"},{city:"Pikine Est",department:"Pikine",region:"Dakar"},
+  {city:"Pikine Ouest",department:"Pikine",region:"Dakar"},{city:"Thiaroye",department:"Pikine",region:"Dakar"},
+  {city:"Thiaroye sur Mer",department:"Pikine",region:"Dakar"},{city:"Yeumbeul Nord",department:"Pikine",region:"Dakar"},
+  {city:"Yeumbeul Sud",department:"Pikine",region:"Dakar"},{city:"Diamaguene Sicap Mbao",department:"Pikine",region:"Dakar"},
+  {city:"Mbao",department:"Pikine",region:"Dakar"},{city:"Keur Massar",department:"Keur Massar",region:"Dakar"},
+  {city:"Jaxaay",department:"Keur Massar",region:"Dakar"},{city:"Malika",department:"Keur Massar",region:"Dakar"},
+  {city:"Sangalkam",department:"Keur Massar",region:"Dakar"},{city:"Guediawaye",department:"Guediawaye",region:"Dakar"},
+  {city:"Golf Sud",department:"Guediawaye",region:"Dakar"},{city:"Medina Gounass",department:"Guediawaye",region:"Dakar"},
+  {city:"Ndiare Limamoulaye",department:"Guediawaye",region:"Dakar"},{city:"Sam Notaire",department:"Guediawaye",region:"Dakar"},
+  {city:"Rufisque",department:"Rufisque",region:"Dakar"},{city:"Rufisque Est",department:"Rufisque",region:"Dakar"},
+  {city:"Rufisque Nord",department:"Rufisque",region:"Dakar"},{city:"Rufisque Ouest",department:"Rufisque",region:"Dakar"},
+  {city:"Bargny",department:"Rufisque",region:"Dakar"},{city:"Diamniadio",department:"Rufisque",region:"Dakar"},
+  {city:"Sebikotane",department:"Rufisque",region:"Dakar"},{city:"Sendou",department:"Rufisque",region:"Dakar"},
+  // THIES
+  {city:"Thies",department:"Thies",region:"Thies"},{city:"Thies Nord",department:"Thies",region:"Thies"},
+  {city:"Thies Est",department:"Thies",region:"Thies"},{city:"Thies Ouest",department:"Thies",region:"Thies"},
+  {city:"Fandene",department:"Thies",region:"Thies"},{city:"Keur Moussa",department:"Thies",region:"Thies"},
+  {city:"Notto Gouye Diama",department:"Thies",region:"Thies"},{city:"Ngoundiane",department:"Thies",region:"Thies"},
+  {city:"Mbour",department:"Mbour",region:"Thies"},{city:"Saly",department:"Mbour",region:"Thies"},
+  {city:"Saly Portudal",department:"Mbour",region:"Thies"},{city:"Joal-Fadiouth",department:"Mbour",region:"Thies"},
+  {city:"Joal",department:"Mbour",region:"Thies"},{city:"Nguekokh",department:"Mbour",region:"Thies"},
+  {city:"Sindia",department:"Mbour",region:"Thies"},{city:"Malicounda",department:"Mbour",region:"Thies"},
+  {city:"Popenguine",department:"Mbour",region:"Thies"},{city:"Tivaouane",department:"Tivaouane",region:"Thies"},
+  {city:"Mekhe",department:"Tivaouane",region:"Thies"},{city:"Pout",department:"Tivaouane",region:"Thies"},
+  {city:"Kayar",department:"Tivaouane",region:"Thies"},{city:"Khombole",department:"Tivaouane",region:"Thies"},
+  // DIOURBEL
+  {city:"Diourbel",department:"Diourbel",region:"Diourbel"},{city:"Bambey",department:"Bambey",region:"Diourbel"},
+  {city:"Touba",department:"Mbacke",region:"Diourbel"},{city:"Mbacke",department:"Mbacke",region:"Diourbel"},
+  {city:"Ndame",department:"Diourbel",region:"Diourbel"},{city:"Ndoulo",department:"Diourbel",region:"Diourbel"},
+  {city:"Ndindy",department:"Bambey",region:"Diourbel"},
+  // FATICK
+  {city:"Fatick",department:"Fatick",region:"Fatick"},{city:"Foundiougne",department:"Foundiougne",region:"Fatick"},
+  {city:"Gossas",department:"Gossas",region:"Fatick"},{city:"Sokone",department:"Foundiougne",region:"Fatick"},
+  {city:"Passy",department:"Fatick",region:"Fatick"},{city:"Dioffior",department:"Fatick",region:"Fatick"},
+  // KAOLACK
+  {city:"Kaolack",department:"Kaolack",region:"Kaolack"},{city:"Guinguineo",department:"Guinguineo",region:"Kaolack"},
+  {city:"Nioro du Rip",department:"Nioro du Rip",region:"Kaolack"},{city:"Ndoffane",department:"Guinguineo",region:"Kaolack"},
+  {city:"Kahone",department:"Kaolack",region:"Kaolack"},{city:"Gandiaye",department:"Kaolack",region:"Kaolack"},
+  // KAFFRINE
+  {city:"Kaffrine",department:"Kaffrine",region:"Kaffrine"},{city:"Birkilane",department:"Birkilane",region:"Kaffrine"},
+  {city:"Koungheul",department:"Koungheul",region:"Kaffrine"},{city:"Malem-Hodar",department:"Malem-Hodar",region:"Kaffrine"},
+  // SAINT-LOUIS
+  {city:"Saint-Louis",department:"Saint-Louis",region:"Saint-Louis"},{city:"Dagana",department:"Dagana",region:"Saint-Louis"},
+  {city:"Podor",department:"Podor",region:"Saint-Louis"},{city:"Richard Toll",department:"Dagana",region:"Saint-Louis"},
+  {city:"Rosso",department:"Dagana",region:"Saint-Louis"},{city:"Ndioum",department:"Podor",region:"Saint-Louis"},
+  // LOUGA
+  {city:"Louga",department:"Louga",region:"Louga"},{city:"Kebemer",department:"Kebemer",region:"Louga"},
+  {city:"Linguere",department:"Linguere",region:"Louga"},{city:"Dahra",department:"Linguere",region:"Louga"},
+  {city:"Coki",department:"Kebemer",region:"Louga"},
+  // MATAM
+  {city:"Matam",department:"Matam",region:"Matam"},{city:"Kanel",department:"Kanel",region:"Matam"},
+  {city:"Ranerou",department:"Ranerou Ferlo",region:"Matam"},{city:"Ourossogui",department:"Matam",region:"Matam"},
+  {city:"Thilogne",department:"Matam",region:"Matam"},
+  // TAMBACOUNDA
+  {city:"Tambacounda",department:"Tambacounda",region:"Tambacounda"},{city:"Bakel",department:"Bakel",region:"Tambacounda"},
+  {city:"Goudiry",department:"Goudiry",region:"Tambacounda"},{city:"Koumpentoum",department:"Koumpentoum",region:"Tambacounda"},
+  {city:"Kidira",department:"Bakel",region:"Tambacounda"},
+  // KEDOUGOU
+  {city:"Kedougou",department:"Kedougou",region:"Kedougou"},{city:"Saraya",department:"Saraya",region:"Kedougou"},
+  {city:"Salemata",department:"Salemata",region:"Kedougou"},
+  // KOLDA
+  {city:"Kolda",department:"Kolda",region:"Kolda"},{city:"Medina Yoro Foulah",department:"Medina Yoro Foulah",region:"Kolda"},
+  {city:"Velingara",department:"Velingara",region:"Kolda"},{city:"Dabo",department:"Kolda",region:"Kolda"},
+  // SEDHIOU
+  {city:"Sedhiou",department:"Sedhiou",region:"Sedhiou"},{city:"Bounkiling",department:"Bounkiling",region:"Sedhiou"},
+  {city:"Goudomp",department:"Goudomp",region:"Sedhiou"},
+  // ZIGUINCHOR
+  {city:"Ziguinchor",department:"Ziguinchor",region:"Ziguinchor"},{city:"Bignona",department:"Bignona",region:"Ziguinchor"},
+  {city:"Oussouye",department:"Oussouye",region:"Ziguinchor"},{city:"Cap Skirring",department:"Oussouye",region:"Ziguinchor"},
+  {city:"Diouloulou",department:"Bignona",region:"Ziguinchor"},{city:"Kafountine",department:"Bignona",region:"Ziguinchor"},
+];
+// lookup by normalized city name (handles accents)
+const _findSenCity = t => SENEGAL_CITIES.find(c=>_normCity(c.city)===t);
+
 const detectDeliveryZone = (city, mainZone, others, defaultPrice=3500) => {
   const t = _normCity(city);
   if(!t) return {type:"unknown",price:defaultPrice};
+  // 1. Configured main zone
   if(mainZone?.cities?.length) { for(const cs of mainZone.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"main",name:mainZone.name,cityName:name,price:price??mainZone.price??defaultPrice}; } }
+  // 2. Configured other regions
   for(const r of (others||[])) {
     const itb = r.interurbain_price||0;
     if(_normCity(r.name)===t) return {type:"other",name:r.name,cityName:r.name,price:(r.price??defaultPrice)+itb,fraisLocale:r.price??defaultPrice,interurbain:itb};
     if(r.cities?.length) { for(const cs of r.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"other",name:r.name,cityName:name,price:(price??r.price??defaultPrice)+itb,fraisLocale:price??r.price??defaultPrice,interurbain:itb}; } }
+  }
+  // 3. Sénégal geographic database — never treat known cities as unknown
+  const sc = _findSenCity(t);
+  if(sc) {
+    const mainNorm = _normCity(mainZone?.name||"");
+    const regNorm  = _normCity(sc.region);
+    const isMain   = mainNorm && (regNorm===mainNorm || regNorm.includes(mainNorm) || mainNorm.includes(regNorm));
+    if(isMain) return {type:"main",name:sc.region,cityName:sc.city,price:mainZone?.price??defaultPrice};
+    return {type:"senegal",name:sc.region,cityName:sc.city,department:sc.department,price:defaultPrice};
   }
   return {type:"unknown",price:defaultPrice};
 };
@@ -290,6 +385,10 @@ const STATUS = {
   reprogramar:      {label:"Reporter",           color:"#7C3AED",bg:"#EDE9FE"},
   boutique:         {label:"Boutique Shopify 🛒", color:"#96BF48",bg:"#F0F7E6"},
 };
+
+// Statuts intermédiaires livreur — l'ordre ne doit JAMAIS disparaître tant qu'il n'est pas final
+const LIV_ACTIVE = new Set(["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar"]);
+const LIV_FINAL  = new Set(["entregado","rechazado"]);
 
 const INIT_PRODUCTS = [
   {id:1,name:"Chaussures Nike",cost:7000, price:25000,stock:42,fraisLiv:1500,niche:"Mode & Chaussures",
@@ -605,26 +704,46 @@ function MapView({positions, role, isDesktop=false, destination=null, livreurPos
   );
 }
 
-function CityComboBox({value="", onCityChange, mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, G, fmt}) {
+function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, G, fmt}) {
   const [open, setOpen] = useState(false);
   const [hoverIdx, setHoverIdx] = useState(-1);
   const wrapRef = useRef(null);
 
-  const options = [
-    ...(mainRegion?.cities||[]).map(s=>{
-      const {name,price}=_parseCity(s);
-      return {name, region:mainRegion?.name||"Région principale", type:"main", price:price??mainRegion?.price??defaultDeliveryPrice};
-    }),
-    ...otherRegions.map(r=>({
-      name:r.name, region:"Autre région", type:"other",
-      price:(r.price||0)+(r.interurbain_price||0)
-    }))
-  ];
+  // Tier 1: cities configured in main zone
+  const mainOpts = (mainRegion?.cities||[]).map(s=>{
+    const {name,price}=_parseCity(s);
+    return {name, region:mainRegion?.name||"Région principale", type:"main", price:price??mainRegion?.price??defaultDeliveryPrice};
+  });
+  // Tier 2: configured other regions (each row = one city)
+  const otherOpts = otherRegions.flatMap(r=>{
+    const itb=r.interurbain_price||0;
+    const rows=[{name:r.name, region:r.name, type:"other", price:(r.price??defaultDeliveryPrice)+itb}];
+    (r.cities||[]).forEach(cs=>{const{name,price}=_parseCity(cs);if(name&&_normCity(name)!==_normCity(r.name))rows.push({name,region:r.name,type:"other",price:(price??r.price??defaultDeliveryPrice)+itb});});
+    return rows;
+  });
+  const configuredNorms = new Set([...mainOpts,...otherOpts].map(o=>_normCity(o.name)));
 
+  // Tier 3: all Sénégal cities not yet configured
+  const mainNorm = _normCity(mainRegion?.name||"");
+  const senegalOpts = SENEGAL_CITIES
+    .filter(c=>!configuredNorms.has(_normCity(c.city)))
+    .map(c=>{
+      const rn=_normCity(c.region);
+      const isMain=mainNorm&&(rn===mainNorm||rn.includes(mainNorm)||mainNorm.includes(rn));
+      return {name:c.city, region:`Région ${c.region}`, department:c.department,
+        type:isMain?"main":"senegal",
+        price:isMain?(mainRegion?.price??defaultDeliveryPrice):defaultDeliveryPrice};
+    });
+
+  const allOpts = [...mainOpts,...otherOpts,...senegalOpts];
   const q = _normCity(value);
-  const filtered = value
-    ? options.filter(o=>_normCity(o.name).includes(q)||_normCity(o.region).includes(q))
-    : options;
+  const filtered = value.length>=1
+    ? allOpts.filter(o=>
+        _normCity(o.name).includes(q)||
+        _normCity(o.region).includes(q)||
+        _normCity(o.department||"").includes(q)
+      ).slice(0,25)
+    : [...mainOpts,...otherOpts]; // no query → only show configured cities
 
   useEffect(()=>{
     const h=e=>{if(wrapRef.current&&!wrapRef.current.contains(e.target))setOpen(false);};
@@ -640,11 +759,18 @@ function CityComboBox({value="", onCityChange, mainRegion=null, otherRegions=[],
 
   const handleType = e => {
     const v = e.target.value;
-    const match = options.find(o=>_normCity(o.name)===_normCity(v));
+    const match = allOpts.find(o=>_normCity(o.name)===_normCity(v));
     if(match) onCityChange(match.name, {type:match.type, name:match.region, cityName:match.name, price:match.price});
     else onCityChange(v, {type:"unknown", price:defaultDeliveryPrice});
     setOpen(true);
     setHoverIdx(-1);
+  };
+
+  const getBadgeStyle = type => {
+    if(type==="main")    return {color:"#166534",icon:"🟢"};
+    if(type==="other")   return {color:"#1E40AF",icon:"🔵"};
+    if(type==="senegal") return {color:"#6B7280",icon:"⚪"};
+    return {color:G.gray,icon:"❓"};
   };
 
   return (
@@ -653,34 +779,96 @@ function CityComboBox({value="", onCityChange, mainRegion=null, otherRegions=[],
         <input type="text" value={value} onChange={handleType} onFocus={()=>setOpen(true)}
           placeholder="Dakar, Thiès, Saint-Louis..."
           style={{flex:1,border:"none",padding:"9px 12px",fontSize:13,outline:"none",background:"transparent"}}/>
+        {onConfig&&<button type="button" onClick={onConfig} title="Configurer les frais de livraison"
+          style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 10px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center"}}>⚙️</button>}
         <button type="button" onClick={()=>setOpen(o=>!o)}
           style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 11px",cursor:"pointer",color:G.gray,fontSize:13,display:"flex",alignItems:"center"}}>
           {open?"▲":"▾"}
         </button>
       </div>
       {open&&(
-        <div style={{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",maxHeight:210,overflowY:"auto",zIndex:600}}>
-          {filtered.length===0&&(
+        <div style={{position:"absolute",top:"calc(100% + 3px)",left:0,right:0,background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",maxHeight:230,overflowY:"auto",zIndex:600}}>
+          {filtered.length===0&&value.length>=1&&(
             <div style={{padding:"10px 14px",fontSize:12,color:G.gray,fontStyle:"italic"}}>
-              Ville inconnue — saisie libre, frais à remplir manuellement
+              Ville non reconnue — saisir le frais manuellement
             </div>
           )}
-          {filtered.map((opt,i)=>(
-            <div key={i}
-              onMouseDown={e=>{e.preventDefault();select(opt);}}
-              onMouseEnter={()=>setHoverIdx(i)} onMouseLeave={()=>setHoverIdx(-1)}
-              style={{padding:"9px 14px",cursor:"pointer",borderBottom:i<filtered.length-1?"1px solid #F1F5F9":"none",
-                display:"flex",justifyContent:"space-between",alignItems:"center",
-                background:hoverIdx===i?"#F0F9FF":"#fff"}}>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{opt.name}</div>
-                <div style={{fontSize:10,fontWeight:600,marginTop:1,color:opt.type==="main"?"#166534":"#1E40AF"}}>
-                  {opt.type==="main"?"🟢":"🔵"} {opt.region}
+          {filtered.length===0&&value.length===0&&(
+            <div style={{padding:"10px 14px",fontSize:12,color:G.gray,fontStyle:"italic"}}>
+              Tapez une ville pour rechercher…
+            </div>
+          )}
+          {filtered.map((opt,i)=>{
+            const {color,icon}=getBadgeStyle(opt.type);
+            return (
+              <div key={i}
+                onMouseDown={e=>{e.preventDefault();select(opt);}}
+                onMouseEnter={()=>setHoverIdx(i)} onMouseLeave={()=>setHoverIdx(-1)}
+                style={{padding:"9px 14px",cursor:"pointer",borderBottom:i<filtered.length-1?"1px solid #F1F5F9":"none",
+                  display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:hoverIdx===i?"#F0F9FF":"#fff"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{opt.name}</div>
+                  <div style={{fontSize:10,fontWeight:600,marginTop:1,color}}>
+                    {icon} {opt.region}{opt.department&&opt.type==="senegal"?` · ${opt.department}`:""}
+                  </div>
+                </div>
+                <div style={{fontSize:12,fontWeight:800,color,whiteSpace:"nowrap",marginLeft:8}}>
+                  {opt.type==="senegal"?"~":""}{fmt(opt.price)} F
                 </div>
               </div>
-              <div style={{fontSize:12,fontWeight:800,color:opt.type==="main"?"#166534":"#1E40AF",whiteSpace:"nowrap",marginLeft:8}}>
-                {fmt(opt.price)} F
-              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CityAutocomplete({value="", onChange, placeholder="Ville (ex: Thiès)"}) {
+  const [open, setOpen] = useState(false);
+  const [hoverIdx, setHoverIdx] = useState(-1);
+  const wrapRef = useRef(null);
+  const q = _normCity(value);
+  const suggestions = value.length>=2
+    ? SENEGAL_CITIES.filter(c=>
+        _normCity(c.city).includes(q)||
+        _normCity(c.region).includes(q)||
+        _normCity(c.department||"").includes(q)
+      ).slice(0,7)
+    : [];
+
+  useEffect(()=>{
+    const h=e=>{if(wrapRef.current&&!wrapRef.current.contains(e.target))setOpen(false);};
+    document.addEventListener("mousedown",h);
+    return()=>document.removeEventListener("mousedown",h);
+  },[]);
+
+  return (
+    <div ref={wrapRef} style={{position:"relative",flex:"1 1 110px"}}>
+      <input type="text" value={value}
+        onChange={e=>{onChange(e.target.value);setOpen(true);setHoverIdx(-1);}}
+        onFocus={()=>setOpen(true)}
+        onKeyDown={e=>{
+          if(e.key==="ArrowDown"){setHoverIdx(i=>Math.min(i+1,suggestions.length-1));e.preventDefault();}
+          else if(e.key==="ArrowUp"){setHoverIdx(i=>Math.max(i-1,0));e.preventDefault();}
+          else if(e.key==="Enter"&&hoverIdx>=0&&suggestions[hoverIdx]){onChange(suggestions[hoverIdx].city);setOpen(false);}
+          else if(e.key==="Escape"){setOpen(false);}
+        }}
+        placeholder={placeholder}
+        style={{width:"100%",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+      {open&&(suggestions.length>0||value.length>=2)&&(
+        <div style={{position:"absolute",top:"calc(100% + 2px)",left:0,right:0,background:"#fff",border:"1.5px solid #E2E8F0",borderRadius:10,boxShadow:"0 8px 24px rgba(0,0,0,0.12)",zIndex:700,animation:"livFadeIn 100ms ease",overflow:"hidden"}}>
+          {suggestions.length===0&&(
+            <div style={{padding:"10px 14px",fontSize:12,color:"#6B7280",fontStyle:"italic"}}>Aucune ville trouvée</div>
+          )}
+          {suggestions.map((c,i)=>(
+            <div key={i}
+              onMouseDown={e=>{e.preventDefault();onChange(c.city);setOpen(false);setHoverIdx(-1);}}
+              onMouseEnter={()=>setHoverIdx(i)} onMouseLeave={()=>setHoverIdx(-1)}
+              style={{padding:"10px 14px",cursor:"pointer",borderBottom:i<suggestions.length-1?"1px solid #F1F5F9":"none",background:hoverIdx===i?"#EFF6FF":"#fff",minHeight:44,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+              <div style={{fontSize:13,fontWeight:700,color:"#111827"}}>{c.city}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginTop:1}}>Région {c.region}{c.department?` · ${c.department}`:""}</div>
             </div>
           ))}
         </div>
@@ -732,12 +920,6 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
             </div>
           )}
         </div>
-        <div style={{marginBottom:9}}>
-          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse du client</div>
-          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, Dakar"
-            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-        </div>
-
         {/* ── Ville du client — combo box ── */}
         <div style={{marginBottom:9}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
@@ -753,27 +935,29 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
                 deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
               }));
             }}
+            onConfig={onOpenFraisConfig ? ()=>{onClose();onOpenFraisConfig();} : null}
             mainRegion={mainRegion} otherRegions={otherRegions}
             defaultDeliveryPrice={defaultDeliveryPrice} G={G} fmt={fmt}
           />
           {newOrder.city&&(
             <div style={{marginTop:5}}>
-              {zoneInfo.type==="main"  &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
-              {zoneInfo.type==="other" &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région · {fmt(zoneInfo.price)} F</span>}
-              {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — sera enregistrée</span>}
+              {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {zoneInfo.name} · tarif par défaut</span>}
+              {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — frais à saisir</span>}
             </div>
           )}
         </div>
 
+        <div style={{marginBottom:9}}>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse du client</div>
+          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, rue 10"
+            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+        </div>
+
         {/* ── Frais de livraison (auto-rempli, modifiable) ── */}
         <div style={{marginBottom:9}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
-            <div style={{fontSize:11,color:G.gray}}>🏍️ Frais de livraison (CFA)</div>
-            {onOpenFraisConfig&&<button type="button" onClick={()=>{onClose();onOpenFraisConfig();}}
-              style={{background:"none",border:"1px solid #E5E7EB",borderRadius:6,padding:"2px 8px",fontSize:10,color:G.gray,cursor:"pointer",display:"flex",alignItems:"center",gap:3}}>
-              ⚙️ Configurer
-            </button>}
-          </div>
+          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Frais de livraison (CFA)</div>
           <input type="number" min="0" value={newOrder.deliveryFee||""} onChange={e=>{
             setNewOrder(p=>({...p,deliveryFee:e.target.value,deliveryFeeOverridden:true}));
           }} placeholder="ex: 1500"
@@ -1068,8 +1252,8 @@ function AppInner() {
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
-  const [adSpend,setAdSpend]           = useState({});
-  const [livraisonsEchouees,setLivraisonsEchouees] = useState({});
+  const [adSpend,setAdSpend]           = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_ad_spend")||"null")||{};}catch(e){return {};}});
+  const [livraisonsEchouees,setLivraisonsEchouees] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_echecs")||"null")||{};}catch(e){return {};}});
   const [comptaCostEdit,setComptaCostEdit] = useState({}); // {prodId:{cost,fraisLiv,stock}}
   const [comptaSaving,setComptaSaving]     = useState(null); // prodId en cours de sauvegarde
   const [expandedProd,setExpandedProd]     = useState(null); // produit id ouvert en détail
@@ -1090,9 +1274,17 @@ function AppInner() {
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
   const [cashRemis,setCashRemis]       = useState("");
+  const [comptaExpandedProd,setComptaExpandedProd] = useState(null);
+  const [comptaExportOpen,setComptaExportOpen]     = useState(false);
+  const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="thismonth"||s==="lastmonth")return"mois";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
+  const [fraisAdminEditId,setFraisAdminEditId]     = useState(null);
+  const [fraisAdminEditVal,setFraisAdminEditVal]   = useState("");
+  const _COMPTA_FILTERS_DEFAULT = {produits:[],livraisonType:"all",region:"",ville:"",livreurs:[],statuts:["entregado"],source:"all"};
+  const [comptaFilters,setComptaFilters]           = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_adv_filters")||"null")||_COMPTA_FILTERS_DEFAULT;}catch(e){return _COMPTA_FILTERS_DEFAULT;}});
+  const [comptaFiltersOpen,setComptaFiltersOpen]   = useState(false);
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
-  const [dateFrom,setDateFrom]         = useState("");
-  const [dateTo,setDateTo]             = useState("");
+  const [dateFrom,setDateFrom]         = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").dateFrom||TODAY;}catch(e){return TODAY;}});
+  const [dateTo,setDateTo]             = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").dateTo||TODAY;}catch(e){return TODAY;}});
   const [newAssignment,setNewAssignment] = useState(null);
   const [showGpsPrompt,setShowGpsPrompt] = useState(false);
   const [showIosInstall,setShowIosInstall] = useState(false);
@@ -1124,8 +1316,10 @@ function AppInner() {
   const prevOrdersRef                  = useRef(null);
   const [gestionMode,setGestionMode]   = useState(null); // null | "solo" | "delegue"
   const [remise,setRemise]     = useState({});
-  const [selDate,setSelDate]   = useState(TODAY);
-  const [selMonth,   setSelMonth]       = useState(new Date().toISOString().slice(0,7));
+  const [comptaShortcut,setComptaShortcut] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut||"today";}catch(e){return"today";}});
+  const [livFinalConfirm, setLivFinalConfirm] = useState(null); // {orderId, type:"livre"|"rejete", client, price}
+  const [livFinalNote,    setLivFinalNote]    = useState("");
+  const [livBtnLoading,   setLivBtnLoading]   = useState(null); // orderId currently being actioned
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -1213,6 +1407,8 @@ function AppInner() {
   useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_dismissed",JSON.stringify([...dismissedNotifs]))}catch(e){}},[dismissedNotifs]);
   useEffect(()=>{try{localStorage.setItem("teamly_wa_sent",JSON.stringify([...waSentIds]))}catch(e){}},[waSentIds]);
+  useEffect(()=>{try{localStorage.setItem("teamly_compta_filter",JSON.stringify({dateFrom,dateTo,shortcut:comptaShortcut}))}catch(e){}},[dateFrom,dateTo,comptaShortcut]);
+  useEffect(()=>{try{localStorage.setItem("teamly_compta_adv_filters",JSON.stringify(comptaFilters))}catch(e){}},[comptaFilters]);
   const [livreurPositions, setLivreurPositions] = useState({
   });
   const gpsWatchRef = useRef(null);
@@ -1253,6 +1449,13 @@ function AppInner() {
 
   // ── actions ──
   const upSt = (id,s) => {
+    if(s==="entregado"){
+      const ord=orders.find(x=>x.id===id);
+      if(!ord?.deliveryFee||Number(ord.deliveryFee)<=0){
+        addToast("⚠️ Frais de livraison manquants — configure-les avant de livrer","⚠️","#F59E0B");
+        return;
+      }
+    }
     const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
@@ -1261,6 +1464,11 @@ function AppInner() {
       if(x.id!==id) return x;
       if(s==="entregado"&&x.status!=="entregado") {
         setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:Math.max(0,pr.stock-1)}:pr));
+        sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"entregado",delta:-1,reason:"Livraison confirmée",order_id:x.id}).catch(()=>{});
+      }
+      if(s==="rechazado"&&x.status==="entregado") {
+        setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:pr.stock+1}:pr));
+        sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"rechazado",delta:+1,reason:"Retour stock — livraison annulée",order_id:x.id}).catch(()=>{});
       }
       return {...x,status:s};
     }));
@@ -2290,6 +2498,70 @@ function AppInner() {
   const tPub  = calcProd.reduce((a,x)=>a+x.pub,0);
   const tMarge= tCA>0?tBen/tCA:0;
 
+  // ── Comptabilité filtrée par plage de dates + filtres avancés ──
+  const comptaOrders = (()=>{
+    const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
+    const to   = dateTo   ? new Date(dateTo  +"T23:59:59.999Z") : null;
+    const cf   = comptaFilters;
+    return orders.filter(o=>{
+      // Date
+      const d = o.created_at ? new Date(o.created_at) : null;
+      if(from && (!d||d<from)) return false;
+      if(to   && (!d||d>to  )) return false;
+      // Produit
+      if(cf.produits.length>0 && !cf.produits.some(p=>o.product?.startsWith(p))) return false;
+      // Statut
+      if(cf.statuts.length>0 && !cf.statuts.includes(o.status)) return false;
+      // Type livraison (main=locale, other=régionale)
+      if(cf.livraisonType==="locale_moto"    && o.deliveryZoneType!=="main" ) return false;
+      if(cf.livraisonType==="regionale_voiture" && o.deliveryZoneType!=="other") return false;
+      // Source
+      if(cf.source!=="all"){
+        const isShopify = !!(o.note?.includes("Shopify")||o.order_source==="shopify");
+        if(cf.source==="shopify" && !isShopify) return false;
+        if(cf.source==="manual"  &&  isShopify) return false;
+      }
+      // Livreur
+      if(cf.livreurs.length>0 && !cf.livreurs.includes(o.livreur||"")) return false;
+      // Région/ville (match against deliveryZoneName or city field)
+      if(cf.ville){
+        const haystack=_normCity((o.city||o.deliveryZoneName||o.address||""));
+        if(!haystack.includes(_normCity(cf.ville))) return false;
+      } else if(cf.region){
+        const haystack=_normCity((o.deliveryZoneName||o.address||""));
+        if(!haystack.includes(_normCity(cf.region))) return false;
+      }
+      return true;
+    });
+  })();
+  const comptaCalcProd = products.map(prod=>{
+    const op     = comptaOrders.filter(o=>o.product?.startsWith(prod.name));
+    const nLiv   = op.filter(o=>o.status==="entregado").length;
+    const nRej   = op.filter(o=>o.status==="rechazado").length;
+    const ca     = nLiv*prod.price;
+    const camv   = nLiv*prod.cost;
+    const livOps = op.filter(o=>o.status==="entregado");
+    const frais  = livOps.reduce((s,o)=>{
+      if(o.fraisLiv) return s+o.fraisLiv;
+      return s+detectZone(o.address).price;
+    },0)||nLiv*(prod.fraisLiv||FRAIS_LIV);
+    const zoneBreakdown = WA_ZONES.map(z=>({
+      zone:z,
+      count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
+    })).filter(x=>x.count>0);
+    const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
+    const pub      = parseFloat(adSpend[prod.id]||0);
+    const ben      = ca-camv-frais-echouees-pub;
+    const marge    = ca>0?ben/ca:0;
+    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown};
+  });
+  const comptaCA    = comptaCalcProd.reduce((a,x)=>a+x.ca,0);
+  const comptaBen   = comptaCalcProd.reduce((a,x)=>a+x.ben,0);
+  const comptaCamv  = comptaCalcProd.reduce((a,x)=>a+x.camv,0);
+  const comptaFrais = comptaCalcProd.reduce((a,x)=>a+x.frais,0);
+  const comptaPub   = comptaCalcProd.reduce((a,x)=>a+x.pub,0);
+  const comptaMarge = comptaCA>0?comptaBen/comptaCA:0;
+
   // ── Move card up/down within its status group ──
   const moveInGroup = (id, direction) => {
     const target = orders.find(o => o.id === id);
@@ -2390,14 +2662,48 @@ function AppInner() {
               </>;
             })()}
           </div>
-          {(o.deliveryFee>0||o.deliveryZoneName)&&(
-            <div style={{marginTop:5,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-              <span style={{background:"#F0F9FF",color:"#0369A1",borderRadius:5,padding:"1px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>
-                🚚 {o.deliveryFee>0?`${fmt(o.deliveryFee)} F`:"—"}{o.deliveryZoneName?` · ${o.deliveryZoneName}`:""}
-              </span>
-              {o.deliveryFeeOverridden&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>✏️ Manuel</span>}
-            </div>
-          )}
+          {(()=>{
+            const zType=o.deliveryZoneType||"";
+            const fraisIcon=zType==="other"?"🚐":"🏍️";
+            const fraisLabel=zType==="other"?"Régionale":"Locale";
+            const canEdit=role==="admin";
+            const isEditing=fraisAdminEditId===o.id;
+            const hasFrais=o.deliveryFee>0||o.deliveryZoneName;
+            if(!hasFrais&&!canEdit) return null;
+            return (
+              <div style={{marginTop:5,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
+                {isEditing?(
+                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                    <input type="number" min="0" value={fraisAdminEditVal}
+                      onChange={e=>setFraisAdminEditVal(e.target.value)} autoFocus
+                      style={{width:80,border:"1.5px solid #0369A1",borderRadius:6,padding:"2px 7px",fontSize:11,outline:"none"}}/>
+                    <button onClick={async()=>{
+                      const v=parseInt(fraisAdminEditVal)||0;
+                      setOrders(x=>x.map(ord=>ord.id===o.id?{...ord,deliveryFee:v,deliveryFeeOverridden:true}:ord));
+                      sbFetch(`orders?id=eq.${o.id}`,"PATCH",{delivery_fee:v,delivery_fee_overridden:true},_authToken).catch(()=>{});
+                      setFraisAdminEditId(null);
+                      addToast(`Frais mis à jour: ${fmt(v)} F`,"✅",G.green);
+                    }} style={{background:G.green,color:"#fff",border:"none",borderRadius:6,padding:"2px 9px",fontSize:10,cursor:"pointer",fontWeight:700}}>✓</button>
+                    <button onClick={()=>setFraisAdminEditId(null)}
+                      style={{background:"#F3F4F6",color:G.gray,border:"none",borderRadius:6,padding:"2px 7px",fontSize:10,cursor:"pointer"}}>✕</button>
+                  </div>
+                ):(
+                  <>
+                    <span style={{background:"#F0F9FF",color:"#0369A1",borderRadius:5,padding:"1px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>
+                      {fraisIcon} {fraisLabel} · {o.deliveryFee>0?`${fmt(o.deliveryFee)} F`:"— F"}{o.deliveryZoneName?` · ${o.deliveryZoneName}`:""}
+                    </span>
+                    {canEdit
+                      ?<button onClick={()=>{setFraisAdminEditId(o.id);setFraisAdminEditVal(String(o.deliveryFee||0));}}
+                          style={{background:"none",border:"none",cursor:"pointer",fontSize:12,padding:"0 2px",lineHeight:1}} title="Modifier les frais">✏️</button>
+                      :<span style={{background:"#F3F4F6",color:"#6B7280",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:600,flexShrink:0}}>🔒 Coût fixe</span>
+                    }
+                    {o.deliveryFeeOverridden&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>Manuel</span>}
+                    {(!o.deliveryFee||o.deliveryFee<=0)&&canEdit&&<span style={{background:"#FEE2E2",color:"#DC2626",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>⚠️ Requis</span>}
+                  </>
+                )}
+              </div>
+            );
+          })()}
           {o.livreur&&(
             <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
               <span style={{background:"rgba(37,99,235,0.12)",color:"#1D4ED8",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
@@ -2575,12 +2881,12 @@ function AppInner() {
                 <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#D97706",fontWeight:600}}>
                   📍 Étape 5 — Vous êtes chez {o.client}. Comment ça s'est passé ?
                 </div>
-                <button onClick={()=>upSt(o.id,"entregado")}
+                <button onClick={()=>{setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"livre",client:o.client,price:o.price});}}
                   style={{width:"100%",background:"#D1FAE5",color:"#1A5C38",border:"2px solid #6EE7B7",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                   <span style={{fontSize:22}}>✅</span> Livré — Cash encaissé
                 </button>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-                  <button onClick={()=>upSt(o.id,"rechazado")} style={{background:"#FEE2E2",color:"#DC2626",border:"2px solid #FCA5A5",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                  <button onClick={()=>{setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"rejete",client:o.client,price:o.price});}} style={{background:"#FEE2E2",color:"#DC2626",border:"2px solid #FCA5A5",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
                     <span style={{fontSize:18}}>❌</span><span>Rejeté</span>
                   </button>
                   <button onClick={()=>upSt(o.id,"no_contesta")} style={{background:"#F3F4F6",color:"#6B7280",border:"2px solid #D1D5DB",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
@@ -2658,6 +2964,8 @@ function AppInner() {
                     {s:"reprogramar",    ico:"🔄", l:"Reporter"},
                   ].map(({s,ico,l})=>(
                     <button key={s} onClick={()=>{
+                      if(s==="entregado"){setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"livre",client:o.client,price:o.price});setOpenModifId(null);return;}
+                      if(s==="rechazado"){setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"rejete",client:o.client,price:o.price});setOpenModifId(null);return;}
                       if(s==="en_camino"){
                         const active=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
                         if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
@@ -3586,6 +3894,8 @@ function AppInner() {
   const _mon       = new Date(_now); _mon.setDate(_now.getDate() - ((_now.getDay()+6)%7));
   const WEEK_START = `${_mon.getFullYear()}-${_pad(_mon.getMonth()+1)}-${_pad(_mon.getDate())}`;
   const filteredOrders = baseOrders.filter(o=>{
+    // Livreur: active delivery orders ALWAYS visible regardless of filters — never disappear mid-tournée
+    if(role==="livreur" && LIV_ACTIVE.has(o.status)) return true;
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
     const matchStatus = filterStatus==="all" ||
@@ -4339,53 +4649,143 @@ function AppInner() {
 
         {/* ── LIVREUR DASHBOARD ── */}
         {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
-          const aRecuperer = myLiv.filter(o=>["confirmado","livreur_en_route","pendiente"].includes(o.status));
-          const aLivrer    = myLiv.filter(o=>o.status==="colis_pris");
-          const enRoute    = myLiv.filter(o=>o.status==="en_camino"||o.status==="chez_client");
+          const toConfirm  = myLiv.filter(o=>o.status==="confirmado");
+          const toPickup   = myLiv.filter(o=>o.status==="livreur_en_route");
+          const inProgress = myLiv.filter(o=>["colis_pris","en_camino","chez_client"].includes(o.status));
+          const isBatch    = livBtnLoading==="batch";
+
+          const batchAdvance = async(batchOrds, nextStatus, toastMsg) => {
+            const origMap = Object.fromEntries(batchOrds.map(o=>[o.id,o.status]));
+            setLivBtnLoading("batch");
+            setOrders(prev=>prev.map(o=>origMap[o.id]!==undefined?{...o,status:nextStatus}:o));
+            try {
+              await Promise.all(batchOrds.map(o=>sbFetch(`orders?id=eq.${o.id}`,"PATCH",{status:nextStatus})));
+              addToast(toastMsg,"✅",G.green);
+            } catch(e) {
+              setOrders(prev=>prev.map(o=>origMap[o.id]!==undefined?{...o,status:origMap[o.id]}:o));
+              addToast("Échec de la mise à jour, réessayez","❌",G.red);
+            } finally {
+              setLivBtnLoading(null);
+            }
+          };
+
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
-
-            {/* ── BLOC TOURNÉE — colis à récupérer ── */}
-            {aRecuperer.length>0&&(
-              <TourneeBlock
-                orders={aRecuperer}
-                mode="recuperer"
-                onConfirm={(ids)=>{
-                  ids.forEach(id=>upSt(id,"livreur_en_route"));
-                  addToast(`${ids.length} colis — Je pars récupérer 🏍️`,"🏍️",G.green);
-                }}
-                G={G} fmt={fmt}
-              />
-            )}
-
+            {/* Empty states */}
             {myLiv.length===0&&orders.length>0&&(
               <div style={{background:"#FFF8E7",borderRadius:12,padding:14,fontSize:12,color:"#92400E",border:"1px solid #FDE68A"}}>
                 ⚠️ Aucune livraison assignée à <strong>{currentUser.nom}</strong>. Demande à l'Admin de t'assigner des commandes.
               </div>
             )}
-            <div style={{display:"flex",gap:8}}><SC icon="📦" label="Assignées" value={myLiv.length}/><SC icon="✅" label="Livrées" value={myLiv.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/></div>
-            <div style={{display:"flex",gap:8}}><SC icon="🏍️" label="En route" value={myLiv.filter(o=>o.status==="en_camino").length} color={G.blue} bg="#EFF6FF"/><SC icon="❌" label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/></div>
+            {toConfirm.length===0&&toPickup.length===0&&inProgress.length===0&&myLiv.length>0&&(
+              <div style={{background:G.greenLight,borderRadius:14,padding:20,textAlign:"center",border:`1px solid ${G.green}33`}}>
+                <div style={{fontSize:32,marginBottom:6}}>✅</div>
+                <div style={{fontWeight:700,fontSize:15,color:G.green}}>Toutes les livraisons sont terminées</div>
+                <div style={{fontSize:12,color:G.gray,marginTop:4}}>Bien joué ! Attends de nouvelles assignations.</div>
+              </div>
+            )}
+
+            {/* ── BATCH NOTIFICATION 1 — Je pars récupérer ── */}
+            {toConfirm.length>0&&(
+              <div style={{background:"#EDE9FE",borderRadius:16,border:"2px solid #C4B5FD",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <span style={{fontSize:28,lineHeight:1}}>🔔</span>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:16,color:"#5B21B6"}}>Je pars récupérer {toConfirm.length} colis</div>
+                    <div style={{fontSize:11,color:"#7C3AED",fontWeight:600,marginTop:2}}>Nouveaux colis assignés — confirmez le départ</div>
+                  </div>
+                </div>
+                <div style={{background:"rgba(255,255,255,0.75)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+                  {toConfirm.slice(0,5).map((o,i)=>{
+                    const ref=o.note?.match(/#[\w-]+/)?.[0]||"";
+                    return (
+                      <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toConfirm.length,5)-1?"0.5px solid #EDE9FE":"none"}}>
+                        {ref&&<span style={{fontSize:10,color:"#7C3AED",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
+                        <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>{o.city||"—"}</span>
+                      </div>
+                    );
+                  })}
+                  {toConfirm.length>5&&<div style={{fontSize:11,color:"#7C3AED",marginTop:5,fontWeight:600}}>+{toConfirm.length-5} autres colis…</div>}
+                </div>
+                <button disabled={isBatch}
+                  onClick={()=>batchAdvance(toConfirm,"livreur_en_route","Départ confirmé — En route pour récupérer 🏍️")}
+                  style={{width:"100%",background:isBatch?"#9CA3AF":"#7C3AED",color:"#fff",border:"none",borderRadius:12,padding:"16px 0",fontWeight:800,fontSize:15,cursor:isBatch?"not-allowed":"pointer",transition:"background 150ms"}}>
+                  {isBatch?"…":"Je pars récupérer les colis"}
+                </button>
+              </div>
+            )}
+
+            {/* ── BATCH NOTIFICATION 2 — Colis en main (ONLY after N1 confirmed) ── */}
+            {toPickup.length>0&&toConfirm.length===0&&(
+              <div style={{background:"#EFF6FF",borderRadius:16,border:"2px solid #BAE6FD",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <span style={{fontSize:28,lineHeight:1}}>📦</span>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:16,color:"#0369A1"}}>Colis en main</div>
+                    <div style={{fontSize:11,color:"#0284C7",fontWeight:600,marginTop:2}}>{toPickup.length} colis récupérés — confirmer la prise en charge</div>
+                  </div>
+                </div>
+                <div style={{background:"rgba(255,255,255,0.75)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+                  {toPickup.slice(0,5).map((o,i)=>{
+                    const ref=o.note?.match(/#[\w-]+/)?.[0]||"";
+                    return (
+                      <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickup.length,5)-1?"0.5px solid #BAE6FD":"none"}}>
+                        {ref&&<span style={{fontSize:10,color:"#0284C7",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
+                        <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||"—"}</span>
+                      </div>
+                    );
+                  })}
+                  {toPickup.length>5&&<div style={{fontSize:11,color:"#0284C7",marginTop:5,fontWeight:600}}>+{toPickup.length-5} autres colis…</div>}
+                </div>
+                <button disabled={isBatch}
+                  onClick={()=>batchAdvance(toPickup,"colis_pris","Colis pris en charge. Continuez les livraisons.")}
+                  style={{width:"100%",background:isBatch?"#9CA3AF":"#0369A1",color:"#fff",border:"none",borderRadius:12,padding:"16px 0",fontWeight:800,fontSize:15,cursor:isBatch?"not-allowed":"pointer",transition:"background 150ms"}}>
+                  {isBatch?"…":"Colis en main"}
+                </button>
+              </div>
+            )}
+
+            {/* ── EN COURS — gérer dans Livraisons ── */}
+            {inProgress.length>0&&(
+              <div style={{background:"#FFF8E7",borderRadius:16,border:"2px solid #FDE68A",padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",animation:"livFadeIn 220ms ease"}}>
+                <div style={{fontWeight:800,fontSize:14,color:"#92400E",marginBottom:10}}>🚀 {inProgress.length} livraison{inProgress.length>1?"s":""} en cours</div>
+                {inProgress.slice(0,3).map((o,i)=>{
+                  const st=STATUS[o.status]||STATUS.pendiente;
+                  return (
+                    <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:i<Math.min(inProgress.length,3)-1?"0.5px solid #FDE68A":"none"}}>
+                      <span style={{fontWeight:700,fontSize:13,color:"#111"}}>{o.client}</span>
+                      <span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>{st.label}</span>
+                    </div>
+                  );
+                })}
+                {inProgress.length>3&&<div style={{fontSize:11,color:"#D97706",marginTop:5,fontWeight:600}}>+{inProgress.length-3} autres…</div>}
+                <button onClick={()=>setTab("livraisons")}
+                  style={{width:"100%",background:"#D97706",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:14}}>
+                  Gérer dans Livraisons →
+                </button>
+              </div>
+            )}
+
+            {/* Stats */}
+            <div style={{display:"flex",gap:8}}>
+              <SC icon="📦" label="Assignées" value={myLiv.length}/>
+              <SC icon="✅" label="Livrées" value={myLiv.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <SC icon="🏍️" label="En route" value={myLiv.filter(o=>["en_camino","chez_client"].includes(o.status)).length} color={G.blue} bg="#EFF6FF"/>
+              <SC icon="❌" label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/>
+            </div>
             <div style={{background:G.greenLight,borderRadius:14,padding:18,textAlign:"center"}}>
               <div style={{fontSize:11,color:G.gray,fontWeight:700,letterSpacing:1}}>CASH COLLECTÉ</div>
               <div style={{fontSize:28,fontWeight:700,color:G.green,marginTop:4}}>{fmt(myLiv.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0))} CFA</div>
             </div>
-            {myLiv.filter(o=>o.status==="en_camino").length>0&&(
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST>🚀 EN COURS</ST>
-                {myLiv.filter(o=>o.status==="en_camino").map(o=>(
-                  <div key={o.id} style={{padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                    <div style={{fontWeight:700,fontSize:14}}>{o.client}</div>
-                    <div style={{fontSize:12,color:G.gray}}>📍 {o.address} · 📱 {o.phone}</div>
-                    <div style={{fontSize:13,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} CFA</div>
-                  </div>
-                ))}
-              </div>
-            )}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST>📋 MES LIVRAISONS</ST>
               <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
-                rows={[...myLiv].sort((a,b)=>new Date(a.created_at||0)-new Date(b.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
+                rows={[...myLiv].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
               />
             </div>
           </div>
@@ -4470,37 +4870,69 @@ function AppInner() {
               </div>
             )}
             {(()=>{
-              const GROUP_ORDER = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","pendiente"];
-              // Pinned orders: always at the very top, FIFO, regardless of status
-              const pinnedOrders = filteredOrders
-                .filter(o=>pinnedOrderIds.includes(o.id))
-                .sort((a,b)=>pinnedOrderIds.indexOf(a.id)-pinnedOrderIds.indexOf(b.id));
+              const GROUP_ORDER = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar","entregado","rechazado","pendiente"];
+              const sortFn = (a,b) => {
+                if(localOrderIds.length>0){
+                  const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
+                  if(ia<0&&ib<0) return role==="livreur" ? new Date(a.created_at||0)-new Date(b.created_at||0) : new Date(b.created_at||0)-new Date(a.created_at||0);
+                  if(ia<0) return 1; if(ib<0) return -1; return ia-ib;
+                }
+                return role==="livreur" ? new Date(a.created_at||0)-new Date(b.created_at||0) : new Date(b.created_at||0)-new Date(a.created_at||0);
+              };
+
+              // ── Livreur: split active vs terminées ──
+              if(role==="livreur") {
+                const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)).sort(sortFn);
+                const finalOrds  = filteredOrders.filter(o=>LIV_FINAL.has(o.status)).sort(sortFn);
+                return (
+                  <>
+                    {/* Tournée en cours — toujours fixée en haut */}
+                    {activeOrds.length>0&&(
+                      <div style={{marginBottom:8}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                          <span style={{fontSize:13}}>🔥</span>
+                          <span style={{fontSize:11,fontWeight:700,color:"#D97706",letterSpacing:0.3}}>TOURNÉE EN COURS</span>
+                          <span style={{fontSize:11,color:G.gray}}>({activeOrds.length})</span>
+                          <div style={{flex:1,height:1,background:"#D9770633"}}/>
+                        </div>
+                        {activeOrds.map(o=><OCard key={o.id} o={o}/>)}
+                      </div>
+                    )}
+                    {activeOrds.length===0&&(
+                      <div style={{textAlign:"center",padding:"30px 16px",background:G.white,borderRadius:14,marginBottom:8}}>
+                        <div style={{fontSize:28,marginBottom:6}}>✅</div>
+                        <div style={{fontSize:13,fontWeight:700,color:G.dark}}>Aucune livraison active</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:3}}>Toutes les livraisons du jour sont terminées</div>
+                      </div>
+                    )}
+                    {/* Terminées — en bas */}
+                    {finalOrds.length>0&&(
+                      <div>
+                        <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                          <div style={{width:10,height:10,borderRadius:"50%",background:"#6B7280",flexShrink:0}}/>
+                          <span style={{fontSize:11,fontWeight:700,color:"#6B7280",letterSpacing:0.3}}>TERMINÉES</span>
+                          <span style={{fontSize:11,color:G.gray}}>({finalOrds.length})</span>
+                          <div style={{flex:1,height:1,background:"#6B728033"}}/>
+                        </div>
+                        {finalOrds.map(o=><OCard key={o.id} o={o}/>)}
+                      </div>
+                    )}
+                  </>
+                );
+              }
+
+              // ── Admin / closer: groupement par statut ──
+              const pinnedOrders = filteredOrders.filter(o=>pinnedOrderIds.includes(o.id)).sort((a,b)=>pinnedOrderIds.indexOf(a.id)-pinnedOrderIds.indexOf(b.id));
               const pinnedSet = new Set(pinnedOrders.map(o=>o.id));
-              // Remaining orders grouped by status
               const groups = {};
               filteredOrders.filter(o=>!pinnedSet.has(o.id)).forEach(o=>{
                 const k = o.status||"pendiente";
                 if(!groups[k]) groups[k]=[];
                 groups[k].push(o);
               });
-              GROUP_ORDER.forEach(k=>{
-                if(!groups[k]) return;
-                groups[k].sort((a,b)=>{
-                  if(localOrderIds.length>0){
-                    const ia=localOrderIds.indexOf(a.id), ib=localOrderIds.indexOf(b.id);
-                    if(ia<0&&ib<0) return role==="livreur"
-                      ? new Date(a.created_at||0)-new Date(b.created_at||0)
-                      : new Date(b.created_at||0)-new Date(a.created_at||0);
-                    if(ia<0) return 1; if(ib<0) return -1; return ia-ib;
-                  }
-                  return role==="livreur"
-                    ? new Date(a.created_at||0)-new Date(b.created_at||0)
-                    : new Date(b.created_at||0)-new Date(a.created_at||0);
-                });
-              });
+              GROUP_ORDER.forEach(k=>{ if(groups[k]) groups[k].sort(sortFn); });
               return (
                 <>
-                  {/* Section épinglés — reste en haut quel que soit le statut */}
                   {pinnedOrders.length>0&&(
                     <div style={{marginBottom:8}}>
                       <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
@@ -4514,7 +4946,6 @@ function AppInner() {
                       </div>
                     </div>
                   )}
-                  {/* Groupes par statut pour les non-épinglés */}
                   {GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
                     const st = STATUS[k]||STATUS.pendiente;
                     return (
@@ -5112,297 +5543,422 @@ function AppInner() {
 
         {/* ── COMPTA ── */}
         {dataReady&&tab==="compta"&&canSeeCompta&&(
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:600,margin:"0 auto",width:"100%"}}>
 
-            {/* Sélecteurs — Jour / Mois / Plage */}
-            <div style={{background:G.white,borderRadius:12,padding:"12px 14px"}}>
-              <div style={{fontSize:11,color:G.gray,fontWeight:600,marginBottom:10}}>📅 PÉRIODE D'ANALYSE</div>
-              <div style={{display:"flex",gap:6,marginBottom:8}}>
-                {[{k:"jour",l:"Jour"},{k:"mois",l:"Mois"},{k:"plage",l:"Plage"}].map(t=>{
-                  const active=(t.k==="jour"&&selDate!=="plage"&&selDate!=="mois")||(t.k===selDate);
-                  return <button key={t.k} onClick={()=>setSelDate(t.k==="jour"?TODAY:t.k)} style={{flex:1,background:active?G.green:G.grayLight,color:active?G.white:G.gray,border:"none",borderRadius:8,padding:"7px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>{t.l}</button>;
-                })}
-              </div>
-              {selDate==="plage"&&<div style={{display:"flex",gap:8,alignItems:"center"}}><input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{flex:1,border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/><span style={{fontSize:11,color:G.gray}}>→</span><input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{flex:1,border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/></div>}
-              {selDate==="mois"&&<input type="month" value={selMonth} onChange={e=>setSelMonth(e.target.value)} style={{width:"100%",border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/>}
-              {selDate!=="plage"&&selDate!=="mois"&&<input type="date" value={selDate} onChange={e=>setSelDate(e.target.value)} style={{width:"100%",border:`1px solid ${G.grayLight}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none"}}/>}
-            </div>
-
-            {/* Rapport mensuel */}
-            <div style={{background:"linear-gradient(135deg,#1A5C38,#0D3D25)",borderRadius:16,padding:18,color:G.white}}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:600,letterSpacing:1,marginBottom:6}}>RAPPORT — {new Date(selMonth+"-01").toLocaleDateString("fr-FR",{month:"long",year:"numeric"}).toUpperCase()}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontWeight:700,letterSpacing:1,marginBottom:2}}>BÉNÉFICE NET</div>
-              <div style={{fontSize:36,fontWeight:800,color:tBen>=0?G.gold:"#FCA5A5",marginBottom:2}}>{fmt(tBen)} <span style={{fontSize:14,fontWeight:400,opacity:0.8}}>CFA</span></div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.6)"}}>Marge: {pct(tMarge)} · CA: {fmt(tCA)} CFA</div>
-              <div style={{display:"flex",gap:14,marginTop:14,flexWrap:"wrap"}}>
-                {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Frais",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
-                  <div key={i}><div style={{fontSize:12,fontWeight:700,color:i===0?"rgba(255,255,255,0.9)":G.gold}}>{s.v} F</div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>{s.l}</div></div>
-                ))}
-              </div>
-            </div>
-
-
-
-            <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",border:"1px solid #BFDBFE",fontSize:11,color:"#3B82F6"}}>
-              ℹ️ CA, CAMV et frais calculés automatiquement. Saisis uniquement pub et livraisons échouées.
-            </div>
-
-            {/* ── Frais de livraison encaissés ── */}
+            {/* ── Filter bar ── */}
             {(()=>{
-              const livrees = orders.filter(o=>o.status==="entregado");
-              const totalFrais = livrees.reduce((s,o)=>s+(o.deliveryFee||0),0);
-              const nFrais = livrees.filter(o=>o.deliveryFee>0).length;
-              if(livrees.length===0) return null;
+              const cf = comptaFilters;
+              const activeCount = cf.produits.length+(cf.livraisonType!=="all"?1:0)+(cf.source!=="all"?1:0)+cf.livreurs.length+(cf.region?1:0)+(!(cf.statuts.length===1&&cf.statuts[0]==="entregado")?1:0);
+              const resetFilters = ()=>{ setComptaFilters(_COMPTA_FILTERS_DEFAULT); setComptaFiltersOpen(false); };
+              const livTeam = teamMembers.filter(m=>m.role==="livreur");
+              const _mainC  = (mainRegion?.cities||[]).map(s=>{const{name}=_parseCity(s);return name;}).filter(Boolean);
               return (
-                <div style={{background:G.white,borderRadius:14,padding:14,border:"1.5px solid #BFDBFE"}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🚚 Frais de livraison encaissés</div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <div>
-                      <div style={{fontSize:22,fontWeight:800,color:"#1E40AF"}}>{fmt(totalFrais)} F</div>
-                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>{nFrais} commande{nFrais>1?"s":""} avec frais · sur {livrees.length} livrée{livrees.length>1?"s":""}</div>
+                <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"visible"}}>
+                  {/* Header row */}
+                  <div onClick={()=>setComptaFiltersOpen(o=>!o)} style={{padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",userSelect:"none"}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      <span style={{fontSize:13,fontWeight:500,color:"#374151"}}>Filtres</span>
+                      {activeCount>0&&<span style={{background:"#1E40AF",color:"#fff",borderRadius:10,padding:"1px 8px",fontSize:11,fontWeight:500,minWidth:20,textAlign:"center"}}>{activeCount}</span>}
                     </div>
-                    <button onClick={()=>setTab("frais")} style={{background:"#EFF6FF",color:"#1E40AF",border:"1px solid #BFDBFE",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>⚙️ Configurer</button>
+                    <div style={{display:"flex",alignItems:"center",gap:8}}>
+                      {activeCount>0&&<button onClick={e=>{e.stopPropagation();resetFilters();}} style={{background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",padding:0}}>Effacer tout</button>}
+                      <span style={{color:"#9CA3AF",fontSize:11}}>{comptaFiltersOpen?"▲":"▾"}</span>
+                    </div>
+                  </div>
+
+                  {/* Expanded panels */}
+                  {comptaFiltersOpen&&(
+                    <div style={{borderTop:"0.5px solid #F3F4F6",padding:"12px 14px",display:"flex",flexDirection:"column",gap:12}}>
+
+                      {/* Produits */}
+                      {products.length>0&&(
+                        <div>
+                          <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>PRODUITS</div>
+                          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                            {products.map(p=>{
+                              const active=cf.produits.includes(p.name);
+                              return <button key={p.id} onClick={()=>setComptaFilters(f=>({...f,produits:active?f.produits.filter(x=>x!==p.name):[...f.produits,p.name]}))}
+                                style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>{p.name}{active?" ✕":""}</button>;
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Type livraison */}
+                      <div>
+                        <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>TYPE DE LIVRAISON</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {[["all","Tous"],["locale_moto","🏍️ Locale Moto"],["regionale_voiture","🚐 Régionale Voiture"]].map(([k,l])=>(
+                            <button key={k} onClick={()=>setComptaFilters(f=>({...f,livraisonType:k}))}
+                              style={{background:cf.livraisonType===k?"#111827":"#F3F4F6",color:cf.livraisonType===k?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:cf.livraisonType===k?500:400}}>{l}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Statut */}
+                      <div>
+                        <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>STATUT COMMANDE</div>
+                        <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                          {[["entregado","✅ Livré"],["rechazado","❌ Rejeté"],["no_contesta","📵 Échec"],["reprogramar","🔄 Retourné"]].map(([k,l])=>{
+                            const active=cf.statuts.includes(k);
+                            return <button key={k} onClick={()=>setComptaFilters(f=>({...f,statuts:active?f.statuts.filter(x=>x!==k):[...f.statuts,k]}))}
+                              style={{background:active?"#111827":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>{l}</button>;
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Source */}
+                      <div>
+                        <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>SOURCE</div>
+                        <div style={{display:"flex",gap:4}}>
+                          {[["all","Tous"],["shopify","Shopify"],["manual","Manuel"]].map(([k,l])=>(
+                            <button key={k} onClick={()=>setComptaFilters(f=>({...f,source:k}))}
+                              style={{background:cf.source===k?"#111827":"#F3F4F6",color:cf.source===k?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:cf.source===k?500:400}}>{l}</button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Livreur */}
+                      {livTeam.length>0&&(
+                        <div>
+                          <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>LIVREUR</div>
+                          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                            {livTeam.map(m=>{
+                              const active=cf.livreurs.includes(m.nom);
+                              return <button key={m.id} onClick={()=>setComptaFilters(f=>({...f,livreurs:active?f.livreurs.filter(x=>x!==m.nom):[...f.livreurs,m.nom]}))}
+                                style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>🏍️ {m.nom}{active?" ✕":""}</button>;
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Zone de livraison (cascading) */}
+                      <div>
+                        <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>ZONE DE LIVRAISON</div>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                          <select value={cf.region} onChange={e=>setComptaFilters(f=>({...f,region:e.target.value,ville:""}))}
+                            style={{flex:"1 1 140px",border:"0.5px solid #E5E7EB",borderRadius:8,padding:"7px 8px",fontSize:12,outline:"none",background:"#FAFAFA"}}>
+                            <option value="">Toutes les régions</option>
+                            {mainRegion?.name&&<option value={mainRegion.name}>🟢 {mainRegion.name} (principale)</option>}
+                            {otherRegions.map(r=><option key={r.id} value={r.name}>🔵 {r.name}</option>)}
+                          </select>
+                          {cf.region&&(
+                            <select value={cf.ville} onChange={e=>setComptaFilters(f=>({...f,ville:e.target.value}))}
+                              style={{flex:"1 1 140px",border:"0.5px solid #E5E7EB",borderRadius:8,padding:"7px 8px",fontSize:12,outline:"none",background:"#FAFAFA"}}>
+                              <option value="">Toutes les villes</option>
+                              {cf.region===mainRegion?.name
+                                ?_mainC.map(c=><option key={c} value={c}>{c}</option>)
+                                :otherRegions.filter(r=>r.name===cf.region).map(r=><option key={r.id} value={r.name}>{r.name}</option>)
+                              }
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active filter chips */}
+                  {activeCount>0&&(
+                    <div style={{padding:"8px 14px",borderTop:"0.5px solid #F3F4F6",display:"flex",gap:5,flexWrap:"wrap"}}>
+                      {cf.produits.map(p=><span key={p} onClick={()=>setComptaFilters(f=>({...f,produits:f.produits.filter(x=>x!==p)}))}
+                        style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{p} ✕</span>)}
+                      {cf.livraisonType!=="all"&&<span onClick={()=>setComptaFilters(f=>({...f,livraisonType:"all"}))}
+                        style={{background:"#F0FDF4",color:"#16a34a",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{cf.livraisonType==="locale_moto"?"🏍️ Locale":"🚐 Régionale"} ✕</span>}
+                      {cf.source!=="all"&&<span onClick={()=>setComptaFilters(f=>({...f,source:"all"}))}
+                        style={{background:"#FEF3C7",color:"#92400E",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{cf.source==="shopify"?"Shopify":"Manuel"} ✕</span>}
+                      {cf.livreurs.map(l=><span key={l} onClick={()=>setComptaFilters(f=>({...f,livreurs:f.livreurs.filter(x=>x!==l)}))}
+                        style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>🏍️ {l} ✕</span>)}
+                      {cf.ville&&<span onClick={()=>setComptaFilters(f=>({...f,ville:"",region:""}))}
+                        style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>📍 {cf.ville} ✕</span>}
+                      {!cf.ville&&cf.region&&<span onClick={()=>setComptaFilters(f=>({...f,region:""}))}
+                        style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>📍 {cf.region} ✕</span>}
+                      {!(cf.statuts.length===1&&cf.statuts[0]==="entregado")&&<span onClick={()=>setComptaFilters(f=>({...f,statuts:["entregado"]}))}
+                        style={{background:"#F3F4F6",color:"#374151",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>Statuts ✕</span>}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* ── Section 1: Period selector ── */}
+            {(()=>{
+              const _iso=d=>d.toISOString().slice(0,10);
+              const setPeriod=k=>{
+                setComptaPeriodMode(k);
+                if(k==="jour"){setDateFrom(TODAY);setDateTo(TODAY);setComptaShortcut("today");}
+                else if(k==="mois"){const now=new Date();setDateFrom(TODAY.slice(0,7)+"-01");setDateTo(TODAY);setComptaShortcut("thismonth");}
+              };
+              return (
+                <>
+                  <div style={{display:"flex",background:"#F3F4F6",borderRadius:10,padding:3}}>
+                    {[["jour","Jour"],["mois","Mois"],["plage","Plage"]].map(([k,l])=>(
+                      <button key={k} onClick={()=>setPeriod(k)} style={{flex:1,background:comptaPeriodMode===k?"#fff":"transparent",border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:comptaPeriodMode===k?500:400,color:comptaPeriodMode===k?"#111827":"#6B7280",cursor:"pointer",boxShadow:comptaPeriodMode===k?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.15s"}}>{l}</button>
+                    ))}
+                  </div>
+                  {comptaPeriodMode==="plage"&&(
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <input type="date" value={dateFrom} onChange={e=>{setDateFrom(e.target.value);setComptaShortcut(null);}} style={{flex:1,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff"}}/>
+                      <span style={{color:"#9CA3AF",fontSize:12,flexShrink:0}}>→</span>
+                      <input type="date" value={dateTo} onChange={e=>{setDateTo(e.target.value);setComptaShortcut(null);}} style={{flex:1,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff"}}/>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+
+            {/* ── Section 2: Global summary card ── */}
+            {(()=>{
+              const periodLabel = comptaPeriodMode==="jour"
+                ? new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})
+                : comptaPeriodMode==="mois"
+                  ? new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})
+                  : `${dateFrom||"—"} → ${dateTo||"—"}`;
+              const nLivrees  = comptaOrders.filter(o=>o.status==="entregado").length;
+              const nRejetees = comptaOrders.filter(o=>o.status==="rechazado").length;
+              const totalCouts= comptaCamv+comptaFrais+comptaPub+comptaCalcProd.reduce((a,x)=>a+x.echouees,0);
+              return (
+                <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",padding:"16px 16px 14px"}}>
+                  <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{periodLabel}</div>
+                  <div style={{fontSize:12,color:"#6B7280",marginBottom:6}}>Bénéfice net de la période</div>
+                  <div style={{fontSize:28,fontWeight:500,color:comptaBen>=0?"#16a34a":"#dc2626",marginBottom:4,lineHeight:1.1}}>
+                    {fmt(comptaBen)} <span style={{fontSize:13,color:"#9CA3AF",fontWeight:400}}>CFA</span>
+                  </div>
+                  <div style={{fontSize:12,color:"#9CA3AF",marginBottom:14}}>Marge {pct(comptaMarge)}</div>
+                  <div style={{height:"0.5px",background:"#F3F4F6",margin:"0 -16px",marginBottom:14}}/>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
+                    {[
+                      {l:"CA",        v:`${fmt(comptaCA)} F`},
+                      {l:"Coûts",     v:`${fmt(totalCouts)} F`},
+                      {l:"Pub",       v:`${fmt(comptaPub)} F`},
+                      {l:"Livrées / Rejetées", v:`${nLivrees} / ${nRejetees}`},
+                    ].map(({l,v},i)=>(
+                      <div key={i}>
+                        <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{l}</div>
+                        <div style={{fontSize:14,fontWeight:500,color:"#111827"}}>{v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{marginTop:10,fontSize:11,color:"#9CA3AF",textAlign:"right"}}>
+                    {comptaOrders.length} commande{comptaOrders.length!==1?"s":""}
                   </div>
                 </div>
               );
             })()}
 
-            {calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown})=>{
-              const notConfigured = !prod.cost || prod.cost===0;
-              const costEdit = comptaCostEdit[prod.id]||{};
-              const showCostForm = notConfigured || !!comptaCostEdit[prod.id];
-              return (
-              <div key={prod.id} style={{background:G.white,borderRadius:14,padding:15,borderLeft:`4px solid ${notConfigured?"#F59E0B":ben>=0?G.green:G.red}`}}>
-
-                {/* ── Saisie inline coûts — nouveau produit OU bouton Modifier ── */}
-                {showCostForm&&(
-                  <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px 14px",marginBottom:14,border:"1.5px solid #FCD34D"}}>
-                    <div style={{fontWeight:700,fontSize:13,color:"#92400E",marginBottom:10}}>
-                      {notConfigured ? `⚠️ ${prod.name} — Coûts non configurés` : `✏️ Modifier les coûts — ${prod.name}`}
-                    </div>
-                    <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                      <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>💰 Coût du produit (CFA/unité)</div>
-                        <input type="number" min="0" placeholder="ex: 3500"
-                          value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
-                          style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
-                      </div>
-                      <div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Stock initial</div>
-                        <input type="number" min="0" placeholder="ex: 50"
-                          value={costEdit.stock??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,stock:e.target.value}}))}
-                          style={{width:"100%",border:`1.5px solid #FCD34D`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
-                      </div>
-                      <button onClick={()=>{
-                          const newCost  = parseFloat(String(costEdit.cost||"").replace(",","."));
-                          const newStock = parseInt(costEdit.stock||0)||0;
-                          if(!newCost||newCost<=0){ addToast("Entre le coût du produit","⚠️","#F59E0B"); return; }
-                          setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
-                          setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,stock:newStock,stockInitial:newStock}:x));
-                          sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,stock:newStock,stock_initial:newStock},_authToken)
-                            .then(()=>addToast(`${prod.name} enregistré ✅`,"✅",G.green))
-                            .catch(e=>{ console.error("cost save:",e.message); addToast("Erreur de sauvegarde","❌",G.red); });
-                        }}
-                        style={{background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                        ✅ Enregistrer dans le catalogue
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{prod.name}</div>
-                    <div style={{display:"flex",gap:6,marginTop:3,flexWrap:"wrap"}}>
-                      <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>💰 Coût: {fmt(prod.cost)} F</span>
-                      <span style={{background:G.grayLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:G.gray}}>🏍️ Livr: {fmt(prod.fraisLiv||FRAIS_LIV)} F</span>
-                    </div>
-                  </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,marginLeft:8,flexShrink:0}}>
-                    <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]?undefined:{cost:prod.cost||"",stock:prod.stock||""}}))}
-                      style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      ✏️ Modifier
-                    </button>
-                    <div style={{textAlign:"right"}}>
-                      <div style={{fontSize:10,color:G.gray}}>Marge/unité</div>
-                      <div style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(prod.price-prod.cost-(prod.fraisLiv||FRAIS_LIV))} F</div>
-                    </div>
-                  </div>
+            {/* ── Section 3: Alerts for products with missing cost config ── */}
+            {comptaCalcProd.filter(x=>!x.prod.cost||x.prod.cost===0).map(({prod})=>(
+              <div key={prod.id} style={{background:"#FFFBEB",border:"0.5px solid #FCD34D",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:500,color:"#92400E",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                  <div style={{fontSize:11,color:"#A16207"}}>Coûts non configurés</div>
                 </div>
+                <button onClick={()=>{setComptaExpandedProd(prod.id);setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]||{cost:"",stock:""}}));}}
+                  style={{background:"#FEF3C7",color:"#92400E",border:"0.5px solid #FCD34D",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                  Config
+                </button>
+              </div>
+            ))}
 
-                {[
-                  {l:"Commandes livrées",        v:nLiv,                c:G.green},
-                  {l:"Chiffre d'Affaires",        v:`${fmt(ca)} CFA`,  c:G.dark},
-                  {l:"CAMV (coût produits)",      v:`${fmt(camv)} CFA`,c:G.dark},
-                  {l:"Frais livraison (livrés)",  v:`${fmt(frais)} CFA`,c:G.dark},
-                ].map((r,i)=>(
-                  <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                    <span style={{fontSize:12,color:G.gray}}>{r.l}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:r.c}}>{r.v}</span>
+            {/* ── Section 4: Product rows (compact, expandable) ── */}
+            <div>
+              <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>PRODUITS</div>
+              {comptaCalcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown})=>{
+                const isExpanded    = comptaExpandedProd===prod.id;
+                const hasSales      = nLiv>0;
+                const isNegative    = hasSales&&ben<0;
+                const badgeColor    = !hasSales?"#4B5563":ben<0?"#991B1B":marge<0.3?"#92400E":"#166534";
+                const badgeBg       = !hasSales?"#F3F4F6":ben<0?"#FEF2F2":marge<0.3?"#FFFBEB":"#F0FDF4";
+                const costEdit      = comptaCostEdit[prod.id]||{};
+                const notConfigured = !prod.cost||prod.cost===0;
+                return (
+                  <div key={prod.id} style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",marginBottom:8,opacity:hasSales||isNegative?1:0.6,overflow:"hidden"}}>
+                    <div onClick={()=>setComptaExpandedProd(isExpanded?null:prod.id)}
+                      style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,userSelect:"none"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:14,fontWeight:500,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                        <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>{nLiv} livré{nLiv!==1?"s":""} · {fmt(ca)} F</div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                        <span style={{background:badgeBg,color:badgeColor,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:500,display:"inline-block"}}>
+                          {hasSales?pct(marge):"—"}
+                        </span>
+                        {hasSales&&<div style={{fontSize:12,color:badgeColor}}>{fmt(ben)} F</div>}
+                      </div>
+                      <span style={{color:"#D1D5DB",fontSize:11,flexShrink:0}}>{isExpanded?"▲":"▾"}</span>
+                    </div>
+                    {isExpanded&&(
+                      <div style={{borderTop:"0.5px solid #F3F4F6",background:"#FAFAFA",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
+                        {(notConfigured||!!comptaCostEdit[prod.id])&&(
+                          <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px",border:"0.5px solid #FCD34D",marginBottom:4}}>
+                            <div style={{fontSize:12,color:"#92400E",fontWeight:500,marginBottom:8}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts"}</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                              <div>
+                                <div style={{fontSize:11,fontWeight:600,color:"#92400E",marginBottom:2}}>💰 Coût total du produit</div>
+                                <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Inclure: prix d'achat + import + douane + transport + emballage</div>
+                                <input type="number" min="0" placeholder="Ex: 7 000 CFA"
+                                  value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
+                                  style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                              </div>
+                              <input type="number" min="0" placeholder="Stock initial"
+                                value={costEdit.stock??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,stock:e.target.value}}))}
+                                style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                              <div style={{display:"flex",gap:6}}>
+                                <button onClick={()=>{
+                                  const newCost=parseFloat(String(costEdit.cost||"").replace(",","."));
+                                  const newStock=parseInt(costEdit.stock||0)||0;
+                                  if(!newCost||newCost<=0){addToast("Entre le coût du produit","⚠️","#F59E0B");return;}
+                                  setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
+                                  setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,stock:newStock,stockInitial:newStock}:x));
+                                  sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,stock:newStock,stock_initial:newStock},_authToken)
+                                    .then(()=>addToast(`${prod.name} enregistré ✅`,"✅",G.green))
+                                    .catch(e=>{console.error("cost save:",e.message);addToast("Erreur de sauvegarde","❌",G.red);});
+                                }} style={{flex:1,background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontWeight:500,fontSize:13,cursor:"pointer"}}>
+                                  ✅ Enregistrer
+                                </button>
+                                {!notConfigured&&<button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:undefined}))}
+                                  style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"9px 12px",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Annuler</button>}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        {[
+                          {l:"CAMV (coûts produits)", v:`${fmt(camv)} F`},
+                          {l:"Frais livraison",        v:`${fmt(frais)} F`},
+                          {l:"Marge par unité",        v:`${fmt(prod.price-(prod.cost||0)-(prod.fraisLiv||FRAIS_LIV))} F`},
+                        ].map(({l,v},i)=>(
+                          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"0.5px solid #F3F4F6"}}>
+                            <span style={{fontSize:12,color:"#6B7280"}}>{l}</span>
+                            <span style={{fontSize:13,fontWeight:500,color:"#111827"}}>{v}</span>
+                          </div>
+                        ))}
+                        {zoneBreakdown.length>0&&(
+                          <div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 10px",border:"0.5px solid #E2E8F0",marginTop:2}}>
+                            <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>RÉPARTITION PAR ZONE</div>
+                            {zoneBreakdown.map(({zone:z,count})=>(
+                              <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                                  <span style={{fontSize:11}}>{z.flag}</span>
+                                  <span style={{fontSize:12,color:"#374151"}}>{z.label}</span>
+                                  {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9}}>PRÉPAYÉ</span>}
+                                </div>
+                                <span style={{fontSize:12,color:"#6B7280"}}>{count} · {fmt(count*z.price)} F</span>
+                              </div>
+                            ))}
+                            <div style={{display:"flex",justifyContent:"space-between",paddingTop:5,marginTop:4,borderTop:"0.5px solid #E2E8F0"}}>
+                              <span style={{fontSize:12,color:"#374151"}}>Total livraison</span>
+                              <span style={{fontSize:12,fontWeight:500,color:"#111827"}}>{fmt(frais)} F</span>
+                            </div>
+                          </div>
+                        )}
+                        {nRej>0&&(
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"0.5px solid #F3F4F6"}}>
+                            <span style={{fontSize:12,color:"#6B7280"}}>Commandes rejetées</span>
+                            <span style={{background:"#FEF2F2",color:"#dc2626",borderRadius:12,padding:"2px 8px",fontSize:12,fontWeight:500}}>{nRej}</span>
+                          </div>
+                        )}
+                        {!notConfigured&&!comptaCostEdit[prod.id]&&(
+                          <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:{cost:prod.cost||"",stock:prod.stock||""}}))}
+                            style={{alignSelf:"flex-start",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500,cursor:"pointer",marginTop:2}}>
+                            ✏️ Modifier coûts
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                ))}
+                );
+              })}
+            </div>
 
-                {/* Zone breakdown — livraisons par zone géographique */}
-                {zoneBreakdown.length>0&&(
-                  <div style={{marginTop:4,marginBottom:4,padding:"8px 10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
-                    <div style={{fontSize:10,fontWeight:700,color:G.gray,marginBottom:6,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Répartition par zone</div>
-                    {zoneBreakdown.map(({zone:z,count})=>(
-                      <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{fontSize:11}}>{z.flag}</span>
-                          <span style={{fontSize:11,color:G.dark}}>{z.label}</span>
-                          {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9,fontWeight:700}}>PRÉPAYÉ</span>}
+            {/* ── Section 5: Daily inputs (Pub, Échecs, Cash livreurs) ── */}
+            {(()=>{
+              const recu = parseInt(cashRemis||0);
+              const diff = comptaCA - recu;
+              return (
+                <div>
+                  <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>SAISIES DU JOUR</div>
+                  <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"hidden"}}>
+                    {comptaCalcProd.map(({prod},idx)=>(
+                      <div key={prod.id} style={{borderBottom:idx<comptaCalcProd.length-1?"1px solid #E5E7EB":"none"}}>
+                        {/* Product section header */}
+                        <div style={{padding:"9px 14px 6px",background:"#F9FAFB",borderBottom:"0.5px solid #F3F4F6"}}>
+                          <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
                         </div>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontSize:11,color:G.gray}}>{count} cmd{count>1?"s":""}</span>
-                          <span style={{fontSize:11,fontWeight:700,color:z.color}}>{fmt(count*z.price)} F</span>
+                        {/* Pub input */}
+                        <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+                          <span style={{fontSize:15,flexShrink:0}}>📣</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Pub</div>
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+                            <input type="number" min="0" value={adSpend[prod.id]||""}
+                              onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))}
+                              onBlur={()=>localStorage.setItem("teamly_ad_spend",JSON.stringify(adSpend))}
+                              placeholder="0"
+                              style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                            {adSpend[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(adSpend[prod.id]||0))} F</div>}
+                          </div>
+                        </div>
+                        {/* Frais échecs input */}
+                        <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10,borderTop:"0.5px solid #F3F4F6"}}>
+                          <span style={{fontSize:15,flexShrink:0}}>🚫</span>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Frais échecs</div>
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+                            <input type="number" min="0" value={livraisonsEchouees[prod.id]||""}
+                              onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))}
+                              onBlur={()=>localStorage.setItem("teamly_echecs",JSON.stringify(livraisonsEchouees))}
+                              placeholder="0"
+                              style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                            {livraisonsEchouees[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(livraisonsEchouees[prod.id]||0))} F</div>}
+                          </div>
                         </div>
                       </div>
                     ))}
-                    <div style={{display:"flex",justifyContent:"space-between",paddingTop:5,marginTop:3,borderTop:"1px solid #E2E8F0"}}>
-                      <span style={{fontSize:11,fontWeight:700,color:G.dark}}>Total livraison</span>
-                      <span style={{fontSize:11,fontWeight:700,color:G.dark}}>{fmt(frais)} F</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Rejetées — info seulement, pas dans la formule */}
-                {nRej>0&&(
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                    <div>
-                      <span style={{fontSize:12,color:G.gray}}>Commandes rejetées</span>
-                      <div style={{fontSize:10,color:"#9CA3AF",fontStyle:"italic"}}>💡 Info seulement — produit récupéré, non calculé</div>
-                    </div>
-                    <span style={{background:"#FEE2E2",color:G.red,borderRadius:8,padding:"2px 10px",fontSize:12,fontWeight:700}}>{nRej}</span>
-                  </div>
-                )}
-
-                {/* Pub du jour */}
-                <div style={{marginTop:10,marginBottom:8}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>📣 Pub du jour (CFA)</div>
-                  <input type="number" value={adSpend[prod.id]||""} onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
-                    style={{width:"100%",border:`2px solid ${G.gold}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600}}/>
-                </div>
-
-                {/* Livraisons échouées — champ manuel */}
-                <div style={{marginBottom:10}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:4}}>🚫 Livraisons échouées — frais supplémentaires (CFA)
-                    <span style={{fontSize:10,color:"#9CA3AF",marginLeft:4}}>ex: re-livraisons, frais retour...</span>
-                  </div>
-                  <input type="number" value={livraisonsEchouees[prod.id]||""} onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))} placeholder="0"
-                    style={{width:"100%",border:`2px solid ${G.red}`,borderRadius:8,padding:"8px 12px",fontSize:14,outline:"none",boxSizing:"border-box",fontWeight:600,background:livraisonsEchouees[prod.id]?"#FFF5F5":G.white}}/>
-                  {livraisonsEchouees[prod.id]&&(
-                    <div style={{fontSize:11,color:G.red,marginTop:3}}>
-                      💡 Frais échoués déduits du bénéfice: <strong>−{fmt(parseInt(livraisonsEchouees[prod.id]||0))} CFA</strong>
-                    </div>
-                  )}
-                </div>
-
-                <div style={{background:ben>=0?G.greenLight:"#FEE2E2",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontSize:10,color:G.gray,fontWeight:700}}>BÉNÉFICE NET</div>
-                    <div style={{fontSize:22,fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)} CFA</div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:10,color:G.gray}}>Marge</div>
-                    <div style={{fontSize:18,fontWeight:700,color:ben>=0?G.green:G.red}}>{pct(marge)}</div>
-                  </div>
-                </div>
-              </div>
-            );})}
-
-            {/* 💵 Cash remis par les livreurs */}
-            <div style={{background:G.white,borderRadius:14,padding:16,border:`2px solid ${G.green}`}}>
-              <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4}}>💵 Cash remis par les livreurs</div>
-              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Montant total reçu en main propre de tes livreurs aujourd'hui. La différence avec le CA = argent manquant.</div>
-              <input type="number" value={cashRemis} onChange={e=>setCashRemis(e.target.value)} placeholder="0"
-                style={{width:"100%",border:`2px solid ${G.green}`,borderRadius:10,padding:"12px 14px",fontSize:18,outline:"none",boxSizing:"border-box",fontWeight:700,color:G.dark}}/>
-              {cashRemis&&(()=>{
-                const recu  = parseInt(cashRemis||0);
-                const theo  = calcProd.reduce((a,x)=>a+x.ca,0); // = tCA: somme CA de tous les produits livrés
-                const diff  = theo - recu;
-                return (
-                  <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:6}}>
-                    <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                      <span style={{fontSize:12,color:G.gray}}>CA théorique (commandes livrées)</span>
-                      <span style={{fontSize:13,fontWeight:700,color:G.dark}}>{fmt(theo)} CFA</span>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                      <span style={{fontSize:12,color:G.gray}}>Cash effectivement reçu</span>
-                      <span style={{fontSize:13,fontWeight:700,color:G.green}}>{fmt(recu)} CFA</span>
-                    </div>
-                    <div style={{background:diff===0?G.greenLight:diff>0?"#FEE2E2":"#FEF9C3",borderRadius:10,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:diff===0?G.green:diff>0?G.red:"#854D0E"}}>
-                          {diff===0?"✅ Tout est en ordre":diff>0?"⚠️ Montant manquant":"💡 Excédent"}
-                        </div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>
-                          {diff===0?"Les livreurs ont tout remis":diff>0?"À vérifier avec les livreurs":"Vérifier les commandes"}
-                        </div>
+                    <div style={{padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:10}}>
+                      <span style={{fontSize:15,flexShrink:0,marginTop:2}}>💵</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:500,color:"#111827"}}>Cash livreurs</div>
+                        <div style={{fontSize:11,color:"#9CA3AF",marginTop:1}}>Total reçu en main propre</div>
+                        {cashRemis&&(
+                          <div style={{fontSize:11,marginTop:4,color:diff>0?"#dc2626":diff<0?"#d97706":"#16a34a"}}>
+                            Diff. CA: {diff===0?"✓ En ordre":`${diff>0?"−":"+"}${fmt(Math.abs(diff))} F`}
+                          </div>
+                        )}
                       </div>
-                      <div style={{fontSize:20,fontWeight:700,color:diff===0?G.green:diff>0?G.red:"#854D0E"}}>
-                        {diff===0?"✓":`${diff>0?"-":"+"}${fmt(Math.abs(diff))} F`}
+                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
+                        <input type="number" min="0" value={cashRemis||""} onChange={e=>setCashRemis(e.target.value)} placeholder="0"
+                          style={{width:100,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                        {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} F</div>}
                       </div>
                     </div>
                   </div>
-                );
-              })()}
-            </div>
+                </div>
+              );
+            })()}
 
-            {/* Total du jour */}
-            <div style={{background:tBen>=0?G.green:"#7F1D1D",borderRadius:14,padding:20,textAlign:"center"}}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:1}}>BÉNÉFICE NET TOTAL DU JOUR</div>
-              <div style={{fontSize:34,fontWeight:700,color:G.white,marginTop:6}}>{fmt(tBen)} CFA</div>
-              <div style={{display:"flex",justifyContent:"center",gap:12,marginTop:10,flexWrap:"wrap"}}>
-                {[{l:"CA",v:fmt(tCA)},{l:"CAMV",v:fmt(tCamv)},{l:"Livr.",v:fmt(tFrais)},{l:"Pub",v:fmt(tPub)}].map((s,i)=>(
-                  <div key={i} style={{textAlign:"center"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:G.white}}>{s.v}</div>
-                    <div style={{fontSize:10,color:"rgba(255,255,255,0.6)"}}>{s.l}</div>
-                  </div>
-                ))}
-              </div>
-              <div style={{marginTop:8,fontSize:13,color:"rgba(255,255,255,0.8)",fontWeight:600}}>Marge globale: {pct(tMarge)}</div>
-            </div>
-
-            {/* TABLE EN BAS */}
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>📊 TABLEAU RÉCAP PAR PRODUIT</ST>
-              <Tbl
-                headers={["Produit","Niche","Livrés","CA","Pub","Bénéfice","Marge"]}
-                align={["left","left","right","right","right","right","right"]}
-                rows={calcProd.map(({prod,nLiv,ca,pub,ben,marge})=>[
-                  <span style={{fontWeight:600,fontSize:11}}>{prod.name}</span>,
-                  <span style={{fontSize:10,color:G.gray}}>{prod.niche||prod.categorie}</span>,
-                  <span style={{color:G.green,fontWeight:700}}>{nLiv}</span>,
-                  fmt(ca),
-                  fmt(pub),
-                  <span style={{fontWeight:700,color:ben>=0?G.green:G.red}}>{fmt(ben)}</span>,
-                  <span style={{fontWeight:700,color:ben>=0?G.green:G.red}}>{pct(marge)}</span>,
-                ])}
-              />
-            </div>
-
-            {/* ⬇️ Export CSV / Excel */}
+            {/* ── Section 6: Export button ── */}
             {(()=>{
               const doExport=(type)=>{
-                const period=selDate==="mois"?selMonth:selDate==="plage"?`${dateFrom||"debut"}_${dateTo||"fin"}`:selDate;
+                const period=dateFrom===dateTo?dateFrom:`${dateFrom||"debut"}_${dateTo||"fin"}`;
                 const bn=(settings.boutique||"Teamly").replace(/[^\w]/g,"_");
                 const STATUS_FR={pendiente:"En attente",confirmado:"Confirmé",livreur_en_route:"Livreur en route",colis_pris:"Colis pris",en_camino:"En route",chez_client:"Chez client",entregado:"Livré",rechazado:"Rejeté",no_contesta:"Absent",reprogramar:"Reporté"};
                 const rows=[
                   [`Rapport Comptabilité — ${settings.boutique||"Teamly"}`,`Période : ${period}`,"","","","","","","",""],
                   [],
                   ["RÉSUMÉ GLOBAL"],
-                  ["CA Total (CFA)",tCA,"Bénéfice Net (CFA)",tBen,"Marge",Math.round(tMarge*100)+"%"],
-                  ["CAMV Total (CFA)",tCamv,"Frais Livraison (CFA)",tFrais,"Pub Total (CFA)",tPub],
+                  ["CA Total (CFA)",comptaCA,"Bénéfice Net (CFA)",comptaBen,"Marge",Math.round(comptaMarge*100)+"%"],
+                  ["CAMV Total (CFA)",comptaCamv,"Frais Livraison (CFA)",comptaFrais,"Pub Total (CFA)",comptaPub],
                   [],
                   ["PAR PRODUIT"],
                   ["Produit","Livrés","Rejetés","CA (CFA)","CAMV (CFA)","Frais (CFA)","Pub (CFA)","Échouées (CFA)","Bénéfice (CFA)","Marge %"],
-                  ...calcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>[prod.name,nLiv,nRej,ca,camv,frais,pub,echouees,ben,Math.round(marge*100)+"%"]),
-                  ["TOTAL","","",tCA,tCamv,tFrais,tPub,"",tBen,Math.round(tMarge*100)+"%"],
+                  ...comptaCalcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge})=>[prod.name,nLiv,nRej,ca,camv,frais,pub,echouees,ben,Math.round(marge*100)+"%"]),
+                  ["TOTAL","","",comptaCA,comptaCamv,comptaFrais,comptaPub,"",comptaBen,Math.round(comptaMarge*100)+"%"],
                   [],
                   ["COMMANDES"],
                   ["Date","Client","Téléphone","Produit","Prix (CFA)","Statut","Livreur","Closer"],
-                  ...orders.map(o=>[o.created_at?.slice(0,10)||"",o.client||"",o.phone||"",o.product||"",o.price||0,STATUS_FR[o.status]||o.status||"",o.livreur||"",o.closer||""]),
+                  ...comptaOrders.map(o=>[o.created_at?.slice(0,10)||"",o.client||"",o.phone||"",o.product||"",o.price||0,STATUS_FR[o.status]||o.status||"",o.livreur||"",o.closer||""]),
                 ];
                 if(type==="csv"){
                   const csv="﻿"+rows.map(r=>r.map(c=>`"${String(c==null?"":c).replace(/"/g,'""')}"`).join(";")).join("\r\n");
@@ -5414,15 +5970,24 @@ function AppInner() {
                   const a=Object.assign(document.createElement("a"),{href:URL.createObjectURL(new Blob([xls],{type:"application/vnd.ms-excel;charset=utf-8"})),download:`compta_${bn}_${period}.xls`});
                   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
                 }
+                setComptaExportOpen(false);
               };
               return (
-                <div style={{background:G.white,borderRadius:14,padding:16}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:3}}>⬇️ Exporter le rapport</div>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Résumé par produit + toutes les commandes</div>
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>doExport("csv")} style={{flex:1,background:"#EFF6FF",color:G.blue,border:"1.5px solid #BFDBFE",borderRadius:10,padding:"12px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>📄 CSV</button>
-                    <button onClick={()=>doExport("xls")} style={{flex:1,background:"#F0FDF4",color:G.green,border:"1.5px solid #BBF7D0",borderRadius:10,padding:"12px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>📊 Excel (.xls)</button>
-                  </div>
+                <div style={{position:"relative",paddingBottom:4}}>
+                  <button onClick={()=>setComptaExportOpen(o=>!o)}
+                    style={{width:"100%",background:"#fff",color:"#374151",border:"0.5px solid #E5E7EB",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:500,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                    ⬇️ Exporter le rapport
+                  </button>
+                  {comptaExportOpen&&(
+                    <div style={{position:"absolute",bottom:"calc(100% + 6px)",left:0,right:0,background:"#fff",border:"0.5px solid #E5E7EB",borderRadius:12,boxShadow:"0 4px 16px rgba(0,0,0,0.10)",overflow:"hidden",zIndex:300}}>
+                      {[["csv","📄 CSV (.csv)"],["xls","📊 Excel (.xls)"]].map(([t,l])=>(
+                        <button key={t} onClick={()=>doExport(t)}
+                          style={{width:"100%",background:"transparent",border:"none",borderBottom:t==="csv"?"0.5px solid #F3F4F6":"none",padding:"12px 16px",fontSize:13,color:"#374151",cursor:"pointer",textAlign:"left",display:"block"}}>
+                          {l}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -5982,17 +6547,43 @@ function AppInner() {
           const allNames = [...mainCities.map(c=>c.name),...otherRegions.map(r=>r.name)];
 
           const seedData = async() => {
-            const SEED = ["Plateau|1500","Almadies|1500","Mermoz|1500","Ouakam|1500","Yoff|2000","Pikine|2000","Guédiawaye|2000","Parcelles Assainies|2000","Rufisque|2500"];
-            const SEED_OTHER = [{name:"Thiès",price:2000,interurbain:1000},{name:"Mbour",price:2000,interurbain:1000},{name:"Saint-Louis",price:2500,interurbain:1000},{name:"Touba",price:2500,interurbain:1000},{name:"Kaolack",price:2500,interurbain:1000},{name:"Ziguinchor",price:3000,interurbain:1000},{name:"Tambacounda",price:3000,interurbain:1000}];
-            if(mainRegion?.id){ await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{name:"Dakar",price:1500,cities:SEED}).catch(()=>{}); setMainRegion(r=>({...r,name:"Dakar",price:1500,cities:SEED})); }
-            else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:"Dakar",price:1500,cities:SEED}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setMainRegion(s); }
-            const existing=otherRegions.map(r=>_normCity(r.name));
-            const toAdd=SEED_OTHER.filter(c=>!existing.includes(_normCity(c.name)));
-            for(const c of toAdd){
-              const res=await sbFetch("delivery_other_regions","POST",{org_id:orgId,name:c.name,price:c.price,interurbain_price:c.interurbain,cities:[c.name]}).catch(()=>null);
-              const s=Array.isArray(res)?res[0]:res; if(s)setOtherRegions(prev=>[...prev,s]);
+            const DEFAULT_RATE = 2500;
+            // All already-configured city norms (main + other regions)
+            const configuredNorms = new Set([
+              ...(mainRegion?.cities||[]).map(s=>_normCity(s.split("|")[0])),
+              ...otherRegions.flatMap(r=>[_normCity(r.name),...(r.cities||[]).map(s=>_normCity(s.split("|")[0]))])
+            ]);
+            const mainRegNorm = _normCity(mainRegion?.name||"dakar");
+            // Partition SENEGAL_CITIES into new vs already-configured
+            const newCities = SENEGAL_CITIES.filter(c=>!configuredNorms.has(_normCity(c.city)));
+            const skipped   = SENEGAL_CITIES.length - newCities.length;
+            const forMain   = newCities.filter(c=>_normCity(c.region)===mainRegNorm);
+            const forOthers = newCities.filter(c=>_normCity(c.region)!==mainRegNorm);
+            // Update main zone
+            if(forMain.length>0){
+              const updatedCities=[...(mainRegion?.cities||[]),...forMain.map(c=>`${c.city}|${DEFAULT_RATE}`)];
+              if(mainRegion?.id){await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:updatedCities}).catch(()=>{}); setMainRegion(r=>({...r,cities:updatedCities}));}
+              else{const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:mainRegion?.name||"Dakar",price:DEFAULT_RATE,cities:updatedCities}).catch(()=>null);const s=Array.isArray(res)?res[0]:res;if(s)setMainRegion(s);}
             }
-            addToast("Données Sénégal préremplies ✅","✅",G.green);
+            // Group other cities by region and upsert
+            const byRegion={};
+            for(const c of forOthers){if(!byRegion[c.region])byRegion[c.region]=[];byRegion[c.region].push(c.city);}
+            for(const [regionName,cities] of Object.entries(byRegion)){
+              const cityEntries=cities.map(c=>`${c}|${DEFAULT_RATE}`);
+              const existingR=otherRegions.find(r=>_normCity(r.name)===_normCity(regionName));
+              if(existingR){
+                const updated=[...(existingR.cities||[]),...cityEntries];
+                await sbFetch(`delivery_other_regions?id=eq.${existingR.id}`,"PATCH",{cities:updated}).catch(()=>{});
+                setOtherRegions(prev=>prev.map(r=>r.id===existingR.id?{...r,cities:updated}:r));
+              } else {
+                const res=await sbFetch("delivery_other_regions","POST",{org_id:orgId,name:regionName,price:DEFAULT_RATE,interurbain_price:0,cities:cityEntries}).catch(()=>null);
+                const s=Array.isArray(res)?res[0]:res; if(s)setOtherRegions(prev=>[...prev,s]);
+              }
+            }
+            const msg=skipped>0
+              ? `${skipped} ville${skipped>1?"s":""} déjà configurée${skipped>1?"s":""} conservée${skipped>1?"s":""}. ${newCities.length} nouvelle${newCities.length>1?"s":""} ville${newCities.length>1?"s":""} ajoutée${newCities.length>1?"s":""}.`
+              : `14 régions et ${newCities.length} villes ajoutées avec un tarif standard de 2 500 CFA. Vous pouvez modifier chaque tarif individuellement.`;
+            addToast(msg,"🌍","#D97706");
           };
 
           return (
@@ -6003,8 +6594,12 @@ function AppInner() {
                   <div style={{fontWeight:800,fontSize:16,color:G.dark}}>🚚 Zones de livraison</div>
                   <div style={{fontSize:11,color:G.gray,marginTop:2}}>Frais appliqués automatiquement selon la ville du client</div>
                 </div>
-                <button onClick={seedData} style={{background:"#FEF3C7",color:"#92400E",border:"1.5px solid #FCD34D",borderRadius:8,padding:"6px 11px",fontSize:11,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                  🌍 Pré-remplir Sénégal
+                <button onClick={seedData} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:12,padding:"10px 18px",fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:8,boxShadow:"0 3px 10px rgba(217,119,6,0.4)"}}>
+                  <span style={{fontSize:22,lineHeight:1}}>🌍</span>
+                  <div style={{textAlign:"left"}}>
+                    <div style={{fontSize:13}}>Pré-remplir Sénégal</div>
+                    <div style={{fontSize:10,fontWeight:500,opacity:0.9,marginTop:1}}>120+ villes configurées automatiquement</div>
+                  </div>
                 </button>
               </div>
 
@@ -6019,12 +6614,14 @@ function AppInner() {
                 <div style={{display:"flex",flexDirection:"column",gap:14}}>
 
                   {/* Card A — Région principale de vente */}
-                  <div style={{background:"#F0FDF4",borderRadius:16,border:"1.5px solid #86EFAC",overflow:"hidden"}}>
+                  <div style={{background:"#F0FDF4",borderRadius:16,border:"1.5px solid #86EFAC",overflow:"hidden",boxShadow:"0 2px 8px rgba(134,239,172,0.25)"}}>
                     <div style={{background:"#DCFCE7",padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       {fraisMainNameEdit!==null
                         ? <div style={{display:"flex",gap:6,flex:1}}>
-                            <input type="text" value={fraisMainNameEdit} onChange={e=>setFraisMainNameEdit(e.target.value)}
-                              style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:8,padding:"6px 10px",fontSize:14,fontWeight:700,outline:"none",background:"#fff"}}/>
+                            <select value={fraisMainNameEdit} onChange={e=>setFraisMainNameEdit(e.target.value)}
+                              style={{flex:1,border:"1.5px solid #86EFAC",borderRadius:8,padding:"6px 10px",fontSize:14,fontWeight:700,outline:"none",background:"#fff",color:"#14532D"}}>
+                              {["Dakar","Thiès","Diourbel","Fatick","Kaolack","Kaffrine","Kolda","Ziguinchor","Sédhiou","Tambacounda","Kédougou","Louga","Matam","Saint-Louis"].map(r=><option key={r} value={r}>{r}</option>)}
+                            </select>
                             <button onClick={async()=>{
                               const name=(fraisMainNameEdit||"").trim();
                               if(!name){setFraisMainNameEdit(null);return;}
@@ -6036,7 +6633,7 @@ function AppInner() {
                           </div>
                         : <>
                             <div>
-                              <div style={{fontSize:12,color:"#166534",fontWeight:600}}>🏍️ Région principale de vente</div>
+                              <div style={{fontSize:12,color:"#166534",fontWeight:600}}>🏍️ Zone principale · Livraison Locale (Moto)</div>
                               <div style={{fontSize:16,fontWeight:800,color:"#14532D"}}>{mainRegion?.name||"Non configurée"}</div>
                             </div>
                             <button onClick={()=>setFraisMainNameEdit(mainRegion?.name||"")}
@@ -6067,7 +6664,7 @@ function AppInner() {
                               : <>
                                   <div>
                                     <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{c.name}</div>
-                                    <div style={{fontSize:11,color:G.green,fontWeight:600}}>{fmt(c.price)} CFA</div>
+                                    <div style={{fontSize:11,color:G.green,fontWeight:600}}>🏍️ Livraison Locale: {fmt(c.price)} CFA</div>
                                   </div>
                                   <div style={{display:"flex",gap:6}}>
                                     <button onClick={()=>setFraisEditCity({isMain:true,idx:i,name:c.name,price:String(c.price)})}
@@ -6106,12 +6703,19 @@ function AppInner() {
                     </div>
                   </div>
 
+                  {/* Section separator */}
+                  <div style={{display:"flex",alignItems:"center",gap:10,margin:"2px 0"}}>
+                    <div style={{height:1,flex:1,background:"#E5E7EB"}}/>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,letterSpacing:"0.06em",padding:"3px 10px",background:"#F3F4F6",borderRadius:20,border:"1px solid #E5E7EB"}}>🚐 LIVRAISON RÉGIONALE</div>
+                    <div style={{height:1,flex:1,background:"#E5E7EB"}}/>
+                  </div>
+
                   {/* Card B — Autres régions */}
-                  <div style={{background:"#EFF6FF",borderRadius:16,border:"1.5px solid #BFDBFE",overflow:"hidden"}}>
+                  <div style={{background:"#EFF6FF",borderRadius:16,border:"1.5px solid #BFDBFE",overflow:"hidden",boxShadow:"0 2px 8px rgba(191,219,254,0.3)"}}>
                     <div style={{background:"#DBEAFE",padding:"12px 16px"}}>
-                      <div style={{fontSize:12,color:"#1E40AF",fontWeight:600}}>🌍 Autres régions (hors zone principale)</div>
+                      <div style={{fontSize:12,color:"#1E40AF",fontWeight:600}}>🚐 Autres régions · Livraison Régionale (Voiture)</div>
                       <div style={{fontSize:12,color:"#3B82F6",marginTop:4,lineHeight:1.5}}>
-                        Le coût total hors région = <strong>frais locale</strong> (livraison dans la ville du client) + <strong>frais interurbain</strong> (transport entre villes). Le colis est d'abord pris en charge par le livreur local, puis transféré via un transporteur privé.
+                        Total = <strong>🏍️ Locale</strong> (livreur dans la ville du client) + <strong>🚐 Régionale</strong> (transport interurbain). Le colis transite via transporteur privé.
                       </div>
                     </div>
                     <div style={{padding:"12px 16px"}}>
@@ -6139,12 +6743,12 @@ function AppInner() {
                                     placeholder="Ville" style={{border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
                                   <div style={{display:"flex",gap:6}}>
                                     <div style={{flex:1}}>
-                                      <div style={{fontSize:10,color:G.gray,marginBottom:3}}>Frais locale</div>
+                                      <div style={{fontSize:10,color:G.gray,marginBottom:3}}>🏍️ Livraison Locale (Moto)</div>
                                       <input type="number" min="0" value={fraisEditCity.price} onChange={e=>setFraisEditCity(p=>({...p,price:e.target.value}))}
                                         placeholder="2000" style={{width:"100%",border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                                     </div>
                                     <div style={{flex:1}}>
-                                      <div style={{fontSize:10,color:G.gray,marginBottom:3}}>Frais interurbain</div>
+                                      <div style={{fontSize:10,color:G.gray,marginBottom:3}}>🚐 Livraison Régionale (Voiture)</div>
                                       <input type="number" min="0" value={fraisEditCity.interurbain||""} onChange={e=>setFraisEditCity(p=>({...p,interurbain:e.target.value}))}
                                         placeholder="1000" style={{width:"100%",border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                                     </div>
@@ -6163,9 +6767,9 @@ function AppInner() {
                                   <div>
                                     <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{r.name}</div>
                                     <div style={{fontSize:11,color:"#1E40AF",marginTop:2}}>
-                                      <span>Locale: {fmt(r.price||0)} F</span>
-                                      {(r.interurbain_price||0)>0&&<span style={{marginLeft:6}}>+ Interurbain: {fmt(r.interurbain_price)} F</span>}
-                                      <span style={{marginLeft:6,fontWeight:800}}>= Total: {fmt((r.price||0)+(r.interurbain_price||0))} F</span>
+                                      <span>🏍️ Locale: {fmt(r.price||0)} F</span>
+                                      {(r.interurbain_price||0)>0&&<span style={{marginLeft:6}}>+ 🚐 Régionale: {fmt(r.interurbain_price)} F</span>}
+                                      <span style={{marginLeft:6,fontWeight:800}}>= 💰 Total: {fmt((r.price||0)+(r.interurbain_price||0))} F</span>
                                     </div>
                                   </div>
                                   <div style={{display:"flex",gap:6}}>
@@ -6191,15 +6795,14 @@ function AppInner() {
                       <div style={{background:"#F0F9FF",borderRadius:10,padding:"10px 12px",border:"1px solid #BAE6FD"}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#0369A1",marginBottom:8}}>+ Ajouter une ville hors zone</div>
                         <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
-                          <input type="text" value={fraisNewOther.city} onChange={e=>setFraisNewOther(p=>({...p,city:e.target.value}))} placeholder="Ville (ex: Thiès)"
-                            style={{flex:"1 1 110px",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none"}}/>
+                          <CityAutocomplete value={fraisNewOther.city} onChange={v=>setFraisNewOther(p=>({...p,city:v}))} placeholder="Ville (ex: Thiès)"/>
                           <div style={{flex:"1 1 80px"}}>
-                            <div style={{fontSize:9,color:G.gray,marginBottom:2}}>Frais locale</div>
+                            <div style={{fontSize:9,color:G.gray,marginBottom:2}}>🏍️ Locale (Moto)</div>
                             <input type="number" min="0" value={fraisNewOther.price} onChange={e=>setFraisNewOther(p=>({...p,price:e.target.value}))} placeholder="2000"
                               style={{width:"100%",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                           </div>
                           <div style={{flex:"1 1 80px"}}>
-                            <div style={{fontSize:9,color:G.gray,marginBottom:2}}>Frais interurbain</div>
+                            <div style={{fontSize:9,color:G.gray,marginBottom:2}}>🚐 Régionale (Voiture)</div>
                             <input type="number" min="0" value={fraisNewOther.interurbain||""} onChange={e=>setFraisNewOther(p=>({...p,interurbain:e.target.value}))} placeholder="1000"
                               style={{width:"100%",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                           </div>
@@ -6269,7 +6872,7 @@ function AppInner() {
                     {/* Table */}
                     <div style={{background:"#fff",borderRadius:12,border:"1.5px solid #E2E8F0",overflow:"hidden"}}>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto auto auto",gap:0,background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 14px"}}>
-                        {["Ville","Zone","Locale","Interurbain","Total"].map(h=>(
+                        {["Ville","Zone","🏍️ Locale","🚐 Régionale","💰 Total"].map(h=>(
                           <div key={h} style={{fontSize:10,fontWeight:800,color:G.gray,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:h==="Ville"||h==="Zone"?"left":"right"}}>{h}</div>
                         ))}
                       </div>
@@ -6301,18 +6904,19 @@ function AppInner() {
                     <datalist id="frais-test-cities">{allNames.map(c=><option key={c} value={c}/>)}</datalist>
                     {fraisTestCity&&(
                       <div style={{padding:"14px 16px",borderRadius:12,border:"1.5px solid",
-                        background:z.type==="main"?"#DCFCE7":z.type==="other"?"#DBEAFE":"#FEF3C7",
-                        borderColor:z.type==="main"?"#86EFAC":z.type==="other"?"#93C5FD":"#FCD34D"}}>
-                        <div style={{fontSize:13,fontWeight:800,color:z.type==="main"?"#166534":z.type==="other"?"#1E40AF":"#92400E",marginBottom:6}}>
-                          {z.type==="main"?"🟢 Région principale de vente":z.type==="other"?"🔵 Autre région":"⚠️ Ville non reconnue"}
+                        background:z.type==="main"?"#DCFCE7":z.type==="other"?"#DBEAFE":z.type==="senegal"?"#F3F4F6":"#FEF3C7",
+                        borderColor:z.type==="main"?"#86EFAC":z.type==="other"?"#93C5FD":z.type==="senegal"?"#D1D5DB":"#FCD34D"}}>
+                        <div style={{fontSize:13,fontWeight:800,color:z.type==="main"?"#166534":z.type==="other"?"#1E40AF":z.type==="senegal"?"#374151":"#92400E",marginBottom:6}}>
+                          {z.type==="main"?"🟢 Région principale":z.type==="other"?"🔵 Autre région configurée":z.type==="senegal"?"⚪ Ville reconnue — Sénégal":"⚠️ Ville non reconnue"}
                           {z.type!=="unknown"&&` — ${z.cityName||z.name}`}
                         </div>
-                        <div style={{fontSize:22,fontWeight:800,color:G.dark,marginBottom:z.type==="other"?4:0}}>🚚 {fmt(z.price)} FCFA</div>
+                        <div style={{fontSize:22,fontWeight:800,color:G.dark,marginBottom:4}}>🚚 {fmt(z.price)} FCFA</div>
                         {z.type==="other"&&z.interurbain>0&&(
                           <div style={{fontSize:11,color:"#1E40AF",marginTop:4}}>
                             Frais locale: {fmt(z.fraisLocale||0)} F + Transport interurbain: {fmt(z.interurbain||0)} F
                           </div>
                         )}
+                        {z.type==="senegal"&&<div style={{fontSize:11,color:"#6B7280",marginTop:4}}>Région : {z.name} · Tarif par défaut appliqué. Configurez dans Zones → Autres régions pour un tarif personnalisé.</div>}
                         {z.type==="unknown"&&<div style={{fontSize:11,color:"#92400E",marginTop:4}}>Tarif par défaut appliqué : {fmt(defaultPrice)} F</div>}
                       </div>
                     )}
@@ -7361,8 +7965,9 @@ function AppInner() {
                 const z=detectDeliveryZone(editOrder.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
                 return (
                   <div style={{marginTop:5}}>
-                    {z.type==="main"  &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {mainRegion?.name} · {fmt(z.price)} F</span>}
-                    {z.type==="other" &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 Autre région · {fmt(z.price)} F</span>}
+                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} F</span>}
+                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} F</span>}
+                    {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {z.name} · tarif par défaut</span>}
                     {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue</span>}
                   </div>
                 );
@@ -7441,12 +8046,13 @@ function AppInner() {
             <div style={{fontSize:11,color:G.gray,marginBottom:16}}>{editProd.name}</div>
 
             {[
-              {key:"name",  label:"📦 Nom du produit *",          type:"text",   ph:"Chaussures Nike"},
-              {key:"cost",  label:"💰 Prix de revient (CFA) *",  type:"number", ph:"7000"},
-              {key:"price", label:"💰 Prix de vente (CFA) *",    type:"number", ph:"25000"},
+              {key:"name",  label:"📦 Nom du produit *",               type:"text",   ph:"Chaussures Nike"},
+              {key:"cost",  label:"💰 Coût total du produit (CFA) *", type:"number", ph:"7000", sub:"Prix d'achat + import + douane + transport + emballage"},
+              {key:"price", label:"💰 Prix de vente (CFA) *",          type:"number", ph:"25000"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                <div style={{fontSize:11,color:G.gray,marginBottom:f.sub?1:3}}>{f.label}</div>
+                {f.sub&&<div style={{fontSize:10,color:"#9CA3AF",marginBottom:4}}>{f.sub}</div>}
                 <input type={f.type} value={editProd[f.key]||""} onChange={e=>setEditProd(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               </div>
@@ -8039,7 +8645,7 @@ function AppInner() {
 
         const allTabs = role==="livreur" ? [
           {k:"livraisons", label:"Livraisons", badge:livraisonsCnt, badgeColor:"#0284C7", badgeTxt:"#fff", icon:ICONS.livraisons},
-          {k:"chat",       label:"Chat",       badge:chatUnread,    badgeColor:"#25D366",  badgeTxt:"#fff", icon:ICONS.chat},
+          {k:"chat",       label:"Chat",       badge:chatUnread,    badgeColor:"#DC2626",  badgeTxt:"#fff", icon:ICONS.chat},
           {k:"dashboard",  label:"Dashboard",  badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.dashboard},
           {k:"equipe",     label:"Équipe",     badge:0,             badgeColor:"",         badgeTxt:"",     icon:ICONS.equipe},
           ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position, locked:isGratuit}]),
@@ -8074,7 +8680,7 @@ function AppInner() {
                     </>
                   ) : (
                     <>
-                      {t.badge>0&&<span style={{position:"absolute",top:4,right:"calc(50% - 18px)",background:t.badgeColor,color:t.badgeTxt,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1}}>{t.badge}</span>}
+                      {t.badge>0&&<span style={{position:"absolute",top:3,right:"calc(50% - 20px)",background:t.badgeColor,color:t.badgeTxt,borderRadius:9,minWidth:18,height:18,padding:"0 4px",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1,boxSizing:"border-box"}}>{t.badge>9?"9+":t.badge}</span>}
                       {t.locked&&<span style={{position:"absolute",top:3,right:"calc(50% - 20px)",fontSize:10,lineHeight:1}}>🔒</span>}
                       {t.icon(t.locked?"#C4B5A0":active?G.green:"#9CA3AF")}
                       <span style={{fontSize:9,fontWeight:active?700:400,color:t.locked?"#C4B5A0":active?G.green:"#9CA3AF",marginTop:3,letterSpacing:0.2}}>{t.label}</span>
@@ -8227,7 +8833,67 @@ function AppInner() {
         </div>
       )}
 
-      <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}`}</style>
+      <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}@keyframes livFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {/* ── Confirmation livraison finale (livreur) ── */}
+      {livFinalConfirm&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:3000,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={e=>{if(e.target===e.currentTarget){setLivFinalConfirm(null);setLivFinalNote("");}}}>
+          <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"28px 20px 36px",width:"100%",maxWidth:480,boxShadow:"0 -8px 32px rgba(0,0,0,0.18)"}}>
+            {livFinalConfirm.type==="livre" ? (
+              <>
+                <div style={{textAlign:"center",marginBottom:16}}>
+                  <div style={{fontSize:40,marginBottom:8}}>✅</div>
+                  <div style={{fontSize:18,fontWeight:800,color:"#1A5C38",marginBottom:4}}>Confirmer la livraison</div>
+                  <div style={{fontSize:13,color:"#6B7280"}}>{livFinalConfirm.client} · {fmt(livFinalConfirm.price)} CFA encaissé</div>
+                </div>
+                <div style={{display:"flex",gap:10,marginTop:8}}>
+                  <button onClick={()=>{setLivFinalConfirm(null);setLivFinalNote("");}}
+                    style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Annuler</button>
+                  <button onClick={()=>{
+                    const ord=orders.find(x=>x.id===livFinalConfirm.orderId);
+                    if(!ord?.deliveryFee||Number(ord.deliveryFee)<=0){
+                      addToast("⚠️ Frais de livraison requis — demande à l'admin de les configurer","⚠️","#F59E0B");
+                      return;
+                    }
+                    upSt(livFinalConfirm.orderId,"entregado");setLivFinalConfirm(null);setLivFinalNote("");
+                  }} style={{flex:2,background:"#1A5C38",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer"}}>✅ Confirmer — Livré</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{textAlign:"center",marginBottom:16}}>
+                  <div style={{fontSize:40,marginBottom:8}}>❌</div>
+                  <div style={{fontSize:18,fontWeight:800,color:"#DC2626",marginBottom:4}}>Échec de livraison</div>
+                  <div style={{fontSize:13,color:"#6B7280"}}>{livFinalConfirm.client} · {fmt(livFinalConfirm.price)} CFA</div>
+                </div>
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:12,color:"#6B7280",fontWeight:600,marginBottom:6}}>Motif (optionnel)</div>
+                  <input type="text" value={livFinalNote} onChange={e=>setLivFinalNote(e.target.value)}
+                    placeholder="Ex: client absent, mauvaise adresse..."
+                    style={{width:"100%",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"11px 14px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={()=>{setLivFinalConfirm(null);setLivFinalNote("");}}
+                    style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Annuler</button>
+                  <button onClick={()=>{
+                    upSt(livFinalConfirm.orderId,"rechazado");
+                    if(livFinalNote.trim()){
+                      const note=livFinalNote.trim();
+                      const cur=orders.find(x=>x.id===livFinalConfirm.orderId)?.note||"";
+                      const newNote=(cur?cur+" | ":"")+`Motif: ${note}`;
+                      setOrders(o=>o.map(x=>x.id===livFinalConfirm.orderId?{...x,note:newNote}:x));
+                      sbFetch(`orders?id=eq.${livFinalConfirm.orderId}`,"PATCH",{note:newNote},_authToken).catch(()=>{});
+                    }
+                    setLivFinalConfirm(null);setLivFinalNote("");
+                  }}
+                    style={{flex:2,background:"#DC2626",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer"}}>❌ Confirmer — Non livré</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teamly — Votre équipe e-commerce enfin synchronisée</title>
+  <meta name="description" content="Admin, Closer et Livreur travaillent ensemble en temps réel. Plus de livraisons réussies, moins d'annulations."/>
+  <link rel="icon" href="/icon.svg"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --green:      #1A5C38;
+      --green-dark: #0D3D25;
+      --green-mid:  #2E8B57;
+      --green-light:#E8F5EE;
+      --gold:       #F0A500;
+      --gold-light: #FFF8E7;
+      --dark:       #111827;
+      --gray:       #6B7280;
+      --gray-light: #F9FAFB;
+      --white:      #FFFFFF;
+      --red:        #EF4444;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html{scroll-behavior:smooth}
+    body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);line-height:1.6;overflow-x:hidden}
+
+    /* ── NAV ── */
+    nav{
+      position:sticky;top:0;z-index:100;
+      background:rgba(26,92,56,0.97);
+      backdrop-filter:blur(10px);
+      padding:14px 24px;
+      display:flex;align-items:center;justify-content:space-between;
+      box-shadow:0 2px 20px rgba(0,0,0,0.15);
+    }
+    .nav-logo{display:flex;align-items:center;gap:10px}
+    .nav-logo-mark{width:36px;height:36px;background:var(--gold);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;color:var(--green-dark);letter-spacing:-0.5px}
+    .nav-logo-text{font-weight:800;font-size:20px;color:var(--white);letter-spacing:-0.3px}
+    .nav-cta{background:var(--gold);color:var(--green-dark);border:none;border-radius:10px;padding:10px 22px;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;transition:opacity .2s;white-space:nowrap}
+    .nav-cta:hover{opacity:.88}
+
+    /* ── HERO ── */
+    .hero{
+      background:linear-gradient(160deg,var(--green-dark) 0%,var(--green) 60%,#2E8B57 100%);
+      padding:90px 24px 80px;
+      text-align:center;
+      position:relative;overflow:hidden;
+    }
+    .hero::before{
+      content:'';position:absolute;inset:0;
+      background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    }
+    .hero-badge{display:inline-block;background:rgba(240,165,0,0.2);color:var(--gold);border:1px solid rgba(240,165,0,0.4);border-radius:20px;padding:6px 16px;font-size:12px;font-weight:700;letter-spacing:1px;margin-bottom:24px;text-transform:uppercase}
+    .hero h1{font-size:clamp(30px,6vw,56px);font-weight:900;color:var(--white);line-height:1.12;letter-spacing:-1px;margin-bottom:20px;max-width:800px;margin-left:auto;margin-right:auto}
+    .hero h1 span{color:var(--gold)}
+    .hero p{font-size:clamp(15px,2.5vw,19px);color:rgba(255,255,255,0.75);max-width:620px;margin:0 auto 36px;line-height:1.7}
+    .hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+    .btn-primary{background:var(--gold);color:var(--green-dark);border:none;border-radius:14px;padding:16px 34px;font-weight:800;font-size:16px;cursor:pointer;text-decoration:none;transition:transform .2s,box-shadow .2s;box-shadow:0 6px 24px rgba(240,165,0,0.4);display:inline-block}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(240,165,0,0.5)}
+    .btn-secondary{background:rgba(255,255,255,0.12);color:var(--white);border:1.5px solid rgba(255,255,255,0.3);border-radius:14px;padding:16px 34px;font-weight:700;font-size:16px;cursor:pointer;text-decoration:none;transition:background .2s;display:inline-block}
+    .btn-secondary:hover{background:rgba(255,255,255,0.2)}
+    .hero-stats{display:flex;justify-content:center;gap:clamp(20px,5vw,60px);margin-top:60px;flex-wrap:wrap}
+    .hero-stat{text-align:center}
+    .hero-stat strong{display:block;font-size:clamp(26px,5vw,40px);font-weight:900;color:var(--gold);line-height:1}
+    .hero-stat span{font-size:12px;color:rgba(255,255,255,0.6);font-weight:500;margin-top:4px;display:block}
+
+    /* ── ROLES BANNER ── */
+    .roles{background:var(--white);padding:32px 24px;border-bottom:1px solid #F3F4F6}
+    .roles-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+    .role-card{border-radius:14px;padding:20px 18px;display:flex;align-items:center;gap:12}
+    .role-card.admin{background:linear-gradient(135deg,#FFF8E7,#FEF3C7);border:1.5px solid #FCD34D}
+    .role-card.closer{background:linear-gradient(135deg,#EDE9FE,#DDD6FE);border:1.5px solid #A78BFA}
+    .role-card.livreur{background:linear-gradient(135deg,#EFF6FF,#DBEAFE);border:1.5px solid #93C5FD}
+    .role-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+    .role-card.admin .role-icon{background:var(--gold)}
+    .role-card.closer .role-icon{background:#7C3AED}
+    .role-card.livreur .role-icon{background:#2563EB}
+    .role-title{font-weight:800;font-size:14px;margin-bottom:2px}
+    .role-desc{font-size:11px;color:var(--gray);line-height:1.4}
+
+    /* ── SECTION BASE ── */
+    section{padding:80px 24px}
+    .container{max-width:1000px;margin:0 auto}
+    .section-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+    .section-title{font-size:clamp(26px,4vw,40px);font-weight:900;line-height:1.15;letter-spacing:-0.5px;margin-bottom:16px}
+    .section-sub{font-size:16px;color:var(--gray);max-width:580px;line-height:1.7}
+
+    /* ── PROBLÈME ── */
+    .problem{background:var(--gray-light)}
+    .problem-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:40px}
+    .problem-item{background:var(--white);border-radius:16px;padding:24px;border-left:4px solid var(--red);box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+    .problem-icon{font-size:28px;margin-bottom:10px}
+    .problem-text{font-weight:600;font-size:14px;color:var(--dark);line-height:1.5}
+    .problem-result{margin-top:40px;background:linear-gradient(135deg,#1F2937,#374151);border-radius:18px;padding:28px 32px;text-align:center}
+    .problem-result p{font-size:clamp(16px,2.5vw,20px);color:rgba(255,255,255,0.85);line-height:1.6;max-width:680px;margin:0 auto}
+    .problem-result strong{color:var(--gold)}
+
+    /* ── SOLUTION ── */
+    .solution{background:var(--white)}
+    .solution-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px}
+    .step-card{background:var(--green-light);border-radius:18px;padding:28px 24px;text-align:center;position:relative;border:1.5px solid rgba(26,92,56,0.12)}
+    .step-num{width:44px;height:44px;background:var(--green);color:var(--white);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;margin:0 auto 16px}
+    .step-emoji{font-size:32px;margin-bottom:12px}
+    .step-title{font-weight:800;font-size:15px;color:var(--green-dark);margin-bottom:6px}
+    .step-desc{font-size:13px;color:var(--gray);line-height:1.6}
+    .solution-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:40px}
+    .result-item{background:var(--green);border-radius:14px;padding:18px 20px;display:flex;align-items:center;gap:12}
+    .result-check{width:28px;height:28px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--green-dark);flex-shrink:0}
+    .result-text{font-size:13px;font-weight:600;color:var(--white)}
+
+    /* ── HOW IT WORKS ── */
+    .how{background:var(--gray-light)}
+    .how-steps{display:flex;flex-direction:column;gap:0;margin-top:48px;max-width:680px}
+    .how-step{display:flex;gap:24px;align-items:flex-start;padding:24px 0;border-bottom:1px solid #E5E7EB;position:relative}
+    .how-step:last-child{border-bottom:none}
+    .how-num{width:48px;height:48px;background:var(--green);color:var(--white);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:18px;flex-shrink:0;box-shadow:0 4px 14px rgba(26,92,56,0.3)}
+    .how-content strong{display:block;font-weight:800;font-size:15px;margin-bottom:4px;color:var(--dark)}
+    .how-content p{font-size:13px;color:var(--gray)}
+    .how-tagline{margin-top:36px;background:var(--green);border-radius:16px;padding:20px 28px;display:flex;align-items:center;gap:12}
+    .how-tagline p{font-size:16px;font-weight:700;color:var(--white)}
+    .how-tagline span{font-size:28px}
+
+    /* ── FEATURES ── */
+    .features{background:linear-gradient(160deg,var(--green-dark),var(--green))}
+    .features .section-label{color:var(--gold)}
+    .features .section-title{color:var(--white)}
+    .features .section-sub{color:rgba(255,255,255,0.7)}
+    .features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:48px}
+    .feature-card{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:16px;padding:24px 20px;transition:background .2s}
+    .feature-card:hover{background:rgba(255,255,255,0.13)}
+    .feature-emoji{font-size:30px;margin-bottom:12px}
+    .feature-title{font-weight:700;font-size:14px;color:var(--white);margin-bottom:6px}
+    .feature-desc{font-size:12px;color:rgba(255,255,255,0.6);line-height:1.6}
+
+    /* ── PRICING ── */
+    .pricing{background:var(--white)}
+    .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px;margin-top:48px}
+    .plan-card{border-radius:20px;padding:28px 24px;position:relative;overflow:hidden;border:2px solid #E5E7EB;transition:transform .2s,box-shadow .2s}
+    .plan-card:hover{transform:translateY(-4px);box-shadow:0 16px 48px rgba(0,0,0,0.1)}
+    .plan-card.popular{border-color:var(--green);box-shadow:0 8px 32px rgba(26,92,56,0.2)}
+    .popular-badge{position:absolute;top:0;left:0;right:0;background:var(--green);text-align:center;padding:6px;font-size:10px;font-weight:800;color:var(--white);letter-spacing:1.5px;text-transform:uppercase}
+    .plan-name{font-weight:900;font-size:18px;margin-bottom:4px;margin-top:8px}
+    .plan-card.popular .plan-name{color:var(--green)}
+    .plan-tag{font-size:11px;font-weight:600;color:var(--gray);margin-bottom:16px}
+    .plan-price{font-size:36px;font-weight:900;line-height:1;color:var(--dark)}
+    .plan-price span{font-size:14px;font-weight:500;color:var(--gray)}
+    .plan-card.popular .plan-price{color:var(--green)}
+    .plan-divider{border:none;border-top:1px solid #F3F4F6;margin:20px 0}
+    .plan-features{list-style:none;display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+    .plan-features li{display:flex;align-items:flex-start;gap:8px;font-size:13px;color:var(--dark)}
+    .plan-features li::before{content:'✓';color:var(--green);font-weight:800;flex-shrink:0;margin-top:1px}
+    .plan-btn{display:block;width:100%;text-align:center;border-radius:12px;padding:13px 0;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;transition:opacity .2s}
+    .plan-btn.outline{background:none;border:2px solid var(--green);color:var(--green)}
+    .plan-btn.outline:hover{background:var(--green-light)}
+    .plan-btn.filled{background:var(--green);color:var(--white);border:none}
+    .plan-btn.filled:hover{opacity:.88}
+    .plan-btn.gold{background:var(--gold);color:var(--green-dark);border:none}
+    .plan-btn.gold:hover{opacity:.88}
+    .plan-note{text-align:center;margin-top:24px;font-size:12px;color:var(--gray)}
+
+    /* ── CTA FINALE ── */
+    .cta-final{background:linear-gradient(160deg,var(--green-dark),var(--green));padding:90px 24px;text-align:center}
+    .cta-final h2{font-size:clamp(28px,5vw,46px);font-weight:900;color:var(--white);margin-bottom:16px;line-height:1.15;letter-spacing:-0.5px}
+    .cta-final h2 span{color:var(--gold)}
+    .cta-final p{font-size:17px;color:rgba(255,255,255,0.75);margin-bottom:36px;max-width:560px;margin-left:auto;margin-right:auto}
+
+    /* ── FOOTER ── */
+    footer{background:var(--green-dark);padding:28px 24px;text-align:center}
+    footer p{font-size:12px;color:rgba(255,255,255,0.4)}
+    footer a{color:rgba(255,255,255,0.6);text-decoration:none}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:700px){
+      .roles-inner{grid-template-columns:1fr}
+      .solution-steps{grid-template-columns:1fr}
+      .hero-stats{gap:28px}
+      .pricing-grid{grid-template-columns:1fr}
+    }
+    @media(max-width:500px){
+      nav{padding:12px 16px}
+      .hero{padding:70px 16px 60px}
+      section{padding:60px 16px}
+    }
+
+    /* ── ANIMATIONS ── */
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+    .hero h1,.hero p,.hero-btns{animation:fadeUp .7s ease both}
+    .hero p{animation-delay:.1s}
+    .hero-btns{animation-delay:.2s}
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-logo-mark">T</div>
+    <div class="nav-logo-text">Teamly</div>
+  </div>
+  <a href="/index.html" class="nav-cta">Commencer gratuitement →</a>
+</nav>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <div class="hero-badge">🚀 La plateforme e-commerce des équipes Sénégalaises</div>
+  <h1>Votre équipe e-commerce<br/><span>enfin synchronisée</span></h1>
+  <p>Admin, Closer et Livreur travaillent ensemble en temps réel pour traiter chaque commande plus vite, augmenter votre taux de livraison et réduire les annulations.</p>
+  <div class="hero-btns">
+    <a href="/index.html" class="btn-primary">Essayer gratuitement — 14 jours</a>
+    <a href="#how" class="btn-secondary">Comment ça marche ↓</a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat"><strong>3</strong><span>rôles connectés</span></div>
+    <div class="hero-stat"><strong>100%</strong><span>en temps réel</span></div>
+    <div class="hero-stat"><strong>0 CFA</strong><span>pour commencer</span></div>
+  </div>
+</section>
+
+<!-- ── ROLES ── -->
+<div class="roles">
+  <div class="roles-inner">
+    <div class="role-card admin">
+      <div class="role-icon">👑</div>
+      <div>
+        <div class="role-title" style="color:#92400E">Admin</div>
+        <div class="role-desc">Suit tout en direct, gère son équipe et ses marges</div>
+      </div>
+    </div>
+    <div class="role-card closer">
+      <div class="role-icon" style="color:#fff">📞</div>
+      <div>
+        <div class="role-title" style="color:#5B21B6">Closer</div>
+        <div class="role-desc">Confirme les commandes et contacte les clients</div>
+      </div>
+    </div>
+    <div class="role-card livreur">
+      <div class="role-icon" style="color:#fff">🏍️</div>
+      <div>
+        <div class="role-title" style="color:#1D4ED8">Livreur</div>
+        <div class="role-desc">Reçoit ses missions et met à jour les livraisons</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PROBLÈME ── -->
+<section class="problem">
+  <div class="container">
+    <div class="section-label">Le problème</div>
+    <h2 class="section-title">Aujourd'hui, votre équipe<br/>n'est pas connectée…</h2>
+    <p class="section-sub">Chaque jour sans coordination, c'est des commandes perdues et de l'argent qui part.</p>
+
+    <div class="problem-grid">
+      <div class="problem-item">
+        <div class="problem-icon">❌</div>
+        <div class="problem-text">Le closer ne sait pas quoi traiter en priorité — il perd du temps et des ventes</div>
+      </div>
+      <div class="problem-item">
+        <div class="problem-icon">❌</div>
+        <div class="problem-text">Le livreur manque d'informations — il arrive chez le client sans préparation</div>
+      </div>
+      <div class="problem-item">
+        <div class="problem-icon">❌</div>
+        <div class="problem-text">Trop d'appels et de messages désorganisés — tout le monde perd du temps</div>
+      </div>
+      <div class="problem-item">
+        <div class="problem-icon">❌</div>
+        <div class="problem-text">Les commandes ne sont pas traitées assez vite — le client annule ou s'impatiente</div>
+      </div>
+    </div>
+
+    <div class="problem-result">
+      <p>👉 Résultat : des commandes annulées et des pertes d'argent.<br/>
+      <strong>Une seule plateforme. Une seule équipe. Zéro perte.</strong></p>
+    </div>
+  </div>
+</section>
+
+<!-- ── SOLUTION ── -->
+<section class="solution">
+  <div class="container">
+    <div class="section-label">La solution</div>
+    <h2 class="section-title">Chaque commande, visible<br/>par toute votre équipe</h2>
+    <p class="section-sub">En temps réel. Sans appels inutiles. Sans confusion.</p>
+
+    <div class="solution-steps">
+      <div class="step-card">
+        <div class="step-emoji">📞</div>
+        <div class="step-title">Le closer confirme immédiatement</div>
+        <div class="step-desc">Il voit toutes les commandes en attente, contacte le client et confirme en un clic</div>
+      </div>
+      <div class="step-card">
+        <div class="step-emoji">🏍️</div>
+        <div class="step-title">Le livreur se prépare à livrer</div>
+        <div class="step-desc">Il reçoit automatiquement sa mission avec l'adresse, le produit et le contact client</div>
+      </div>
+      <div class="step-card">
+        <div class="step-emoji">👑</div>
+        <div class="step-title">L'admin suit tout en direct</div>
+        <div class="step-desc">Dashboard complet, GPS livreur, marges et bénéfices — tout en temps réel</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;background:var(--gold-light);border-radius:16px;padding:22px 28px;border-left:4px solid var(--gold);text-align:center">
+      <p style="font-size:17px;font-weight:700;color:var(--green-dark)">⚡ Résultat : plus de livraisons réussies, moins de retours.</p>
+    </div>
+
+    <div class="solution-results">
+      <div class="result-item"><div class="result-check">✓</div><div class="result-text">Réponse client plus rapide</div></div>
+      <div class="result-item"><div class="result-check">✓</div><div class="result-text">Moins d'annulations</div></div>
+      <div class="result-item"><div class="result-check">✓</div><div class="result-text">Meilleure coordination</div></div>
+      <div class="result-item"><div class="result-check">✓</div><div class="result-text">Plus de livraisons réussies</div></div>
+      <div class="result-item"><div class="result-check">✓</div><div class="result-text">Plus de cash généré</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── COMMENT ÇA MARCHE ── -->
+<section class="how" id="how">
+  <div class="container" style="display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:start">
+    <div>
+      <div class="section-label">Comment ça marche</div>
+      <h2 class="section-title">Simple. Rapide.<br/>Efficace.</h2>
+      <p class="section-sub">En 5 étapes, votre commande passe de "reçue" à "livrée" sans friction.</p>
+    </div>
+    <div>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-num">1</div>
+          <div class="how-content">
+            <strong>Une commande arrive</strong>
+            <p>Via votre boutique, WooCommerce, Shopify ou YouCan Shop — automatiquement dans Teamly</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">2</div>
+          <div class="how-content">
+            <strong>Toute l'équipe la voit instantanément</strong>
+            <p>Plus besoin de WhatsApp ou d'appels — tout le monde est notifié en temps réel</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">3</div>
+          <div class="how-content">
+            <strong>Le closer contacte le client</strong>
+            <p>Confirmation WhatsApp automatique avec le nom personnalisé du client</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">4</div>
+          <div class="how-content">
+            <strong>Le livreur reçoit la mission</strong>
+            <p>Avec adresse, produit et contact — GPS activé pour que l'admin suive en direct</p>
+          </div>
+        </div>
+        <div class="how-step">
+          <div class="how-num">5</div>
+          <div class="how-content">
+            <strong>L'admin suit tout en direct</strong>
+            <p>Statuts, marges, bénéfices — dashboard complet mis à jour à chaque action</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── FEATURES ── -->
+<section class="features">
+  <div class="container">
+    <div class="section-label">Fonctionnalités</div>
+    <h2 class="section-title" style="color:var(--white)">Tout est automatisé<br/>pour accélérer vos ventes</h2>
+    <p class="section-sub">👉 Tout ce dont votre équipe a besoin, dans une seule application.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-emoji">📲</div>
+        <div class="feature-title">Confirmation WhatsApp automatique</div>
+        <div class="feature-desc">Message personnalisé avec le nom du client envoyé automatiquement à chaque confirmation</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">📦</div>
+        <div class="feature-title">Suivi commande en temps réel</div>
+        <div class="feature-desc">Confirmation instantanée envoyée au client à chaque étape de sa commande</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">🚚</div>
+        <div class="feature-title">Confirmation de livraison livreur</div>
+        <div class="feature-desc">Le livreur met à jour le statut depuis son téléphone — l'admin est notifié</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">📍</div>
+        <div class="feature-title">GPS livreur en temps réel</div>
+        <div class="feature-desc">Suivez vos livreurs sur la carte + alerte "je suis proche" automatique</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">💬</div>
+        <div class="feature-title">Chat interne équipe</div>
+        <div class="feature-desc">Messages texte, photos et audios — plus besoin de groupes WhatsApp séparés</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">💰</div>
+        <div class="feature-title">Suivi des marges et bénéfices</div>
+        <div class="feature-desc">CAMV, frais de livraison, publicité, bénéfice net — tout calculé automatiquement</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">📊</div>
+        <div class="feature-title">Dashboard complet</div>
+        <div class="feature-desc">CA du jour, taux de livraison, produits les plus vendus — en un coup d'œil</div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-emoji">🤖</div>
+        <div class="feature-title">Assistant IA intégré</div>
+        <div class="feature-desc">Réponses instantanées sur l'utilisation de l'app et la gestion de votre boutique</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="pricing">
+  <div class="container">
+    <div style="text-align:center;margin-bottom:0">
+      <div class="section-label" style="text-align:center">Tarifs</div>
+      <h2 class="section-title" style="text-align:center">Commencez gratuitement.<br/>Évoluez quand vous voulez.</h2>
+      <p class="section-sub" style="margin:0 auto;text-align:center">Paiement mensuel. Sans engagement. Via Wave.</p>
+    </div>
+
+    <div class="pricing-grid">
+
+      <!-- Gratuit -->
+      <div class="plan-card">
+        <div class="plan-name">Gratuit</div>
+        <div class="plan-tag">14 jours d'essai · Pour découvrir Teamly</div>
+        <div class="plan-price">0 <span>CFA</span></div>
+        <hr class="plan-divider"/>
+        <ul class="plan-features">
+          <li>2 membres (Admin + 1)</li>
+          <li>30 commandes / mois</li>
+          <li>Toutes les fonctionnalités</li>
+          <li>Chat équipe inclus</li>
+          <li>Dashboard complet</li>
+        </ul>
+        <a href="/index.html" class="plan-btn outline">Commencer gratuitement</a>
+      </div>
+
+      <!-- Basic -->
+      <div class="plan-card popular">
+        <div class="popular-badge">⭐ Le plus populaire</div>
+        <div class="plan-name" style="margin-top:32px">Basic</div>
+        <div class="plan-tag">Pour les boutiques qui démarrent</div>
+        <div class="plan-price">8 000 <span>CFA / mois</span></div>
+        <hr class="plan-divider"/>
+        <ul class="plan-features">
+          <li>3 membres — Admin + Closer + Livreur</li>
+          <li>100 commandes / mois</li>
+          <li>1 boutique connectée (WooCommerce, Shopify, YouCan)</li>
+          <li>GPS livreur en temps réel</li>
+          <li>Chat équipe + audios + photos</li>
+          <li>WhatsApp automatique</li>
+          <li>Comptabilité & marges</li>
+        </ul>
+        <a href="/index.html" class="plan-btn gold">Choisir Basic</a>
+      </div>
+
+      <!-- Pro -->
+      <div class="plan-card">
+        <div class="plan-name" style="color:#2563EB">Pro</div>
+        <div class="plan-tag">Pour les équipes en croissance</div>
+        <div class="plan-price" style="color:#2563EB">14 000 <span>CFA / mois</span></div>
+        <hr class="plan-divider"/>
+        <ul class="plan-features">
+          <li>5 membres</li>
+          <li>2 000 commandes / mois</li>
+          <li>2 boutiques connectées</li>
+          <li>Export CSV & Excel</li>
+          <li>Assistant IA</li>
+          <li>Rapports & statistiques avancés</li>
+          <li>Tout ce qui est inclus dans Basic</li>
+        </ul>
+        <a href="/index.html" class="plan-btn filled" style="background:#2563EB">Choisir Pro</a>
+      </div>
+
+      <!-- Scale -->
+      <div class="plan-card">
+        <div class="plan-name" style="color:#7C3AED">Scale</div>
+        <div class="plan-tag">Pour les grandes équipes</div>
+        <div class="plan-price" style="color:#7C3AED">25 000 <span>CFA / mois</span></div>
+        <hr class="plan-divider"/>
+        <ul class="plan-features">
+          <li>Membres illimités</li>
+          <li>Commandes illimitées</li>
+          <li>4 boutiques connectées</li>
+          <li>Priorité support</li>
+          <li>Tout ce qui est inclus dans Pro</li>
+        </ul>
+        <a href="/index.html" class="plan-btn filled" style="background:#7C3AED">Choisir Scale</a>
+      </div>
+
+    </div>
+    <p class="plan-note">Paiement sécurisé via Wave · Pas de carte bancaire nécessaire · Annulable à tout moment</p>
+  </div>
+</section>
+
+<!-- ── CTA FINALE ── -->
+<section class="cta-final">
+  <div class="container">
+    <h2>Prêt à synchroniser<br/><span>votre équipe ?</span></h2>
+    <p>Commencez gratuitement aujourd'hui. Votre équipe sera opérationnelle en moins de 5 minutes.</p>
+    <a href="/index.html" class="btn-primary" style="font-size:17px;padding:18px 40px">
+      Créer mon compte gratuitement →
+    </a>
+    <p style="margin-top:20px;font-size:12px;color:rgba(255,255,255,0.45)">
+      Aucune carte bancaire · 14 jours gratuits · Paiement via Wave
+    </p>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <p>© 2025 Teamly · <a href="/index.html">Connexion</a> · Fait avec ❤️ pour les équipes e-commerce</p>
+</footer>
+
+</body>
+</html>
