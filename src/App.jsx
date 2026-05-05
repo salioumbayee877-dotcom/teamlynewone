@@ -2302,7 +2302,7 @@ function AppInner() {
     const _zoneType = _dynZone.type;
     const _zoneName = _dynZone.name || newOrder.deliveryZoneName || "";
     const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden};
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,created_at:new Date().toISOString()};
     setOrders(o=>[...o,order]);
     // Auto-save unknown city with manually-entered fee for future autocomplete
     if(orgId && newOrder.city && _zoneType==="unknown" && _zoneOverridden && _deliveryFee>0) {
@@ -2328,7 +2328,7 @@ function AppInner() {
             sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
           }
         })
-        .catch(e=>console.error("addOrder Supabase error:",e));
+        .catch(e=>{ console.error("addOrder Supabase error:",e); addToast("Erreur lors de la création de la commande","❌",G.red); });
     }
 
     if(wa) {
@@ -2656,7 +2656,6 @@ function AppInner() {
               const z=detectZone(o.address);
               const pm=o.note?.match(/PM:\s*([^·\n]+)/)?.[1]?.trim();
               return <>
-                <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>{z.flag} {z.label} · {fmt(z.price)} F</span>
                 {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠️ Prépayé</span>}
                 {pm&&<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>💳 {pm}</span>}
               </>;
@@ -2692,13 +2691,7 @@ function AppInner() {
                     <span style={{background:"#F0F9FF",color:"#0369A1",borderRadius:5,padding:"1px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>
                       {fraisIcon} {fraisLabel} · {o.deliveryFee>0?`${fmt(o.deliveryFee)} F`:"— F"}{o.deliveryZoneName?` · ${o.deliveryZoneName}`:""}
                     </span>
-                    {canEdit
-                      ?<button onClick={()=>{setFraisAdminEditId(o.id);setFraisAdminEditVal(String(o.deliveryFee||0));}}
-                          style={{background:"none",border:"none",cursor:"pointer",fontSize:12,padding:"0 2px",lineHeight:1}} title="Modifier les frais">✏️</button>
-                      :<span style={{background:"#F3F4F6",color:"#6B7280",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:600,flexShrink:0}}>🔒 Coût fixe</span>
-                    }
                     {o.deliveryFeeOverridden&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>Manuel</span>}
-                    {(!o.deliveryFee||o.deliveryFee<=0)&&canEdit&&<span style={{background:"#FEE2E2",color:"#DC2626",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>⚠️ Requis</span>}
                   </>
                 )}
               </div>
