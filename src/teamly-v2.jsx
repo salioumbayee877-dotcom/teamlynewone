@@ -625,6 +625,7 @@ export default function TeamlyLanding() {
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
         *{box-sizing:border-box;}
         body{margin:0;}
+        html{scroll-behavior:smooth;}
         h1,h2,h3{font-family:'Plus Jakarta Sans',Georgia,serif;}
         a{cursor:pointer;-webkit-tap-highlight-color:transparent;}
         nav{left:0;right:0;}
@@ -663,8 +664,8 @@ export default function TeamlyLanding() {
           display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <Logo light={!scrolled}/>
           <div className="nav-links" style={{display:"flex",alignItems:"center",gap:32}}>
-            {["Fonctionnalités","Rôles","Tarifs","Support"].map(l=>(
-              <a key={l} href="#" style={{fontSize:14,fontWeight:600,textDecoration:"none",
+            {[{l:"Fonctionnalités",h:"#fonctionnalites"},{l:"Rôles",h:"#roles"},{l:"Tarifs",h:"#plans"},{l:"Support",h:"https://wa.me/34643164129"}].map(({l,h})=>(
+              <a key={l} href={h} style={{fontSize:14,fontWeight:600,textDecoration:"none",
                 color:scrolled?G.dark:G.white}}>{l}</a>
             ))}
           </div>
@@ -746,7 +747,7 @@ export default function TeamlyLanding() {
       </section>
 
       {/* ── FEATURES ── */}
-      {[
+      <div id="fonctionnalites">{[
         {tag:"Chat d'équipe",title:"Toute votre équipe dans un seul endroit.",
           desc:"Fini les groupes WhatsApp désorganisés. Admin, Closer et Livreur communiquent dans un chat interne structuré par rôle, directement dans l'app.",
           bullets:["Messages texte, audio et photos","Rôles visibles en temps réel","Notifications instantanées","Historique complet des conversations"],
@@ -763,7 +764,7 @@ export default function TeamlyLanding() {
           desc:"Chaque livreur voit ses commandes, le statut étape par étape et peut encaisser ou rejeter en un seul tap. Zéro erreur possible.",
           bullets:["Flux guidé étape par étape","Encaisser / Rejeter / Absent en 1 tap","Contact client direct depuis l'app","Synchro temps réel avec l'Admin"],
           phone:"livreur",reverse:true,bg:G.grayLight},
-      ].map((f,i)=><FeatureSection key={i} {...f}/>)}
+      ].map((f,i)=><FeatureSection key={i} {...f}/>)}</div>
 
       {/* ── DISPONIBLE SUR PC ── */}
       <section className="desktop-section" style={{background:G.white,padding:"80px 0"}}>
@@ -838,7 +839,7 @@ export default function TeamlyLanding() {
       </section>
 
       {/* ── ROLES ── */}
-      <section style={{background:G.greenDark,padding:"80px 0"}}>
+      <section id="roles" style={{background:G.greenDark,padding:"80px 0"}}>
         <div style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",textAlign:"center",marginBottom:52}}>
           <div style={{display:"inline-flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.08)",
             padding:"5px 14px",borderRadius:22,marginBottom:16}}>
