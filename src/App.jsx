@@ -1336,6 +1336,19 @@ function AppInner() {
     window.addEventListener("resize",onResize);
     return ()=>window.removeEventListener("resize",onResize);
   },[]);
+
+  const [keyboardH, setKeyboardH] = useState(0);
+  useEffect(()=>{
+    const vv = window.visualViewport;
+    if(!vv) return;
+    const update = ()=>{
+      const kh = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKeyboardH(kh);
+    };
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return ()=>{ vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
+  },[]);
   const [cashRemis,setCashRemis]       = useState("");
   const [comptaExpandedProd,setComptaExpandedProd] = useState(null);
   const [comptaExportOpen,setComptaExportOpen]     = useState(false);
@@ -2752,171 +2765,50 @@ function AppInner() {
     const inDelivery  = curStep >= 0;
 
     const isPinned = pinnedOrderIds.includes(o.id);
+    const items = parseProd(o.product);
+    const totalQty = items.reduce((s,p)=>s+p.qty,0);
+    const prodLine = items.map(p=>`${p.name}${p.qty>1?` ×${p.qty}`:""}`).join(" + ");
+
     return (
-      <div style={{borderRadius:14,boxShadow:"0 2px 10px rgba(0,0,0,0.08)",overflow:"hidden",marginBottom:10,border:isPinned?`2px solid ${st.color}`:`1px solid ${st.color}22`}}>
+      <div style={{borderRadius:12,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
 
-        {/* ── Bande état colorée (top) ── */}
-        <div style={{background:st.color,padding:"6px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div style={{display:"flex",alignItems:"center",gap:7}}>
-            {/* Pulsing status dot */}
-            {!["entregado","rechazado"].includes(o.status)&&<span className="soft-pulse" style={{"--pc":st.color,width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.9)",display:"inline-block",flexShrink:0}}/>}
-            <span style={{color:"#fff",fontSize:12,fontWeight:700,letterSpacing:0.3}}>
-              {role==="livreur"&&o.status==="en_camino"?"🚀 Je suis en route":role==="livreur"&&o.status==="livreur_en_route"?"🏍️ Je suis en route vers le colis":st.label}
-            </span>
-            {o.created_at&&<span style={{color:"rgba(255,255,255,0.7)",fontSize:10}}>
-              {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
-            </span>}
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:3}}>
-            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'up');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↑</button>
-            <button onClick={e=>{e.stopPropagation();moveInGroup(o.id,'down');}} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:5,color:"#fff",fontSize:12,cursor:"pointer",padding:"1px 6px",lineHeight:"18px"}}>↓</button>
-            <button onClick={e=>{e.stopPropagation();setPinnedOrderIds(prev=>isPinned?prev.filter(x=>x!==o.id):[...prev,o.id]);}} className={isPinned?"pin-glow":undefined} style={{background:isPinned?"#F0A500":"rgba(255,255,255,0.2)",border:"none",borderRadius:7,color:"#fff",fontSize:16,cursor:"pointer",padding:"2px 7px",lineHeight:"20px",transition:"background 0.3s"}}>📌</button>
-            {o.isBundle&&<span style={{background:"rgba(255,255,255,0.25)",color:"#fff",borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700}}>🎁</span>}
-            <span style={{background:"rgba(255,255,255,0.2)",color:"#fff",borderRadius:20,padding:"2px 10px",fontSize:13,fontWeight:800}}>{fmt(o.price)} F</span>
-          </div>
-        </div>
-
-        {/* ── Corps — cliquable ── */}
-        <div onClick={()=>setOrderDetail(o)} style={{background:st.bg,padding:"12px 14px 10px",cursor:"pointer"}}>
-          <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:4}}>{o.client}</div>
-          {/* Product lines with parsed qty */}
-          {(()=>{
-            const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
-            const isMulti=tot>1||items.length>1;
-            return (
-              <div style={{marginBottom:4}}>
-                {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
-                  📦 BUNDLE · {tot} article{tot>1?"s":""}</div>}
-                {items.map((p,pi)=>{
-                  const pr=pricingRules.find(r=>_normCity(r.product_name)===_normCity(p.name));
-                  return (
-                  <div key={pi} style={{display:"flex",alignItems:"center",gap:5,fontSize:12,color:"#374151",fontWeight:600,marginBottom:pi<items.length-1?2:0,flexWrap:"wrap"}}>
-                    <span>📦 {p.name}</span>
-                    <span style={{background:p.qty>1?"#FEF3C7":"#F3F4F6",color:p.qty>1?"#92400E":"#6B7280",borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:800}}>×{p.qty}</span>
-                    {pr&&pr.type==="bundle"&&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🔵 Bundle ×{pr.bundle_quantity}</span>}
-                    {pr&&pr.type==="unit"&&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🟢 Unitaire</span>}
-                    {pr&&pr.type==="discount"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>🟡 Remise {pr.discount_percentage}%</span>}
-                  </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-          <div style={{display:"flex",gap:8,fontSize:11,color:"#6B7280",flexWrap:"wrap",alignItems:"center"}}>
-            {o.address&&<span>📍 {o.address}</span>}
-            {o.phone&&<span>📱 {o.phone}</span>}
-            {(()=>{
-              const z=detectZone(o.address);
-              const pm=o.note?.match(/PM:\s*([^·\n]+)/)?.[1]?.trim();
-              return <>
-                {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠️ Prépayé</span>}
-                {pm&&<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700,flexShrink:0}}>💳 {pm}</span>}
-              </>;
-            })()}
-          </div>
-          {(()=>{
-            const zType=o.deliveryZoneType||"";
-            const fraisIcon=zType==="other"?"🚐":"🏍️";
-            const fraisLabel=zType==="other"?"Régionale":"Locale";
-            const canEdit=role==="admin";
-            const isEditing=fraisAdminEditId===o.id;
-            const hasFrais=o.deliveryFee>0||o.deliveryZoneName;
-            if(!hasFrais&&!canEdit) return null;
-            return (
-              <div style={{marginTop:5,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-                {isEditing?(
-                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
-                    <input type="number" min="0" value={fraisAdminEditVal}
-                      onChange={e=>setFraisAdminEditVal(e.target.value)} autoFocus
-                      style={{width:80,border:"1.5px solid #0369A1",borderRadius:6,padding:"2px 7px",fontSize:11,outline:"none"}}/>
-                    <button onClick={async()=>{
-                      const v=parseInt(fraisAdminEditVal)||0;
-                      setOrders(x=>x.map(ord=>ord.id===o.id?{...ord,deliveryFee:v,deliveryFeeOverridden:true}:ord));
-                      sbFetch(`orders?id=eq.${o.id}`,"PATCH",{frais_liv:v},_authToken).catch(()=>{});
-                      setFraisAdminEditId(null);
-                      addToast(`Frais mis à jour: ${fmt(v)} F`,"✅",G.green);
-                    }} style={{background:G.green,color:"#fff",border:"none",borderRadius:6,padding:"2px 9px",fontSize:10,cursor:"pointer",fontWeight:700}}>✓</button>
-                    <button onClick={()=>setFraisAdminEditId(null)}
-                      style={{background:"#F3F4F6",color:G.gray,border:"none",borderRadius:6,padding:"2px 7px",fontSize:10,cursor:"pointer"}}>✕</button>
-                  </div>
-                ):(
-                  <>
-                    <span style={{background:"#F0F9FF",color:"#0369A1",borderRadius:5,padding:"1px 8px",fontSize:10,fontWeight:700,flexShrink:0}}>
-                      {fraisIcon} {fraisLabel} · {o.deliveryFee>0?`${fmt(o.deliveryFee)} F`:"— F"}{o.deliveryZoneName?` · ${o.deliveryZoneName}`:""}
-                    </span>
-                    {o.deliveryFeeOverridden&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700,flexShrink:0}}>Manuel</span>}
-                  </>
-                )}
-              </div>
-            );
-          })()}
-          {o.livreur&&(
-            <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}>
-              <span style={{background:"rgba(37,99,235,0.12)",color:"#1D4ED8",borderRadius:20,padding:"2px 9px",fontSize:11,fontWeight:700}}>🏍️ {o.livreur}</span>
-              {o.closer&&<span style={{background:"rgba(26,92,56,0.12)",color:G.green,borderRadius:20,padding:"2px 8px",fontSize:10,fontWeight:600}}>📞 {o.closer}</span>}
+        {/* ── Corps cliquable ── */}
+        <div onClick={()=>setOrderDetail(o)} style={{padding:"11px 12px 8px",cursor:"pointer"}}>
+          {/* Row 1: Client + Price */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
+            <div style={{minWidth:0,flex:1}}>
+              <div style={{fontWeight:800,fontSize:15,color:"#111",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.client}</div>
+              <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700}}>🎁 {totalQty}</span>}</div>
             </div>
-          )}
+            <div style={{flexShrink:0,textAlign:"right"}}>
+              <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(o.price)} F</div>
+              <span style={{display:"inline-block",marginTop:3,background:st.color+"22",color:st.color,borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
+            </div>
+          </div>
+          {/* Row 2: meta */}
+          <div style={{display:"flex",gap:10,fontSize:11,color:"#9CA3AF",alignItems:"center",flexWrap:"wrap"}}>
+            {o.phone&&<span>📱 {o.phone}</span>}
+            {o.address&&<span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:160}}>📍 {o.address.split(",")[0]}</span>}
+            {o.livreur&&<span style={{background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"1px 7px",fontWeight:600,fontSize:10}}>🏍️ {o.livreur}</span>}
+            {o.created_at&&<span style={{marginLeft:"auto",flexShrink:0}}>{new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>}
+          </div>
         </div>
 
         {/* ── Actions zone ── */}
-        <div onClick={e=>e.stopPropagation()} style={{background:G.white,padding:"10px 14px 14px"}}>
-
-        {/* Barre de progression — admin/closer only */}
-        {role!=="livreur"&&inDelivery&&(
-          <div style={{display:"flex",alignItems:"center",marginBottom:10}}>
-            {STEP_ICONS.map((ico,i)=>{
-              const col=STEP_COLORS[i];
-              const done=i<curStep, active=i===curStep;
-              return (
-                <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                  <div className={active&&o.status!=="entregado"?"step-active":undefined}
-                    style={{width:26,height:26,borderRadius:"50%",background:done?col:active?col:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,flexShrink:0,border:`2px solid ${i>curStep?"#E5E7EB":col}`,opacity:i>curStep?0.3:1,"--sc":col+"BB"}}>
-                    {ico}
-                  </div>
-                  {i<5&&<div style={{flex:1,height:2,background:done?col:"#F3F4F6"}}/>}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Note (si existe) */}
-        {o.note&&<div style={{fontSize:11,color:"#6B7280",background:"#F9FAFB",borderRadius:8,padding:"5px 10px",marginBottom:8,borderLeft:`3px solid ${st.color}`}}>📝 {o.note}</div>}
+        <div onClick={e=>e.stopPropagation()} style={{padding:"6px 12px 10px",borderTop:"1px solid #F3F4F6"}}>
 
         {/* WhatsApp — admin et closer */}
         {(role==="admin"||role==="closer")&&o.phone&&(()=>{
           const waSent = waSentIds.has(o.id);
           const phone = `221${o.phone.replace(/\s+/g,"")}`;
           const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
-          const msgLibre=`Bonjour ${o.client} 👋\n\nC'est *${settings.boutique||"Notre boutique"}* — nous vous contactons au sujet de votre commande *${o.product}*.\n\n`;
           return (
-            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
-              {/* Indicateur "WA envoyé" */}
-              {waSent&&(
-                <div style={{display:"flex",alignItems:"center",gap:6,background:"#F0FDF4",border:"1px solid #BBF7D0",borderRadius:8,padding:"5px 10px"}}>
-                  <span style={{fontSize:13}}>✅</span>
-                  <span style={{fontSize:11,fontWeight:700,color:"#15803D"}}>Confirmation WhatsApp envoyée</span>
-                  <button onClick={()=>setWaSentIds(prev=>{const n=new Set(prev);n.delete(o.id);return n;})}
-                    style={{marginLeft:"auto",background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",textDecoration:"underline"}}>
-                    Réinitialiser
-                  </button>
-                </div>
-              )}
-              {/* Bouton confirmation */}
-              <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
-                target="_blank" rel="noreferrer"
-                onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
-                style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:11,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.25)"}}>
-                <span style={{fontSize:17}}>📲</span>
-                {waSent?"Renvoyer la confirmation WA":"Confirmer la commande par WhatsApp"}
-              </a>
-              {/* Bouton écrire librement */}
-              <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgLibre)}`}
-                target="_blank" rel="noreferrer"
-                style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#F0FDF4",color:"#15803D",borderRadius:11,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",border:"1.5px solid #BBF7D0"}}>
-                <span style={{fontSize:15}}>💬</span> Écrire au client
-              </a>
-            </div>
+            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
+              target="_blank" rel="noreferrer"
+              onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
+              {waSent?"✓ Renvoyer confirmation WA":"📲 Confirmer par WhatsApp"}
+            </a>
           );
         })()}
 
@@ -3130,18 +3022,18 @@ function AppInner() {
         )}
 
         {/* Actions rapides — bas de carte */}
-        <div style={{display:"flex",gap:6,marginTop:8}}>
+        <div style={{display:"flex",gap:5,marginTop:6}}>
           <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
-            style={{flex:1,background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5,textDecoration:"none"}}>
+            style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
             📞 Appeler
           </a>
           <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note||"");}}
-            style={{flex:1,background:"#FAFAF9",color:"#78716C",border:"1px solid #E7E5E4",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-            📝 {o.note?"Note":"+ Note"}
+            style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+            📝 {o.note?"Note ●":"+ Note"}
           </button>
           {(role==="admin"||role==="closer")&&(
             <button onClick={()=>setEditOrder({...o})}
-              style={{flex:1,background:G.grayLight,color:G.dark,border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
+              style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
               ✏️ Modifier
             </button>
           )}
@@ -4774,26 +4666,58 @@ function AppInner() {
         )}
 
         {/* ── CLOSER DASHBOARD ── */}
-        {dataReady&&tab==="dashboard"&&role==="closer"&&(
+        {dataReady&&tab==="dashboard"&&role==="closer"&&(()=>{
+          const todayStr  = new Date().toISOString().slice(0,10);
+          const todayOrds = myClo.filter(o=>(o.created_at||"").startsWith(todayStr));
+          const confirmed = myClo.filter(o=>o.status==="confirmado");
+          const pending   = myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status));
+          const revenue   = myClo.filter(o=>o.status==="entregado").reduce((s,o)=>s+(parseFloat(o.price)||0),0);
+          const days7     = Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); const ds=d.toISOString().slice(0,10); return {label:d.toLocaleDateString("fr",{weekday:"short"}).slice(0,3), count:myClo.filter(o=>(o.created_at||"").startsWith(ds)).length}; });
+          const maxCnt    = Math.max(...days7.map(d=>d.count),1);
+          const cW=280, cH=80;
+          const pts = days7.map((d,i)=>`${(i/(days7.length-1))*cW},${cH-(d.count/maxCnt)*(cH-10)}`).join(" ");
+          return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{display:"flex",gap:8}}><SC icon="📦" label="Mes commandes" value={myClo.length}/><SC icon="✅" label="Livrées" value={myClo.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/></div>
-            <div style={{display:"flex",gap:8}}><SC icon="❌" label="Rejetées" value={myClo.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/><SC icon="⏳" label="En attente" value={myClo.filter(o=>o.status==="pendiente").length} color={G.gold} bg="#FFF8E7"/></div>
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>🔥 À TRAITER EN PRIORITÉ</ST>
-              {myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status)).length===0?<div style={{fontSize:13,color:G.gray}}>Rien ✓</div>:myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status)).map(o=>{const st=STATUS[o.status];return <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}><div><div style={{fontSize:13,fontWeight:600}}>{o.client}</div><div style={{fontSize:11,color:G.gray}}>📱 {o.phone}</div></div><span style={{background:st.bg,color:st.color,borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:600}}>{st.label}</span></div>;})}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {[
+                {icon:"📦",label:"Aujourd'hui",value:todayOrds.length,color:"#0284C7",bg:"#E0F2FE"},
+                {icon:"✅",label:"Confirmées", value:confirmed.length, color:G.green,  bg:G.greenLight},
+                {icon:"⏳",label:"En attente", value:pending.length,   color:G.gold,   bg:"#FFF8E7"},
+                {icon:"💰",label:"Revenu livré",value:fmt(revenue),    color:"#7C3AED",bg:"#EDE9FE"},
+              ].map((kpi,i)=>(
+                <div key={i} style={{background:G.white,borderRadius:14,padding:"14px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
+                  <div style={{fontSize:20,marginBottom:4}}>{kpi.icon}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:kpi.color}}>{kpi.value}</div>
+                  <div style={{fontSize:11,color:G.gray,fontWeight:500,marginTop:2}}>{kpi.label}</div>
+                </div>
+              ))}
             </div>
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>🏍️ LIVREURS</ST>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{teamMembers.filter(m=>m.role==="livreur").map(m=>{const busy=orders.filter(o=>o.livreur_id===m.id&&o.status==="en_camino").length;return <div key={m.id} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {m.nom} {busy>0?`(${busy} en route)`:"· Dispo"}</div>;})}</div>
+            <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>TENDANCE 7 JOURS</div>
+              <svg width="100%" viewBox={`0 0 ${cW} ${cH+20}`} style={{overflow:"visible"}}>
+                <defs><linearGradient id="cloTrend" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={G.green} stopOpacity="0.2"/><stop offset="100%" stopColor={G.green} stopOpacity="0"/></linearGradient></defs>
+                <polygon points={`0,${cH} ${pts} ${cW},${cH}`} fill="url(#cloTrend)"/>
+                <polyline points={pts} fill="none" stroke={G.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                {days7.map((d,i)=>{ const x=(i/(days7.length-1))*cW; const y=cH-(d.count/maxCnt)*(cH-10); return (<g key={i}><circle cx={x} cy={y} r="3" fill={G.green}/>{d.count>0&&<text x={x} y={y-7} textAnchor="middle" fontSize="9" fill={G.green} fontWeight="700">{d.count}</text>}<text x={x} y={cH+16} textAnchor="middle" fontSize="9" fill={G.gray}>{d.label}</text></g>); })}
+              </svg>
             </div>
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>📋 MES COMMANDES</ST>
-              <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
-                rows={[...myClo].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
-              />
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>{setTab("commandes");setTimeout(()=>setShowAdd(true),50);}} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>➕ Nouvelle commande</button>
+              <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}>💬 WhatsApp</a>
+            </div>
+            {pending.length>0&&(
+            <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>🔥 À TRAITER EN PRIORITÉ</div>
+              {pending.map(o=>{const st=STATUS[o.status];return(<div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}><div><div style={{fontSize:13,fontWeight:600}}>{o.client}</div><div style={{fontSize:11,color:G.gray}}>📱 {o.phone}</div></div><span style={{background:st.bg,color:st.color,borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:600}}>{st.label}</span></div>);})}
+            </div>
+            )}
+            <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>🏍️ LIVREURS</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{teamMembers.filter(m=>m.role==="livreur").map(m=>{const busy=orders.filter(o=>o.livreur_id===m.id&&o.status==="en_camino").length;return(<div key={m.id} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {m.nom} {busy>0?`(${busy} en route)`:"· Dispo"}</div>);})}{teamMembers.filter(m=>m.role==="livreur").length===0&&<div style={{fontSize:12,color:G.gray}}>Aucun livreur dans l'équipe</div>}</div>
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* ── LIVREUR DASHBOARD ── */}
         {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
@@ -6725,7 +6649,7 @@ function AppInner() {
 
             {/* Zone saisie */}
             {!isRecording&&(
-              <div style={{background:G.white,padding:"8px 10px",display:"flex",gap:6,alignItems:"flex-end",flexShrink:0,borderTop:`1px solid #DDD`}}>
+              <div style={{background:G.white,padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",flexShrink:0,borderTop:`1px solid #DDD`,transition:"padding-bottom 0.15s"}}>
                 {/* Photo */}
                 <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
                   📷<input type="file" accept="image/*" capture="environment" onChange={sendPhoto} style={{display:"none"}}/>
@@ -8921,10 +8845,10 @@ function AppInner() {
           ...(trialExpired?[]:[{k:"position", label:"Position", badge:0, badgeColor:"", badgeTxt:"", icon:ICONS.position, locked:isGratuit}]),
         ] : role==="closer" ? [
           {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
-          {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
+          {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
+          {k:"chat",      label:"Messages",  badge:chatUnread,   badgeColor:"#DC2626", badgeTxt:"#fff",  icon:ICONS.chat},
           {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:!trialExpired&&canUseCompta},
-          {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
         ] : [
           {k:"boutique",  label:"Boutique",  badge:isGratuit?0:boutiqueCnt,  badgeColor:G.gold,    badgeTxt:G.dark,  icon:ICONS.boutique,  show:!trialExpired, locked:isGratuit},
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
@@ -8968,7 +8892,7 @@ function AppInner() {
       {/* Floating button */}
       {!aiOpen&&!trialExpired&&canUseAI&&(
         <button onClick={()=>setAiOpen(true)} style={{
-          position:"fixed",bottom:isDesktop?28:tab==="chat"?130:100,right:18,zIndex:8000,
+          position:"fixed",bottom:isDesktop?28:tab==="chat"?210:180,right:18,zIndex:8000,
           width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",
           background:"linear-gradient(135deg,#1A5C38,#0D9488)",
           boxShadow:"0 4px 16px rgba(0,0,0,0.25)",
