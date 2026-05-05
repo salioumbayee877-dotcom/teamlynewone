@@ -8243,6 +8243,33 @@ function AppInner() {
                   if(!already) sbFetch("delivery_other_regions","POST",{org_id:orgId,name:cityName,price:_fl,interurbain_price:0,cities:[cityName]})
                     .then(res=>{const s=Array.isArray(res)?res[0]:res;if(s?.id)setOtherRegions(prev=>[...prev,s]);}).catch(()=>{});
                 }
+                // Alias-learning: if the order's note contains a raw city (from webhook ⚠️/~🏙️),
+                // and admin has now assigned it to a known zone, register the raw city as an alias.
+                if(orgId&&updated.city&&!String(id).startsWith("tmp_")){
+                  const rawCityMatch=(updated.note||"").match(/[⚠️~]?🏙️([^\s\n]+)/);
+                  const rawCity=rawCityMatch?rawCityMatch[1]:null;
+                  if(rawCity&&_normCity(rawCity)!==_normCity(updated.city)){
+                    const z=detectDeliveryZone(updated.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
+                    if(z.type==="main"&&mainRegion?.id){
+                      const curr=mainRegion.aliases||[];
+                      if(!curr.some(a=>_normCity(a)===_normCity(rawCity))){
+                        const aliases=[...curr,rawCity];
+                        sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{aliases}).catch(()=>{});
+                        setMainRegion(r=>({...r,aliases}));
+                      }
+                    } else if(z.type==="other"){
+                      const zone=otherRegions.find(r=>_normCity(r.name)===_normCity(z.name||""));
+                      if(zone?.id){
+                        const curr=zone.aliases||[];
+                        if(!curr.some(a=>_normCity(a)===_normCity(rawCity))){
+                          const aliases=[...curr,rawCity];
+                          sbFetch(`delivery_other_regions?id=eq.${zone.id}`,"PATCH",{aliases}).catch(()=>{});
+                          setOtherRegions(prev=>prev.map(r=>r.id===zone.id?{...r,aliases}:r));
+                        }
+                      }
+                    }
+                  }
+                }
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 ✅ Enregistrer
               </button>

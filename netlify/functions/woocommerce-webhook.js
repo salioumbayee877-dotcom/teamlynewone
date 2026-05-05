@@ -1,3 +1,5 @@
+const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
+
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
 
@@ -46,6 +48,7 @@ exports.handler = async (event) => {
     const clientName = `${firstName} ${lastName}`.trim() || order.billing?.email || "Client WooCommerce";
     const phone      = fmtPhone(order.billing?.phone || order.shipping?.phone || "");
     const addr       = order.shipping || order.billing;
+    const city       = addr?.city || "";
     const address    = addr ? [addr.address_1, addr.city, addr.state, addr.country].filter(Boolean).join(", ") : "";
 
     const lineItems    = order.line_items || [];
@@ -104,12 +107,34 @@ exports.handler = async (event) => {
       }
     } catch(e) { console.error("Catalog error:", e.message); }
 
-    const note = `Commande WooCommerce ${ref}${matched?" ✓":autoCreated?" ★":""}`;
+    // ── Delivery zone matching ──────────────────────────────────────────
+    let fraisAmount = 0, matchType = "fallback";
+    try {
+      const [mainRes, othRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/delivery_other_regions?org_id=eq.${orgId}&select=id,name,price,interurbain_price,cities,aliases`, { headers: sbHeaders }),
+      ]);
+      const main   = (await mainRes.json())[0] || null;
+      const others = (await othRes.json()) || [];
+      const result = matchDeliveryZone(city, main, others);
+      fraisAmount  = result.fee;
+      matchType    = result.matchType;
+    } catch(e) { console.error("Zone matching error:", e.message); }
+    if (matchType === "fallback") {
+      try {
+        const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders });
+        fraisAmount   = (await orgRes.json())?.[0]?.settings?.defaultDeliveryPrice || 3500;
+      } catch {}
+    }
+
+    const prodFlag = matched ? " ✓" : autoCreated ? " ★" : "";
+    const zoneFlag = matchType === "fallback" ? ` ⚠️🏙️${city}` : matchType === "fuzzy" ? ` ~🏙️${city}` : ` 🏙️${city}`;
+    const note     = `Commande WooCommerce ${ref}${prodFlag}${zoneFlag}`;
 
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1 }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:fraisAmount, livreur:null, livreur_id:null, closer:null, closer_id:null }),
     });
 
     if (!res.ok) {
@@ -117,7 +142,8 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers, body: `Supabase error: ${err}` };
     }
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success:true, ref, matched, autoCreated, finalProduct }) };
+    console.log(`[TEAMLY] WooCommerce ${ref} — city="${city}" matchType=${matchType} frais=${fraisAmount} CFA`);
+    return { statusCode: 200, headers, body: JSON.stringify({ success:true, ref, matched, autoCreated, finalProduct, zone:{matchType,frais:fraisAmount} }) };
   } catch (e) {
     console.error("WooCommerce webhook error:", e.message);
     return { statusCode: 500, headers, body: `Error: ${e.message}` };
