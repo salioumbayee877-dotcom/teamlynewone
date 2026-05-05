@@ -5,6 +5,36 @@ const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 // User JWT stored after login — all data requests use this so RLS is enforced
 let _authToken = null;
+let _setSbTokenFn = null; // registered by component to sync React state after refresh
+let _refreshPromise = null; // deduplicates concurrent refresh calls
+
+const tryRefreshToken = async () => {
+  if (_refreshPromise) return _refreshPromise;
+  const rt = localStorage.getItem("teamly_refresh_token");
+  if (!rt) return null;
+  _refreshPromise = (async () => {
+    try {
+      const res = await fetchWithTimeout(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+        method: "POST",
+        headers: {"Content-Type":"application/json","apikey":SB_KEY},
+        body: JSON.stringify({refresh_token: rt}),
+      }, 10000);
+      if (!res.ok) return null;
+      const text = await res.text();
+      let data; try { data = JSON.parse(text); } catch(e) { return null; }
+      if (!data?.access_token) return null;
+      _authToken = data.access_token;
+      try {
+        localStorage.setItem("teamly_token", data.access_token);
+        if (data.refresh_token) localStorage.setItem("teamly_refresh_token", data.refresh_token);
+      } catch(e) {}
+      if (_setSbTokenFn) _setSbTokenFn(data.access_token);
+      return data.access_token;
+    } catch(e) { return null; }
+    finally { _refreshPromise = null; }
+  })();
+  return _refreshPromise;
+};
 
 const sbHeaders = (token) => ({
   "Content-Type":  "application/json",
@@ -19,21 +49,51 @@ const fetchWithTimeout = async (url, opts={}, ms=7000) => {
   try { return await fetch(url, {...opts, signal:ctrl.signal}); } finally { clearTimeout(id); }
 };
 
+const isTokenExpired = (tok) => {
+  if(!tok) return true;
+  try {
+    const payload = JSON.parse(atob(tok.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    return payload.exp * 1000 < Date.now() + 60000;
+  } catch(e) { return true; }
+};
+
 const sbFetch = async (path, method="GET", body=null, token=null) => {
+  // Proactively refresh if token is expired before sending the request
+  if(!token && isTokenExpired(_authToken)) {
+    await tryRefreshToken();
+  }
   try {
     const res = await fetchWithTimeout(`${SB_URL}/rest/v1/${path}`, {
       method,
       headers: sbHeaders(token),
       body: body ? JSON.stringify(body) : undefined,
     }, 8000);
-    if(!res.ok) { const e=await res.text(); throw new Error(e); }
+    if(!res.ok) {
+      const e=await res.text();
+      let _errCode=""; try{_errCode=JSON.parse(e).code;}catch(_){}
+      if(res.status===401 && _errCode==="PGRST303") {
+        const newTok = await tryRefreshToken();
+        if(newTok) {
+          const r2 = await fetchWithTimeout(`${SB_URL}/rest/v1/${path}`,{method,headers:sbHeaders(newTok),body:body?JSON.stringify(body):undefined},8000);
+          if(r2.ok){
+            const t2=await r2.text();
+            if(!t2||t2.trim()==="") return null;
+            let d2; try{d2=JSON.parse(t2);}catch(e2){return null;}
+            if((method==="POST"||method==="PATCH"||method==="DELETE")&&Array.isArray(d2)&&d2.length===0) throw new Error("Permission refusée — aucune ligne créée/modifiée (RLS ou contrainte DB)");
+            return d2;
+          }
+        }
+      }
+      console.error("[TEAMLY DEBUG][sbFetch] HTTP "+res.status+" path="+path+" body="+e.slice(0,200));
+      throw new Error(e);
+    }
     const text = await res.text();
     if(!text||text.trim()==="") return null;
     let data;
     try { data = JSON.parse(text); } catch(e) { return null; }
     // Supabase returns 200 + [] when RLS silently blocks a write — detect it
-    if((method==="PATCH"||method==="DELETE") && Array.isArray(data) && data.length===0) {
-      throw new Error("Permission refusée — aucune ligne modifiée (RLS)");
+    if((method==="POST"||method==="PATCH"||method==="DELETE") && Array.isArray(data) && data.length===0) {
+      throw new Error("Permission refusée — aucune ligne créée/modifiée (RLS ou contrainte DB)");
     }
     return data;
   } catch(e) {
@@ -112,7 +172,8 @@ const TeamlyLogo = ({size=1, dark=false}) => (
 );
 const fmt = n => Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const pct = n => (Number(n||0)*100).toFixed(1)+"%";
-const TODAY = new Date().toISOString().split("T")[0];
+const localDateStr = (dt = new Date()) => { const d = new Date(dt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const TODAY = localDateStr();
 const FRAIS_LIV = 1500;
 
 // ── West Africa delivery zones ──────────────────────────────────────────────
@@ -1043,7 +1104,7 @@ function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose,
           <select value={newOrder.deliveryStatus||""} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
             style={{width:"100%",border:`1.5px solid ${!newOrder.deliveryStatus?"#FCA5A5":G.green}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:newOrder.deliveryStatus?G.dark:"#9CA3AF",background:G.white,boxSizing:"border-box"}}>
             <option value="" disabled>— Sélectionner la situation —</option>
-            <option value="confirmado">🔔 Aller récupérer le colis</option>
+            <option value="confirmado">🔔 Client confirmé — Prêt pour livraison</option>
             <option value="livreur_en_route">🏍️ En route pour récupérer le colis</option>
             <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
             <option value="en_camino">🚀 En route vers le client</option>
@@ -1218,6 +1279,8 @@ function TourneeBlock({orders, onConfirm, G, fmt, mode="recuperer"}) {
 
 function AppInner() {
   const [role,setRole] = useState(null);
+  // Allow tryRefreshToken (module-level) to update React token state
+  useEffect(()=>{ _setSbTokenFn = (tok)=>{ setSbToken(tok); }; }, []);
   const [orders,setOrders]   = useState([]);
   const [products,setProducts] = useState([]);
   const [bundles,setBundles] = useState(INIT_BUNDLES);
@@ -1248,7 +1311,7 @@ function AppInner() {
   const [fraisEditCity,     setFraisEditCity]     = useState(null);
   const [fraisTableauSearch,setFraisTableauSearch]= useState("");
   const [fraisTableauFilter,setFraisTableauFilter]= useState("all");
-  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
+  const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"confirmado",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
   const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",niche:"",bundles:[]});
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
@@ -1320,10 +1383,12 @@ function AppInner() {
   const [livFinalConfirm, setLivFinalConfirm] = useState(null); // {orderId, type:"livre"|"rejete", client, price}
   const [livFinalNote,    setLivFinalNote]    = useState("");
   const [livBtnLoading,   setLivBtnLoading]   = useState(null); // orderId currently being actioned
+  const inProgressDismissedRef = useRef(false);
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
-  const [filterStatus, setFilterStatus] = useState("all");
-  const [filterDate,   setFilterDate]   = useState("all");
+  const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
+  const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"all";}catch(e){return "all";}});
+  const filterDateRef = useRef(filterDate);
   const [filterLivreur, setFilterLivreur] = useState("all");
   const [refreshing, setRefreshing]     = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
@@ -1516,10 +1581,10 @@ function AppInner() {
     setOrders(o=>o.map(x=>x.id===id?{...x,closer:clName,closer_id:clId}:x));
     if(!String(id).startsWith("tmp_")) sbFetch(`orders?id=eq.${id}`,"PATCH",{closer:clName,closer_id:clId}).catch(e=>console.error("upClo error:",e));
   };
-  const addToast = (msg, icon="ℹ️", color=G.green) => {
+  const addToast = (msg, icon="ℹ️", color=G.green, duration=4000) => {
     const id = Date.now();
     setToasts(t=>[...t,{id,msg,icon,color}]);
-    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),4000);
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),duration);
   };
 
   // ── Détection intelligente des prix produits ──────────────────────────────
@@ -1673,7 +1738,7 @@ function AppInner() {
     if(!orgId || !sbReady) return;
     const checkPlan = async () => {
       try {
-        const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,plan_expires_at,created_at,settings`,"GET");
+        const orgs = await sbFetch(`organizations?id=eq.${orgId}&limit=1&select=plan,created_at,settings`,"GET");
         const org  = orgs?.[0];
         if(!org) return;
         // Sync org.settings for non-admin roles (closerCompta, etc.)
@@ -1739,6 +1804,30 @@ function AppInner() {
       setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
     }
   },[tab]);
+
+  // Sync filterStatus to URL query param (?status=xxx) so it survives refresh
+  useEffect(()=>{
+    try {
+      const p = new URLSearchParams(window.location.search);
+      filterStatus==="all" ? p.delete("status") : p.set("status", filterStatus);
+      const qs = p.toString();
+      window.history.replaceState(null,"", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    } catch(e) {}
+  },[filterStatus]);
+
+  // Sync filterDate to URL + localStorage, and re-fetch from server when it changes
+  useEffect(()=>{
+    filterDateRef.current = filterDate;
+    try { localStorage.setItem("teamly_filter_date", filterDate); } catch(e){}
+    try {
+      const p = new URLSearchParams(window.location.search);
+      filterDate==="all" ? p.delete("date") : p.set("date", filterDate);
+      const qs = p.toString();
+      window.history.replaceState(null,"", qs ? `${window.location.pathname}?${qs}` : window.location.pathname);
+    } catch(e){}
+    console.log("[TEAMLY] filterDate →", filterDate);
+    if(loadMainRef.current) loadMainRef.current();
+  },[filterDate]);
 
   // ── Restore session from localStorage on startup ───────────────────────
   useEffect(()=>{
@@ -1817,6 +1906,13 @@ function AppInner() {
       const savedId  = localStorage.getItem("teamly_userId");
       const savedNom = localStorage.getItem("teamly_nom");
       if(!email || !savedOrg) { setAppLoading(false); return; }
+      // If token is expired AND no refresh token → session is dead, force re-login
+      if(tok && isTokenExpired(tok) && !localStorage.getItem("teamly_refresh_token")) {
+        try { localStorage.clear(); } catch(e) {}
+        _authToken = null;
+        setAppLoading(false);
+        return;
+      }
       if(tok) { setSbToken(tok); _authToken = tok; }
       // Safety timeout: never stay on loading screen more than 5 seconds
       const safetyTimer = setTimeout(()=>setAppLoading(false), 5000);
@@ -1855,7 +1951,7 @@ function AppInner() {
             setOrgId(p.org_id);
             setSbReady(true);
             try {
-              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`,"GET");
+              const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,settings`,"GET");
               const orgName = (orgs&&orgs.length>0)?orgs[0].name:"Ma Boutique";
               const orgPhone = (orgs&&orgs.length>0)?orgs[0].whatsapp:"";
               setSettings(s=>({...s,nom:p.nom||s.nom,whatsapp:p.phone||orgPhone||s.whatsapp,boutique:orgName}));
@@ -1914,6 +2010,7 @@ function AppInner() {
   // ── Supabase: sync data when connected ──────────────────────────────────
   useEffect(()=>{
     if(!sbReady||!orgId) return;
+    console.log("[TEAMLY DEBUG][MOUNT] sbReady=true orgId="+orgId+" _authToken="+(_authToken?_authToken.slice(0,20)+"...":"NULL")+" filterDate="+filterDate+" filterStatus="+filterStatus);
 
     const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden}));
     const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,fraisLivExtra:p.frais_liv_extra,stockInitial:p.stock_initial}));
@@ -1941,17 +2038,43 @@ function AppInner() {
 
     // Carga pedidos, productos y equipo juntos (sin mensajes — son pesados)
     let mainReqId = 0;
+    const buildDateQuery = (dateKey) => {
+      if(!dateKey || dateKey==="all") return "";
+      const now = new Date();
+      let start, end;
+      if(dateKey==="today") {
+        start=new Date(now); start.setHours(0,0,0,0);
+        end=new Date(now);   end.setHours(23,59,59,999);
+      } else if(dateKey==="yesterday") {
+        start=new Date(now); start.setDate(start.getDate()-1); start.setHours(0,0,0,0);
+        end=new Date(now);   end.setDate(end.getDate()-1);     end.setHours(23,59,59,999);
+      } else if(dateKey==="week") {
+        start=new Date(now); start.setDate(start.getDate()-((start.getDay()+6)%7)); start.setHours(0,0,0,0);
+        end=new Date(now);   end.setHours(23,59,59,999);
+      }
+      if(!start||!end) return "";
+      console.log("[TEAMLY] Filter range:", start.toISOString(), "→", end.toISOString());
+      return `&created_at=gte.${encodeURIComponent(start.toISOString())}&created_at=lte.${encodeURIComponent(end.toISOString())}`;
+    };
+
     const loadMain = async() => {
       const reqId = ++mainReqId;
+      const _t0 = Date.now();
+      const dateKey = filterDateRef.current || "all";
+      const dateQuery = buildDateQuery(dateKey);
+      console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] START token="+(_authToken?_authToken.slice(0,20)+"...":"NULL")+" orgId="+orgId+" dateFilter="+dateKey);
       try {
+        console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] QUERY orders?org_id=eq."+orgId+"&archived=not.is.true"+dateQuery+"&order=created_at.desc");
         const [ords, prods, mems, zMain, zOthers, zPricing] = await Promise.all([
-          sbFetch(`orders?org_id=eq.${orgId}&archived=eq.false&order=created_at.desc`),
-          sbFetch(`products?org_id=eq.${orgId}&archived=eq.false`),
+          sbFetch(`orders?org_id=eq.${orgId}&archived=not.is.true${dateQuery}&order=created_at.desc`),
+          sbFetch(`products?org_id=eq.${orgId}&archived=not.is.true`),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)&select=id,nom,phone,email,role,lat,lng,city`),
           sbFetch(`delivery_main_region?org_id=eq.${orgId}&limit=1`).catch(()=>null),
           sbFetch(`delivery_other_regions?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
           sbFetch(`product_pricing_rules?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
         ]);
+        console.log("[TEAMLY] Orders returned:", ords?.length, "| filter:", dateKey, "| ms:", Date.now()-_t0);
+        console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] RESPONSE ords="+(ords===null?"null":Array.isArray(ords)?"array("+ords.length+")":typeof ords)+" ms="+(Date.now()-_t0)+(Array.isArray(ords)&&ords.length===0?" ⚠️ EMPTY ARRAY":Array.isArray(ords)&&ords.length>0?" sample_id="+ords[0]?.id:""));
         if (zMain?.[0]) setMainRegion(zMain[0]);
         if (Array.isArray(zOthers)) setOtherRegions(zOthers);
         if (Array.isArray(zPricing)) setPricingRules(zPricing);
@@ -1969,6 +2092,7 @@ function AppInner() {
             // Keep temp orders (tmp_xxx) still in flight — INSERT not yet confirmed
             const serverIds = new Set(mappedOrds.map(o=>o.id));
             const tempOrds = prev.filter(p=>String(p.id).startsWith("tmp_")&&!serverIds.has(p.id));
+            console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] setOrders prev="+prev.length+" server="+mappedOrds.length+" merged="+merged.length+" temp="+tempOrds.length+" → total="+(merged.length+tempOrds.length));
             return [...merged, ...tempOrds];
           });
         }
@@ -1989,7 +2113,7 @@ function AppInner() {
             orders: mappedOrds, products: mappedProds, members: mems
           }));
         } catch(e){}
-      } catch(e) { console.error("Supabase load error:", e.message, e); }
+      } catch(e) { console.error("[TEAMLY DEBUG][loadMain #"+reqId+"] ERROR", e.message, e); }
     };
 
     // Restaurar chat desde cache instantáneamente
@@ -2318,10 +2442,26 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||"",product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,delivery_zone_type:_zoneType,delivery_zone_name:_zoneName,delivery_fee:_deliveryFee,delivery_fee_overridden:_zoneOverridden,archived:false})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
-          if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
+          if(saved?.id) {
+            setOrders(o=>{const mapped=o.map(x=>x.id===tempId?{...x,id:saved.id}:x);const seen=new Set();return mapped.filter(x=>seen.has(x.id)?false:(seen.add(x.id),true));});
+            addToast("Commande enregistrée ✓","💾",G.green);
+            // Update cache immediately so order survives refresh even if loadMain hasn't run yet
+            try {
+              const cacheKey = `teamly_cache_${orgId}`;
+              const cache = JSON.parse(localStorage.getItem(cacheKey)||"{}");
+              const mappedSaved = {...saved, isBundle:saved.is_bundle, fraisLiv:saved.frais_liv, deliveryZoneType:saved.delivery_zone_type, deliveryZoneName:saved.delivery_zone_name, deliveryFee:saved.delivery_fee, deliveryFeeOverridden:saved.delivery_fee_overridden};
+              cache.orders = [mappedSaved, ...(cache.orders||[]).filter(o=>o.id!==saved.id)];
+              localStorage.setItem(cacheKey, JSON.stringify(cache));
+            } catch(e){}
+            // Re-fetch from server so the new order passes through the active date/status filter
+            if(loadMainRef.current) loadMainRef.current();
+          } else {
+            console.error("addOrder: INSERT returned no row — RLS or constraint blocked it silently. res:", JSON.stringify(res));
+            addToast("Commande non enregistrée — RLS/contrainte DB (res vide)","❌",G.red,12000);
+          }
           // Envoyer notification au livreur selon le statut choisi
           if(newOrder.livreur && orgId) {
             const NOTIF_MSG = {
@@ -2334,7 +2474,14 @@ function AppInner() {
             sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
           }
         })
-        .catch(e=>{ console.error("addOrder Supabase error:",e); addToast("Erreur lors de la création de la commande","❌",G.red); });
+        .catch(e=>{
+          let sbErr={};
+          try{sbErr=JSON.parse(e.message);}catch(_){}
+          const errMsg = sbErr.message||e.message||"Erreur inconnue";
+          const errCode = sbErr.code?"["+sbErr.code+"] ":"";
+          console.error("addOrder error — code:",sbErr.code,"message:",errMsg,"details:",sbErr.details,"hint:",sbErr.hint);
+          addToast(`Erreur sauvegarde: ${errCode}${errMsg.slice(0,100)}`,"❌",G.red,12000);
+        });
     }
 
     if(wa) {
@@ -2353,7 +2500,7 @@ function AppInner() {
       setShowWA(true);
     }
 
-    setNewOrder({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
+    setNewOrder({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"confirmado",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
     setShowAdd(false);
   };
 
@@ -2498,7 +2645,7 @@ function AppInner() {
   });
   const tCA   = calcProd.reduce((a,x)=>a+x.ca,0);
   const tBen  = calcProd.reduce((a,x)=>a+x.ben,0);
-  const caJour= orders.filter(o=>o.status==="entregado"&&o.created_at?.slice(0,10)===TODAY).reduce((a,o)=>a+o.price,0);
+  const caJour= orders.filter(o=>o.status==="entregado"&&o.created_at&&localDateStr(o.created_at)===localDateStr()).reduce((a,o)=>a+o.price,0);
   const tCamv = calcProd.reduce((a,x)=>a+x.camv,0);
   const tFrais= calcProd.reduce((a,x)=>a+x.frais,0);
   const tPub  = calcProd.reduce((a,x)=>a+x.pub,0);
@@ -2685,7 +2832,7 @@ function AppInner() {
                     <button onClick={async()=>{
                       const v=parseInt(fraisAdminEditVal)||0;
                       setOrders(x=>x.map(ord=>ord.id===o.id?{...ord,deliveryFee:v,deliveryFeeOverridden:true}:ord));
-                      sbFetch(`orders?id=eq.${o.id}`,"PATCH",{delivery_fee:v,delivery_fee_overridden:true},_authToken).catch(()=>{});
+                      sbFetch(`orders?id=eq.${o.id}`,"PATCH",{frais_liv:v},_authToken).catch(()=>{});
                       setFraisAdminEditId(null);
                       addToast(`Frais mis à jour: ${fmt(v)} F`,"✅",G.green);
                     }} style={{background:G.green,color:"#fff",border:"none",borderRadius:6,padding:"2px 9px",fontSize:10,cursor:"pointer",fontWeight:700}}>✓</button>
@@ -3127,7 +3274,7 @@ function AppInner() {
         setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:"admin"});
         setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
         setOrg({id:newOrgId,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
-        try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",authForm.nom||"Admin");}catch(e){}
+        try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",authForm.nom||"Admin");}catch(e){}
         setAuthStep("plan"); // Move to plan AFTER org is created
       }).catch(e=>setAuthError(e.message||"Erreur inscription — email déjà utilisé ?"));
   };
@@ -3209,7 +3356,7 @@ function AppInner() {
                       setAuthError("Ton compte a été retiré de cette équipe. Contacte l'administrateur.");
                       setAuthLoading(false); return;
                     }
-                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`).catch(()=>null);
+                    const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,settings`).catch(()=>null);
                     const orgName  = orgs?.[0]?.name  || "Ma Boutique";
                     const orgPhone = orgs?.[0]?.whatsapp || "";
                     setOrgId(p.org_id); setSbReady(true);
@@ -3239,6 +3386,7 @@ function AppInner() {
                     setRole(p.role||"admin"); setTab("dashboard");
                     try {
                       localStorage.setItem("teamly_token", tok);
+                      if(data.refresh_token) localStorage.setItem("teamly_refresh_token", data.refresh_token);
                       localStorage.setItem("teamly_email", authForm.email);
                       localStorage.setItem("teamly_org", p.org_id);
                       localStorage.setItem("teamly_role", p.role||"admin");
@@ -3366,12 +3514,12 @@ function AppInner() {
                       if(profiles&&profiles.length>0){
                         const p=profiles[0];
                         if(!p.org_id){setAuthError("Compte retiré de l'équipe");setAuthLoading(false);return;}
-                        const orgs=await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,plan_expires_at,settings`).catch(()=>null);
+                        const orgs=await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,settings`).catch(()=>null);
                         setOrgId(p.org_id);setSbReady(true);
                         setSettings(s=>({...s,nom:p.nom||s.nom,boutique:orgs?.[0]?.name||s.boutique,...(orgs?.[0]?.settings||{})}));
                         setCurrentUser({id:p.id,nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||""});
                         setRole(p.role||"admin");setTab("dashboard");
-                        try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",p.email||"");localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
+                        try{localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",p.email||"");localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
                       } else {
                         setAuthError("Aucun compte trouvé pour ce numéro — crée un compte email d'abord");
                       }
@@ -3747,6 +3895,7 @@ function AppInner() {
                   // Save session
                   try {
                     localStorage.setItem("teamly_token",tok);
+                    if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
                     localStorage.setItem("teamly_email",authForm.email);
                     localStorage.setItem("teamly_org",detectedOrg);
                   } catch(e){}
@@ -4748,7 +4897,7 @@ function AppInner() {
             )}
 
             {/* ── EN COURS — gérer dans Livraisons ── */}
-            {inProgress.length>0&&(
+            {inProgress.length===0 ? (inProgressDismissedRef.current=false, null) : !inProgressDismissedRef.current&&(
               <div style={{background:"#FFF8E7",borderRadius:16,border:"2px solid #FDE68A",padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",animation:"livFadeIn 220ms ease"}}>
                 <div style={{fontWeight:800,fontSize:14,color:"#92400E",marginBottom:10}}>🚀 {inProgress.length} livraison{inProgress.length>1?"s":""} en cours</div>
                 {inProgress.slice(0,3).map((o,i)=>{
@@ -4761,7 +4910,7 @@ function AppInner() {
                   );
                 })}
                 {inProgress.length>3&&<div style={{fontSize:11,color:"#D97706",marginTop:5,fontWeight:600}}>+{inProgress.length-3} autres…</div>}
-                <button onClick={()=>setTab("livraisons")}
+                <button onClick={()=>{inProgressDismissedRef.current=true;setTab("livraisons");}}
                   style={{width:"100%",background:"#D97706",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:14}}>
                   Gérer dans Livraisons →
                 </button>
@@ -4819,13 +4968,29 @@ function AppInner() {
               <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
                 {/* Date */}
                 <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>📅 DATE</div>
-                <div style={{display:"flex",gap:6,marginBottom:12}}>
-                  {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
-                    <button key={d.k} onClick={()=>setFilterDate(d.k)}
-                      style={{flex:1,background:filterDate===d.k?G.green:"#E5E7EB",color:filterDate===d.k?"#fff":"#111",border:filterDate===d.k?`2px solid ${G.green}`:"2px solid transparent",borderRadius:9,padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                      {d.l}
-                    </button>
-                  ))}
+                <div style={{display:"flex",gap:5,marginBottom:12,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+                  {(()=>{
+                    const _fd = new Date();
+                    const _fmt = d => d.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit"});
+                    const _yest = new Date(_fd); _yest.setDate(_fd.getDate()-1);
+                    const _mon  = new Date(_fd); _mon.setDate(_fd.getDate()-((_fd.getDay()+6)%7));
+                    const chips = [
+                      {k:"today",     l:"Aujourd'hui", sub:_fmt(_fd)},
+                      {k:"yesterday", l:"Hier",        sub:_fmt(_yest)},
+                      {k:"week",      l:"Semaine",     sub:`dès ${_fmt(_mon)}`},
+                      {k:"all",       l:"Tout",        sub:"toutes dates"},
+                    ];
+                    return chips.map(d=>{
+                      const active = filterDate===d.k;
+                      return (
+                        <button key={d.k} onClick={()=>{setFilterDate(d.k);try{localStorage.setItem("teamly_filter_date",d.k);}catch(e){}}}
+                          style={{flexShrink:0,background:active?G.green:"#F3F4F6",color:active?"#fff":"#374151",border:active?`2px solid ${G.green}`:"2px solid transparent",borderRadius:10,padding:"7px 10px",cursor:"pointer",textAlign:"center",minWidth:70}}>
+                          <div style={{fontSize:12,fontWeight:700}}>{d.l}</div>
+                          <div style={{fontSize:9,opacity:active?0.85:0.6,marginTop:1,fontWeight:500}}>{d.sub}</div>
+                        </button>
+                      );
+                    });
+                  })()}
                 </div>
 
                 {/* Statut — deux groupes pour admin/closer, liste simple pour livreur */}
@@ -4837,6 +5002,7 @@ function AppInner() {
                       {[
                         {k:"all",        l:"Tout",                    c:"#374151", bg:"#E5E7EB"},
                         {k:"pendiente",  l:"En attente",              c:STATUS.pendiente.color,  bg:STATUS.pendiente.color+"22"},
+                        {k:"confirmado", l:"Confirmé 🔔",             c:STATUS.confirmado.color, bg:STATUS.confirmado.color+"22"},
                         {k:"livreur_en_route", l:"Livreur en route 🏍️", c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
                         {k:"colis_pris", l:"Colis en main 📦",        c:STATUS.colis_pris.color, bg:STATUS.colis_pris.color+"22"},
                         {k:"en_camino",  l:"Vers le client 🚀",       c:STATUS.en_camino.color,  bg:STATUS.en_camino.color+"22"},
@@ -4871,18 +5037,40 @@ function AppInner() {
                   </>
                 ):(
                   <>
-                    <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ STATUT</div>
-                    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                      <button onClick={()=>setFilterStatus("all")}
-                        style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                        Tout
-                      </button>
-                      {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="boutique").map(([k,v])=>(
-                        <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
-                          style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                          {v.label}
-                        </button>
-                      ))}
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🚚 MA TOURNÉE</div>
+                    <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
+                      {[
+                        {k:"all",              l:"Tout",                 c:"#374151", bg:"#E5E7EB"},
+                        {k:"livreur_en_route", l:"En route 🏍️",          c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
+                        {k:"colis_pris",       l:"Colis en main 📦",     c:STATUS.colis_pris.color,       bg:STATUS.colis_pris.color+"22"},
+                        {k:"en_camino",        l:"Vers client 🚀",       c:STATUS.en_camino.color,        bg:STATUS.en_camino.color+"22"},
+                        {k:"chez_client",      l:"Chez client 📍",       c:STATUS.chez_client.color,      bg:STATUS.chez_client.color+"22"},
+                      ].map(({k,l,c,bg})=>{
+                        const active = filterStatus===k;
+                        return (
+                          <button key={k} onClick={()=>setFilterStatus(active&&k!=="all"?"all":k)}
+                            style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🏁 RÉSULTAT</div>
+                    <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
+                      {[
+                        {k:"entregado",  l:"Livré ✅",     c:STATUS.entregado.color,   bg:STATUS.entregado.color+"22"},
+                        {k:"rechazado",  l:"Refusé ❌",    c:STATUS.rechazado.color,   bg:STATUS.rechazado.color+"22"},
+                        {k:"no_contesta",l:"Absent 📵",    c:STATUS.no_contesta.color, bg:STATUS.no_contesta.color+"22"},
+                        {k:"reprogramar",l:"Reporté ⏰",   c:STATUS.reprogramar.color, bg:STATUS.reprogramar.color+"22"},
+                      ].map(({k,l,c,bg})=>{
+                        const active = filterStatus===k;
+                        return (
+                          <button key={k} onClick={()=>setFilterStatus(active?"all":k)}
+                            style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
+                            {l}
+                          </button>
+                        );
+                      })}
                     </div>
                   </>
                 )}
@@ -4894,10 +5082,6 @@ function AppInner() {
                 <span style={{fontSize:12,fontWeight:700,color:G.gray,padding:"3px 0"}}>
                   {filteredOrders.length} commande{filteredOrders.length!==1?"s":""}
                 </span>
-                <button onClick={()=>{ loadMainRef.current?.(); setRefreshing(true); setTimeout(()=>setRefreshing(false),1500); }}
-                  style={{background:"none",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:G.green,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
-                  <span style={refreshing?{display:"inline-block",animation:"spin 0.7s linear infinite"}:{}}>{refreshing?"⟳":"↺"}</span> Actualiser
-                </button>
               </div>
             )}
             {(localOrderIds.length>0||pinnedOrderIds.length>0)&&(
@@ -4965,16 +5149,10 @@ function AppInner() {
                 );
               }
 
-              // ── Admin / closer: groupement par statut ──
+              // ── Admin / closer: tri par created_at DESC ──
               const pinnedOrders = filteredOrders.filter(o=>pinnedOrderIds.includes(o.id)).sort((a,b)=>pinnedOrderIds.indexOf(a.id)-pinnedOrderIds.indexOf(b.id));
               const pinnedSet = new Set(pinnedOrders.map(o=>o.id));
-              const groups = {};
-              filteredOrders.filter(o=>!pinnedSet.has(o.id)).forEach(o=>{
-                const k = o.status||"pendiente";
-                if(!groups[k]) groups[k]=[];
-                groups[k].push(o);
-              });
-              GROUP_ORDER.forEach(k=>{ if(groups[k]) groups[k].sort(sortFn); });
+              const sortedOrds = filteredOrders.filter(o=>!pinnedSet.has(o.id)).sort(sortFn);
               return (
                 <>
                   {pinnedOrders.length>0&&(
@@ -4990,22 +5168,9 @@ function AppInner() {
                       </div>
                     </div>
                   )}
-                  {GROUP_ORDER.filter(k=>groups[k]?.length>0).map(k=>{
-                    const st = STATUS[k]||STATUS.pendiente;
-                    return (
-                      <div key={k}>
-                        <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
-                          <div style={{width:10,height:10,borderRadius:"50%",background:st.color,flexShrink:0}}/>
-                          <span style={{fontSize:11,fontWeight:700,color:st.color,letterSpacing:0.3}}>{st.label.toUpperCase()}</span>
-                          <span style={{fontSize:11,color:G.gray}}>({groups[k].length})</span>
-                          <div style={{flex:1,height:1,background:`${st.color}33`}}/>
-                        </div>
-                        <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
-                          {groups[k].map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
-                        </div>
-                      </div>
-                    );
-                  })}
+                  <div style={{display:isDesktop?"grid":"block",gridTemplateColumns:isWide?"1fr 1fr 1fr":"1fr 1fr",gap:10}}>
+                    {sortedOrds.map(o=><OCard key={o.id} o={o} showPrendre={true}/>)}
+                  </div>
                 </>
               );
             })()}
@@ -5014,9 +5179,12 @@ function AppInner() {
 
         {/* ── CLIENTS ── */}
         {dataReady&&tab==="clients"&&(role==="admin"||role==="closer")&&(()=>{
-          const TODAY     = new Date().toISOString().slice(0,10);
-          const YESTERDAY = new Date(Date.now()-86400000).toISOString().slice(0,10);
-          const WEEK_AGO  = new Date(Date.now()-7*86400000).toISOString().slice(0,10);
+          const _tdc = new Date();
+          const TODAY     = localDateStr(_tdc);
+          const _ydc = new Date(_tdc); _ydc.setDate(_tdc.getDate()-1);
+          const YESTERDAY = localDateStr(_ydc);
+          const _wdc = new Date(_tdc); _wdc.setDate(_tdc.getDate()-7);
+          const WEEK_AGO  = localDateStr(_wdc);
 
           // Categories
           const CATS = [
@@ -5033,7 +5201,7 @@ function AppInner() {
           const cat = CATS.find(c=>c.k===clientCat)||CATS[1];
 
           const matchDate = (o) => {
-            const d = o.created_at?.slice(0,10)||"";
+            const d = o.created_at ? localDateStr(o.created_at) : "";
             if(clientDate==="today")     return d===TODAY;
             if(clientDate==="yesterday") return d===YESTERDAY;
             if(clientDate==="week")      return d>=WEEK_AGO;
@@ -8046,16 +8214,27 @@ function AppInner() {
             </div>
 
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>{
+              <button onClick={async()=>{
                 const _fl=parseFloat(editOrder.fraisLiv)||editOrder.fraisLiv;
+                const id=editOrder.id;
                 const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:_fl,deliveryFee:_fl};
-                setOrders(o=>o.map(x=>x.id===editOrder.id?{...x,...updated}:x));
-                if(orgId&&!String(editOrder.id).startsWith("tmp_")){
-                  sbFetch(`orders?id=eq.${editOrder.id}`,"PATCH",{
-                    client:updated.client,phone:updated.phone,address:updated.address,city:updated.city||null,
-                    product:updated.product,price:updated.price,frais_liv:_fl||null,delivery_fee:_fl||null,
-                    status:updated.status,livreur:updated.livreur||null,note:updated.note||""
-                  }).catch(e=>{console.error("edit save:",e);addToast("Erreur sauvegarde","⚠️",G.red);});
+                const prevOrders=orders;
+                setOrders(o=>o.map(x=>x.id===id?{...x,...updated}:x));
+                setEditOrder(null);
+                if(orgId&&!String(id).startsWith("tmp_")){
+                  pendingOrderUpdates.current[id]=Date.now();
+                  try {
+                    await sbFetch(`orders?id=eq.${id}`,"PATCH",{
+                      client:updated.client,phone:updated.phone,address:updated.address,
+                      product:updated.product,price:updated.price,frais_liv:_fl||null,
+                      status:updated.status,livreur:updated.livreur||null,note:updated.note||""
+                    });
+                    addToast("Commande mise à jour ✓","✅",G.green);
+                  } catch(e){
+                    console.error("edit save:",e);
+                    setOrders(prevOrders);
+                    addToast("Erreur sauvegarde — réessaie","⚠️",G.red,8000);
+                  }
                 }
                 // Auto-save unknown city with manual fee
                 if(orgId&&updated.city&&updated.deliveryZoneType==="unknown"&&_fl>0){
@@ -8064,7 +8243,6 @@ function AppInner() {
                   if(!already) sbFetch("delivery_other_regions","POST",{org_id:orgId,name:cityName,price:_fl,interurbain_price:0,cities:[cityName]})
                     .then(res=>{const s=Array.isArray(res)?res[0]:res;if(s?.id)setOtherRegions(prev=>[...prev,s]);}).catch(()=>{});
                 }
-                setEditOrder(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 ✅ Enregistrer
               </button>
@@ -8072,7 +8250,18 @@ function AppInner() {
                   msg:"Supprimer cette commande définitivement ?",
                   sub:"Cette action est irréversible.",
                   danger:true,
-                  onConfirm:()=>{ setOrders(o=>o.filter(x=>x.id!==editOrder.id)); setEditOrder(null); }
+                  onConfirm:async()=>{
+                    const id = editOrder.id;
+                    setEditOrder(null);
+                    try {
+                      await sbFetch(`orders?id=eq.${id}`,"PATCH",{archived:true});
+                      setOrders(o=>o.filter(x=>x.id!==id));
+                      console.log("DELETE order:", id, "→ archived:true ✓");
+                    } catch(e) {
+                      console.error("DELETE order failed:", id, e.message);
+                      addToast("Erreur suppression: "+e.message.slice(0,80),"❌",G.red,8000);
+                    }
+                  }
                 })} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"12px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
                 🗑️
               </button>
@@ -8345,7 +8534,17 @@ function AppInner() {
                   </button>
                 )}
                 {role==="admin"&&(
-                  <button onClick={()=>{setOrderDetail(null);setConfirmModal({msg:`Supprimer la commande de ${o.client} ?`,sub:"Action irréversible.",danger:true,onConfirm:()=>setOrders(p=>p.filter(x=>x.id!==o.id))});}}
+                  <button onClick={()=>{setOrderDetail(null);setConfirmModal({msg:`Supprimer la commande de ${o.client} ?`,sub:"Action irréversible.",danger:true,onConfirm:async()=>{
+                    const id = o.id;
+                    try {
+                      await sbFetch(`orders?id=eq.${id}`,"PATCH",{archived:true});
+                      setOrders(p=>p.filter(x=>x.id!==id));
+                      console.log("DELETE order:", id, "→ archived:true ✓");
+                    } catch(e) {
+                      console.error("DELETE order failed:", id, e.message);
+                      addToast("Erreur suppression: "+e.message.slice(0,80),"❌",G.red,8000);
+                    }
+                  }})}}
                     style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
                     🗑️ Supprimer la commande
                   </button>
