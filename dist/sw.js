@@ -15,9 +15,8 @@ self.addEventListener("activate", e => {
 });
 
 const safePut = (cache, req, res) => {
-  // Only cache responses that can be cloned (not opaque, not error responses)
   if (res && res.ok && res.type !== "opaque") {
-    try { cache.put(req, res.clone()); } catch(e) {}
+    try { cache.put(req, res); } catch(e) {}
   }
 };
 
@@ -33,7 +32,7 @@ self.addEventListener("fetch", e => {
     e.respondWith(
       fetch(e.request)
         .then(r => {
-          caches.open(CACHE).then(c => safePut(c, e.request, r));
+          caches.open(CACHE).then(c => safePut(c, e.request, r.clone()));
           return r;
         })
         .catch(() => caches.match(e.request).then(r => r || caches.match("/index.html")))
@@ -45,7 +44,7 @@ self.addEventListener("fetch", e => {
   e.respondWith(
     fetch(e.request)
       .then(r => {
-        caches.open(CACHE).then(c => safePut(c, e.request, r));
+        caches.open(CACHE).then(c => safePut(c, e.request, r.clone()));
         return r;
       })
       .catch(() => caches.match(e.request).then(r => r || caches.match("/index.html")))
