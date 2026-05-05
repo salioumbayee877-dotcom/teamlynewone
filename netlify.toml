@@ -23,9 +23,10 @@
     Cache-Control = "no-cache, no-store, must-revalidate"
 
 [[redirects]]
-  from = "/accueil"
-  to = "/accueil.html"
-  status = 200
+  from = "https://teamlyecom.com/*"
+  to = "https://www.teamlyecom.com/:splat"
+  status = 301
+  force = true
 
 [[redirects]]
   from = "/*"

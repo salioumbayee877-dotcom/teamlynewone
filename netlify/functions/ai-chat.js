@@ -140,7 +140,7 @@ R: Comptabilité > bénéfice = (prix vente - coût - frais liv) × nombre livra
 
 Si tu ne sais pas répondre à quelque chose de précis sur Teamly, dis-le honnêtement.`;
 
-const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
+const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
 const getAllowedOrigin = (event) => {
   const origin = event.headers?.origin || event.headers?.Origin || "";
   return ALLOWED.includes(origin) ? origin : ALLOWED[0];

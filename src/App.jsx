@@ -1325,6 +1325,7 @@ function AppInner() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterDate,   setFilterDate]   = useState("all");
   const [filterLivreur, setFilterLivreur] = useState("all");
+  const [refreshing, setRefreshing]     = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
   const [editOrder, setEditOrder]       = useState(null);
@@ -4826,20 +4827,65 @@ function AppInner() {
                     </button>
                   ))}
                 </div>
-                {/* Statut */}
-                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ STATUT</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                  <button onClick={()=>setFilterStatus("all")}
-                    style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                    Tout
-                  </button>
-                  {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&(role!=="livreur"||k!=="boutique")).map(([k,v])=>(
-                    <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
-                      style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
-                      {v.label}
-                    </button>
-                  ))}
-                </div>
+
+                {/* Statut — deux groupes pour admin/closer, liste simple pour livreur */}
+                {role!=="livreur"?(
+                  <>
+                    {/* Groupe 1 : Statut de livraison */}
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🚚 STATUT DE LIVRAISON</div>
+                    <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
+                      {[
+                        {k:"all",        l:"Tout",                    c:"#374151", bg:"#E5E7EB"},
+                        {k:"pendiente",  l:"En attente",              c:STATUS.pendiente.color,  bg:STATUS.pendiente.color+"22"},
+                        {k:"livreur_en_route", l:"Livreur en route 🏍️", c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
+                        {k:"colis_pris", l:"Colis en main 📦",        c:STATUS.colis_pris.color, bg:STATUS.colis_pris.color+"22"},
+                        {k:"en_camino",  l:"Vers le client 🚀",       c:STATUS.en_camino.color,  bg:STATUS.en_camino.color+"22"},
+                        {k:"chez_client",l:"Chez le client 📍",       c:STATUS.chez_client.color,bg:STATUS.chez_client.color+"22"},
+                      ].map(({k,l,c,bg})=>{
+                        const active = filterStatus===k;
+                        return (
+                          <button key={k} onClick={()=>setFilterStatus(active&&k!=="all"?"all":k)}
+                            style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Groupe 2 : Résultat */}
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🏁 RÉSULTAT</div>
+                    <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
+                      {[
+                        {k:"entregado",  l:"Encaissé ✅",  c:STATUS.entregado.color,  bg:STATUS.entregado.color+"22"},
+                        {k:"rechazado",  l:"Rejeté ❌",    c:STATUS.rechazado.color,  bg:STATUS.rechazado.color+"22"},
+                        {k:"no_contesta",l:"Absent 📵",    c:STATUS.no_contesta.color,bg:STATUS.no_contesta.color+"22"},
+                      ].map(({k,l,c,bg})=>{
+                        const active = filterStatus===k;
+                        return (
+                          <button key={k} onClick={()=>setFilterStatus(active?"all":k)}
+                            style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
+                            {l}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ):(
+                  <>
+                    <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>🏷️ STATUT</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
+                      <button onClick={()=>setFilterStatus("all")}
+                        style={{background:filterStatus==="all"?"#111":"#E5E7EB",color:filterStatus==="all"?"#fff":"#111",border:filterStatus==="all"?"2px solid #111":"2px solid transparent",borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                        Tout
+                      </button>
+                      {Object.entries(STATUS).filter(([k])=>k!=="confirmado"&&k!=="boutique").map(([k,v])=>(
+                        <button key={k} onClick={()=>setFilterStatus(filterStatus===k?"all":k)}
+                          style={{background:filterStatus===k?v.color:v.color+"22",color:filterStatus===k?"#fff":v.color,border:`2px solid ${filterStatus===k?v.color:v.color+"55"}`,borderRadius:9,padding:"9px 14px",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+                          {v.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -4848,9 +4894,9 @@ function AppInner() {
                 <span style={{fontSize:12,fontWeight:700,color:G.gray,padding:"3px 0"}}>
                   {filteredOrders.length} commande{filteredOrders.length!==1?"s":""}
                 </span>
-                <button onClick={()=>loadMainRef.current?.()}
+                <button onClick={()=>{ loadMainRef.current?.(); setRefreshing(true); setTimeout(()=>setRefreshing(false),1500); }}
                   style={{background:"none",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,color:G.green,cursor:"pointer",display:"flex",alignItems:"center",gap:5}}>
-                  ↺ Actualiser
+                  <span style={refreshing?{display:"inline-block",animation:"spin 0.7s linear infinite"}:{}}>{refreshing?"⟳":"↺"}</span> Actualiser
                 </button>
               </div>
             )}

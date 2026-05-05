@@ -1,7 +1,7 @@
 const WAVE_API_KEY   = process.env.WAVE_API_KEY;
 const SERVICE_KEY    = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL         = "https://rddtislrbbkjpoqpdcry.supabase.co";
-const APP_URL        = process.env.APP_URL || "https://admirable-gingersnap-0038d8.netlify.app";
+const APP_URL        = process.env.APP_URL || "https://www.teamlyecom.com";
 
 const sbHeaders = {
   "Content-Type": "application/json",
@@ -9,7 +9,7 @@ const sbHeaders = {
   "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
-const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
+const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
 
 exports.handler = async (event) => {
   const origin = event.headers?.origin || event.headers?.Origin || "";

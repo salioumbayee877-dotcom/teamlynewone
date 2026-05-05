@@ -8,7 +8,7 @@ const sbHeaders = {
   "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
-const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
+const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
 
 exports.handler = async (event) => {
   const origin = event.headers?.origin || event.headers?.Origin || "";

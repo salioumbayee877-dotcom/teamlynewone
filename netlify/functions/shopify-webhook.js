@@ -18,7 +18,7 @@ const sbHeaders = {
   "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
-const ALLOWED = ["https://teamly.life","https://www.teamly.life","https://teamlyofficiell.netlify.app","https://admirable-gingersnap-0038d8.netlify.app"];
+const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://teamlyofficiell.netlify.app","https://admirable-gingersnap-0038d8.netlify.app"];
 
 // ── Detect delivery zone from city name ─────────────────────────────────────
 async function detectZoneFromCity(orgId, cityInput) {
