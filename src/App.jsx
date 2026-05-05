@@ -1961,10 +1961,14 @@ function AppInner() {
         if(mappedOrds) {
           setOrders(prev=>{
             const now=Date.now();
-            return mappedOrds.map(o=>{
+            const merged = mappedOrds.map(o=>{
               const t=pendingOrderUpdates.current[o.id];
               return (t&&now-t<10000)?(prev.find(p=>p.id===o.id)||o):o;
             });
+            // Keep temp orders (tmp_xxx) still in flight — INSERT not yet confirmed
+            const serverIds = new Set(mappedOrds.map(o=>o.id));
+            const tempOrds = prev.filter(p=>String(p.id).startsWith("tmp_")&&!serverIds.has(p.id));
+            return [...merged, ...tempOrds];
           });
         }
         if(mappedProds) setProducts(mappedProds);
@@ -2304,6 +2308,7 @@ function AppInner() {
     const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
     const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,created_at:new Date().toISOString()};
     setOrders(o=>[...o,order]);
+    pendingOrderUpdates.current[tempId] = Date.now();
     // Auto-save unknown city with manually-entered fee for future autocomplete
     if(orgId && newOrder.city && _zoneType==="unknown" && _zoneOverridden && _deliveryFee>0) {
       const cityName = fmtCity(newOrder.city);
@@ -2312,7 +2317,7 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,delivery_zone_type:_zoneType,delivery_zone_name:_zoneName,delivery_fee:_deliveryFee,delivery_fee_overridden:_zoneOverridden})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||"",product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,delivery_zone_type:_zoneType,delivery_zone_name:_zoneName,delivery_fee:_deliveryFee,delivery_fee_overridden:_zoneOverridden,archived:false})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) setOrders(o=>o.map(x=>x.id===tempId?{...x,id:saved.id}:x));
