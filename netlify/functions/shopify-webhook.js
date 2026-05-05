@@ -202,24 +202,13 @@ exports.handler = async (event) => {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
       body: JSON.stringify({
-        org_id: orgId, client: clientName, phone, address, city,
+        org_id: orgId, client: clientName, phone, address,
         product: finalProduct, price,
-        status: fraisBlocked ? "boutique" : "boutique",
+        status: "boutique",
         note, archived: false,
         is_bundle: totalQty > 1 || lineItems.length > 1,
-        // Delivery fee fields
-        delivery_fee:             fraisAmount,
-        delivery_fee_overridden:  false,
-        delivery_zone_type:       zoneInfo.type === "main" ? "main" : zoneInfo.type === "other" ? "other" : null,
-        delivery_zone_name:       zoneInfo.zoneName || null,
-        frais_liv:                fraisAmount,
-        // Extended fields
-        frais_livraison_amount:   fraisAmount,
-        frais_livraison_type:     fraisType,
-        frais_livraison_source:   fraisSource,
-        shopify_shipping_paid_by_customer: shopifyShippingPaid || null,
-        shopify_order_id:         shopifyOrderId || null,
-        order_source:             "shopify",
+        frais_liv: fraisAmount,
+        livreur: null, livreur_id: null, closer: null, closer_id: null,
       }),
     });
 

@@ -1,4 +1,4 @@
-const CACHE = "teamly-v5";
+const CACHE = "teamly-v6";
 const STATIC = ["/", "/index.html", "/app.js", "/apple-touch-icon.png", "/manifest.json"];
 const SKIP_CACHE = ["/rest/v1/", "supabase.co", ".netlify/functions", "nominatim.openstreetmap", "anthropic"];
 
@@ -14,6 +14,13 @@ self.addEventListener("activate", e => {
   self.clients.claim();
 });
 
+const safePut = (cache, req, res) => {
+  // Only cache responses that can be cloned (not opaque, not error responses)
+  if (res && res.ok && res.type !== "opaque") {
+    try { cache.put(req, res.clone()); } catch(e) {}
+  }
+};
+
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = e.request.url;
@@ -21,16 +28,15 @@ self.addEventListener("fetch", e => {
   // Never cache API / Supabase / AI calls
   if (SKIP_CACHE.some(s => url.includes(s))) return;
 
-  // Static assets: cache-first (fast load)
+  // Static assets: network-first so deploys are picked up immediately
   if (STATIC.some(s => url.endsWith(s))) {
     e.respondWith(
-      caches.match(e.request).then(cached => {
-        const fresh = fetch(e.request).then(r => {
-          caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+      fetch(e.request)
+        .then(r => {
+          caches.open(CACHE).then(c => safePut(c, e.request, r));
           return r;
-        });
-        return cached || fresh;
-      })
+        })
+        .catch(() => caches.match(e.request).then(r => r || caches.match("/index.html")))
     );
     return;
   }
@@ -38,7 +44,10 @@ self.addEventListener("fetch", e => {
   // Everything else: network-first, cache fallback
   e.respondWith(
     fetch(e.request)
-      .then(r => { caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r; })
+      .then(r => {
+        caches.open(CACHE).then(c => safePut(c, e.request, r));
+        return r;
+      })
       .catch(() => caches.match(e.request).then(r => r || caches.match("/index.html")))
   );
 });
