@@ -2763,11 +2763,6 @@ function AppInner() {
     const showModif = openModifId === o.id;
     const setShowModif = (val) => setOpenModifId(typeof val==="function" ? (val(showModif)?o.id:null) : (val?o.id:null));
     const st = STATUS[o.status]||STATUS.pendiente;
-    const STEP_ICONS  = ["✅","🏍️","📦","🚀","📍","✓"];
-    const STEP_COLORS = ["#6EE7B7","#C4B5FD","#93C5FD","#7DD3FC","#FCD34D","#86EFAC"];
-    const STEP_KEYS   = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
-    const curStep     = STEP_KEYS.indexOf(o.status);
-    const inDelivery  = curStep >= 0;
 
     const isPinned = pinnedOrderIds.includes(o.id);
     const items = parseProd(o.product);
