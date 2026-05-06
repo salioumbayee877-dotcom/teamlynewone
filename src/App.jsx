@@ -2359,6 +2359,18 @@ function AppInner() {
     }
   },[orgId]);
 
+  // Auto-load superadmin clients when navigating to that tab
+  useEffect(()=>{
+    if(tab==="superadmin" && currentUser?.email===OWNER_EMAIL && saClients.length===0 && !saLoading){
+      setSaLoading(true);
+      fetch("/.netlify/functions/super-admin",{headers:{"Authorization":`Bearer ${_authToken}`}})
+        .then(r=>r.json())
+        .then(data=>{ if(Array.isArray(data)) setSaClients(data); else addToast("Erreur chargement clients","❌",G.red); })
+        .catch(()=>addToast("Erreur connexion","❌",G.red))
+        .finally(()=>setSaLoading(false));
+    }
+  },[tab]);
+
   // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
   useEffect(()=>{ currentUserRef.current = currentUser; }, [currentUser]);
@@ -4570,8 +4582,8 @@ function AppInner() {
                 else addToast("Erreur chargement clients","❌",G.red);
               } catch(e){ addToast("Erreur connexion","❌",G.red); }
               setSaLoading(false);
-            }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-              {saLoading?"Chargement...":"Charger tous les clients"}
+            }} style={{background:saLoading?"#6B7280":G.green,color:"#FFF",border:"none",borderRadius:12,padding:"11px 0",fontWeight:700,fontSize:13,cursor:saLoading?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {saLoading?<><div style={{width:14,height:14,border:"2px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>Chargement…</>:<>↺ Actualiser la liste</>}
             </button>
 
             {saClients.map(client=>{
@@ -4664,9 +4676,15 @@ function AppInner() {
               );
             })}
 
+            {saLoading&&saClients.length===0&&(
+              <div style={{textAlign:"center",padding:32,color:G.gray,fontSize:13,display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
+                <div style={{width:28,height:28,border:"3px solid #E5E7EB",borderTopColor:G.green,borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>
+                Chargement des clients…
+              </div>
+            )}
             {saClients.length===0&&!saLoading&&(
               <div style={{textAlign:"center",padding:32,color:G.gray,fontSize:13}}>
-                Clique sur "Charger tous les clients" pour voir la liste
+                Aucun client trouvé. Clique sur "↺ Actualiser" pour réessayer.
               </div>
             )}
           </div>
