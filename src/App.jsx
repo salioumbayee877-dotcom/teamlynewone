@@ -2169,19 +2169,24 @@ function AppInner() {
           if(merged.length > 0) lastMsgTime = merged[merged.length-1].created_at||null;
           // Unread badge — use tabRef.current to avoid stale closure
           const currentTab = tabRef.current;
-          if(prev.length === 0 && merged.length > 0 && currentTab !== "chat") {
-            // Use timestamp: only count messages newer than when user last had chat open
-            const lastReadTime = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
-            let unread = 0;
-            if(lastReadTime) {
-              unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
-            } else {
-              const cutoff = new Date(Date.now()-24*60*60*1000).toISOString();
-              unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > cutoff).length;
+          // Full load (firstLoad=true OR lastMsgTime null → query returned all 100 messages):
+          // Use timestamp-based check so cached-but-already-read messages are not counted as new.
+          // Incremental load (lastMsgTime set → query only returned truly new messages):
+          // Use genuineNew logic (messages not already in prev state).
+          if(firstLoad || !lastMsgTime || prev.length === 0) {
+            if(currentTab !== "chat" && merged.length > 0) {
+              const lastReadTime = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
+              let unread = 0;
+              if(lastReadTime) {
+                unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
+              } else {
+                const cutoff = new Date(Date.now()-24*60*60*1000).toISOString();
+                unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > cutoff).length;
+              }
+              if(unread > 0) setChatUnread(Math.min(unread, 99));
             }
-            // Cap at 99, don't show anything if 0
-            if(unread > 0) setChatUnread(Math.min(unread, 99));
-          } else if(merged.length > prev.length && prev.length > 0) {
+          } else if(merged.length > prev.length) {
+            // True incremental: only messages not already in state
             const prevIds = new Set(prev.map(m=>String(m.id)));
             const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&m.from!==myNom);
             if(genuineNew.length > 0) {
@@ -2809,6 +2814,59 @@ function AppInner() {
               style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
               {waSent?"✓ Renvoyer confirmation WA":"📲 Confirmer par WhatsApp"}
             </a>
+          );
+        })()}
+
+        {/* ── Stepper COD complet (admin / closer) ── */}
+        {role!=="livreur"&&(()=>{
+          const FLOW = [
+            {icon:"📥",label:"Reçu",    keys:["boutique","pendiente"], color:"#F0A500"},
+            {icon:"✅",label:"Confirmé",keys:["confirmado"],            color:"#2E8B57"},
+            {icon:"🏍️",label:"Livreur", keys:["livreur_en_route","colis_pris"], color:"#7C3AED"},
+            {icon:"🚀",label:"En route",keys:["en_camino"],             color:"#0284C7"},
+            {icon:"📍",label:"Client",  keys:["chez_client"],           color:"#D97706"},
+            {icon:"💰",label:"Encaissé",keys:["entregado"],             color:G.green},
+          ];
+          const ORDER = ["boutique","pendiente","confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
+          const curOrd = ORDER.indexOf(o.status);
+          const isTerminal = ["rechazado","no_contesta","reprogramar"].includes(o.status);
+          if(isTerminal) return (
+            <div style={{display:"flex",alignItems:"center",gap:8,background:o.status==="rechazado"?"#FEE2E2":o.status==="reprogramar"?"#EDE9FE":"#F3F4F6",borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              <span style={{fontSize:14}}>{o.status==="rechazado"?"❌":o.status==="reprogramar"?"🔄":"📵"}</span>
+              <span style={{fontSize:11,fontWeight:700,color:o.status==="rechazado"?"#DC2626":o.status==="reprogramar"?"#7C3AED":"#6B7280"}}>{st.label}</span>
+            </div>
+          );
+          return (
+          <div style={{marginBottom:8,marginTop:2}}>
+            <div style={{display:"flex",alignItems:"center"}}>
+              {FLOW.map((step,i)=>{
+                const stepMaxOrd = Math.max(...step.keys.map(k=>ORDER.indexOf(k)));
+                const done = stepMaxOrd < curOrd;
+                const active = step.keys.includes(o.status);
+                const col = done||active ? step.color : "#E5E7EB";
+                return (
+                  <div key={i} style={{display:"flex",alignItems:"center",flex:i<FLOW.length-1?1:0}}>
+                    <div style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`,boxShadow:active?`0 0 0 3px ${step.color}33`:done?"none":"none",transition:"all .2s"}}>
+                      {done?"✓":step.icon}
+                    </div>
+                    {i<FLOW.length-1&&<div style={{flex:1,height:2,background:stepMaxOrd<curOrd?step.color:"#E5E7EB",transition:"background .2s"}}/>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+              {FLOW.map((step,i)=>{
+                const stepMaxOrd = Math.max(...step.keys.map(k=>ORDER.indexOf(k)));
+                const done = stepMaxOrd < curOrd;
+                const active = step.keys.includes(o.status);
+                return (
+                  <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:active?step.color:done?"#9CA3AF":"#D1D5DB",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                    {step.label}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
           );
         })()}
 
@@ -4163,26 +4221,26 @@ function AppInner() {
             <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:1}}>{settings.boutique}</div>
           </div>}
         </div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
             <button
               onClick={()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passez au plan supérieur`,"🔒","#DC2626");return;} setShowAdd(true); }}
-              style={{background:orderLimitReached?"#9CA3AF":G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:orderLimitReached?"not-allowed":"pointer",fontWeight:700,fontSize:12,color:orderLimitReached?"#FFF":G.dark}}
+              style={{background:orderLimitReached?"rgba(255,255,255,0.15)":G.gold,border:"none",borderRadius:10,padding:"8px 14px",cursor:orderLimitReached?"not-allowed":"pointer",fontWeight:700,fontSize:12,color:orderLimitReached?"rgba(255,255,255,0.6)":G.dark,letterSpacing:0.2,flexShrink:0}}
               title={orderLimitReached?`Limite de ${orderLimit} commandes/mois atteinte`:""}>
-              {orderLimitReached?"Limite atteinte":"+ Commande"}
+              {orderLimitReached?"Limite":"+ Commande"}
             </button>
           )}
           {role==="admin"&&tab==="stock"&&(
-            <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:8,padding:"7px 12px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark}}>+ Produit</button>
+            <button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:10,padding:"8px 14px",cursor:"pointer",fontWeight:700,fontSize:12,color:G.dark,letterSpacing:0.2}}>+ Produit</button>
           )}
-          <button onClick={()=>setShowSearch(s=>!s)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <svg viewBox="0 0 24 24" width={17} height={17} stroke="#fff" strokeWidth={2} fill="none" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
+          <button onClick={()=>setShowSearch(s=>!s)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <svg viewBox="0 0 24 24" width={18} height={18} stroke="#fff" strokeWidth={2} fill="none" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22"/></svg>
           </button>
-          <div style={{position:"relative"}}>
-            <button onClick={()=>setShowNotifPanel(v=>!v)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:8,padding:"7px 9px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
-              <NavIcon name="notifications" size={17} color="#fff"/>
+          <div style={{position:"relative",flexShrink:0}}>
+            <button onClick={()=>setShowNotifPanel(v=>!v)} style={{background:"rgba(255,255,255,0.12)",border:"none",borderRadius:10,width:36,height:36,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <NavIcon name="notifications" size={18} color="#fff"/>
             </button>
-            {dbNotifs.length>0&&<div style={{position:"absolute",top:-4,right:-4,background:G.red,color:G.white,borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{dbNotifs.length}</div>}
+            {dbNotifs.length>0&&<div style={{position:"absolute",top:-3,right:-3,background:G.red,color:G.white,borderRadius:"50%",minWidth:16,height:16,padding:"0 3px",fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",boxSizing:"border-box"}}>{dbNotifs.length}</div>}
           </div>
         </div>
       </div>
