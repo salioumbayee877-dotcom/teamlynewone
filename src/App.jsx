@@ -2837,7 +2837,7 @@ function AppInner() {
             </div>
           );
           return (
-          <div style={{marginBottom:8,marginTop:2}}>
+          <div style={{marginBottom:8,marginTop:8}}>
             <div style={{display:"flex",alignItems:"center"}}>
               {FLOW.map((step,i)=>{
                 const stepMaxOrd = Math.max(...step.keys.map(k=>ORDER.indexOf(k)));
@@ -2846,7 +2846,7 @@ function AppInner() {
                 const col = done||active ? step.color : "#E5E7EB";
                 return (
                   <div key={i} style={{display:"flex",alignItems:"center",flex:i<FLOW.length-1?1:0}}>
-                    <div style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`,boxShadow:active?`0 0 0 3px ${step.color}33`:done?"none":"none",transition:"all .2s"}}>
+                    <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`,boxShadow:"none",transition:"all .2s"}}>
                       {done?"✓":step.icon}
                     </div>
                     {i<FLOW.length-1&&<div style={{flex:1,height:2,background:stepMaxOrd<curOrd?step.color:"#E5E7EB",transition:"background .2s"}}/>}
