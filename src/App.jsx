@@ -3974,7 +3974,7 @@ function AppInner() {
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat Équipe"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Messages"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
@@ -4189,6 +4189,15 @@ function AppInner() {
             );
           })}
 
+          {/* Équipe — admin sidebar shortcut */}
+          {role==="admin"&&(
+            <button onClick={()=>{setTab("equipe");setSidebarOpen(false);}}
+              style={{width:"100%",background:tab==="equipe"?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${tab==="equipe"?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:18,transition:"background 0.15s"}}>
+              <NavIcon name="equipe" size={20} color={tab==="equipe"?G.gold:"rgba(255,255,255,0.7)"}/>
+              <span style={{fontSize:13,fontWeight:tab==="equipe"?700:400,color:tab==="equipe"?G.gold:"rgba(255,255,255,0.85)",letterSpacing:0.3}}>Équipe</span>
+            </button>
+          )}
+
           {/* Tabs bloqués — plan gratuit */}
           {isGratuit&&(()=>{
             const LOCKED_TABS = [
@@ -4243,7 +4252,7 @@ function AppInner() {
           {!isDesktop&&<TeamlyLogo size={0.85}/>}
           {isDesktop&&<div>
             <div style={{fontWeight:800,fontSize:18,color:G.white,letterSpacing:0.3}}>{
-              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Chat Équipe":tab==="equipe"?"Équipe":tab==="stock"?"Produits":tab==="frais"?"Frais de livraison":"Teamly"
+              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Messages":tab==="equipe"?"Équipe":tab==="stock"?"Produits":tab==="frais"?"Frais de livraison":"Teamly"
             }</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:1}}>{settings.boutique}</div>
           </div>}
@@ -8932,7 +8941,7 @@ function AppInner() {
           {k:"commandes", label:"À traiter", badge:commandesCnt, badgeColor:"#EF4444", badgeTxt:"#fff",  icon:ICONS.commandes},
           {k:"dashboard", label:"Dashboard", badge:alertCount,   badgeColor:G.red,     badgeTxt:"#fff",  icon:ICONS.dashboard},
           {k:"compta",    label:"Compta",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.compta,    show:canCompta&&!trialExpired, locked:isGratuit},
-          {k:"equipe",    label:"Équipe",    badge:0,            badgeColor:"",        badgeTxt:"",      icon:ICONS.equipe},
+          {k:"chat",      label:"Messages",  badge:chatUnread,   badgeColor:"#DC2626", badgeTxt:"#fff",  icon:ICONS.chat},
         ];
         const tabs = allTabs.filter(t=>t.show!==false);
         return (
