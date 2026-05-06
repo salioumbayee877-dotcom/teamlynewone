@@ -3024,10 +3024,7 @@ function AppInner() {
                 </div>
                 <button onClick={()=>{
                   const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
-                  if(activeDelivery){
-                    addToast(`⚠️ Termine d'abord la livraison de ${activeDelivery.client} !`,"⚠️","#F0A500");
-                    return;
-                  }
+                  if(activeDelivery){ setConflictDelivery(activeDelivery); return; }
                   upSt(o.id,"en_camino");
                 }}
                   style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
@@ -5164,32 +5161,51 @@ function AppInner() {
                 return role==="livreur" ? new Date(a.created_at||0)-new Date(b.created_at||0) : new Date(b.created_at||0)-new Date(a.created_at||0);
               };
 
-              // ── Livreur: split active vs terminées ──
+              // ── Livreur: pin en_camino at top, then autres, then terminées ──
               if(role==="livreur") {
-                const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)).sort(sortFn);
+                const pinnedLiv  = filteredOrders.find(o=>o.status==="en_camino"&&String(o.livreur_id)===String(currentUser.id));
+                const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)&&o.id!==(pinnedLiv?.id)).sort(sortFn);
                 const finalOrds  = filteredOrders.filter(o=>LIV_FINAL.has(o.status)).sort(sortFn);
                 return (
                   <>
-                    {/* Tournée en cours — toujours fixée en haut */}
-                    {activeOrds.length>0&&(
+                    {/* 📌 LIVRAISON EN COURS — pinned en_camino */}
+                    {pinnedLiv&&(
                       <div style={{marginBottom:8}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                          <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.5}}>📌 LIVRAISON EN COURS</span>
+                          <div style={{flex:1,height:1,background:`${G.green}33`}}/>
+                        </div>
+                        <div style={{position:"relative",borderLeft:`4px solid ${G.green}`,borderRadius:14,boxShadow:"0 4px 12px rgba(26,92,56,0.15)"}}>
+                          <div style={{position:"absolute",top:10,right:10,zIndex:2,background:G.greenLight,color:G.green,padding:"4px 8px",fontSize:11,fontWeight:600,borderRadius:6,pointerEvents:"none"}}>📌 En cours</div>
+                          <OCard o={pinnedLiv}/>
+                        </div>
+                      </div>
+                    )}
+                    {/* Autres livraisons */}
+                    {activeOrds.length>0&&(
+                      <div style={{marginBottom:8}}>
+                        {pinnedLiv&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
+                          <span style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5}}>AUTRES LIVRAISONS</span>
+                          <span style={{fontSize:11,color:G.gray}}>({activeOrds.length})</span>
+                          <div style={{flex:1,height:1,background:"#6B728033"}}/>
+                        </div>}
+                        {!pinnedLiv&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
                           <span style={{fontSize:13}}>🔥</span>
                           <span style={{fontSize:11,fontWeight:700,color:"#D97706",letterSpacing:0.3}}>TOURNÉE EN COURS</span>
                           <span style={{fontSize:11,color:G.gray}}>({activeOrds.length})</span>
                           <div style={{flex:1,height:1,background:"#D9770633"}}/>
-                        </div>
+                        </div>}
                         {activeOrds.map(o=><OCard key={o.id} o={o}/>)}
                       </div>
                     )}
-                    {activeOrds.length===0&&(
+                    {!pinnedLiv&&activeOrds.length===0&&(
                       <div style={{textAlign:"center",padding:"30px 16px",background:G.white,borderRadius:14,marginBottom:8}}>
                         <div style={{fontSize:28,marginBottom:6}}>✅</div>
                         <div style={{fontSize:13,fontWeight:700,color:G.dark}}>Aucune livraison active</div>
                         <div style={{fontSize:11,color:G.gray,marginTop:3}}>Toutes les livraisons du jour sont terminées</div>
                       </div>
                     )}
-                    {/* Terminées — en bas */}
+                    {/* Terminées */}
                     {finalOrds.length>0&&(
                       <div>
                         <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
@@ -9241,6 +9257,31 @@ function AppInner() {
       )}
 
       <style>{`@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}@keyframes livFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {/* ── Conflit livraison en cours (livreur one-at-a-time) ── */}
+      {conflictDelivery&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:3001,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={e=>{if(e.target===e.currentTarget)setConflictDelivery(null);}}>
+          <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"28px 20px 36px",width:"100%",maxWidth:480,boxShadow:"0 -8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{textAlign:"center",marginBottom:20}}>
+              <div style={{fontSize:40,marginBottom:8}}>⚠️</div>
+              <div style={{fontSize:18,fontWeight:800,color:"#D97706",marginBottom:8}}>Livraison en cours</div>
+              <div style={{fontSize:13,color:"#6B7280",marginBottom:8}}>Vous êtes déjà en route pour :</div>
+              <div style={{fontSize:16,fontWeight:700,color:"#111"}}>{conflictDelivery.client}</div>
+              {conflictDelivery.address&&<div style={{fontSize:12,color:G.gray,marginTop:3}}>{conflictDelivery.address}</div>}
+              <div style={{fontSize:12,color:"#D97706",fontWeight:600,marginTop:10,background:"#FFF8E7",borderRadius:8,padding:"8px 12px"}}>
+                Terminez cette livraison avant d'en commencer une nouvelle.
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setConflictDelivery(null)}
+                style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Annuler</button>
+              <button onClick={()=>{setConflictDelivery(null);setTab("livraisons");}}
+                style={{flex:1,background:"#0284C7",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Voir la livraison</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Confirmation livraison finale (livreur) ── */}
       {livFinalConfirm&&(
