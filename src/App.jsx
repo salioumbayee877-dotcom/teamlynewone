@@ -2802,25 +2802,9 @@ function AppInner() {
         {/* ── Actions zone ── */}
         <div onClick={e=>e.stopPropagation()} style={{padding:"6px 12px 10px",borderTop:"1px solid #F3F4F6"}}>
 
-        {/* WhatsApp — admin et closer */}
-        {(role==="admin"||role==="closer")&&o.phone&&(()=>{
-          const waSent = waSentIds.has(o.id);
-          const phone = `221${o.phone.replace(/\s+/g,"")}`;
-          const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
-          return (
-            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
-              target="_blank" rel="noreferrer"
-              onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
-              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
-              {waSent?"✓ Renvoyer confirmation WA":"📲 Confirmer par WhatsApp"}
-            </a>
-          );
-        })()}
-
         {/* ── Stepper COD complet (admin / closer) ── */}
         {role!=="livreur"&&(()=>{
           const FLOW = [
-            {icon:"📥",label:"Reçu",    keys:["boutique","pendiente"], color:"#F0A500"},
             {icon:"✅",label:"Confirmé",keys:["confirmado"],            color:"#2E8B57"},
             {icon:"🏍️",label:"Livreur", keys:["livreur_en_route","colis_pris"], color:"#7C3AED"},
             {icon:"🚀",label:"En route",keys:["en_camino"],             color:"#0284C7"},
@@ -2867,6 +2851,21 @@ function AppInner() {
               })}
             </div>
           </div>
+          );
+        })()}
+
+        {/* WhatsApp — admin et closer */}
+        {(role==="admin"||role==="closer")&&o.phone&&(()=>{
+          const waSent = waSentIds.has(o.id);
+          const phone = `221${o.phone.replace(/\s+/g,"")}`;
+          const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+          return (
+            <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
+              target="_blank" rel="noreferrer"
+              onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
+              style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
+              {waSent?"✓ Renvoyer confirmation WA":"📲 Confirmer par WhatsApp"}
+            </a>
           );
         })()}
 
