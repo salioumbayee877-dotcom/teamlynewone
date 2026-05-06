@@ -2606,14 +2606,45 @@ function AppInner() {
     const file = e.target.files?.[0];
     if(!file) return;
     e.target.value = "";
+
+    // 1. Show optimistic bubble immediately with local blob URL
+    const blobUrl = URL.createObjectURL(file);
+    const optimisticId = Date.now();
+    const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    setChat(p=>[...p,{id:optimisticId,from:myName,role,text:"",time:now,audio:false,type:"image",imgSrc:blobUrl,uploading:true}]);
+    setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
+
+    // 2. Compress with canvas (max 1280px, JPEG 0.75)
+    const compress = (src) => new Promise(res=>{
+      const img = new Image();
+      img.onload = () => {
+        const MAX=1280; let w=img.width, h=img.height;
+        if(w>MAX||h>MAX){if(w>h){h=Math.round(h*MAX/w);w=MAX;}else{w=Math.round(w*MAX/h);h=MAX;}}
+        const c=document.createElement("canvas"); c.width=w; c.height=h;
+        c.getContext("2d").drawImage(img,0,0,w,h);
+        c.toBlob(b=>res(b||file),"image/jpeg",0.75);
+      };
+      img.onerror=()=>res(file);
+      img.src=src;
+    });
+
     try {
-      const url = await uploadMedia(file, "jpg", file.type||"image/jpeg");
-      sendChat("", {type:"image", text:"IMG:"+url, imgSrc:url});
+      const compressed = await compress(blobUrl);
+      const url = await uploadMedia(compressed,"jpg","image/jpeg");
+
+      // 3. Insert into DB with real URL
+      if(orgId) fetchWithTimeout(`${SB_URL}/rest/v1/messages`,{
+        method:"POST",
+        headers:{...sbHeaders(),"Prefer":"return=minimal"},
+        body:JSON.stringify({org_id:orgId,from_user:myName,role,text:"IMG:"+url,audio:false}),
+      },30000).catch(err=>console.error("sendPhoto DB error:",err.message));
+
+      // 4. Replace blob URL with real URL, remove spinner
+      setChat(p=>p.map(m=>m.id===optimisticId?{...m,imgSrc:url,uploading:false}:m));
+      URL.revokeObjectURL(blobUrl);
     } catch {
-      // fallback a base64 si el bucket no existe
-      const reader = new FileReader();
-      reader.onload = ev => sendChat("", {type:"image", text:"IMG:"+ev.target.result, imgSrc:ev.target.result});
-      reader.readAsDataURL(file);
+      // 5. Mark as failed — keep bubble visible
+      setChat(p=>p.map(m=>m.id===optimisticId?{...m,uploading:false,uploadFailed:true}:m));
     }
   };
 
@@ -6594,7 +6625,16 @@ function AppInner() {
                       style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative",cursor:msg.id&&canDel?"pointer":"default",outline:isSelected?"2px solid #EF4444":"none"}}>
                       {!isMe&&(showAvatar||msg.audio)&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3,display:"flex",alignItems:"center",gap:5}}><span>{msg.from}</span>{msg.role&&<span style={{background:rc+"22",borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:600,color:rc,textTransform:"capitalize"}}>{ROLE_LABEL[msg.role]||msg.role}</span>}</div>}
                       {msg.type==="image"?(
-                        <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover"}}/>
+                        <div style={{position:"relative",display:"inline-block",width:"100%"}}>
+                          <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover",opacity:msg.uploading?0.55:1}}/>
+                          {msg.uploading&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8}}>
+                            <div style={{width:28,height:28,border:"3px solid rgba(255,255,255,0.35)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>
+                            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                          </div>}
+                          {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.55)",borderRadius:8}}>
+                            <span style={{color:"#fff",fontSize:11,fontWeight:700}}>❌ Échec</span>
+                          </div>}
+                        </div>
                       ):msg.audio?(
                         <div style={{display:"flex",alignItems:"center",gap:8,minWidth:170}}>
                           <button onClick={e=>{
