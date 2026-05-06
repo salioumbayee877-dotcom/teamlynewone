@@ -5176,7 +5176,8 @@ function AppInner() {
 
               // ── Livreur: pin en_camino at top, then autres, then terminées ──
               if(role==="livreur") {
-                const pinnedLiv  = filteredOrders.find(o=>o.status==="en_camino"&&String(o.livreur_id)===String(currentUser.id));
+                const LIV_PIN_STATUSES = new Set(["en_camino","chez_client","no_contesta","reprogramar"]);
+                const pinnedLiv  = filteredOrders.find(o=>LIV_PIN_STATUSES.has(o.status)&&String(o.livreur_id)===String(currentUser.id));
                 const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)&&o.id!==(pinnedLiv?.id)).sort(sortFn);
                 const finalOrds  = filteredOrders.filter(o=>LIV_FINAL.has(o.status)).sort(sortFn);
                 return (
@@ -6859,34 +6860,11 @@ function AppInner() {
             {/* Zone saisie */}
             {!isRecording&&(
               <div style={{background:G.white,borderTop:`1px solid #DDD`,flexShrink:0}}>
-                {/* Attach tray (WhatsApp-style popup) */}
-                {attachMenuOpen&&(
-                  <div style={{display:"flex",gap:20,padding:"12px 20px",background:"#F9FBF9",borderBottom:`1px solid #EEE`,justifyContent:"center"}} onClick={()=>setAttachMenuOpen(false)}>
-                    <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}} onClick={e=>e.stopPropagation()}>
-                      <div style={{width:52,height:52,borderRadius:"50%",background:"#EA4335",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>📷</div>
-                      <span style={{fontSize:10,color:G.gray,fontWeight:600}}>Photo</span>
-                      <input type="file" accept="image/*,video/*" onChange={e=>{setAttachMenuOpen(false);sendPhoto(e);}} style={{display:"none"}}/>
-                    </label>
-                    <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}} onClick={e=>e.stopPropagation()}>
-                      <div style={{width:52,height:52,borderRadius:"50%",background:"#7B1FA2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>📄</div>
-                      <span style={{fontSize:10,color:G.gray,fontWeight:600}}>Document</span>
-                      <input type="file" accept="*/*" onChange={e=>{setAttachMenuOpen(false);sendFile(e);}} style={{display:"none"}}/>
-                    </label>
-                  </div>
-                )}
                 <div style={{padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",transition:"padding-bottom 0.15s"}}>
-                  {/* Attach button */}
-                  <button onClick={()=>setAttachMenuOpen(v=>!v)}
-                    style={{width:38,height:38,borderRadius:"50%",background:attachMenuOpen?"#25D366":"#F3F4F6",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:20,color:attachMenuOpen?"#fff":"#555",transition:"background 0.15s",transform:attachMenuOpen?"rotate(45deg)":"none"}}>
-                    +
-                  </button>
-                  {/* Input texte */}
                   <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
-                    onFocus={()=>setAttachMenuOpen(false)}
                     placeholder="Message…"
                     style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:13,outline:"none",resize:"none"}}/>
-                  {/* Envoyer ou micro */}
                   {chatMsg.trim()?(
                     <button onClick={()=>sendChat()} style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
                   ):(
