@@ -3933,7 +3933,7 @@ function AppInner() {
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Chat Équipe"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
@@ -4680,6 +4680,7 @@ function AppInner() {
                   {icon:"📦",label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
                   {icon:"👤",label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
                   {icon:"🗺️",label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
+                  {icon:"👥",label:"Équipe",  action:()=>setTab("equipe"),  bg:"#F0FDF4",color:G.green},
                 ].map((a,i)=>(
                   <button key={i} onClick={a.action} style={{background:a.bg,border:"none",borderRadius:10,padding:"12px 8px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
                     <span style={{fontSize:22}}>{a.icon}</span>
