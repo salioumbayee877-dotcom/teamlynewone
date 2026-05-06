@@ -1379,6 +1379,14 @@ function AppInner() {
   const [currentUser,setCurrentUser]     = useState({id:"",nom:"",email:"",role:"admin"});
   const [teamMembers,setTeamMembers]     = useState([]);
   const [dbNotifs,setDbNotifs]           = useState([]); // from Supabase notifications table
+  const dismissNotif = (id) => {
+    try {
+      const key = `notif_dismissed_${orgId}`;
+      const s = new Set(JSON.parse(localStorage.getItem(key)||"[]"));
+      s.add(String(id));
+      localStorage.setItem(key, JSON.stringify([...s].slice(-300)));
+    } catch(e) {}
+  };
   const [appLoading,setAppLoading]       = useState(()=>{
     try {
       // If this is an invite link, don't show loading - show join form directly
@@ -2229,7 +2237,9 @@ function AppInner() {
         if(!notifs) return;
         const userRole = currentUserRef.current?.role || role;
         const userNom  = currentUserRef.current?.nom  || "";
+        const dismissed = (() => { try { return new Set(JSON.parse(localStorage.getItem(`notif_dismissed_${orgId}`)||"[]")); } catch(e) { return new Set(); } })();
         const relevant = notifs.filter(n=>{
+          if(dismissed.has(String(n.id))) return false;
           if(!n.role_target || n.role_target==="all") return true;
           if(n.role_target !== userRole) return false;
           if(userRole==="livreur" && n.livreur_name && n.livreur_name!==userNom) return false;
@@ -4248,12 +4258,12 @@ function AppInner() {
                   <div style={{fontWeight:700,fontSize:13,color:G.dark}}>{n.title}</div>
                   {n.body&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>{n.body}</div>}
                 </div>
-                <button onClick={()=>{sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{});setDbNotifs(p=>p.filter(x=>x.id!==n.id));}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#9CA3AF",flexShrink:0,padding:2}}>✕</button>
+                <button onClick={()=>{dismissNotif(n.id);sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{});setDbNotifs(p=>p.filter(x=>x.id!==n.id));}} style={{background:"none",border:"none",cursor:"pointer",fontSize:14,color:"#9CA3AF",flexShrink:0,padding:2}}>✕</button>
               </div>
             ))}
           </div>
           {dbNotifs.length>0&&<div style={{padding:"10px 16px",borderTop:"1px solid #F3F4F6",textAlign:"center"}}>
-            <button onClick={()=>{dbNotifs.forEach(n=>sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{}));setDbNotifs([]);setShowNotifPanel(false);}} style={{background:"none",border:"none",color:G.gray,fontSize:12,cursor:"pointer"}}>Tout marquer comme lu</button>
+            <button onClick={()=>{dbNotifs.forEach(n=>{dismissNotif(n.id);sbFetch(`notifications?id=eq.${n.id}`,"PATCH",{read:true}).catch(()=>{});});setDbNotifs([]);setShowNotifPanel(false);}} style={{background:"none",border:"none",color:G.gray,fontSize:12,cursor:"pointer"}}>Tout marquer comme lu</button>
           </div>}
         </div>
       )}
