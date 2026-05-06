@@ -4950,7 +4950,14 @@ function AppInner() {
             )}
 
             {/* ── EN COURS — gérer dans Livraisons ── */}
-            {inProgress.length===0 ? (inProgressDismissedRef.current=false, null) : !inProgressDismissedRef.current&&(
+            {(()=>{
+              if(inProgress.length===0) return null;
+              const livDismissKey=`teamly_liv_dismissed_${orgId}_${currentUser.id}`;
+              let dismissed;
+              try { dismissed=new Set(JSON.parse(localStorage.getItem(livDismissKey)||"[]")); } catch { dismissed=new Set(); }
+              const showBanner=inProgress.some(o=>!dismissed.has(o.id));
+              if(!showBanner) return null;
+              return (
               <div style={{background:"#FFF8E7",borderRadius:16,border:"2px solid #FDE68A",padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",animation:"livFadeIn 220ms ease"}}>
                 <div style={{fontWeight:800,fontSize:14,color:"#92400E",marginBottom:10}}>🚀 {inProgress.length} livraison{inProgress.length>1?"s":""} en cours</div>
                 {inProgress.slice(0,3).map((o,i)=>{
@@ -4963,12 +4970,18 @@ function AppInner() {
                   );
                 })}
                 {inProgress.length>3&&<div style={{fontSize:11,color:"#D97706",marginTop:5,fontWeight:600}}>+{inProgress.length-3} autres…</div>}
-                <button onClick={()=>{inProgressDismissedRef.current=true;setTab("livraisons");}}
+                <button onClick={()=>{
+                  const cur=new Set(dismissed);
+                  inProgress.forEach(o=>cur.add(o.id));
+                  try{localStorage.setItem(livDismissKey,JSON.stringify([...cur]));}catch{}
+                  setTab("livraisons");
+                }}
                   style={{width:"100%",background:"#D97706",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:14}}>
                   Gérer dans Livraisons →
                 </button>
               </div>
-            )}
+              );
+            })()}
 
             {/* Stats */}
             <div style={{display:"flex",gap:8}}>
