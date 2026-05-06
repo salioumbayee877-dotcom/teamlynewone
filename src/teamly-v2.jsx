@@ -1,608 +1,846 @@
 import { useState, useEffect } from "react";
 
 const G = {
-  green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
-  greenDark:"#0F3D24",gold:"#F0A500",goldLight:"#FFF8E7",
-  dark:"#111827",gray:"#6B7280",grayLight:"#F7F9F8",
-  white:"#FFFFFF",red:"#DC2626",redLight:"#FEF2F2",
-  wa:"#25D366",border:"#E2E8F0",purple:"#7C3AED",purpleLight:"#EDE9FE",
+  greenDark: "#1A5C38",
+  greenMid: "#2E8B57",
+  greenLight: "#E8F5EE",
+  greenPale: "#f0faf4",
+  gold: "#F0A500",
+  goldLight: "#FFF8E7",
+  dark: "#0f1f16",
+  text: "#1e3a28",
+  muted: "#5a7a65",
+  white: "#FFFFFF",
+  offwhite: "#F9F7F2",
+  border: "rgba(30,58,40,0.12)",
+  red: "#DC2626",
+  blue: "#2563EB",
 };
 
-/* ─── LOGO ─── */
-function Logo({light=false}) {
+function Logo({ size = 26, light = true }) {
   return (
-    <div style={{display:"inline-flex",alignItems:"center",gap:6,
-      padding:"5px 13px 5px 5px",background:light?"rgba(255,255,255,0.12)":G.green,
-      borderRadius:12,border:light?"1px solid rgba(255,255,255,0.15)":"none"}}>
-      <div style={{width:28,height:28,background:G.gold,borderRadius:7,display:"flex",
-        alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:16,
-        color:G.green,fontFamily:"Georgia,serif",lineHeight:1}}>T</div>
-      <span style={{color:G.white,fontWeight:700,fontSize:17,fontFamily:"Georgia,serif"}}>eamly</span>
+    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+      <div style={{
+        width: size, height: size, background: G.gold, borderRadius: 7,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontWeight: 900, fontSize: size * 0.55, color: G.greenDark,
+        fontFamily: "'DM Sans', sans-serif",
+      }}>T</div>
+      <span style={{
+        fontSize: size * 0.88, fontWeight: 800, letterSpacing: -0.5,
+        color: light ? G.white : G.dark, fontFamily: "'DM Sans', sans-serif",
+      }}>eamly</span>
     </div>
   );
 }
 
-/* ─── PHONE MOCKUP ─── */
-function Phone({children}) {
+function Check({ ok }) {
   return (
-    <div style={{position:"relative",width:300,height:600,flexShrink:0,
-      boxShadow:"0 32px 72px rgba(0,0,0,0.22), 0 0 0 1px rgba(0,0,0,0.08)"}}>
-      {/* Frame */}
-      <div style={{position:"absolute",inset:0,background:"#16162a",borderRadius:44,
-        boxShadow:"inset 0 0 0 1.5px rgba(255,255,255,0.07)"}}/>
-      {/* Side button */}
-      <div style={{position:"absolute",top:130,right:-3,width:4,height:70,background:"#2a2a40",borderRadius:2}}/>
-      <div style={{position:"absolute",top:100,left:-3,width:4,height:45,background:"#2a2a40",borderRadius:2}}/>
-      <div style={{position:"absolute",top:155,left:-3,width:4,height:45,background:"#2a2a40",borderRadius:2}}/>
-      {/* Screen */}
-      <div style={{position:"absolute",top:12,left:10,right:10,bottom:12,
-        background:G.white,borderRadius:34,overflow:"hidden"}}>
-        {/* Status bar */}
-        <div style={{background:G.green,height:28,display:"flex",alignItems:"center",
-          justifyContent:"space-between",padding:"0 16px",
-          fontSize:10,color:"rgba(255,255,255,0.9)",fontWeight:600,letterSpacing:0.2}}>
-          <span>15:13</span><span>●● 4G ▓</span>
-        </div>
-        {/* Content */}
-        <div style={{height:"calc(100% - 28px)",overflow:"hidden",
-          fontFamily:"system-ui,-apple-system,sans-serif"}}>
-          {children}
-        </div>
-      </div>
-      {/* Notch */}
-      <div style={{position:"absolute",top:12,left:"50%",transform:"translateX(-50%)",
-        width:64,height:18,background:"#16162a",borderRadius:9,zIndex:5}}/>
-      {/* Home bar */}
-      <div style={{position:"absolute",bottom:16,left:"50%",transform:"translateX(-50%)",
-        width:88,height:5,background:"rgba(255,255,255,0.28)",borderRadius:3}}/>
+    <span style={{
+      display: "inline-flex", alignItems: "center", justifyContent: "center",
+      width: 18, height: 18, borderRadius: "50%", flexShrink: 0,
+      background: ok ? G.greenLight : "rgba(0,0,0,0.06)",
+      color: ok ? G.greenDark : "#aaa", fontSize: 11, fontWeight: 800,
+    }}>{ok ? "✓" : "✕"}</span>
+  );
+}
+
+function CheckLine({ children }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+        background: G.greenLight, color: G.greenDark, fontSize: 12, fontWeight: 800,
+      }}>✓</span>
+      <span style={{ fontSize: 14, color: G.text, lineHeight: 1.5 }}>{children}</span>
     </div>
   );
 }
 
-/* ─── BROWSER MOCKUP (PC) ─── */
-function Browser({children}) {
+function PhoneFrame({ children, width = 270 }) {
   return (
-    <div style={{width:"100%",maxWidth:680,borderRadius:14,overflow:"hidden",
-      boxShadow:"0 28px 70px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)"}}>
-      {/* Browser chrome */}
-      <div style={{background:"#2d2d2d",padding:"10px 16px",display:"flex",alignItems:"center",gap:12}}>
-        <div style={{display:"flex",gap:7}}>
-          <div style={{width:12,height:12,borderRadius:"50%",background:"#FF5F57"}}/>
-          <div style={{width:12,height:12,borderRadius:"50%",background:"#FFBD2E"}}/>
-          <div style={{width:12,height:12,borderRadius:"50%",background:"#28C840"}}/>
+    <div style={{
+      width, background: "#0a0f0c", borderRadius: 36, padding: "10px 8px 14px",
+      boxShadow: "0 40px 100px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.05)",
+      fontFamily: "'DM Sans', sans-serif", flexShrink: 0,
+    }}>
+      <div style={{
+        width: 80, height: 18, background: "#0a0f0c", borderRadius: 12,
+        margin: "0 auto 6px", position: "relative", zIndex: 2,
+      }} />
+      <div style={{ background: "#fff", borderRadius: 26, overflow: "hidden", marginTop: -22 }}>
+        <div style={{
+          height: 28, background: G.greenDark, padding: "8px 22px",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          color: "#fff", fontSize: 11, fontWeight: 700,
+        }}>
+          <span>15:13</span>
+          <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 10 }}>
+            <span>●●</span><span>4G</span><span>▓</span>
+          </span>
         </div>
-        <div style={{flex:1,background:"#3d3d3d",borderRadius:7,padding:"5px 14px",
-          display:"flex",alignItems:"center",gap:8}}>
-          <div style={{width:10,height:10,borderRadius:"50%",background:G.green,flexShrink:0}}/>
-          <span style={{fontSize:12,color:"rgba(255,255,255,0.65)",fontFamily:"system-ui,sans-serif"}}>teamlyecom.com</span>
-        </div>
-      </div>
-      {/* Screen */}
-      <div style={{background:G.white,overflow:"hidden",fontFamily:"system-ui,-apple-system,sans-serif"}}>
         {children}
       </div>
     </div>
   );
 }
 
-/* ─── SCREEN: DASHBOARD ─── */
-function DashboardScreen() {
+function MockupDashboard() {
   return (
-    <div style={{background:G.grayLight,height:"100%",display:"flex",flexDirection:"column",fontSize:12}}>
-      <div style={{background:G.green,padding:"9px 14px",display:"flex",
-        alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <div style={{width:22,height:22,background:G.gold,borderRadius:5,display:"flex",
-            alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:13,
-            color:G.green,fontFamily:"Georgia,serif"}}>T</div>
-          <span style={{color:G.white,fontWeight:700,fontSize:15,fontFamily:"Georgia,serif"}}>eamly</span>
+    <PhoneFrame>
+      <div style={{
+        background: G.greenDark, padding: "10px 14px",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+      }}>
+        <Logo size={20} light />
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <span style={{
+            background: G.gold, color: G.greenDark, fontSize: 9, fontWeight: 800,
+            padding: "4px 8px", borderRadius: 6,
+          }}>+ Commande</span>
+          <span style={{ fontSize: 14, position: "relative", color: "#fff" }}>
+            🔔
+            <span style={{
+              position: "absolute", top: -3, right: -4,
+              background: G.red, color: "#fff", fontSize: 7, fontWeight: 800,
+              borderRadius: 8, padding: "1px 4px",
+            }}>5</span>
+          </span>
         </div>
-        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <span style={{background:G.gold,color:G.dark,fontWeight:700,fontSize:10,
-            padding:"4px 10px",borderRadius:8}}>+ Commande</span>
-          <div style={{position:"relative"}}>
-            <span style={{fontSize:15}}>🔔</span>
-            <div style={{position:"absolute",top:-3,right:-3,width:10,height:10,
-              background:G.red,borderRadius:"50%",fontSize:7,color:G.white,
-              display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900}}>5</div>
+      </div>
+      <div style={{ padding: "12px 12px 14px", background: "#fafafa" }}>
+        <div style={{ fontSize: 10, color: G.muted, marginBottom: 10 }}>
+          Bonjour, <b style={{ color: G.dark }}>Saliou</b> 👋 · Ma Boutique
+        </div>
+        <div style={{
+          background: `linear-gradient(135deg, ${G.greenDark}, ${G.greenMid})`,
+          borderRadius: 12, padding: "12px 14px", color: "#fff", marginBottom: 10,
+        }}>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>CA du Jour</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: G.gold, margin: "2px 0" }}>265 000 CFA</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.65)" }}>
+            Bénéf. total : <b style={{ color: G.gold }}>163 640 CFA</b>
           </div>
         </div>
-      </div>
-      {/* CA card */}
-      <div style={{margin:"9px 10px 0",background:`linear-gradient(135deg,${G.greenDark},${G.green})`,
-        borderRadius:12,padding:"11px 14px",flexShrink:0}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.65)",marginBottom:2}}>Bonjour, Saliou 👋 · Ma Boutique</div>
-        <div style={{fontSize:9,fontWeight:700,color:G.gold,letterSpacing:1.2,marginBottom:2,textTransform:"uppercase"}}>CA du Jour</div>
-        <div style={{fontSize:24,fontWeight:900,color:G.white,lineHeight:1}}>265 000 <span style={{fontSize:13}}>CFA</span></div>
-        <div style={{fontSize:9,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: 163 640 CFA</div>
-      </div>
-      {/* Stats */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,margin:"8px 10px 0",flexShrink:0}}>
-        {[{ico:"📦",n:"27",l:"Total commandes",bg:G.white,tc:G.dark},
-          {ico:"✅",n:"12",l:"Livrées",bg:G.greenLight,tc:G.green},
-          {ico:"❌",n:"5",l:"Rejetées",bg:G.redLight,tc:G.red},
-          {ico:"🏍️",n:"1",l:"En route",bg:"#EFF6FF",tc:"#2563EB"}
-        ].map((s,i)=>(
-          <div key={i} style={{background:s.bg,borderRadius:10,padding:"9px 11px"}}>
-            <div style={{fontSize:16}}>{s.ico}</div>
-            <div style={{fontSize:20,fontWeight:900,color:s.tc,lineHeight:1.1}}>{s.n}</div>
-            <div style={{fontSize:9,color:G.gray,marginTop:1}}>{s.l}</div>
-          </div>
-        ))}
-      </div>
-      {/* Taux livraison */}
-      <div style={{margin:"7px 10px 0",background:G.white,borderRadius:10,padding:"9px 12px",flexShrink:0}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-          <span style={{fontSize:10,fontWeight:700,color:G.dark}}>Taux de livraison</span>
-          <span style={{fontSize:10,fontWeight:700,color:G.green}}>44%</span>
-        </div>
-        <div style={{height:6,background:"#E5E7EB",borderRadius:3}}>
-          <div style={{width:"44%",height:"100%",background:`linear-gradient(90deg,${G.red},#F59E0B)`,borderRadius:3}}/>
-        </div>
-      </div>
-      {/* CA produit */}
-      <div style={{margin:"7px 10px",background:G.white,borderRadius:10,padding:"9px 12px",flex:1}}>
-        <div style={{fontSize:11,fontWeight:700,color:G.dark,marginBottom:7}}>💰 CA PAR PRODUIT</div>
-        {[{n:"Sac a main",v:"250 000 F",pct:85,b:"165 000 CFA",pos:true},
-          {n:"Bouchon rotatif 360°",v:"15 000 F",pct:20,b:"-1 360 CFA",pos:false}
-        ].map((p,i)=>(
-          <div key={i} style={{marginBottom:i===0?8:0}}>
-            <div style={{display:"flex",justifyContent:"space-between"}}>
-              <span style={{fontSize:10,color:G.dark,fontWeight:600}}>{p.n}</span>
-              <span style={{fontSize:10,fontWeight:700,color:G.dark}}>{p.v}</span>
-            </div>
-            <div style={{height:4,background:p.pos?G.greenLight:G.redLight,borderRadius:2,margin:"3px 0"}}>
-              <div style={{width:`${p.pct}%`,height:"100%",background:p.pos?G.green:G.red,borderRadius:2}}/>
-            </div>
-            <div style={{fontSize:9,color:p.pos?G.green:G.red}}>Bénéfice: {p.b}</div>
-          </div>
-        ))}
-        <div style={{marginTop:8,background:G.greenLight,borderRadius:8,padding:"6px 10px",
-          display:"flex",justifyContent:"space-between"}}>
-          <span style={{fontSize:10,fontWeight:700,color:G.green}}>CA Total</span>
-          <span style={{fontSize:11,fontWeight:900,color:G.green}}>265 000 CFA</span>
-        </div>
-      </div>
-      {/* Bottom nav */}
-      <div style={{background:G.white,borderTop:`1px solid ${G.border}`,
-        display:"flex",padding:"7px 0 4px",flexShrink:0}}>
-        {["🛍️\nBoutique","🚚\nÀ traiter","⊞\nDashboard","$\nCompta","👥\nÉquipe"].map((t,i)=>(
-          <div key={i} style={{flex:1,textAlign:"center",color:i===2?G.green:G.gray,fontWeight:i===2?700:400}}>
-            <div style={{fontSize:i===2?17:13,marginBottom:1}}>{t.split("\n")[0]}</div>
-            <div style={{fontSize:8}}>{t.split("\n")[1]}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── SCREEN: CHAT ─── */
-function ChatScreen() {
-  const msgs = [
-    {init:"S",bg:G.purple,name:"Saliou closeur",role:"Closer",roleBg:G.purpleLight,roleC:G.purple,audio:true,sent:false,time:"20:26"},
-    {sent:true,audio:true,time:"00:25"},
-    {init:"I",bg:"#059669",name:"Ibou",role:"Livreur",roleBg:G.greenLight,roleC:G.green,msg:"ca va saliou 👍",sent:false,time:"15:09"},
-    {init:"I",bg:"#059669",name:"Ibou",role:"Livreur",roleBg:G.greenLight,roleC:G.green,audio:true,sent:false,time:"15:10"},
-    {init:"S",bg:G.purple,name:"Saliou closeur",role:"Closer",roleBg:G.purpleLight,roleC:G.purple,msg:"Salut la team 💪",sent:false,time:"15:11"},
-  ];
-  return (
-    <div style={{background:"#f0f2f5",height:"100%",display:"flex",flexDirection:"column",fontSize:12}}>
-      <div style={{background:G.green,padding:"10px 14px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
-        <div style={{width:32,height:32,background:"rgba(255,255,255,0.18)",borderRadius:"50%",
-          display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>👥</div>
-        <div>
-          <div style={{fontSize:12,fontWeight:700,color:G.white}}>Chat de mon équipe</div>
-          <div style={{fontSize:9,color:"rgba(255,255,255,0.65)"}}>3 membres · Admin · 1 closer · 1 livreur</div>
-        </div>
-      </div>
-      <div style={{flex:1,padding:"10px",display:"flex",flexDirection:"column",gap:8,overflow:"hidden"}}>
-        {msgs.map((m,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:m.sent?"flex-end":"flex-start",gap:7,alignItems:"flex-end"}}>
-            {!m.sent&&m.init&&(
-              <div style={{width:26,height:26,background:m.bg,borderRadius:"50%",display:"flex",
-                alignItems:"center",justifyContent:"center",fontSize:10,color:"white",fontWeight:700,flexShrink:0}}>{m.init}</div>
-            )}
-            <div style={{maxWidth:150}}>
-              {!m.sent&&m.name&&(
-                <div style={{display:"flex",alignItems:"center",gap:4,marginBottom:2}}>
-                  <span style={{fontSize:9,fontWeight:700,color:m.bg}}>{m.name}</span>
-                  <span style={{fontSize:8,background:m.roleBg,color:m.roleC,padding:"1px 5px",borderRadius:4,fontWeight:600}}>{m.role}</span>
-                </div>
-              )}
-              <div style={{background:m.sent?"#DCF8C6":G.white,
-                borderRadius:m.sent?"14px 14px 0 14px":"14px 14px 14px 0",padding:"7px 11px"}}>
-                {m.audio?(
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:20,height:20,background:m.sent?"#a0d9a0":G.wa,borderRadius:"50%",
-                      display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,color:"white"}}>▶</div>
-                    <div style={{fontSize:9,color:G.gray}}>━━━━━━ 0:12</div>
-                  </div>
-                ):<div style={{fontSize:11,color:G.dark}}>{m.msg}</div>}
-                <div style={{fontSize:8,color:G.gray,marginTop:2,textAlign:"right"}}>{m.time}{m.sent?" ✓✓":""}</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{background:G.white,padding:"8px 12px",display:"flex",alignItems:"center",
-        gap:8,borderTop:`1px solid ${G.border}`,flexShrink:0}}>
-        <span style={{fontSize:14}}>📷</span>
-        <div style={{flex:1,background:G.grayLight,borderRadius:20,padding:"6px 12px",
-          fontSize:11,color:G.gray}}>Message...</div>
-        <div style={{width:28,height:28,background:G.wa,borderRadius:"50%",
-          display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🎤</div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── SCREEN: GPS ─── */
-function GPSScreen() {
-  return (
-    <div style={{background:G.grayLight,height:"100%",display:"flex",flexDirection:"column",fontSize:12}}>
-      <div style={{background:G.green,padding:"9px 14px",flexShrink:0}}>
-        <div style={{fontSize:14,fontWeight:700,color:G.white}}>Teamly · GPS Live</div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:1,margin:"9px 10px 0",flexShrink:0}}>
-        <div style={{background:G.white,borderRadius:"9px 0 0 9px",padding:"9px",textAlign:"center"}}>
-          <div style={{fontSize:22,fontWeight:900,color:G.green}}>4</div>
-          <div style={{fontSize:9,color:G.gray}}>Livraisons actives</div>
-        </div>
-        <div style={{background:G.white,borderRadius:"0 9px 9px 0",padding:"9px",textAlign:"center"}}>
-          <div style={{fontSize:22,fontWeight:900,color:"#2563EB"}}>1</div>
-          <div style={{fontSize:9,color:G.gray}}>Livreurs actifs</div>
-        </div>
-      </div>
-      <div style={{margin:"8px 10px",background:G.white,borderRadius:11,overflow:"hidden",flexShrink:0}}>
-        <div style={{padding:"7px 11px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:10,fontWeight:700,color:G.red}}>📍 Positions en temps réel</span>
-          <span style={{fontSize:9,background:G.greenLight,color:G.green,padding:"2px 7px",borderRadius:8,fontWeight:600}}>1 actif</span>
-        </div>
-        <div style={{height:130,background:"#dce8d0",position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:"46%",left:0,right:0,height:6,background:"#c0d0b0",transform:"rotate(-3deg)"}}/>
-          <div style={{position:"absolute",top:"26%",left:0,right:0,height:3,background:"#ccdec0"}}/>
-          <div style={{position:"absolute",bottom:0,left:0,right:0,height:36,background:"#90b8d0"}}/>
-          <div style={{position:"absolute",top:"36%",left:"32%",transform:"translate(-50%,-50%)"}}>
-            <div style={{width:30,height:30,background:G.green,borderRadius:"50%",border:"2.5px solid white",
-              display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,
-              boxShadow:"0 3px 10px rgba(0,0,0,0.28)"}}>🏍️</div>
-            <div style={{background:G.white,borderRadius:5,padding:"2px 6px",fontSize:8,fontWeight:700,
-              textAlign:"center",marginTop:2,boxShadow:"0 1px 4px rgba(0,0,0,0.15)"}}>Ibou</div>
-          </div>
-          <div style={{position:"absolute",top:"50%",right:"16%",fontSize:9,fontWeight:700,color:"#3a4a3a"}}>Marbella</div>
-          <div style={{position:"absolute",top:"30%",left:"6%",fontSize:7.5,color:"#556655"}}>San Pedro</div>
-        </div>
-      </div>
-      <div style={{margin:"0 10px",background:G.white,borderRadius:11,padding:"9px 12px",flex:1}}>
-        <div style={{fontSize:11,fontWeight:700,color:G.dark,marginBottom:7}}>🏍️ LIVREURS</div>
-        <div style={{paddingBottom:7,marginBottom:7,borderBottom:`1px solid ${G.border}`}}>
-          <div style={{fontSize:12,fontWeight:700,color:G.dark}}>Ibou</div>
-          <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:G.green}}/>
-            <span style={{fontSize:9,color:G.gray}}>GPS actif · Marbella</span>
-            <span style={{fontSize:8.5,background:G.greenLight,color:G.green,padding:"1px 6px",borderRadius:5,fontWeight:600}}>5 liv.</span>
-          </div>
-        </div>
-        {[{c:"Saliou Mbaye",s:"Colis en main 📦",a:"20 000 F"},
-          {c:"Saliou Mbaye",s:"Vers le client 🚀",a:"19 125 F"},
-          {c:"Saliou Mbaye",s:"Chez le client 📍",a:"7 500 F"}
-        ].map((l,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",
-            paddingBottom:5,marginBottom:5,borderBottom:i<2?`1px solid ${G.border}`:"none"}}>
-            <div>
-              <div style={{fontSize:10,fontWeight:600,color:G.dark}}>{l.c}</div>
-              <div style={{fontSize:8.5,color:G.gray}}>{l.s}</div>
-            </div>
-            <div style={{fontSize:10,fontWeight:700,color:G.dark}}>{l.a}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ─── SCREEN: COMPTA ─── */
-function ComptaScreen() {
-  return (
-    <div style={{background:G.grayLight,height:"100%",display:"flex",flexDirection:"column",fontSize:12}}>
-      <div style={{background:G.green,padding:"9px 14px",flexShrink:0}}>
-        <span style={{fontSize:14,fontWeight:700,color:G.white}}>Compta</span>
-      </div>
-      <div style={{margin:"9px 10px 7px",background:G.white,borderRadius:12,padding:"14px",flexShrink:0}}>
-        <div style={{fontSize:9,color:G.gray,marginBottom:3}}>2026-04-01 → 2026-05-05 · Bénéfice net</div>
-        <div style={{fontSize:34,fontWeight:900,color:G.green,lineHeight:1}}>163 640</div>
-        <div style={{fontSize:11,fontWeight:700,color:G.green}}>CFA</div>
-        <div style={{fontSize:9.5,color:G.gray,marginTop:2}}>Marge 61.8%</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:12}}>
-          {[{l:"CA",v:"265 000 F"},{l:"Coûts",v:"101 360 F"},{l:"Pub",v:"0 F"},{l:"Livrées/Rej.",v:"12 / 0"}].map((x,i)=>(
-            <div key={i}>
-              <div style={{fontSize:8,color:G.gray}}>{x.l}</div>
-              <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{x.v}</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 10 }}>
+          {[
+            { i: "📦", v: "27", l: "Total", c: G.greenDark },
+            { i: "✅", v: "12", l: "Livrées", c: G.greenMid },
+            { i: "❌", v: "5", l: "Rejetées", c: G.red },
+            { i: "🏍️", v: "1", l: "En route", c: G.blue },
+          ].map(s => (
+            <div key={s.l} style={{
+              background: "#fff", borderRadius: 8, padding: "7px 4px",
+              textAlign: "center", border: `1px solid ${G.border}`,
+            }}>
+              <div style={{ fontSize: 11 }}>{s.i}</div>
+              <div style={{ fontSize: 14, fontWeight: 900, color: s.c }}>{s.v}</div>
+              <div style={{ fontSize: 7, color: G.muted, fontWeight: 600 }}>{s.l}</div>
             </div>
           ))}
         </div>
+        <div style={{
+          background: "#fff", borderRadius: 8, padding: "8px 10px", marginBottom: 10,
+          border: `1px solid ${G.border}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{ fontSize: 9, color: G.muted, fontWeight: 600 }}>Taux de livraison</span>
+            <span style={{ fontSize: 10, fontWeight: 900, color: G.greenDark }}>44%</span>
+          </div>
+          <div style={{ height: 4, background: G.greenLight, borderRadius: 4, overflow: "hidden" }}>
+            <div style={{ width: "44%", height: "100%", background: G.greenMid }} />
+          </div>
+        </div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: G.dark, marginBottom: 6 }}>💰 CA PAR PRODUIT</div>
+        <div style={{
+          background: "#fff", borderRadius: 8, padding: "8px 10px", marginBottom: 5,
+          border: `1px solid ${G.border}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: G.dark }}>Sac à main</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: G.greenDark }}>250 000 F</span>
+          </div>
+          <div style={{ fontSize: 8, color: G.greenMid, fontWeight: 600, marginTop: 1 }}>
+            Bénéfice : 165 000 CFA
+          </div>
+        </div>
+        <div style={{
+          background: "#fff", borderRadius: 8, padding: "8px 10px",
+          border: `1px solid ${G.border}`,
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: G.dark }}>Bouchon rotatif</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: G.dark }}>15 000 F</span>
+          </div>
+          <div style={{ fontSize: 8, color: G.red, fontWeight: 600, marginTop: 1 }}>
+            Bénéfice : -1 360 CFA
+          </div>
+        </div>
       </div>
-      <div style={{margin:"0 10px",background:G.white,borderRadius:11,padding:"10px 12px",flex:1}}>
-        <div style={{fontSize:11,fontWeight:700,color:G.dark,marginBottom:8,textTransform:"uppercase",letterSpacing:0.5}}>Produits</div>
-        {[{n:"Sac a main",s:"10 livrés · 250 000 F",pct:"66.0%",v:"165 000 F",pos:true},
-          {n:"Bouchon rotatif 360°",s:"2 livrés · 15 000 F",pct:"-9.1%",v:"-1 360 F",pos:false},
-          {n:"Adaptateur Carplay",s:"0 livrés",pct:"—",v:"—",pos:null}
-        ].map((p,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-            borderBottom:i<2?`1px solid ${G.border}`:"none",
-            paddingBottom:i<2?7:0,paddingTop:i>0?7:0}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:G.dark}}>{p.n}</div>
-              <div style={{fontSize:8.5,color:G.gray}}>{p.s}</div>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:10,fontWeight:700,color:p.pos===true?G.green:p.pos===false?G.red:G.gray}}>{p.pct}</div>
-              <div style={{fontSize:9,color:p.pos===true?G.green:p.pos===false?G.red:G.gray}}>{p.v}</div>
-            </div>
+      <div style={{
+        background: "#fff", borderTop: `1px solid ${G.border}`,
+        display: "flex", justifyContent: "space-around", padding: "8px 0 10px",
+      }}>
+        {[
+          ["🛍️", "Boutique", false],
+          ["🚚", "À traiter", false],
+          ["⊞", "Dashboard", true],
+          ["$", "Compta", false],
+          ["👥", "Équipe", false],
+        ].map(([i, l, a]) => (
+          <div key={l} style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 14, color: a ? G.greenDark : G.muted }}>{i}</div>
+            <div style={{ fontSize: 7, fontWeight: a ? 800 : 500, color: a ? G.greenDark : G.muted, marginTop: 1 }}>{l}</div>
           </div>
         ))}
       </div>
-    </div>
+    </PhoneFrame>
   );
 }
 
-/* ─── SCREEN: LIVREUR ─── */
-function LivreurScreen() {
+function MockupChat() {
   return (
-    <div style={{background:G.grayLight,height:"100%",display:"flex",flexDirection:"column",fontSize:12}}>
-      <div style={{background:G.green,padding:"9px 14px",flexShrink:0}}>
-        <span style={{fontSize:14,fontWeight:700,color:G.white}}>Mes Livraisons</span>
-      </div>
-      <div style={{flex:1,padding:"9px",display:"flex",flexDirection:"column",gap:7,overflow:"hidden"}}>
-        {/* Card 1 */}
-        <div style={{background:G.white,borderRadius:12,overflow:"hidden",flexShrink:0}}>
-          <div style={{background:"#F59E0B",padding:"7px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:10,fontWeight:700,color:"white"}}>📍 Livreur chez le client · 17:12</span>
-            <span style={{fontSize:11,fontWeight:700,color:"white"}}>7 500 F</span>
-          </div>
-          <div style={{padding:"10px 12px"}}>
-            <div style={{fontSize:14,fontWeight:900,color:G.dark}}>Saliou Mbaye</div>
-            <div style={{fontSize:9,color:G.gray,marginBottom:9}}>📦 Bouchon rotatif 360° · 🏍️ Ibou</div>
-            <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:9}}>
-              {[G.green,G.green,G.green,G.green,"#F59E0B","#DDD"].map((c,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:i===5?10:16,height:i===5?10:16,borderRadius:"50%",background:c,
-                    border:i===4?`2.5px solid #F59E0B`:"none",display:"flex",alignItems:"center",
-                    justifyContent:"center",fontSize:7,color:"white",fontWeight:700}}>{i<4?"✓":""}</div>
-                  {i<5&&<div style={{width:10,height:2.5,background:i<4?G.green:"#DDD"}}/>}
-                </div>
-              ))}
-            </div>
-            <div style={{background:G.green,borderRadius:9,padding:"9px",textAlign:"center",marginBottom:7}}>
-              <span style={{fontSize:12,fontWeight:700,color:"white"}}>✅ Livré — Cash encaissé</span>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:5}}>
-              <div style={{background:G.redLight,borderRadius:7,padding:"5px",textAlign:"center",fontSize:9,fontWeight:600,color:G.red}}>❌ Rejeté</div>
-              <div style={{background:"#F3F4F6",borderRadius:7,padding:"5px",textAlign:"center",fontSize:9,fontWeight:600,color:G.dark}}>⛔ Absent</div>
-              <div style={{background:G.purpleLight,borderRadius:7,padding:"5px",textAlign:"center",fontSize:9,fontWeight:600,color:G.purple}}>↩️ Report</div>
-            </div>
-          </div>
-        </div>
-        {/* Card 2 */}
-        <div style={{background:G.white,borderRadius:12,overflow:"hidden",flexShrink:0}}>
-          <div style={{background:"#2563EB",padding:"7px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:10,fontWeight:700,color:"white"}}>📦 Colis en main · Étape 3</span>
-            <span style={{fontSize:11,fontWeight:700,color:"white"}}>25 000 F</span>
-          </div>
-          <div style={{padding:"10px 12px"}}>
-            <div style={{fontSize:13,fontWeight:900,color:G.dark}}>Diallo</div>
-            <div style={{fontSize:9,color:G.gray,marginBottom:8}}>📦 Sac a main · Keur massar</div>
-            <div style={{background:"#2563EB",borderRadius:8,padding:"9px",textAlign:"center"}}>
-              <span style={{fontSize:11,fontWeight:700,color:"white"}}>🚀 Je pars vers le client</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── DESKTOP SCREEN: DASHBOARD ─── */
-function DesktopDashboard() {
-  return (
-    <div style={{display:"flex",height:380,fontSize:12}}>
-      {/* Sidebar */}
-      <div style={{width:180,background:G.green,padding:"14px 0",flexShrink:0}}>
-        <div style={{padding:"0 14px 16px",display:"flex",alignItems:"center",gap:6,borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
-          <div style={{width:22,height:22,background:G.gold,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:12,color:G.green}}>T</div>
-          <span style={{color:G.white,fontWeight:700,fontSize:14,fontFamily:"Georgia,serif"}}>eamly</span>
-        </div>
-        <div style={{padding:"10px 10px 0"}}>
-          {[{ico:"⊞",l:"Dashboard",active:true},{ico:"✓",l:"Cmdes à confirmer"},{ico:"🚚",l:"Cmdes à traiter",badge:3},{ico:"$",l:"Compta"},{ico:"📍",l:"Livreurs"},{ico:"👥",l:"Clients"},{ico:"💬",l:"Équipe Chat"},{ico:"📦",l:"Produits"}].map((it,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
-              borderRadius:8,marginBottom:2,background:it.active?"rgba(255,255,255,0.15)":"transparent",
-              cursor:"pointer"}}>
-              <span style={{fontSize:12,width:16,textAlign:"center"}}>{it.ico}</span>
-              <span style={{fontSize:11,color:it.active?G.white:"rgba(255,255,255,0.7)",fontWeight:it.active?700:400}}>{it.l}</span>
-              {it.badge&&<span style={{marginLeft:"auto",background:G.red,color:G.white,fontSize:9,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{it.badge}</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Main */}
-      <div style={{flex:1,background:G.grayLight,overflow:"hidden",padding:"14px"}}>
-        <div style={{fontSize:16,fontWeight:800,color:G.dark,marginBottom:12}}>Dashboard</div>
-        {/* CA card */}
-        <div style={{background:`linear-gradient(135deg,${G.greenDark},${G.green})`,borderRadius:12,padding:"12px 16px",marginBottom:10}}>
-          <div style={{fontSize:9,color:"rgba(255,255,255,0.65)"}}>Bonjour, Saliou mbaye 👋 · Ma Boutique · mardi 5 mai</div>
-          <div style={{fontSize:9,fontWeight:700,color:G.gold,letterSpacing:1,margin:"4px 0"}}>CA DU JOUR</div>
-          <div style={{fontSize:28,fontWeight:900,color:G.white,lineHeight:1}}>265 000 <span style={{fontSize:13}}>CFA</span></div>
-          <div style={{fontSize:9,color:"rgba(255,255,255,0.55)",marginTop:2}}>Bénéf. total: 163 640 CFA</div>
-        </div>
-        {/* Stats grid */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:10}}>
-          {[{ico:"📦",n:"27",l:"Total commandes",bg:G.white,tc:G.dark},
-            {ico:"✅",n:"12",l:"Livrées",bg:G.greenLight,tc:G.green},
-            {ico:"❌",n:"5",l:"Rejetées",bg:G.redLight,tc:G.red},
-            {ico:"🏍️",n:"1",l:"En route",bg:"#EFF6FF",tc:"#2563EB"}
-          ].map((s,i)=>(
-            <div key={i} style={{background:s.bg,borderRadius:9,padding:"10px",border:`1px solid ${G.border}`}}>
-              <div style={{fontSize:16}}>{s.ico}</div>
-              <div style={{fontSize:20,fontWeight:900,color:s.tc}}>{s.n}</div>
-              <div style={{fontSize:9,color:G.gray}}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-        {/* Taux + CA */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <div style={{background:G.white,borderRadius:9,padding:"10px",border:`1px solid ${G.border}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-              <span style={{fontSize:10,fontWeight:700,color:G.dark}}>Taux de livraison</span>
-              <span style={{fontSize:10,fontWeight:700,color:G.green}}>44%</span>
-            </div>
-            <div style={{height:5,background:"#E5E7EB",borderRadius:3}}>
-              <div style={{width:"44%",height:"100%",background:G.green,borderRadius:3}}/>
-            </div>
-            <div style={{marginTop:10,fontSize:9,fontWeight:700,color:G.dark}}>💰 CA PAR PRODUIT</div>
-            <div style={{marginTop:5,fontSize:9,color:G.dark,display:"flex",justifyContent:"space-between"}}>
-              <span>Sac a main</span><span style={{fontWeight:700}}>250 000 F</span>
-            </div>
-            <div style={{height:4,background:G.greenLight,borderRadius:2,margin:"3px 0"}}>
-              <div style={{width:"85%",height:"100%",background:G.green,borderRadius:2}}/>
-            </div>
-          </div>
-          <div style={{background:G.white,borderRadius:9,padding:"10px",border:`1px solid ${G.border}`}}>
-            <div style={{fontSize:10,fontWeight:700,color:G.dark,marginBottom:8}}>⚡ ACTIONS RAPIDES</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-              {[{l:"+ Commande",bg:"#F0FDF4",c:G.green},{l:"+ Produit",bg:G.grayLight,c:G.dark},{l:"Clients",bg:"#FFF7ED",c:"#D97706"},{l:"Tracking",bg:G.purpleLight,c:G.purple}].map((a,i)=>(
-                <div key={i} style={{background:a.bg,borderRadius:8,padding:"8px 6px",textAlign:"center",fontSize:9,fontWeight:600,color:a.c}}>{a.l}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ─── DESKTOP SCREEN: ORDERS ─── */
-function DesktopOrders() {
-  return (
-    <div style={{display:"flex",height:380,fontSize:11}}>
-      <div style={{width:180,background:G.green,padding:"14px 0",flexShrink:0}}>
-        <div style={{padding:"0 14px 16px",display:"flex",alignItems:"center",gap:6,borderBottom:"1px solid rgba(255,255,255,0.1)"}}>
-          <div style={{width:22,height:22,background:G.gold,borderRadius:5,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:900,fontSize:12,color:G.green}}>T</div>
-          <span style={{color:G.white,fontWeight:700,fontSize:14,fontFamily:"Georgia,serif"}}>eamly</span>
-        </div>
-        {[{ico:"⊞",l:"Dashboard"},{ico:"✓",l:"Cmdes à confirmer"},{ico:"🚚",l:"Cmdes à traiter",active:true,badge:3},{ico:"$",l:"Compta"},{ico:"📍",l:"Livreurs"}].map((it,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 14px",margin:"2px 10px 0",
-            borderRadius:8,background:it.active?"rgba(255,255,255,0.15)":"transparent"}}>
-            <span style={{fontSize:11,width:14,textAlign:"center"}}>{it.ico}</span>
-            <span style={{fontSize:10,color:it.active?G.white:"rgba(255,255,255,0.7)",fontWeight:it.active?700:400,flex:1}}>{it.l}</span>
-            {it.badge&&<span style={{background:G.red,color:G.white,fontSize:8,fontWeight:700,padding:"1px 5px",borderRadius:10}}>{it.badge}</span>}
-          </div>
-        ))}
-      </div>
-      <div style={{flex:1,background:G.grayLight,padding:"14px",overflow:"hidden"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+    <PhoneFrame>
+      <div style={{ background: G.greenDark, padding: "10px 14px", color: "#fff" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 18 }}>👥</span>
           <div>
-            <div style={{fontSize:15,fontWeight:800,color:G.dark}}>Commandes à traiter</div>
-            <div style={{fontSize:9,color:G.gray}}>Ma Boutique</div>
-          </div>
-          <span style={{background:G.gold,color:G.dark,fontWeight:700,fontSize:10,padding:"6px 14px",borderRadius:8}}>+ Commande</span>
-        </div>
-        {/* Filters */}
-        <div style={{background:G.white,borderRadius:10,padding:"10px 12px",marginBottom:10,border:`1px solid ${G.border}`}}>
-          <div style={{fontSize:8,fontWeight:700,color:G.gray,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Statut de livraison</div>
-          <div style={{display:"flex",gap:6,marginBottom:8,flexWrap:"wrap"}}>
-            {["Tout","En attente","Livreur en route 🚚","Colis en main 📦","Vers le client 🚀","Chez le client 📍"].map((f,i)=>(
-              <span key={i} style={{fontSize:9,fontWeight:600,padding:"4px 10px",borderRadius:20,
-                background:i===0?G.dark:"rgba(0,0,0,0.06)",color:i===0?G.white:G.dark,cursor:"pointer"}}>{f}</span>
-            ))}
-          </div>
-          <div style={{fontSize:8,fontWeight:700,color:G.gray,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Résultat</div>
-          <div style={{display:"flex",gap:6}}>
-            {["Encaissé ✅","Rejeté ❌","Absent 🚫"].map((f,i)=>(
-              <span key={i} style={{fontSize:9,fontWeight:600,padding:"4px 10px",borderRadius:20,
-                background:i===0?"#DCFCE7":i===1?"#FEE2E2":"#F3F4F6",
-                color:i===0?G.green:i===1?G.red:G.gray,cursor:"pointer",
-                border:`1px solid ${i===0?"#86EFAC":i===1?"#FCA5A5":"#E5E7EB"}`}}>{f}</span>
-            ))}
+            <div style={{ fontSize: 12, fontWeight: 800 }}>Chat de mon équipe</div>
+            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.6)" }}>3 membres · Admin · 1 closer · 1 livreur</div>
           </div>
         </div>
-        {/* Order cards grid */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-          {[{name:"Saliou Mbaye",prod:"Adaptateur Carplay",status:"Client confirmé ✅",color:"#22C55E",val:"20 000 F"},
-            {name:"Hhhhhh",prod:"Sac a main",status:"Client confirmé ✅",color:"#22C55E",val:"25 000 F"},
-            {name:"Saliou",prod:"Sac a main",status:"Client confirmé ✅",color:"#22C55E",val:"25 000 F"}
-          ].map((o,i)=>(
-            <div key={i} style={{background:G.white,borderRadius:10,overflow:"hidden",border:`1px solid ${G.border}`}}>
-              <div style={{background:o.color,padding:"5px 8px",display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:8,fontWeight:700,color:"white"}}>{o.status}</span>
-                <span style={{fontSize:9,fontWeight:700,color:"white"}}>{o.val}</span>
-              </div>
-              <div style={{padding:"8px"}}>
-                <div style={{fontSize:11,fontWeight:800,color:G.dark}}>{o.name}</div>
-                <div style={{fontSize:8,color:G.gray,marginBottom:7}}>{o.prod}</div>
-                <div style={{background:"#22C55E",borderRadius:6,padding:"5px",textAlign:"center",fontSize:8.5,fontWeight:700,color:"white"}}>
-                  📱 Confirmer par WhatsApp
+      </div>
+      <div style={{ background: "#f4f3ee", padding: "10px 8px", minHeight: 380 }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "flex-start" }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: "50%",
+            background: G.greenMid, color: "#fff", display: "flex",
+            alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+          }}>S</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: G.greenDark, marginBottom: 2 }}>
+              Saliou closeur <span style={{ background: G.gold, color: G.greenDark, fontSize: 7, padding: "1px 4px", borderRadius: 3, marginLeft: 3 }}>Closer</span>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, padding: "8px 10px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: G.greenDark }}>▶</span>
+                <div style={{ flex: 1, height: 14, display: "flex", alignItems: "center", gap: 1 }}>
+                  {[...Array(20)].map((_, i) => (
+                    <div key={i} style={{ width: 2, height: 4 + (i % 5) * 2, background: G.greenMid, borderRadius: 1 }} />
+                  ))}
                 </div>
+                <span style={{ fontSize: 8, color: G.muted, fontWeight: 600 }}>0:12</span>
               </div>
             </div>
+            <div style={{ fontSize: 7, color: G.muted, marginTop: 2 }}>20:26</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "flex-start" }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: "50%",
+            background: G.blue, color: "#fff", display: "flex",
+            alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+          }}>I</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: G.blue, marginBottom: 2 }}>
+              Ibou <span style={{ background: "#dbeafe", color: G.blue, fontSize: 7, padding: "1px 4px", borderRadius: 3, marginLeft: 3 }}>Livreur</span>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, padding: "7px 10px", fontSize: 11, color: G.dark, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>ça va Saliou 👍</div>
+            <div style={{ fontSize: 7, color: G.muted, marginTop: 2 }}>15:09</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 10, alignItems: "flex-start" }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: "50%",
+            background: G.blue, color: "#fff", display: "flex",
+            alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+          }}>I</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: G.blue, marginBottom: 2 }}>
+              Ibou <span style={{ background: "#dbeafe", color: G.blue, fontSize: 7, padding: "1px 4px", borderRadius: 3, marginLeft: 3 }}>Livreur</span>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, padding: "8px 10px", boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, color: G.blue }}>▶</span>
+                <div style={{ flex: 1, height: 14, display: "flex", alignItems: "center", gap: 1 }}>
+                  {[...Array(20)].map((_, i) => (
+                    <div key={i} style={{ width: 2, height: 4 + ((i + 2) % 5) * 2, background: G.blue, borderRadius: 1 }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 8, color: G.muted, fontWeight: 600 }}>0:12</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 7, color: G.muted, marginTop: 2 }}>15:10</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+          <div style={{
+            width: 26, height: 26, borderRadius: "50%",
+            background: G.greenMid, color: "#fff", display: "flex",
+            alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11,
+          }}>S</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: G.greenDark, marginBottom: 2 }}>
+              Saliou closeur <span style={{ background: G.gold, color: G.greenDark, fontSize: 7, padding: "1px 4px", borderRadius: 3, marginLeft: 3 }}>Closer</span>
+            </div>
+            <div style={{ background: "#fff", borderRadius: 10, padding: "7px 10px", fontSize: 11, color: G.dark, boxShadow: "0 1px 2px rgba(0,0,0,0.05)" }}>Salut la team 💪</div>
+            <div style={{ fontSize: 7, color: G.muted, marginTop: 2 }}>15:11</div>
+          </div>
+        </div>
+      </div>
+      <div style={{
+        background: "#fff", padding: "8px 10px",
+        display: "flex", gap: 8, alignItems: "center",
+        borderTop: `1px solid ${G.border}`,
+      }}>
+        <span style={{ fontSize: 16, color: G.muted }}>📷</span>
+        <div style={{ flex: 1, background: "#f4f3ee", borderRadius: 16, padding: "6px 12px", fontSize: 10, color: G.muted }}>Message…</div>
+        <span style={{ fontSize: 16, color: G.greenDark }}>🎤</span>
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function MockupGps() {
+  return (
+    <PhoneFrame>
+      <div style={{ background: G.greenDark, padding: "10px 14px", color: "#fff" }}>
+        <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>Teamly · GPS Live</div>
+        <div style={{ display: "flex", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: G.gold }}>4</div>
+            <div style={{ fontSize: 7, color: "rgba(255,255,255,0.6)" }}>Livraisons actives</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: G.gold }}>1</div>
+            <div style={{ fontSize: 7, color: "rgba(255,255,255,0.6)" }}>Livreurs actifs</div>
+          </div>
+        </div>
+      </div>
+      <div style={{
+        height: 140, background: "linear-gradient(135deg, #d4e8d8, #c9e1d6)",
+        position: "relative", overflow: "hidden",
+      }}>
+        <svg viewBox="0 0 270 140" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
+          <path d="M0 60 L270 70" stroke="#fff" strokeWidth="3" />
+          <path d="M30 0 L40 140" stroke="#fff" strokeWidth="3" />
+          <path d="M150 0 L170 140" stroke="#fff" strokeWidth="2" />
+          <path d="M0 100 L270 110" stroke="#fff" strokeWidth="2" />
+          <path d="M0 30 L270 35" stroke="#fff" strokeWidth="1.5" opacity="0.6" />
+        </svg>
+        <div style={{
+          position: "absolute", top: 56, left: 110,
+          background: G.gold, color: G.greenDark,
+          borderRadius: "50%", width: 32, height: 32,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 16, fontWeight: 900, boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          border: "3px solid #fff",
+        }}>🏍️</div>
+        <div style={{
+          position: "absolute", top: 50, left: 104, width: 44, height: 44,
+          borderRadius: "50%", background: G.gold + "44",
+        }} />
+        <div style={{
+          position: "absolute", top: 8, left: 8,
+          background: "rgba(255,255,255,0.95)", borderRadius: 6,
+          padding: "3px 8px", fontSize: 8, fontWeight: 700, color: G.dark,
+        }}>📍 Positions en temps réel</div>
+        <div style={{
+          position: "absolute", top: 8, right: 8,
+          background: G.greenMid, color: "#fff", borderRadius: 6,
+          padding: "3px 8px", fontSize: 8, fontWeight: 700,
+        }}>1 actif</div>
+        <div style={{
+          position: "absolute", top: 92, left: 88,
+          background: "#fff", borderRadius: 6,
+          padding: "4px 8px", fontSize: 8, fontWeight: 700, color: G.dark,
+          boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
+        }}>Ibou · Marbella → San Pedro</div>
+      </div>
+      <div style={{ padding: "10px 12px", background: "#fafafa" }}>
+        <div style={{ fontSize: 9, fontWeight: 800, color: G.dark, marginBottom: 6 }}>🏍️ LIVREURS</div>
+        <div style={{
+          background: "#fff", borderRadius: 8, padding: "8px 10px",
+          marginBottom: 8, border: `1px solid ${G.border}`,
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+        }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 800, color: G.dark }}>Ibou</div>
+            <div style={{ fontSize: 8, color: G.greenMid, fontWeight: 600 }}>● GPS actif · Marbella</div>
+          </div>
+          <div style={{
+            background: G.greenLight, color: G.greenDark, fontSize: 9,
+            fontWeight: 800, padding: "3px 8px", borderRadius: 6,
+          }}>5 liv.</div>
+        </div>
+        {[
+          { n: "Saliou Mbaye", s: "Colis en main 📦", p: "20 000 F", c: G.gold },
+          { n: "Saliou Mbaye", s: "Vers le client 🚀", p: "19 125 F", c: G.blue },
+          { n: "Saliou Mbaye", s: "Chez le client 📍", p: "7 500 F", c: G.greenMid },
+        ].map((o, i) => (
+          <div key={i} style={{
+            background: "#fff", borderRadius: 8, padding: "7px 10px",
+            marginBottom: 4, border: `1px solid ${G.border}`,
+            borderLeft: `3px solid ${o.c}`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: G.dark }}>{o.n}</div>
+              <div style={{ fontSize: 7, color: G.muted }}>{o.s}</div>
+            </div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: G.greenDark }}>{o.p}</div>
+          </div>
+        ))}
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function MockupCompta() {
+  return (
+    <PhoneFrame>
+      <div style={{ background: G.greenDark, padding: "10px 14px", color: "#fff" }}>
+        <div style={{ fontSize: 12, fontWeight: 800 }}>Compta</div>
+        <div style={{ fontSize: 7, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+          2026-04-01 → 2026-05-05 · Bénéfice net
+        </div>
+      </div>
+      <div style={{ padding: 12, background: "#fafafa" }}>
+        <div style={{
+          background: `linear-gradient(135deg, ${G.greenDark}, ${G.greenMid})`,
+          borderRadius: 12, padding: "14px 14px", color: "#fff",
+          marginBottom: 10, textAlign: "center",
+        }}>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.65)", fontWeight: 600 }}>Bénéfice net</div>
+          <div style={{ fontSize: 28, fontWeight: 900, color: G.gold, margin: "2px 0" }}>163 640</div>
+          <div style={{ fontSize: 9, color: "rgba(255,255,255,0.7)" }}>CFA</div>
+          <div style={{
+            display: "inline-block", marginTop: 6, background: G.gold,
+            color: G.greenDark, fontSize: 9, fontWeight: 800,
+            padding: "3px 10px", borderRadius: 10,
+          }}>Marge 61.8%</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
+          {[
+            ["CA", "265 000 F", G.greenDark],
+            ["Coûts", "101 360 F", G.red],
+            ["Pub", "0 F", G.muted],
+            ["Livrées/Rej.", "12 / 0", G.greenMid],
+          ].map(([l, v, c]) => (
+            <div key={l} style={{
+              background: "#fff", borderRadius: 8, padding: "8px 10px",
+              border: `1px solid ${G.border}`,
+            }}>
+              <div style={{ fontSize: 8, color: G.muted, fontWeight: 600 }}>{l}</div>
+              <div style={{ fontSize: 12, fontWeight: 900, color: c, marginTop: 1 }}>{v}</div>
+            </div>
           ))}
+        </div>
+        <div style={{ fontSize: 9, fontWeight: 800, color: G.dark, marginBottom: 6 }}>Produits</div>
+        {[
+          { n: "Sac à main", d: "10 livrés · 250 000 F", m: "66.0%", b: "165 000 F", c: G.greenDark, mc: G.greenMid },
+          { n: "Bouchon rotatif", d: "2 livrés · 15 000 F", m: "-9.1%", b: "-1 360 F", c: G.red, mc: G.red },
+          { n: "Adaptateur Carplay", d: "0 livrés", m: "—", b: "—", c: G.muted, mc: G.muted },
+        ].map((p, i) => (
+          <div key={i} style={{
+            background: "#fff", borderRadius: 8, padding: "8px 10px",
+            marginBottom: 4, border: `1px solid ${G.border}`,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: G.dark }}>{p.n}</div>
+              <div style={{ fontSize: 7, color: G.muted, marginTop: 1 }}>{p.d}</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 9, fontWeight: 800, color: p.mc }}>{p.m}</div>
+              <div style={{ fontSize: 8, color: p.c, fontWeight: 700 }}>{p.b}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function MockupLivreur() {
+  return (
+    <PhoneFrame>
+      <div style={{ background: G.greenDark, padding: "10px 14px", color: "#fff" }}>
+        <div style={{ fontSize: 12, fontWeight: 800 }}>Mes Livraisons</div>
+      </div>
+      <div style={{ padding: 12, background: "#fafafa" }}>
+        <div style={{
+          background: "#fff", borderRadius: 12, padding: "12px",
+          marginBottom: 10, border: `2px solid ${G.greenMid}`,
+          boxShadow: "0 4px 12px rgba(46,139,87,0.15)",
+        }}>
+          <div style={{
+            background: G.greenLight, color: G.greenDark, fontSize: 9,
+            fontWeight: 800, padding: "4px 8px", borderRadius: 6,
+            display: "inline-block", marginBottom: 8,
+          }}>📍 Livreur chez le client · 17:12</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>7 500 F</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: G.dark }}>Saliou Mbaye</div>
+          <div style={{ fontSize: 9, color: G.muted, marginBottom: 10 }}>📦 Bouchon rotatif 360° · 🏍️ Ibou</div>
+          <div style={{
+            display: "flex", justifyContent: "space-between",
+            marginBottom: 10, padding: "6px 0",
+            borderTop: `1px dashed ${G.border}`, borderBottom: `1px dashed ${G.border}`,
+          }}>
+            {[1, 2, 3, 4].map(s => (
+              <div key={s} style={{
+                width: 22, height: 22, borderRadius: "50%",
+                background: G.greenMid, color: "#fff",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 10, fontWeight: 800,
+              }}>✓</div>
+            ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+            <div style={{
+              background: G.greenMid, color: "#fff", fontSize: 9,
+              fontWeight: 800, padding: "6px", borderRadius: 6, textAlign: "center",
+            }}>✅ Livré — Cash</div>
+            <div style={{
+              background: G.red, color: "#fff", fontSize: 9,
+              fontWeight: 800, padding: "6px", borderRadius: 6, textAlign: "center",
+            }}>❌ Rejeté</div>
+            <div style={{
+              background: G.muted, color: "#fff", fontSize: 9,
+              fontWeight: 800, padding: "6px", borderRadius: 6, textAlign: "center",
+            }}>⛔ Absent</div>
+            <div style={{
+              background: G.gold, color: G.greenDark, fontSize: 9,
+              fontWeight: 800, padding: "6px", borderRadius: 6, textAlign: "center",
+            }}>↩️ Report</div>
+          </div>
+        </div>
+        <div style={{
+          background: "#fff", borderRadius: 12, padding: "12px",
+          border: `1px solid ${G.border}`, borderLeft: `3px solid ${G.gold}`,
+        }}>
+          <div style={{
+            background: G.goldLight, color: "#854F0B", fontSize: 9,
+            fontWeight: 800, padding: "4px 8px", borderRadius: 6,
+            display: "inline-block", marginBottom: 8,
+          }}>📦 Colis en main · Étape 3</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>25 000 F</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: G.dark }}>Diallo</div>
+          <div style={{ fontSize: 9, color: G.muted, marginBottom: 10 }}>📦 Sac à main · Keur Massar</div>
+          <div style={{
+            background: G.blue, color: "#fff", fontSize: 10,
+            fontWeight: 800, padding: "8px", borderRadius: 8, textAlign: "center",
+          }}>🚀 Je pars vers le client</div>
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function MockupWhatsApp() {
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 24, padding: "26px 22px",
+      boxShadow: "0 30px 80px rgba(26,92,56,.18)", width: 290,
+      fontFamily: "'DM Sans', sans-serif", border: `1px solid ${G.border}`,
+    }}>
+      <div style={{ textAlign: "center", marginBottom: 18 }}>
+        <div style={{ fontSize: 38, marginBottom: 10 }}>📱➡️📱</div>
+        <div style={{ fontSize: 17, fontWeight: 900, color: G.dark }}>Envoyer le message</div>
+        <div style={{ fontSize: 12, color: G.muted, marginTop: 4, lineHeight: 1.4 }}>
+          Choisissez comment envoyer la confirmation au client
+        </div>
+      </div>
+      <div style={{
+        background: "#25D366", borderRadius: 12, padding: "14px 16px",
+        display: "flex", alignItems: "center", gap: 11, marginBottom: 10, cursor: "pointer",
+      }}>
+        <span style={{ fontSize: 22 }}>💬</span>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 800, color: "#fff" }}>Ouvrir WhatsApp</div>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,.8)" }}>Ouvre l'app sur votre téléphone</div>
+        </div>
+      </div>
+      <div style={{
+        border: `1.5px solid ${G.greenLight}`, borderRadius: 12, padding: "12px 16px",
+        display: "flex", alignItems: "center", gap: 11, marginBottom: 10, cursor: "pointer",
+      }}>
+        <span style={{ fontSize: 17 }}>📋</span>
+        <div style={{ fontSize: 14, fontWeight: 700, color: G.greenDark }}>Copier le message</div>
+      </div>
+      <div style={{
+        background: "rgba(0,0,0,.05)", borderRadius: 10, padding: "10px",
+        textAlign: "center", fontSize: 13, color: G.muted, fontWeight: 600, cursor: "pointer",
+      }}>Fermer</div>
+    </div>
+  );
+}
+
+function MockupDesktopCommandes() {
+  return (
+    <div style={{
+      width: "100%", maxWidth: 720, background: "#0d1f18",
+      borderRadius: 14, overflow: "hidden",
+      boxShadow: "0 50px 120px rgba(0,0,0,0.55)",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <div style={{ background: "#162a1f", padding: "10px 14px", display: "flex", alignItems: "center", gap: 7 }}>
+        {["#ff5f57", "#febc2e", "#28c840"].map(c => (
+          <div key={c} style={{ width: 11, height: 11, borderRadius: "50%", background: c }} />
+        ))}
+        <div style={{
+          flex: 1, textAlign: "center", fontSize: 10,
+          color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)",
+          borderRadius: 6, padding: "3px 12px", maxWidth: 220, margin: "0 auto",
+        }}>teamlyecom.com</div>
+      </div>
+      <div style={{ display: "flex", height: 380 }}>
+        <div style={{ width: 150, background: "#111f17", padding: "14px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
+          <Logo size={16} light />
+          <div style={{ marginTop: 12, fontSize: 8, color: "rgba(255,255,255,0.4)", padding: "0 6px", fontWeight: 700, letterSpacing: 1 }}>NAVIGATION</div>
+          {[
+            ["⊞", "Dashboard", false],
+            ["✓", "Cmdes à confirmer", false, "5"],
+            ["🚚", "Cmdes à traiter", true, "3"],
+            ["$", "Compta", false],
+            ["📍", "Livreurs", false],
+          ].map(([i, l, a, b]) => (
+            <div key={l} style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "6px 8px", borderRadius: 8,
+              background: a ? `${G.greenDark}88` : "transparent",
+              fontSize: 10, color: a ? G.gold : "rgba(255,255,255,0.55)",
+              fontWeight: a ? 800 : 500, justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontSize: 11 }}>{i}</span>{l}
+              </div>
+              {b && <span style={{
+                background: G.gold, color: G.greenDark, fontSize: 8,
+                fontWeight: 800, padding: "1px 5px", borderRadius: 8,
+              }}>{b}</span>}
+            </div>
+          ))}
+        </div>
+        <div style={{ flex: 1, padding: "14px 14px", overflow: "hidden", background: "#0d1f18" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "#fff" }}>Commandes à traiter</div>
+              <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>Ma Boutique</div>
+            </div>
+            <div style={{
+              fontSize: 10, color: G.greenDark, background: G.gold,
+              padding: "5px 11px", borderRadius: 7, fontWeight: 800,
+            }}>+ Commande</div>
+          </div>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 4 }}>Statut de livraison</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
+              {["Tout", "En attente", "En route 🚚", "Colis main 📦", "Vers client 🚀", "Chez client 📍"].map((t, i) => (
+                <div key={t} style={{
+                  fontSize: 8, padding: "3px 7px", borderRadius: 5,
+                  background: i === 0 ? G.greenDark : "rgba(255,255,255,0.06)",
+                  color: i === 0 ? G.gold : "rgba(255,255,255,0.55)",
+                  fontWeight: i === 0 ? 800 : 500,
+                }}>{t}</div>
+              ))}
+            </div>
+            <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", fontWeight: 700, marginBottom: 4 }}>Résultat</div>
+            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+              {["Encaissé ✅", "Rejeté ❌", "Absent 🚫"].map(t => (
+                <div key={t} style={{
+                  fontSize: 8, padding: "3px 7px", borderRadius: 5,
+                  background: "rgba(255,255,255,0.06)",
+                  color: "rgba(255,255,255,0.55)", fontWeight: 500,
+                }}>{t}</div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+            {[
+              { n: "Saliou Mbaye", p: "Adaptateur Carplay", price: "20 000 F" },
+              { n: "Hhhhhh", p: "Sac à main", price: "25 000 F" },
+              { n: "Saliou", p: "Sac à main", price: "25 000 F" },
+            ].map((o, i) => (
+              <div key={i} style={{
+                background: "rgba(255,255,255,0.05)", borderRadius: 7,
+                padding: "8px 10px", borderLeft: `3px solid ${G.greenMid}`,
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{
+                    fontSize: 8, color: G.greenMid, background: `${G.greenMid}22`,
+                    padding: "2px 6px", borderRadius: 4, fontWeight: 800,
+                  }}>Client confirmé ✅</span>
+                  <span style={{ fontSize: 11, color: G.gold, fontWeight: 800 }}>{o.price}</span>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#fff" }}>{o.n}</div>
+                <div style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", marginBottom: 5 }}>{o.p}</div>
+                <div style={{
+                  background: "#25D366", color: "#fff", fontSize: 8,
+                  fontWeight: 800, padding: "4px 8px", borderRadius: 5,
+                  display: "inline-block",
+                }}>📱 Confirmer par WhatsApp</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── PRICING PLANS ─── */
-const PLANS = [
-  {name:"Gratuit",badge:"14 JOURS D'ESSAI",badgeC:"#2563EB",badgeBg:"#EFF6FF",
-    price:null,priceLbl:"Gratuit",sub:"Pour découvrir Teamly",
-    features:["2 membres (Admin + 1)","30 commandes / mois","Création manuelle de commandes","Gestion des produits & stock","Chat équipe interne","Dashboard & statistiques basiques"],
-    cta:"Essayer gratuitement",ctaBg:G.dark,ctaC:G.white,popular:false},
-  {name:"Basic",badge:"LE PLUS POPULAIRE",badgeC:G.dark,badgeBg:G.gold,
-    price:"8 000",sub:"Pour les boutiques qui démarrent",
-    features:["3 membres (Admin + Closer + Livreur)","100 commandes / mois","1 boutique connectée (Shopify, WooCommerce, YouCan)","Confirmation WhatsApp automatique","GPS livreur temps réel","Comptabilité & marges","Assistant IA"],
-    cta:"Activer Basic",ctaBg:G.green,ctaC:G.white,popular:true},
-  {name:"Pro",badge:"POUR LES ÉQUIPES",badgeC:G.green,badgeBg:G.greenLight,
-    price:"14 000",sub:"Pour les boutiques en croissance",
-    features:["5 membres — 3 rôles","2 000 commandes / mois","2 boutiques connectées","Toutes les fonctions Basic","Rapports & stats avancés","Export Excel clients"],
-    cta:"Activer Pro",ctaBg:G.green,ctaC:G.white,popular:false},
-  {name:"Scale",badge:"GRANDES ÉQUIPES",badgeC:G.purple,badgeBg:G.purpleLight,
-    price:"25 000",sub:"Croissance sans limites",
-    features:["Membres illimités","Commandes illimitées","4 boutiques connectées","Toutes les fonctions Pro","Support prioritaire 24/7"],
-    cta:"Activer Scale",ctaBg:"linear-gradient(135deg,#7C3AED,#5B21B6)",ctaC:G.white,popular:false},
-];
-
-/* ─── FEATURE SECTION ─── */
-function FeatureSection({tag,title,desc,bullets,phone,reverse,bg=G.white}) {
-  const screens = {dashboard:<DashboardScreen/>,chat:<ChatScreen/>,gps:<GPSScreen/>,compta:<ComptaScreen/>,livreur:<LivreurScreen/>};
+function MockupDesktopDashboard() {
   return (
-    <section className={`feature-section ${reverse?"reverse":""}`}
-      style={{background:bg,padding:"80px 0"}}>
-      <div className="feature-inner" style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",
-        display:"flex",alignItems:"center",gap:56,
-        flexDirection:reverse?"row-reverse":"row"}}>
-        <div className="phone-wrap" style={{display:"flex",justifyContent:reverse?"flex-start":"flex-end",flex:1}}>
-          <Phone>{screens[phone]}</Phone>
+    <div style={{
+      width: "100%", maxWidth: 720, background: "#0d1f18",
+      borderRadius: 14, overflow: "hidden",
+      boxShadow: "0 50px 120px rgba(0,0,0,0.55)",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <div style={{ background: "#162a1f", padding: "10px 14px", display: "flex", alignItems: "center", gap: 7 }}>
+        {["#ff5f57", "#febc2e", "#28c840"].map(c => (
+          <div key={c} style={{ width: 11, height: 11, borderRadius: "50%", background: c }} />
+        ))}
+        <div style={{
+          flex: 1, textAlign: "center", fontSize: 10,
+          color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.06)",
+          borderRadius: 6, padding: "3px 12px", maxWidth: 220, margin: "0 auto",
+        }}>teamlyecom.com</div>
+      </div>
+      <div style={{ display: "flex", height: 400 }}>
+        <div style={{ width: 150, background: "#111f17", padding: "14px 10px", display: "flex", flexDirection: "column", gap: 3 }}>
+          <Logo size={16} light />
+          <div style={{ marginTop: 12, fontSize: 8, color: "rgba(255,255,255,0.4)", padding: "0 6px", fontWeight: 700, letterSpacing: 1 }}>NAVIGATION</div>
+          {[
+            ["⊞", "Dashboard", true],
+            ["✓", "À confirmer"],
+            ["🚚", "À traiter", false, "3"],
+            ["$", "Compta"],
+            ["📍", "Livreurs"],
+            ["👥", "Clients"],
+            ["💬", "Équipe Chat"],
+            ["📦", "Produits"],
+          ].map(([i, l, a, b]) => (
+            <div key={l} style={{
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "5px 8px", borderRadius: 7,
+              background: a ? `${G.greenDark}88` : "transparent",
+              fontSize: 9, color: a ? G.gold : "rgba(255,255,255,0.55)",
+              fontWeight: a ? 800 : 500, justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 10 }}>{i}</span>{l}
+              </div>
+              {b && <span style={{
+                background: G.gold, color: G.greenDark, fontSize: 7,
+                fontWeight: 800, padding: "1px 5px", borderRadius: 8,
+              }}>{b}</span>}
+            </div>
+          ))}
         </div>
-        <div style={{flex:1,maxWidth:420}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:7,background:G.greenLight,
-            padding:"5px 14px",borderRadius:22,marginBottom:18}}>
-            <div style={{width:7,height:7,borderRadius:"50%",background:G.green}}/>
-            <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.8,textTransform:"uppercase"}}>{tag}</span>
+        <div style={{ flex: 1, padding: "14px 14px", background: "#0d1f18", overflow: "hidden" }}>
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 14, fontWeight: 900, color: "#fff" }}>Dashboard</div>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>
+              Bonjour, <b style={{ color: G.gold }}>Saliou Mbaye</b> 👋 · Ma Boutique · mardi 5 mai
+            </div>
           </div>
-          <h2 style={{fontSize:33,fontWeight:900,color:G.dark,lineHeight:1.14,
-            margin:"0 0 16px",letterSpacing:-0.6}}>{title}</h2>
-          <p style={{fontSize:15,color:G.gray,lineHeight:1.72,margin:"0 0 26px"}}>{desc}</p>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {bullets.map((b,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:G.greenLight,flexShrink:0,
-                  display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={G.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <span style={{fontSize:14,color:G.dark}}>{b}</span>
+          <div style={{
+            background: `linear-gradient(135deg, ${G.greenDark}, ${G.greenMid})`,
+            borderRadius: 8, padding: "10px 14px", marginBottom: 10,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.65)", fontWeight: 700, letterSpacing: 1 }}>CA DU JOUR</div>
+              <div style={{ fontSize: 18, fontWeight: 900, color: G.gold }}>265 000 CFA</div>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.6)" }}>Bénéf. total</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: G.gold }}>163 640 CFA</div>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 5, marginBottom: 8 }}>
+            {[
+              { i: "📦", v: "27", l: "Total", c: G.greenDark },
+              { i: "✅", v: "12", l: "Livrées", c: G.greenMid },
+              { i: "❌", v: "5", l: "Rejetées", c: G.red },
+              { i: "🏍️", v: "1", l: "En route", c: G.blue },
+            ].map(s => (
+              <div key={s.l} style={{
+                background: "rgba(255,255,255,0.04)", borderRadius: 6,
+                padding: "6px 8px", textAlign: "center",
+              }}>
+                <div style={{ fontSize: 10 }}>{s.i}</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: s.c }}>{s.v}</div>
+                <div style={{ fontSize: 7, color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>{s.l}</div>
               </div>
             ))}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "8px", marginBottom: 5 }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 8, color: "rgba(255,255,255,0.55)" }}>Taux de livraison</span>
+                  <span style={{ fontSize: 9, color: G.gold, fontWeight: 800 }}>44%</span>
+                </div>
+                <div style={{ height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 3, marginTop: 4 }}>
+                  <div style={{ width: "44%", height: "100%", background: G.gold, borderRadius: 3 }} />
+                </div>
+              </div>
+              <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "8px" }}>
+                <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", fontWeight: 800, marginBottom: 4 }}>💰 CA PAR PRODUIT</div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                  <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>Sac à main</span>
+                  <span style={{ fontSize: 9, color: G.gold, fontWeight: 800 }}>250 000 F</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 6, padding: "8px" }}>
+              <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", fontWeight: 800, marginBottom: 6 }}>⚡ ACTIONS RAPIDES</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                {["+ Commande", "+ Produit", "Clients", "Tracking"].map(a => (
+                  <div key={a} style={{
+                    background: G.gold, color: G.greenDark, fontSize: 8,
+                    fontWeight: 800, padding: "4px 6px", borderRadius: 4, textAlign: "center",
+                  }}>{a}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureSection({ id, kicker, title, titleAccent, desc, points, mockup, reverse, bg }) {
+  return (
+    <section id={id} style={{ padding: "84px 28px", background: bg || G.offwhite }}>
+      <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+        <div className="feat-row" style={{
+          display: "flex", alignItems: "center", gap: 64,
+          flexDirection: reverse ? "row-reverse" : "row",
+          flexWrap: "wrap", justifyContent: "center",
+        }}>
+          <div className="feat-text" style={{ flex: 1, minWidth: 280, maxWidth: 480 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: G.greenMid,
+              letterSpacing: 2, marginBottom: 12, textTransform: "uppercase",
+            }}>{kicker}</div>
+            <h2 style={{
+              fontSize: 34, fontWeight: 900, color: G.dark,
+              letterSpacing: -1, marginBottom: 16, lineHeight: 1.15,
+            }}>
+              {title}{titleAccent && <><br /><span style={{ color: G.greenMid }}>{titleAccent}</span></>}
+            </h2>
+            <p style={{ fontSize: 16, color: G.muted, lineHeight: 1.65, marginBottom: 24 }}>{desc}</p>
+            <div className="check-list" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {points.map(p => <CheckLine key={p}>{p}</CheckLine>)}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
+            {mockup}
           </div>
         </div>
       </div>
@@ -610,381 +848,605 @@ function FeatureSection({tag,title,desc,bullets,phone,reverse,bg=G.white}) {
   );
 }
 
-/* ─── MAIN ─── */
+const PLANS = [
+  {
+    name: "Gratuit", badge: "14 JOURS D'ESSAI", price: "0", unit: "",
+    tagline: "Pour découvrir Teamly", summary: "30 cmd · 2 membres",
+    highlight: false, cta: "Activer Gratuit",
+    features: [
+      { ok: true, label: "2 membres" },
+      { ok: true, label: "30 commandes / mois" },
+      { ok: true, label: "Suivi des livraisons" },
+      { ok: true, label: "Chat équipe interne" },
+      { ok: false, label: "GPS livreur temps réel" },
+      { ok: false, label: "Boutique connectée" },
+      { ok: false, label: "WhatsApp automatique" },
+      { ok: false, label: "Comptabilité & marges" },
+    ],
+  },
+  {
+    name: "Basic", badge: "LE PLUS POPULAIRE", price: "8 000", unit: "CFA / mois",
+    tagline: "Pour démarrer", summary: "100 cmd · 3 membres · 1 boutique",
+    highlight: true, cta: "Choisir Basic",
+    features: [
+      { ok: true, label: "3 membres (Admin + Closer + Livreur)" },
+      { ok: true, label: "100 commandes / mois" },
+      { ok: true, label: "1 boutique connectée" },
+      { ok: true, label: "Confirmation WhatsApp auto" },
+      { ok: true, label: "GPS livreur temps réel" },
+      { ok: true, label: "Comptabilité & marges" },
+      { ok: true, label: "Assistant IA" },
+      { ok: true, label: "Chat équipe complet" },
+    ],
+  },
+  {
+    name: "Pro", badge: "POUR LES ÉQUIPES", price: "14 000", unit: "CFA / mois",
+    tagline: "En croissance", summary: "2000 cmd · 5 membres · 2 boutiques",
+    highlight: false, cta: "Activer Pro",
+    features: [
+      { ok: true, label: "5 membres · 3 rôles" },
+      { ok: true, label: "2 000 commandes / mois" },
+      { ok: true, label: "2 boutiques connectées" },
+      { ok: true, label: "Toutes les fonctions Basic" },
+      { ok: true, label: "Stock avancé" },
+      { ok: true, label: "Rapports avancés" },
+      { ok: true, label: "Export Excel clients" },
+      { ok: true, label: "Assistant IA Pro" },
+    ],
+  },
+  {
+    name: "Scale", badge: "GRANDES ÉQUIPES", price: "25 000", unit: "CFA / mois",
+    tagline: "Sans limites", summary: "Illimité · 4 boutiques",
+    highlight: false, cta: "Activer Scale",
+    features: [
+      { ok: true, label: "Membres illimités" },
+      { ok: true, label: "Commandes illimitées" },
+      { ok: true, label: "4 boutiques connectées" },
+      { ok: true, label: "Toutes les fonctions Pro" },
+      { ok: true, label: "Support prioritaire 24/7" },
+      { ok: true, label: "Onboarding personnalisé" },
+      { ok: true, label: "Multi-pays" },
+      { ok: true, label: "API dédiée" },
+    ],
+  },
+];
+
 export default function TeamlyLanding() {
-  const [scrolled,setScrolled]=useState(false);
-  useEffect(()=>{
-    const fn=()=>setScrolled(window.scrollY>60);
-    window.addEventListener("scroll",fn);
-    return()=>window.removeEventListener("scroll",fn);
-  },[]);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const h = () => setScrolled(window.scrollY > 40);
+    window.addEventListener("scroll", h);
+    return () => window.removeEventListener("scroll", h);
+  }, []);
 
   return (
-    <div style={{fontFamily:"system-ui,-apple-system,sans-serif",overflowX:"hidden",background:G.white}}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: G.offwhite, color: G.text, overflowX: "hidden" }}>
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800;900&display=swap" rel="stylesheet" />
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
-        *{box-sizing:border-box;}
-        body{margin:0;}
+        *{box-sizing:border-box;margin:0;padding:0;}
         html{scroll-behavior:smooth;}
-        h1,h2,h3{font-family:'Plus Jakarta Sans',Georgia,serif;}
-        a{cursor:pointer;-webkit-tap-highlight-color:transparent;}
-        nav{left:0;right:0;}
+        .btn-gold{background:${G.gold};color:${G.greenDark};font-weight:800;border:none;border-radius:12px;padding:13px 26px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:transform .15s,box-shadow .15s;}
+        .btn-gold:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(240,165,0,.35);}
+        .btn-outline{background:transparent;color:${G.white};font-weight:700;border:2px solid rgba(255,255,255,.3);border-radius:12px;padding:11px 22px;font-size:14px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+        .btn-outline:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.6);}
         @media(max-width:900px){
-          .hero-inner{flex-direction:column !important;padding:100px 24px 60px !important;gap:40px !important;}
-          .hero-text{max-width:100% !important;}
-          .hero-h1{font-size:38px !important;}
-          .hero-phone{display:flex;justify-content:center;}
-          .hero-btns{flex-wrap:wrap;}
-          .hero-stats{gap:24px !important;}
-          .feature-inner{flex-direction:column !important;padding:0 24px !important;gap:40px !important;}
-          .phone-wrap{justify-content:center !important;}
-          .desktop-section .inner{flex-direction:column !important;padding:0 24px !important;gap:32px !important;}
-          .desktop-section .browser-wrap{width:100% !important;}
-          .nav-links{display:none !important;}
-          .nav-login{display:none !important;}
-          .pricing-grid{grid-template-columns:1fr !important;padding:0 24px !important;}
-          .roles-grid{grid-template-columns:1fr !important;padding:0 24px !important;}
-          .cta-btns{flex-direction:column !important;align-items:center !important;}
-          .footer-inner{flex-direction:column !important;gap:20px !important;text-align:center !important;padding:28px 24px !important;}
-          .social-proof{padding:14px 24px !important;gap:20px !important;}
+          .hero-grid{flex-direction:column!important;text-align:center!important;}
+          .hero-ctas{justify-content:center!important;}
+          .pricing-grid{grid-template-columns:1fr 1fr!important;}
+          .roles-grid{grid-template-columns:1fr!important;}
+          .nav-links{display:none!important;}
+          .hero-title{font-size:36px!important;}
+          .feat-row{flex-direction:column!important;text-align:center!important;}
+          .feat-text{text-align:center!important;}
+          .check-list{align-items:center!important;}
         }
-        @media(max-width:600px){
-          .hero-h1{font-size:32px !important;}
-          .nav-inner{padding:14px 20px !important;}
+        @media(max-width:540px){
+          .pricing-grid{grid-template-columns:1fr!important;}
+          .hero-title{font-size:28px!important;}
+          .stats-row{gap:24px!important;}
+          .countries-row{gap:14px!important;font-size:12px!important;}
         }
       `}</style>
 
-      {/* ── NAV ── */}
-      <nav style={{position:"fixed",top:0,zIndex:200,width:"100%",
-        background:scrolled?"rgba(255,255,255,0.97)":"transparent",
-        backdropFilter:scrolled?"blur(14px)":"none",
-        boxShadow:scrolled?"0 1px 24px rgba(0,0,0,0.07)":"none",
-        transition:"all 0.3s"}}>
-        <div className="nav-inner" style={{maxWidth:1200,margin:"0 auto",padding:"16px 48px",
-          display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <Logo light={!scrolled}/>
-          <div className="nav-links" style={{display:"flex",alignItems:"center",gap:32}}>
-            {[{l:"Fonctionnalités",h:"#fonctionnalites"},{l:"Rôles",h:"#roles"},{l:"Tarifs",h:"#plans"},{l:"Support",h:"https://wa.me/34643164129"}].map(({l,h})=>(
-              <a key={l} href={h} style={{fontSize:14,fontWeight:600,textDecoration:"none",
-                color:scrolled?G.dark:G.white}}>{l}</a>
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100,
+        background: scrolled ? `${G.greenDark}f5` : G.greenDark,
+        backdropFilter: "blur(14px)",
+        borderBottom: scrolled ? "1px solid rgba(255,255,255,.08)" : "none",
+        transition: "all .3s",
+      }}>
+        <div style={{
+          maxWidth: 1180, margin: "0 auto", padding: "0 28px", height: 62,
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+        }}>
+          <Logo size={25} light />
+          <div className="nav-links" style={{ display: "flex", gap: 26 }}>
+            {[["Fonctionnalités", "#chat"], ["WhatsApp", "#whatsapp"], ["PC", "#desktop"], ["Tarifs", "#tarifs"]].map(([l, h]) => (
+              <a key={l} href={h} style={{
+                fontSize: 14, color: "rgba(255,255,255,.7)",
+                textDecoration: "none", fontWeight: 500,
+              }}>{l}</a>
             ))}
           </div>
-          <div style={{display:"flex",gap:12,alignItems:"center"}}>
-            <a className="nav-login" href="/dashboard"
-              style={{fontSize:14,fontWeight:600,textDecoration:"none",
-                color:scrolled?G.dark:"rgba(255,255,255,0.85)"}}>Se connecter</a>
-            <a href="/dashboard"
-              style={{fontSize:14,fontWeight:800,background:G.gold,color:G.dark,
-                textDecoration:"none",padding:"10px 22px",borderRadius:11,
-                boxShadow:"0 4px 14px rgba(240,165,0,0.3)"}}>Commencer →</a>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <a href="#tarifs" style={{
+              fontSize: 13, color: "rgba(255,255,255,.65)",
+              textDecoration: "none", fontWeight: 500,
+            }}>Connexion</a>
+            <button className="btn-gold" style={{ padding: "9px 18px", fontSize: 13 }}>Commencer →</button>
           </div>
         </div>
       </nav>
 
-      {/* ── HERO ── */}
-      <section style={{background:`linear-gradient(160deg,${G.greenDark} 0%,${G.green} 58%,${G.greenMid} 100%)`,
-        minHeight:"100vh",display:"flex",alignItems:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:-100,right:-100,width:500,height:500,borderRadius:"50%",background:"rgba(255,255,255,0.025)"}}/>
-        <div style={{position:"absolute",bottom:-80,left:-80,width:380,height:380,borderRadius:"50%",background:"rgba(255,255,255,0.02)"}}/>
-        <div className="hero-inner" style={{maxWidth:1200,margin:"0 auto",padding:"130px 48px 90px",
-          display:"flex",alignItems:"center",gap:60,width:"100%"}}>
-          <div className="hero-text" style={{flex:1,maxWidth:520}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,
-              background:"rgba(255,255,255,0.11)",border:"1px solid rgba(255,255,255,0.15)",
-              backdropFilter:"blur(8px)",padding:"7px 16px",borderRadius:24,marginBottom:24}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:G.gold}}/>
-              <span style={{fontSize:12,fontWeight:600,color:G.white}}>Plateforme SaaS COD · Afrique de l'Ouest</span>
+      <section style={{
+        background: `linear-gradient(155deg, ${G.greenDark} 0%, #0d3320 55%, #091f14 100%)`,
+        padding: "70px 28px 90px", position: "relative", overflow: "hidden",
+      }}>
+        <div style={{
+          position: "absolute", top: -100, right: -100, width: 480, height: 480,
+          borderRadius: "50%", background: `radial-gradient(circle,${G.gold}15 0%,transparent 70%)`,
+          pointerEvents: "none",
+        }} />
+        <div style={{
+          position: "absolute", bottom: -60, left: -40, width: 280, height: 280,
+          borderRadius: "50%", background: `radial-gradient(circle,${G.greenMid}20 0%,transparent 70%)`,
+          pointerEvents: "none",
+        }} />
+        <div className="hero-grid" style={{
+          maxWidth: 1180, margin: "0 auto",
+          display: "flex", alignItems: "center", gap: 56, position: "relative",
+        }}>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8, marginBottom: 18,
+              background: `${G.gold}20`, borderRadius: 20, padding: "5px 14px",
+              border: `1px solid ${G.gold}40`,
+            }}>
+              <span style={{ fontSize: 12, color: G.gold, fontWeight: 700 }}>
+                Plateforme SaaS COD · Afrique de l'Ouest
+              </span>
             </div>
-            <h1 className="hero-h1" style={{fontSize:54,fontWeight:900,color:G.white,
-              lineHeight:1.08,margin:"0 0 16px",letterSpacing:-1.5}}>
-              Enfin, votre équipe<br/>e-commerce<br/>
-              <span style={{color:G.gold}}>synchronisée.</span>
+            <h1 className="hero-title" style={{
+              fontSize: 50, fontWeight: 900, color: "#fff",
+              lineHeight: 1.07, letterSpacing: -1.5, marginBottom: 18,
+            }}>
+              Enfin, votre équipe<br />
+              <span style={{ color: G.gold }}>e-commerce</span><br />
+              synchronisée.
             </h1>
-            <a href="/dashboard"
-              style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,fontWeight:600,
-                color:"rgba(255,255,255,0.55)",textDecoration:"none",marginBottom:16,
-                borderBottom:"1px solid rgba(255,255,255,0.22)",paddingBottom:2}}>
-              🔗 www.teamlyecom.com
-            </a>
-            <p style={{fontSize:16,color:"rgba(255,255,255,0.78)",lineHeight:1.72,margin:"0 0 34px"}}>
-              Admin, Closer et Livreur — une seule plateforme.<br/>
-              Chaque commande confirmée, livrée et encaissée{" "}
-              <strong style={{color:G.gold}}>plus vite</strong>.
+            <div style={{
+              display: "inline-block", fontSize: 13, color: "rgba(255,255,255,0.5)",
+              background: "rgba(255,255,255,0.06)", borderRadius: 6,
+              padding: "4px 12px", marginBottom: 20, fontWeight: 600,
+            }}>🔗 www.teamlyecom.com</div>
+            <p style={{
+              fontSize: 17, color: "rgba(255,255,255,.65)", lineHeight: 1.65,
+              maxWidth: 460, marginBottom: 28,
+            }}>
+              Admin, Closer et Livreur — une seule plateforme. Chaque commande confirmée, livrée et encaissée plus vite.
             </p>
-            <div className="hero-btns" style={{display:"flex",gap:14,marginBottom:44}}>
-              <a href="/dashboard"
-                style={{display:"inline-flex",alignItems:"center",background:G.gold,color:G.dark,
-                  fontWeight:800,fontSize:15,padding:"15px 26px",borderRadius:12,textDecoration:"none",
-                  boxShadow:"0 8px 28px rgba(240,165,0,0.35)"}}>Commencer gratuitement →</a>
-              <a href="https://wa.me/34643164129?text=Bonjour%2C%20je%20veux%20essayer%20Teamly" target="_blank" rel="noreferrer"
-                style={{display:"inline-flex",alignItems:"center",gap:8,
-                  background:"rgba(255,255,255,0.11)",border:"1px solid rgba(255,255,255,0.2)",
-                  color:G.white,fontWeight:700,fontSize:15,padding:"15px 20px",
-                  borderRadius:12,textDecoration:"none"}}>💬 WhatsApp</a>
-            </div>
-            <div className="hero-stats" style={{display:"flex",gap:40}}>
-              {[{n:"500+",l:"Boutiques actives"},{n:"+30%",l:"Taux de livraison"},{n:"3",l:"Rôles intégrés"}].map((s,i)=>(
-                <div key={i}>
-                  <div style={{fontSize:26,fontWeight:900,color:G.gold}}>{s.n}</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)"}}>{s.l}</div>
-                </div>
-              ))}
+            <div className="hero-ctas" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
+                Commencer gratuitement →
+              </button>
+              <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
+                <button className="btn-outline">💬 WhatsApp</button>
+              </a>
             </div>
           </div>
-          <div className="hero-phone" style={{flex:1,display:"flex",justifyContent:"center"}}>
-            <Phone><DashboardScreen/></Phone>
+          <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
+            <MockupDashboard />
           </div>
         </div>
       </section>
 
-      {/* ── SOCIAL PROOF ── */}
-      <section className="social-proof" style={{background:G.white,borderBottom:`1px solid ${G.border}`,
-        padding:"18px 48px",display:"flex",alignItems:"center",justifyContent:"center",gap:40,flexWrap:"wrap"}}>
-        <span style={{fontSize:13,color:G.gray}}>Vendeurs actifs en :</span>
-        {["🇸🇳 Sénégal","🇨🇮 Côte d'Ivoire","🇲🇱 Mali","🇲🇦 Maroc","🇪🇸 Espagne"].map(c=>(
-          <span key={c} style={{fontSize:14,fontWeight:600,color:G.dark}}>{c}</span>
-        ))}
-      </section>
-
-      {/* ── FEATURES ── */}
-      <div id="fonctionnalites">{[
-        {tag:"Chat d'équipe",title:"Toute votre équipe dans un seul endroit.",
-          desc:"Fini les groupes WhatsApp désorganisés. Admin, Closer et Livreur communiquent dans un chat interne structuré par rôle, directement dans l'app.",
-          bullets:["Messages texte, audio et photos","Rôles visibles en temps réel","Notifications instantanées","Historique complet des conversations"],
-          phone:"chat",reverse:false,bg:G.white},
-        {tag:"GPS Livreur",title:"Suivez vos livreurs en temps réel.",
-          desc:"Voyez sur une carte live où se trouve chaque livreur, quelles commandes il transporte et leur valeur. Zéro appel, zéro confusion.",
-          bullets:["Position GPS en direct sur carte","Statut de chaque livraison","Alerte automatique au client à l'approche","Valeur totale en transit visible"],
-          phone:"gps",reverse:true,bg:G.grayLight},
-        {tag:"Comptabilité automatique",title:"Vos marges, calculées toutes seules.",
-          desc:"La section Compta se remplit automatiquement à partir des commandes. Vous n'entrez que votre budget pub. Tout le reste est calculé.",
-          bullets:["Bénéfice net en temps réel","Marge par produit calculée","CA / Coûts / Pub automatique","Rapport livraisons / rejections"],
-          phone:"compta",reverse:false,bg:G.white},
-        {tag:"Espace Livreur",title:"Le livreur sait toujours quoi faire.",
-          desc:"Chaque livreur voit ses commandes, le statut étape par étape et peut encaisser ou rejeter en un seul tap. Zéro erreur possible.",
-          bullets:["Flux guidé étape par étape","Encaisser / Rejeter / Absent en 1 tap","Contact client direct depuis l'app","Synchro temps réel avec l'Admin"],
-          phone:"livreur",reverse:true,bg:G.grayLight},
-      ].map((f,i)=><FeatureSection key={i} {...f}/>)}</div>
-
-      {/* ── DISPONIBLE SUR PC ── */}
-      <section className="desktop-section" style={{background:G.white,padding:"80px 0"}}>
-        <div className="inner" style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",
-          display:"flex",alignItems:"center",gap:56}}>
-          <div style={{flex:1,maxWidth:380}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:7,background:G.greenLight,
-              padding:"5px 14px",borderRadius:22,marginBottom:18}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:G.green}}/>
-              <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.8,textTransform:"uppercase"}}>Disponible sur PC</span>
-            </div>
-            <h2 style={{fontSize:33,fontWeight:900,color:G.dark,lineHeight:1.14,margin:"0 0 16px",letterSpacing:-0.6}}>
-              Gérez tout depuis votre ordinateur.
-            </h2>
-            <p style={{fontSize:15,color:G.gray,lineHeight:1.72,margin:"0 0 26px"}}>
-              Teamly est accessible sur navigateur web — PC, Mac, tablette. La vue desktop offre un dashboard étendu, une gestion des commandes en colonnes et des filtres avancés.
-            </p>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {["Sidebar de navigation complète","Grille de commandes multi-colonnes","Filtres avancés : statut + résultat","Accessible sur tous les navigateurs","Aucune installation requise"].map((b,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:22,height:22,borderRadius:"50%",background:G.greenLight,flexShrink:0,
-                    display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={G.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  </div>
-                  <span style={{fontSize:14,color:G.dark}}>{b}</span>
-                </div>
-              ))}
-            </div>
-            <a href="/dashboard"
-              style={{display:"inline-flex",alignItems:"center",gap:8,marginTop:28,
-                background:G.green,color:G.white,fontWeight:700,fontSize:14,
-                padding:"13px 24px",borderRadius:11,textDecoration:"none"}}>
-              Ouvrir sur PC →
-            </a>
-          </div>
-          <div className="browser-wrap" style={{flex:1,display:"flex",justifyContent:"flex-end"}}>
-            <Browser><DesktopOrders/></Browser>
-          </div>
-        </div>
-      </section>
-
-      {/* ── SECOND DESKTOP SECTION: DASHBOARD PC ── */}
-      <section className="desktop-section" style={{background:G.grayLight,padding:"80px 0"}}>
-        <div className="inner" style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",
-          display:"flex",alignItems:"center",gap:56,flexDirection:"row-reverse"}}>
-          <div style={{flex:1,maxWidth:380}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:7,background:G.greenLight,
-              padding:"5px 14px",borderRadius:22,marginBottom:18}}>
-              <div style={{width:7,height:7,borderRadius:"50%",background:G.green}}/>
-              <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.8,textTransform:"uppercase"}}>Dashboard Admin</span>
-            </div>
-            <h2 style={{fontSize:33,fontWeight:900,color:G.dark,lineHeight:1.14,margin:"0 0 16px",letterSpacing:-0.6}}>
-              Vision complète de votre boutique.
-            </h2>
-            <p style={{fontSize:15,color:G.gray,lineHeight:1.72,margin:"0 0 26px"}}>
-              Le dashboard Admin centralise CA du jour, bénéfice, taux de livraison, CA par produit et alertes en temps réel. Tout sur une seule page.
-            </p>
-            {["CA du jour et bénéfice net","Taux de livraison en temps réel","CA par produit avec marges","Alertes commandes sans livreur","Commandes récentes en un coup d'œil"].map((b,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-                <div style={{width:22,height:22,borderRadius:"50%",background:G.greenLight,flexShrink:0,
-                  display:"flex",alignItems:"center",justifyContent:"center"}}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={G.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                </div>
-                <span style={{fontSize:14,color:G.dark}}>{b}</span>
-              </div>
-            ))}
-          </div>
-          <div className="browser-wrap" style={{flex:1}}>
-            <Browser><DesktopDashboard/></Browser>
-          </div>
-        </div>
-      </section>
-
-      {/* ── ROLES ── */}
-      <section id="roles" style={{background:G.greenDark,padding:"80px 0"}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",textAlign:"center",marginBottom:52}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:7,background:"rgba(255,255,255,0.08)",
-            padding:"5px 14px",borderRadius:22,marginBottom:16}}>
-            <span style={{fontSize:11,fontWeight:700,color:G.gold,letterSpacing:0.8,textTransform:"uppercase"}}>3 rôles · 1 plateforme</span>
-          </div>
-          <h2 style={{fontSize:36,fontWeight:900,color:G.white,lineHeight:1.15,margin:0,letterSpacing:-0.5}}>
-            Chaque membre a sa propre vue<br/><span style={{color:G.gold}}>dans l'application.</span>
-          </h2>
-        </div>
-        <div className="roles-grid" style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",
-          display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:20}}>
-          {[{ico:"👑",role:"Admin",color:G.gold,
-            desc:"Vision complète : dashboard, commandes, équipe, stock, compta, GPS livreurs.",
-            items:["Dashboard live","GPS des livreurs","Comptabilité automatique","Gestion de l'équipe","Stocks & produits"]},
-            {ico:"📞",role:"Closer",color:"#818CF8",
-            desc:"Confirme les commandes, contacte les clients et envoie les confirmations WhatsApp.",
-            items:["File de commandes","WhatsApp automatique","Fiche client complète","Chat interne","Suivi des livraisons"]},
-            {ico:"🏍️",role:"Livreur",color:G.greenMid,
-            desc:"Voit ses livraisons, l'adresse GPS, peut encaisser ou rejeter en un tap.",
-            items:["Livraisons assignées","GPS & adresse client","Encaisser / Rejeter","Appel direct client","Chat interne"]},
-          ].map((r,i)=>(
-            <div key={i} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.08)",
-              borderRadius:18,padding:"28px 24px"}}>
-              <div style={{width:48,height:48,borderRadius:14,background:"rgba(255,255,255,0.08)",
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,marginBottom:16}}>{r.ico}</div>
-              <div style={{fontSize:22,fontWeight:900,color:r.color,marginBottom:8}}>{r.role}</div>
-              <p style={{fontSize:13,color:"rgba(255,255,255,0.6)",lineHeight:1.65,marginBottom:20}}>{r.desc}</p>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {r.items.map((it,j)=>(
-                  <div key={j} style={{display:"flex",alignItems:"center",gap:9}}>
-                    <div style={{width:16,height:16,borderRadius:"50%",background:"rgba(255,255,255,0.08)",
-                      flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={r.color} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                    </div>
-                    <span style={{fontSize:13,color:"rgba(255,255,255,0.8)"}}>{it}</span>
-                  </div>
-                ))}
-              </div>
+      <div style={{
+        background: G.greenDark, padding: "20px 28px",
+        borderBottom: "1px solid rgba(255,255,255,.07)",
+      }}>
+        <div className="stats-row" style={{
+          maxWidth: 1180, margin: "0 auto",
+          display: "flex", justifyContent: "center", gap: 64, flexWrap: "wrap",
+        }}>
+          {[["500+", "Boutiques actives"], ["+30%", "Taux de livraison"], ["3", "Rôles intégrés"]].map(([v, l]) => (
+            <div key={l} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 26, fontWeight: 900, color: G.gold }}>{v}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,.5)", marginTop: 2, fontWeight: 500 }}>{l}</div>
             </div>
           ))}
         </div>
+      </div>
+
+      <div style={{ background: G.greenPale, padding: "28px 28px", borderBottom: `1px solid ${G.border}` }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", textAlign: "center" }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: G.greenMid,
+            letterSpacing: 2, marginBottom: 14, textTransform: "uppercase",
+          }}>Vendeurs actifs en</div>
+          <div className="countries-row" style={{
+            display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap",
+          }}>
+            {[["🇸🇳", "Sénégal"], ["🇨🇮", "Côte d'Ivoire"], ["🇲🇱", "Mali"], ["🇲🇦", "Maroc"], ["🇪🇸", "Espagne"]].map(([f, n]) => (
+              <div key={n} style={{
+                display: "flex", alignItems: "center", gap: 8,
+                fontSize: 15, fontWeight: 700, color: G.dark,
+              }}>
+                <span style={{ fontSize: 22 }}>{f}</span>{n}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <FeatureSection
+        id="chat"
+        kicker="Chat d'équipe"
+        title="Toute votre équipe"
+        titleAccent="dans un seul endroit."
+        desc="Fini les groupes WhatsApp désorganisés. Admin, Closer et Livreur communiquent dans un chat interne structuré par rôle, directement dans l'app."
+        points={[
+          "Messages texte, audio et photos",
+          "Rôles visibles en temps réel",
+          "Notifications instantanées",
+          "Historique complet des conversations",
+        ]}
+        mockup={<MockupChat />}
+        bg={G.offwhite}
+      />
+
+      <FeatureSection
+        id="gps"
+        kicker="GPS Livreur"
+        title="Suivez vos livreurs"
+        titleAccent="en temps réel."
+        desc="Voyez sur une carte live où se trouve chaque livreur, quelles commandes il transporte et leur valeur. Zéro appel, zéro confusion."
+        points={[
+          "Position GPS en direct sur carte",
+          "Statut de chaque livraison",
+          "Alerte automatique au client à l'approche",
+          "Valeur totale en transit visible",
+        ]}
+        mockup={<MockupGps />}
+        reverse
+        bg={G.greenPale}
+      />
+
+      <FeatureSection
+        id="compta"
+        kicker="Comptabilité automatique"
+        title="Vos marges,"
+        titleAccent="calculées toutes seules."
+        desc="La section Compta se remplit automatiquement à partir des commandes. Vous n'entrez que votre budget pub. Tout le reste est calculé."
+        points={[
+          "Bénéfice net en temps réel",
+          "Marge par produit calculée",
+          "CA / Coûts / Pub automatique",
+          "Rapport livraisons / rejections",
+        ]}
+        mockup={<MockupCompta />}
+        bg={G.offwhite}
+      />
+
+      <FeatureSection
+        id="livreur"
+        kicker="Espace Livreur"
+        title="Le livreur sait"
+        titleAccent="toujours quoi faire."
+        desc="Chaque livreur voit ses commandes, le statut étape par étape et peut encaisser ou rejeter en un seul tap. Zéro erreur possible."
+        points={[
+          "Flux guidé étape par étape",
+          "Encaisser / Rejeter / Absent en 1 tap",
+          "Contact client direct depuis l'app",
+          "Synchro temps réel avec l'Admin",
+        ]}
+        mockup={<MockupLivreur />}
+        reverse
+        bg={G.greenPale}
+      />
+
+      <FeatureSection
+        id="whatsapp"
+        kicker="WhatsApp intégré"
+        title="Confirmation client en"
+        titleAccent="1 tap, sans copier-coller."
+        desc="Dès qu'une commande est confirmée, un message WhatsApp personnalisé est prêt pour le client. Tu ouvres WhatsApp ou tu copies le message — c'est tout."
+        points={[
+          "Message personnalisé avec nom, produit, prix",
+          "Ouvre WhatsApp directement sur le numéro",
+          "Option « copier le message » si préféré",
+          "Disponible pour Admin et Closer",
+        ]}
+        mockup={<MockupWhatsApp />}
+        bg={G.offwhite}
+      />
+
+      <section id="desktop" style={{ padding: "84px 28px", background: G.greenPale }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto", textAlign: "center" }}>
+          <div style={{
+            fontSize: 11, fontWeight: 700, color: G.greenMid,
+            letterSpacing: 2, marginBottom: 12, textTransform: "uppercase",
+          }}>Disponible sur PC</div>
+          <h2 style={{
+            fontSize: 36, fontWeight: 900, color: G.dark,
+            letterSpacing: -1, marginBottom: 16, lineHeight: 1.15,
+          }}>
+            Gérez tout depuis<br />
+            <span style={{ color: G.greenMid }}>votre ordinateur.</span>
+          </h2>
+          <p style={{
+            fontSize: 16, color: G.muted, maxWidth: 580,
+            margin: "0 auto 28px", lineHeight: 1.6,
+          }}>
+            Teamly est accessible sur navigateur web — PC, Mac, tablette. La vue desktop offre un dashboard étendu, une gestion des commandes en colonnes et des filtres avancés.
+          </p>
+          <div style={{
+            display: "flex", justifyContent: "center", flexWrap: "wrap",
+            gap: 20, marginBottom: 32, maxWidth: 720, margin: "0 auto 32px",
+          }}>
+            {[
+              "Sidebar de navigation complète",
+              "Filtres avancés : statut + résultat",
+              "Accessible sur tous les navigateurs",
+              "Aucune installation requise",
+            ].map(p => (
+              <div key={p} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ color: G.greenMid, fontWeight: 800 }}>✓</span>
+                <span style={{ fontSize: 13, color: G.muted }}>{p}</span>
+              </div>
+            ))}
+          </div>
+          <button className="btn-gold" style={{ marginBottom: 40 }}>Ouvrir sur PC →</button>
+          <div style={{ display: "flex", justifyContent: "center" }}>
+            <MockupDesktopCommandes />
+          </div>
+        </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section id="plans" style={{background:G.grayLight,padding:"80px 0"}}>
-        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",textAlign:"center",marginBottom:48}}>
-          <div style={{display:"inline-flex",alignItems:"center",gap:7,background:G.greenLight,
-            padding:"5px 14px",borderRadius:22,marginBottom:16}}>
-            <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.8,textTransform:"uppercase"}}>Tarifs</span>
-          </div>
-          <h2 style={{fontSize:36,fontWeight:900,color:G.dark,lineHeight:1.15,margin:"0 0 12px",letterSpacing:-0.5}}>
-            Des plans adaptés à votre croissance
-          </h2>
-          <p style={{fontSize:15,color:G.gray,margin:0}}>14 jours gratuits · Sans carte bancaire · Sans engagement</p>
-        </div>
-        <div className="pricing-grid" style={{maxWidth:1100,margin:"0 auto",padding:"0 48px",
-          display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:18}}>
-          {PLANS.map((plan,i)=>(
-            <div key={i} style={{borderRadius:20,border:plan.popular?`2px solid ${G.green}`:`1.5px solid ${G.border}`,
-              overflow:"hidden",background:G.white,
-              boxShadow:plan.popular?"0 12px 40px rgba(26,92,56,0.14)":"0 2px 12px rgba(0,0,0,0.04)"}}>
-              {/* Header */}
-              <div style={{background:plan.popular?`linear-gradient(135deg,${G.greenDark},${G.green})`:G.grayLight,
-                padding:"22px 22px 20px"}}>
-                <span style={{display:"inline-block",background:plan.badgeBg,color:plan.badgeC,
-                  fontWeight:700,fontSize:9,letterSpacing:1.2,textTransform:"uppercase",
-                  padding:"3px 10px",borderRadius:20,marginBottom:12}}>{plan.badge}</span>
-                <div style={{fontSize:22,fontWeight:900,color:plan.popular?G.white:G.dark,
-                  letterSpacing:-0.3,marginBottom:4}}>{plan.name}</div>
-                <div style={{fontSize:11,color:plan.popular?"rgba(255,255,255,0.6)":G.gray,marginBottom:14}}>{plan.sub}</div>
-                {plan.price?(
-                  <div style={{display:"flex",alignItems:"baseline",gap:3}}>
-                    <span style={{fontSize:30,fontWeight:900,color:plan.popular?G.gold:G.dark,lineHeight:1}}>{plan.price}</span>
-                    <span style={{fontSize:12,color:plan.popular?"rgba(255,255,255,0.55)":G.gray,fontWeight:600}}>CFA / mois</span>
-                  </div>
-                ):(
-                  <div style={{fontSize:30,fontWeight:900,color:G.dark,lineHeight:1}}>Gratuit <span style={{fontSize:13,color:G.gray,fontWeight:500}}>14 jours</span></div>
-                )}
+      <section style={{ padding: "84px 28px", background: G.offwhite }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div className="feat-row" style={{
+            display: "flex", alignItems: "center", gap: 64, flexWrap: "wrap", justifyContent: "center",
+          }}>
+            <div className="feat-text" style={{ flex: 1, minWidth: 280, maxWidth: 480 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 700, color: G.greenMid,
+                letterSpacing: 2, marginBottom: 12, textTransform: "uppercase",
+              }}>Dashboard Admin</div>
+              <h2 style={{
+                fontSize: 34, fontWeight: 900, color: G.dark,
+                letterSpacing: -1, marginBottom: 16, lineHeight: 1.15,
+              }}>
+                Vision complète<br />
+                <span style={{ color: G.greenMid }}>de votre boutique.</span>
+              </h2>
+              <p style={{ fontSize: 16, color: G.muted, lineHeight: 1.65, marginBottom: 24 }}>
+                Le dashboard Admin centralise CA du jour, bénéfice, taux de livraison, CA par produit et alertes en temps réel. Tout sur une seule page.
+              </p>
+              <div className="check-list" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  "CA du jour et bénéfice net",
+                  "Taux de livraison en temps réel",
+                  "CA par produit avec marges",
+                  "Alertes commandes sans livreur",
+                  "Commandes récentes en un coup d'œil",
+                ].map(p => <CheckLine key={p}>{p}</CheckLine>)}
               </div>
-              {/* Body */}
-              <div style={{padding:"18px 20px 22px"}}>
-                <a href="/dashboard"
-                  style={{display:"block",textAlign:"center",background:plan.ctaBg,color:plan.ctaC,
-                    fontWeight:700,fontSize:13,padding:"12px 16px",borderRadius:11,
-                    textDecoration:"none",marginBottom:18}}>
-                  {plan.cta}
-                </a>
-                <div style={{display:"flex",flexDirection:"column",gap:9}}>
-                  {plan.features.map((f,j)=>(
-                    <div key={j} style={{display:"flex",alignItems:"flex-start",gap:9}}>
-                      <div style={{width:17,height:17,borderRadius:"50%",background:G.greenLight,flexShrink:0,
-                        display:"flex",alignItems:"center",justifyContent:"center",marginTop:1}}>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={G.green} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                      </div>
-                      <span style={{fontSize:12,color:G.dark,lineHeight:1.45}}>{f}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "center", flexShrink: 0 }}>
+              <MockupDesktopDashboard />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section style={{ padding: "84px 28px", background: G.greenPale }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 48 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: G.greenMid,
+              letterSpacing: 2, marginBottom: 12, textTransform: "uppercase",
+            }}>3 rôles · 1 plateforme</div>
+            <h2 style={{
+              fontSize: 36, fontWeight: 900, color: G.dark,
+              letterSpacing: -1, lineHeight: 1.15,
+            }}>
+              Chaque membre a sa propre vue<br />
+              <span style={{ color: G.greenMid }}>dans l'application.</span>
+            </h2>
+          </div>
+          <div className="roles-grid" style={{
+            display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20,
+          }}>
+            {[
+              {
+                icon: "👑", title: "Admin", color: G.gold,
+                desc: "Vision complète : dashboard, commandes, équipe, stock, compta, GPS livreurs.",
+                points: ["Dashboard live", "GPS des livreurs", "Comptabilité automatique", "Gestion de l'équipe", "Stocks & produits"],
+              },
+              {
+                icon: "📞", title: "Closer", color: G.greenMid,
+                desc: "Confirme les commandes, contacte les clients et envoie les confirmations WhatsApp.",
+                points: ["File de commandes", "WhatsApp automatique", "Fiche client complète", "Chat interne", "Suivi des livraisons"],
+              },
+              {
+                icon: "🏍️", title: "Livreur", color: G.blue,
+                desc: "Voit ses livraisons, l'adresse GPS, peut encaisser ou rejeter en un tap.",
+                points: ["Livraisons assignées", "GPS & adresse client", "Encaisser / Rejeter", "Appel direct client", "Chat interne"],
+              },
+            ].map(r => (
+              <div key={r.title} style={{
+                background: "#fff", borderRadius: 16, padding: "28px 24px",
+                border: `1px solid ${G.border}`,
+                boxShadow: "0 4px 12px rgba(26,92,56,0.04)",
+              }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  background: r.color + "22", display: "flex",
+                  alignItems: "center", justifyContent: "center",
+                  fontSize: 28, marginBottom: 18,
+                }}>{r.icon}</div>
+                <h3 style={{ fontSize: 24, fontWeight: 900, color: G.dark, marginBottom: 8 }}>{r.title}</h3>
+                <p style={{ fontSize: 14, color: G.muted, lineHeight: 1.6, marginBottom: 18 }}>{r.desc}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {r.points.map(p => (
+                    <div key={p} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: r.color, fontWeight: 800, fontSize: 13 }}>✓</span>
+                      <span style={{ fontSize: 13, color: G.text }}>{p}</span>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── CTA FINAL ── */}
-      <section style={{background:`linear-gradient(160deg,${G.greenDark},${G.green})`,
-        padding:"96px 48px",textAlign:"center",position:"relative",overflow:"hidden"}}>
-        <div style={{position:"absolute",top:-80,right:-80,width:320,height:320,borderRadius:"50%",background:"rgba(255,255,255,0.02)"}}/>
-        <div style={{maxWidth:600,margin:"0 auto"}}>
-          <h2 style={{fontSize:44,fontWeight:900,color:G.white,lineHeight:1.1,margin:"0 0 18px",letterSpacing:-1}}>
-            Prêt à synchroniser<br/><span style={{color:G.gold}}>votre équipe ?</span>
-          </h2>
-          <p style={{fontSize:16,color:"rgba(255,255,255,0.7)",margin:"0 0 36px",lineHeight:1.7}}>
-            14 jours gratuits, sans carte bancaire.<br/>
-            Disponible sur mobile et PC · <a href="/dashboard"
-              style={{color:G.gold,fontWeight:700,textDecoration:"none"}}>teamlyecom.com</a>
-          </p>
-          <div className="cta-btns" style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap"}}>
-            <a href="/dashboard"
-              style={{display:"inline-flex",alignItems:"center",background:G.gold,color:G.dark,
-                fontWeight:800,fontSize:16,padding:"16px 32px",borderRadius:12,textDecoration:"none",
-                boxShadow:"0 8px 28px rgba(240,165,0,0.35)"}}>Commencer gratuitement →</a>
-            <a href="https://wa.me/34643164129" target="_blank" rel="noreferrer"
-              style={{display:"inline-flex",alignItems:"center",gap:8,background:G.wa,
-                color:G.white,fontWeight:700,fontSize:15,padding:"16px 24px",borderRadius:12,textDecoration:"none"}}>💬 WhatsApp</a>
-          </div>
-          <div style={{marginTop:24,fontSize:13,color:"rgba(255,255,255,0.32)"}}>
-            Mobile · PC · Tablette · Disponible 7j/7 · Support WhatsApp inclus
-          </div>
-        </div>
-      </section>
-
-      {/* ── FOOTER ── */}
-      <footer style={{background:G.greenDark}}>
-        <div className="footer-inner" style={{maxWidth:1200,margin:"0 auto",padding:"32px 48px",
-          display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-          <Logo/>
-          <div style={{display:"flex",gap:28,flexWrap:"wrap"}}>
-            {["Fonctionnalités","Tarifs","Support","Confidentialité"].map(l=>(
-              <a key={l} href="#" style={{fontSize:13,color:"rgba(255,255,255,0.45)",textDecoration:"none"}}>{l}</a>
             ))}
           </div>
-          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4}}>
-            <a href="https://wa.me/34643164129" style={{fontSize:13,color:"rgba(255,255,255,0.55)",textDecoration:"none"}}>+34 643 16 41 29</a>
-            <span style={{fontSize:11,color:"rgba(255,255,255,0.25)"}}>© 2026 Teamly · Tous droits réservés</span>
+        </div>
+      </section>
+
+      <section id="tarifs" style={{ padding: "96px 28px", background: G.offwhite }}>
+        <div style={{ maxWidth: 1180, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 700, color: G.greenMid,
+              letterSpacing: 2, marginBottom: 10, textTransform: "uppercase",
+            }}>Tarifs</div>
+            <h2 style={{
+              fontSize: 38, fontWeight: 900, color: G.dark,
+              letterSpacing: -1, marginBottom: 14,
+            }}>Simple et transparent</h2>
+            <p style={{ fontSize: 16, color: G.muted }}>
+              Payez en CFA via Wave ou Orange Money. Sans engagement.
+            </p>
+          </div>
+          <div className="pricing-grid" style={{
+            display: "grid", gridTemplateColumns: "repeat(4,1fr)",
+            gap: 14, alignItems: "start",
+          }}>
+            {PLANS.map((plan, i) => (
+              <div key={i} style={{
+                background: plan.highlight ? G.greenDark : G.white,
+                borderRadius: 20, padding: "28px 20px",
+                border: plan.highlight ? "none" : `1px solid ${G.border}`,
+                position: "relative",
+                transform: plan.highlight ? "scale(1.03)" : "none",
+                boxShadow: plan.highlight ? `0 24px 64px rgba(26,92,56,.28)` : "none",
+              }}>
+                {plan.badge && (
+                  <div style={{
+                    position: "absolute", top: -11, left: "50%",
+                    transform: "translateX(-50%)",
+                    background: plan.highlight ? G.gold : G.greenDark,
+                    color: plan.highlight ? G.greenDark : G.white,
+                    fontSize: 9, fontWeight: 900, padding: "4px 12px",
+                    borderRadius: 20, whiteSpace: "nowrap",
+                  }}>{plan.badge}</div>
+                )}
+                <div style={{
+                  fontSize: 18, fontWeight: 900,
+                  color: plan.highlight ? G.white : G.dark, marginBottom: 4,
+                }}>{plan.name}</div>
+                <div style={{
+                  fontSize: 11,
+                  color: plan.highlight ? "rgba(255,255,255,.55)" : G.muted,
+                  marginBottom: 14,
+                }}>{plan.tagline}</div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginBottom: 6 }}>
+                  <span style={{
+                    fontSize: 32, fontWeight: 900,
+                    color: plan.highlight ? G.gold : G.dark,
+                  }}>{plan.price}</span>
+                  {plan.unit && <span style={{
+                    fontSize: 11,
+                    color: plan.highlight ? "rgba(255,255,255,.5)" : G.muted,
+                  }}>{plan.unit}</span>}
+                </div>
+                <div style={{
+                  fontSize: 10, fontWeight: 700,
+                  color: plan.highlight ? G.gold : G.greenMid,
+                  background: plan.highlight ? `${G.gold}18` : G.greenLight,
+                  borderRadius: 8, padding: "4px 8px",
+                  marginBottom: 18, display: "inline-block",
+                }}>{plan.summary}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+                  {plan.features.map((f, j) => (
+                    <div key={j} style={{ display: "flex", alignItems: "flex-start", gap: 7 }}>
+                      <Check ok={f.ok} />
+                      <span style={{
+                        fontSize: 12,
+                        color: plan.highlight
+                          ? (f.ok ? "rgba(255,255,255,.85)" : "rgba(255,255,255,.3)")
+                          : (f.ok ? G.text : "#bbb"),
+                        lineHeight: 1.4,
+                      }}>{f.label}</span>
+                    </div>
+                  ))}
+                </div>
+                <button style={{
+                  width: "100%", padding: "12px", borderRadius: 12,
+                  fontSize: 13, fontWeight: 800, cursor: "pointer",
+                  fontFamily: "'DM Sans', sans-serif", border: "none",
+                  background: plan.highlight ? G.gold : G.greenDark,
+                  color: plan.highlight ? G.greenDark : G.white,
+                  transition: "opacity .15s",
+                }}>{plan.cta}</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{
+        background: `linear-gradient(155deg, ${G.greenDark} 0%, #0d3320 100%)`,
+        padding: "80px 28px", textAlign: "center",
+      }}>
+        <div style={{ maxWidth: 600, margin: "0 auto" }}>
+          <h2 style={{
+            fontSize: 36, fontWeight: 900, color: G.white,
+            letterSpacing: -1, marginBottom: 16,
+          }}>Prêt à scaler ton business ?</h2>
+          <p style={{
+            fontSize: 16, color: "rgba(255,255,255,.6)", marginBottom: 32,
+          }}>
+            Rejoins les 500+ boutiques qui gèrent leurs équipes avec Teamly. 14 jours gratuits, sans carte bancaire.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+            <button className="btn-gold" style={{ fontSize: 16, padding: "15px 32px" }}>
+              Commencer gratuitement
+            </button>
+            <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
+              <button className="btn-outline" style={{ fontSize: 15, padding: "13px 24px" }}>
+                💬 WhatsApp
+              </button>
+            </a>
+          </div>
+          <div style={{ marginTop: 24, fontSize: 13, color: "rgba(255,255,255,.3)" }}>
+            Mobile · PC · Tablette · Support WhatsApp inclus
+          </div>
+        </div>
+      </section>
+
+      <footer style={{ background: G.dark }}>
+        <div style={{
+          maxWidth: 1180, margin: "0 auto", padding: "28px 28px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          flexWrap: "wrap", gap: 14,
+        }}>
+          <Logo size={22} light />
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {["Fonctionnalités", "Tarifs", "Support", "Confidentialité"].map(l => (
+              <a key={l} href="#" style={{
+                fontSize: 12, color: "rgba(255,255,255,.35)", textDecoration: "none",
+              }}>{l}</a>
+            ))}
+          </div>
+          <div style={{
+            display: "flex", flexDirection: "column",
+            alignItems: "flex-end", gap: 3,
+          }}>
+            <a href="https://wa.me/34643164129" style={{
+              fontSize: 12, color: "rgba(255,255,255,.45)", textDecoration: "none",
+            }}>+34 643 16 41 29</a>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,.2)" }}>
+              © 2026 Teamly · Tous droits réservés
+            </span>
           </div>
         </div>
       </footer>
