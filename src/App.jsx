@@ -2285,7 +2285,7 @@ function AppInner() {
     let ws = null, wsRef = 0, wsHeartbeat = null, wsReconnect = null;
     const setupWS = () => {
       try {
-        ws = new WebSocket(`wss://rddtislrbbkjpoqpdcry.supabase.co/realtime/v1/websocket?apikey=${SB_KEY}&vsn=1.0.0`);
+        ws = new WebSocket(`${(SB_URL||"").replace("https://","wss://")}/realtime/v1/websocket?apikey=${SB_KEY}&vsn=1.0.0`);
         ws.onopen = () => {
           ws.send(JSON.stringify({
             topic: `realtime:chat_${orgId}`,
