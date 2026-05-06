@@ -6,7 +6,7 @@ import TeamlyLanding from './teamly-v2'
 
 Sentry.init({
   dsn: "https://f9ab4ebc622cca0a77e4227c91389f06@o4511325827760128.ingest.de.sentry.io/4511326170972240",
-  enabled: false,
+  enabled: true,
 })
 
 const path = window.location.pathname;
