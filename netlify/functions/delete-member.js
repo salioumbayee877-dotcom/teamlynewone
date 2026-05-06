@@ -1,5 +1,5 @@
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const SB_URL      = "https://rddtislrbbkjpoqpdcry.supabase.co";
+const SB_URL      = process.env.SUPABASE_URL;
 
 const svcHeaders = {
   "Content-Type":  "application/json",

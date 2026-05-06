@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
 // ── Supabase REST client (no SDK needed) ──────────────────────────────────
-const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
-const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMzcwMDIsImV4cCI6MjA5MTkxMzAwMn0.2G6eiQyih1h3PTDbYU757hGW7ScRqHhyyqsolEO-Rzc";
+const SB_URL = import.meta.env.VITE_SUPABASE_URL;
+const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // User JWT stored after login — all data requests use this so RLS is enforced
 let _authToken = null;

@@ -1,6 +1,6 @@
 const WAVE_API_KEY   = process.env.WAVE_API_KEY;
 const SERVICE_KEY    = process.env.SUPABASE_SERVICE_KEY;
-const SB_URL         = "https://rddtislrbbkjpoqpdcry.supabase.co";
+const SB_URL         = process.env.SUPABASE_URL;
 const APP_URL        = process.env.APP_URL || "https://www.teamlyecom.com";
 
 const sbHeaders = {

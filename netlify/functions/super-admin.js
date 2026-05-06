@@ -1,5 +1,5 @@
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const SB_URL      = process.env.SUPABASE_URL || "https://rddtislrbbkjpoqpdcry.supabase.co";
+const SB_URL      = process.env.SUPABASE_URL;
 const OWNER_EMAIL = process.env.SUPER_ADMIN_EMAIL || "salioumbayee877@gmail.com";
 
 const sbHeaders = {
