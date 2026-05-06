@@ -3808,18 +3808,10 @@ function AppInner() {
               }
               // ── Verificar límite del plan ANTES de registrar ──────────
               try {
-                const [orgRes, membersRes] = await Promise.all([
-                  fetch(`${SB_URL}/rest/v1/organizations?id=eq.${detectedOrg}&select=plan`, {headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`}}),
-                  fetch(`${SB_URL}/rest/v1/profiles?org_id=eq.${detectedOrg}&select=id`, {headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`}}),
-                ]);
-                const orgData   = await orgRes.json();
-                const membersData = await membersRes.json();
-                const planKey   = orgData?.[0]?.plan || "starter";
-                const maxMap    = {starter:3, pro:5, business:null};
-                const maxM      = maxMap[planKey] ?? 3;
-                const currentCount = Array.isArray(membersData) ? membersData.length : 0;
-                if(maxM && currentCount >= maxM) {
-                  setAuthError(`❌ Cette équipe a atteint sa limite (${maxM} membres). Demande à l'Admin de passer au plan supérieur.`);
+                const limitRes = await fetch(`/.netlify/functions/check-member-limit?org=${detectedOrg}`);
+                const limitData = await limitRes.json();
+                if (limitRes.ok && !limitData.ok) {
+                  setAuthError(`❌ Cette équipe a atteint sa limite (${limitData.max} membres). Demande à l'Admin de passer au plan supérieur.`);
                   return;
                 }
               } catch(e) { /* si falla la comprobación, dejamos continuar */ }
