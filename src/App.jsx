@@ -1403,8 +1403,9 @@ function AppInner() {
   const [comptaShortcut,setComptaShortcut] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut||"today";}catch(e){return"today";}});
   const [livFinalConfirm, setLivFinalConfirm] = useState(null); // {orderId, type:"livre"|"rejete", client, price}
   const [livFinalNote,    setLivFinalNote]    = useState("");
-  const [livBtnLoading,   setLivBtnLoading]   = useState(null); // orderId currently being actioned
-  const inProgressDismissedRef = useRef(false);
+  const [livBtnLoading,   setLivBtnLoading]   = useState(null);
+  const [livConfirming,   setLivConfirming]   = useState(false);
+  const [conflictDelivery,setConflictDelivery]= useState(null);
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
@@ -1539,13 +1540,6 @@ function AppInner() {
 
   // ── actions ──
   const upSt = (id,s) => {
-    if(s==="entregado"){
-      const ord=orders.find(x=>x.id===id);
-      if(!ord?.deliveryFee||Number(ord.deliveryFee)<=0){
-        addToast("⚠️ Frais de livraison manquants — configure-les avant de livrer","⚠️","#F59E0B");
-        return;
-      }
-    }
     const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
@@ -9263,14 +9257,41 @@ function AppInner() {
                 <div style={{display:"flex",gap:10,marginTop:8}}>
                   <button onClick={()=>{setLivFinalConfirm(null);setLivFinalNote("");}}
                     style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Annuler</button>
-                  <button onClick={()=>{
-                    const ord=orders.find(x=>x.id===livFinalConfirm.orderId);
-                    if(!ord?.deliveryFee||Number(ord.deliveryFee)<=0){
-                      addToast("⚠️ Frais de livraison requis — demande à l'admin de les configurer","⚠️","#F59E0B");
-                      return;
+                  <button disabled={livConfirming} onClick={async()=>{
+                    if(livConfirming) return;
+                    setLivConfirming(true);
+                    const ordId = livFinalConfirm.orderId;
+                    try {
+                      // Primary: status update (always works)
+                      await sbFetch(`orders?id=eq.${ordId}`,"PATCH",{status:"entregado"});
+                      // Secondary: extra fields — best-effort (fails silently if columns missing)
+                      sbFetch(`orders?id=eq.${ordId}`,"PATCH",{
+                        delivered_at:new Date().toISOString(),
+                        amount_collected:Number(livFinalConfirm.price)||0,
+                        delivered_by:currentUser.id
+                      }).catch(()=>{});
+                      // Local state update (stock, notifications)
+                      const ord = orders.find(x=>x.id===ordId);
+                      setOrders(o=>o.map(x=>{
+                        if(x.id!==ordId) return x;
+                        if(x.status!=="entregado"){
+                          setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:Math.max(0,pr.stock-1)}:pr));
+                          sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"entregado",delta:-1,reason:"Livraison confirmée",order_id:x.id}).catch(()=>{});
+                        }
+                        return {...x,status:"entregado"};
+                      }));
+                      if(orgId&&ord) sbFetch("notifications","POST",{org_id:orgId,type:"delivered",title:`✅ Livré — ${ord.client} a payé ${fmt(ord.price)} CFA`,body:`${ord.product} · ${fmt(ord.price)} CFA`,role_target:"closer",read:false,data:{}}).catch(()=>{});
+                      setLivFinalConfirm(null); setLivFinalNote("");
+                      addToast("✅ Livraison confirmée","✅",G.green);
+                    } catch(err) {
+                      console.error("confirm livraison error:",err);
+                      addToast("❌ Erreur — Réessayer","❌",G.red);
+                    } finally {
+                      setLivConfirming(false);
                     }
-                    upSt(livFinalConfirm.orderId,"entregado");setLivFinalConfirm(null);setLivFinalNote("");
-                  }} style={{flex:2,background:"#1A5C38",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer"}}>✅ Confirmer — Livré</button>
+                  }} style={{flex:2,background:livConfirming?"#6B7280":"#1A5C38",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:livConfirming?"not-allowed":"pointer",transition:"background 150ms",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                    {livConfirming?<><div style={{width:16,height:16,border:"2px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>Enregistrement…</>:<>✅ Confirmer — Livré</>}
+                  </button>
                 </div>
               </>
             ) : (
