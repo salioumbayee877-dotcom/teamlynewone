@@ -1411,7 +1411,8 @@ function AppInner() {
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
   const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"all";}catch(e){return "all";}});
   const filterDateRef = useRef(filterDate);
-  const [filterLivreur, setFilterLivreur] = useState("all");
+  const [filterLivreur,    setFilterLivreur]    = useState("all");
+  const [livResultFilter,  setLivResultFilter]  = useState([]); // multi-select result statuses for livreur
   const [refreshing, setRefreshing]     = useState(false);
   const [showSearch, setShowSearch]     = useState(false);
   const [sidebarOpen, setSidebarOpen]   = useState(false);
@@ -2851,7 +2852,7 @@ function AppInner() {
     });
   };
 
-  const activeEnCamino = role==="livreur" ? orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino") : null;
+  const activeEnCamino = role==="livreur" ? orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&(x.status==="en_camino"||x.status==="chez_client")) : null;
 
   // ── OCard ──
   const OCard = ({o,showPrendre=false}) => {
@@ -3023,7 +3024,7 @@ function AppInner() {
                   📦 Étape 3 — Colis en main, pars vers le client
                 </div>
                 <button onClick={()=>{
-                  const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
+                  const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&(x.status==="en_camino"||x.status==="chez_client")&&x.id!==o.id);
                   if(activeDelivery){ setConflictDelivery(activeDelivery); return; }
                   upSt(o.id,"en_camino");
                 }}
@@ -3089,15 +3090,6 @@ function AppInner() {
               </button>
             )}
 
-            {/* Bloqueo: otro pedido ya en camino */}
-            {activeEnCamino&&activeEnCamino.id!==o.id&&!["entregado","rechazado"].includes(o.status)&&(
-              <div style={{marginTop:6,background:"#FEF3C7",border:"2px solid #F0A500",borderRadius:10,padding:"10px 12px",display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:20,flexShrink:0}}>⛔</span>
-                <div style={{fontSize:12,fontWeight:700,color:"#92400E"}}>
-                  Termine d'abord : <span style={{color:"#D97706"}}>{activeEnCamino.client}</span>
-                </div>
-              </div>
-            )}
 
             {/* Bouton correction — revenir étape précédente */}
             {(()=>{
@@ -4070,16 +4062,19 @@ function AppInner() {
   const _mon       = new Date(_now); _mon.setDate(_now.getDate() - ((_now.getDay()+6)%7));
   const WEEK_START = `${_mon.getFullYear()}-${_pad(_mon.getMonth()+1)}-${_pad(_mon.getDate())}`;
   const filteredOrders = baseOrders.filter(o=>{
-    // Livreur: active delivery orders ALWAYS visible regardless of filters — never disappear mid-tournée
-    if(role==="livreur" && LIV_ACTIVE.has(o.status)) return true;
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
-    const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
-    const matchStatus = filterStatus==="all" ||
-      (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
-    const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
-    // Convert UTC created_at to local date string for comparison
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
     const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START);
+    if(role==="livreur") {
+      const hasResult  = livResultFilter.length>0;
+      const hasTournee = filterStatus!=="all";
+      if(hasResult)  return matchDate && matchSearch && livResultFilter.includes(o.status);
+      if(hasTournee) return matchDate && matchSearch && o.status===filterStatus;
+      return matchDate && matchSearch;
+    }
+    const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
+    const matchStatus = filterStatus==="all" || (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
+    const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
     return matchSearch && matchStatus && matchLivreur && matchDate;
   });
 
@@ -5114,7 +5109,7 @@ function AppInner() {
                       ].map(({k,l,c,bg})=>{
                         const active = filterStatus===k;
                         return (
-                          <button key={k} onClick={()=>setFilterStatus(active&&k!=="all"?"all":k)}
+                          <button key={k} onClick={()=>{setFilterStatus(active&&k!=="all"?"all":k);setLivResultFilter([]);}}
                             style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
                             {l}
                           </button>
@@ -5129,9 +5124,9 @@ function AppInner() {
                         {k:"no_contesta",l:"Absent 📵",    c:STATUS.no_contesta.color, bg:STATUS.no_contesta.color+"22"},
                         {k:"reprogramar",l:"Reporté ⏰",   c:STATUS.reprogramar.color, bg:STATUS.reprogramar.color+"22"},
                       ].map(({k,l,c,bg})=>{
-                        const active = filterStatus===k;
+                        const active = livResultFilter.includes(k);
                         return (
-                          <button key={k} onClick={()=>setFilterStatus(active?"all":k)}
+                          <button key={k} onClick={()=>{setLivResultFilter(prev=>prev.includes(k)?prev.filter(x=>x!==k):[...prev,k]);setFilterStatus("all");}}
                             style={{flexShrink:0,background:active?c:bg,color:active?"#fff":c,border:`1.5px solid ${active?c:c+"55"}`,borderRadius:20,padding:"5px 11px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",transition:"all 0.13s"}}>
                             {l}
                           </button>
@@ -5174,10 +5169,11 @@ function AppInner() {
                 return role==="livreur" ? new Date(a.created_at||0)-new Date(b.created_at||0) : new Date(b.created_at||0)-new Date(a.created_at||0);
               };
 
-              // ── Livreur: pin en_camino at top, then autres, then terminées ──
+              // ── Livreur: pin en_camino/chez_client at top (from baseOrders — never filtered out) ──
               if(role==="livreur") {
-                const LIV_PIN_STATUSES = new Set(["en_camino","chez_client","no_contesta","reprogramar"]);
-                const pinnedLiv  = filteredOrders.find(o=>LIV_PIN_STATUSES.has(o.status)&&String(o.livreur_id)===String(currentUser.id));
+                const LIV_PIN_STATUSES = new Set(["en_camino","chez_client"]);
+                // Always find pin from baseOrders so active delivery is never hidden by filters
+                const pinnedLiv  = baseOrders.find(o=>LIV_PIN_STATUSES.has(o.status)&&String(o.livreur_id)===String(currentUser.id));
                 const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)&&o.id!==(pinnedLiv?.id)).sort(sortFn);
                 const finalOrds  = filteredOrders.filter(o=>LIV_FINAL.has(o.status)).sort(sortFn);
                 return (
