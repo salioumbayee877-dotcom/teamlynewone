@@ -4603,6 +4603,33 @@ function AppInner() {
               <SC icon="🏍️" label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
             </div>
 
+            {/* Aperçu du jour */}
+            {(()=>{
+              const todayStr = new Date().toISOString().slice(0,10);
+              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
+              const bars = [
+                {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
+                {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
+                {label:"Livré",    count:tod.filter(o=>o.status==="entregado").length,                                                         color:"#4ADE80"},
+                {label:"Rejeté",   count:tod.filter(o=>o.status==="rechazado").length,                                                         color:G.red},
+              ];
+              const maxB = Math.max(...bars.map(b=>b.count),1);
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12}}>📊 Aperçu du jour</div>
+                  <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
+                    {bars.map((b,i)=>(
+                      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:b.count>0?b.color:G.gray}}>{b.count}</span>
+                        <div style={{width:"100%",background:b.count>0?b.color:G.grayLight,borderRadius:6,height:b.count>0?`${Math.max(b.count/maxB*100,6)}px`:"2px",transition:"height 0.4s"}}/>
+                        <span style={{fontSize:9,color:G.gray,textAlign:"center",lineHeight:1.2}}>{b.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Taux */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
@@ -4662,50 +4689,6 @@ function AppInner() {
               </div>
             </div>
 
-            {/* Alertes urgentes — seulement sans livreur, rejetées, stock bas */}
-            {(()=>{
-              const urgentAlerts = adminAlerts.filter(a=>a.type!=="livre");
-              return urgentAlerts.length>0?(
-                <div style={{background:"#FEF2F2",borderRadius:14,padding:14,border:"1px solid #FCA5A5"}}>
-                  <ST>⚠️ ALERTES ({urgentAlerts.length})</ST>
-                  {urgentAlerts.slice(0,3).map((a,i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:i<2?"1px solid #FEE2E2":"none"}}>
-                      <div style={{fontSize:12,color:G.dark}}>{a.icon} {a.msg}</div>
-                      <button onClick={()=>setTab("commandes")} style={{background:"none",border:`1px solid ${a.color}`,borderRadius:6,padding:"3px 8px",fontSize:10,color:a.color,cursor:"pointer"}}>Voir</button>
-                    </div>
-                  ))}
-                </div>
-              ):null;
-            })()}
-
-            {/* Commandes récentes */}
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontWeight:700,fontSize:13,color:G.green}}>📋 COMMANDES RÉCENTES</div>
-                <button onClick={()=>setTab("commandes")} style={{background:"none",border:"none",color:G.green,fontSize:11,cursor:"pointer",fontWeight:600}}>Voir tout →</button>
-              </div>
-              {orders.slice(0,4).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return(
-                <div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                  <div>
-                    <div style={{fontSize:13,fontWeight:600,color:G.dark}}>{o.client}</div>
-                    <div style={{fontSize:11,color:G.gray}}>{o.product}</div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(o.price)} F</div>
-                    <span style={{background:st.bg,color:st.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:600}}>{st.label}</span>
-                  </div>
-                </div>
-              );})}
-            </div>
-
-            {/* Perf équipe */}
-            <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>👥 PERFORMANCE ÉQUIPE</ST>
-              <Tbl headers={["Nom","Rôle","Cmd","Livrées","Rejetées"]} align={["left","left","right","right","right"]}
-                rows={[...teamMembers.filter(m=>m.role==="closer").map(m=>{const all=orders.filter(o=>o.closer_id===m.id);return [m.nom,"📞",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];}),
-                       ...teamMembers.filter(m=>m.role==="livreur").map(m=>{const all=orders.filter(o=>o.livreur_id===m.id);return [m.nom,"🏍️",all.length,<span style={{color:G.green,fontWeight:700}}>{all.filter(o=>o.status==="entregado").length}</span>,<span style={{color:G.red,fontWeight:700}}>{all.filter(o=>o.status==="rechazado").length}</span>];})]}
-              />
-            </div>
           </div>
         )}
 
