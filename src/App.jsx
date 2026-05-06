@@ -1434,6 +1434,7 @@ function AppInner() {
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
+  const pendingUploadsRef                  = useRef(new Map());
   const chatScrollRef                      = useRef(null);
   const tabRef                             = useRef(tab);
   const currentUserRef                     = useRef(currentUser);
@@ -2039,9 +2040,11 @@ function AppInner() {
       const t=m.text||"";
       const isImg=t.startsWith("IMG:");
       const isAud=t.startsWith("AUD:");
-      let audioUrl=null,dur="0:00";
+      const isFile=t.startsWith("FILE:");
+      let audioUrl=null,dur="0:00",fileUrl=null,fileName=null,fileSize=null,fileMime=null;
       if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
-      return {id:m.id,from:m.from_user,role:m.role,text:isImg?"":isAud?"🎤":t,type:isImg?"image":null,imgSrc:isImg?t.slice(4):null,audio:isAud||!!m.audio,audioUrl,duration:dur,created_at:m.created_at,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+      if(isFile){const parts=t.slice(5).split("|");fileUrl=parts[0]||null;fileName=parts[1]||"Fichier";fileSize=parts[2]?Number(parts[2]):null;fileMime=parts[3]||null;}
+      return {id:m.id,from:m.from_user,role:m.role,text:isImg||isFile?"":isAud?"🎤":t,type:isImg?"image":isFile?"file":null,imgSrc:isImg?t.slice(4):null,fileUrl,fileName,fileSize,fileMime,audio:isAud||!!m.audio,audioUrl,duration:dur,created_at:m.created_at,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
     });
 
     // Restore pedidos/productos/equipo del caché al instante
@@ -2159,7 +2162,11 @@ function AppInner() {
         setChat(prev => {
           let merged;
           if(firstLoad || !lastMsgTime) {
-            merged = mapMsgs([...msgs].reverse());
+            const fromDb = mapMsgs([...msgs].reverse());
+            // Keep optimistic (numeric id) messages that are still pending/failed
+            const pending = prev.filter(m=>typeof m.id==="number"&&(m.uploading||m.uploadFailed));
+            const pendingNotInDb = pending.filter(p=>!fromDb.find(d=>d.imgSrc===p.imgSrc&&d.type===p.type));
+            merged = [...fromDb, ...pendingNotInDb];
           } else {
             const newMapped = mapMsgs(msgs);
             merged = [...prev, ...newMapped.filter(m => {
@@ -2170,6 +2177,8 @@ function AppInner() {
               if(m.audio && prev.find(p=>typeof p.id==="number"&&p.audio&&p.from===m.from&&(Date.now()-p.id)<60000)) return false;
               // Image dedup: same sender sent image within 60s
               if(m.type==="image" && prev.find(p=>typeof p.id==="number"&&p.type==="image"&&p.from===m.from&&(Date.now()-p.id)<60000)) return false;
+              // File dedup: same sender sent file with same name within 60s
+              if(m.type==="file" && prev.find(p=>typeof p.id==="number"&&p.type==="file"&&p.from===m.from&&p.fileName===m.fileName&&(Date.now()-p.id)<60000)) return false;
               return true;
             })];
           }
@@ -2591,14 +2600,14 @@ function AppInner() {
     }, timeout).catch(e => console.error("sendChat error:", e.message));
   };
 
-  const uploadMedia = async (blob, ext, mime) => {
-    const path = `${orgId}/${Date.now()}.${ext}`;
+  const uploadMedia = async (blob, ext, mime, folder="photos") => {
+    const path = `${orgId}/chat/${folder}/${Date.now()}.${ext}`;
     const res = await fetch(`${SB_URL}/storage/v1/object/chat-media/${path}`, {
       method: "POST",
-      headers: {"Authorization":`Bearer ${_authToken||SB_KEY}`,"Content-Type":mime,"x-upsert":"false"},
+      headers: {"Authorization":`Bearer ${_authToken||SB_KEY}`,"Content-Type":mime,"x-upsert":"true"},
       body: blob,
     });
-    if(!res.ok) throw new Error("upload failed");
+    if(!res.ok){const txt=await res.text().catch(()=>"");console.error("uploadMedia failed",res.status,txt);throw new Error(`upload ${res.status}`);}
     return `${SB_URL}/storage/v1/object/public/chat-media/${path}`;
   };
 
@@ -2607,14 +2616,12 @@ function AppInner() {
     if(!file) return;
     e.target.value = "";
 
-    // 1. Show optimistic bubble immediately with local blob URL
     const blobUrl = URL.createObjectURL(file);
     const optimisticId = Date.now();
     const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
     setChat(p=>[...p,{id:optimisticId,from:myName,role,text:"",time:now,audio:false,type:"image",imgSrc:blobUrl,uploading:true}]);
     setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
 
-    // 2. Compress with canvas (max 1280px, JPEG 0.75)
     const compress = (src) => new Promise(res=>{
       const img = new Image();
       img.onload = () => {
@@ -2630,20 +2637,71 @@ function AppInner() {
 
     try {
       const compressed = await compress(blobUrl);
-      const url = await uploadMedia(compressed,"jpg","image/jpeg");
-
-      // 3. Insert into DB with real URL
+      pendingUploadsRef.current.set(optimisticId, {blob:compressed,ext:"jpg",mime:"image/jpeg",folder:"photos",type:"image",blobUrl});
+      const url = await uploadMedia(compressed,"jpg","image/jpeg","photos");
       if(orgId) fetchWithTimeout(`${SB_URL}/rest/v1/messages`,{
         method:"POST",
         headers:{...sbHeaders(),"Prefer":"return=minimal"},
         body:JSON.stringify({org_id:orgId,from_user:myName,role,text:"IMG:"+url,audio:false}),
       },30000).catch(err=>console.error("sendPhoto DB error:",err.message));
-
-      // 4. Replace blob URL with real URL, remove spinner
+      pendingUploadsRef.current.delete(optimisticId);
       setChat(p=>p.map(m=>m.id===optimisticId?{...m,imgSrc:url,uploading:false}:m));
       URL.revokeObjectURL(blobUrl);
-    } catch {
-      // 5. Mark as failed — keep bubble visible
+    } catch(err) {
+      console.error("sendPhoto upload error:",err.message);
+      setChat(p=>p.map(m=>m.id===optimisticId?{...m,uploading:false,uploadFailed:true}:m));
+    }
+  };
+
+  const retryUpload = async (msg) => {
+    const pending = pendingUploadsRef.current.get(msg.id);
+    if(!pending) return;
+    setChat(p=>p.map(m=>m.id===msg.id?{...m,uploading:true,uploadFailed:false}:m));
+    try {
+      const url = await uploadMedia(pending.blob,pending.ext,pending.mime,pending.folder);
+      const textPayload = pending.type==="file"
+        ? `FILE:${url}|${pending.fileName||"Fichier"}|${pending.fileSize||0}|${pending.mime}`
+        : `IMG:${url}`;
+      if(orgId) fetchWithTimeout(`${SB_URL}/rest/v1/messages`,{
+        method:"POST",
+        headers:{...sbHeaders(),"Prefer":"return=minimal"},
+        body:JSON.stringify({org_id:orgId,from_user:myName,role,text:textPayload,audio:false}),
+      },30000).catch(err=>console.error("retryUpload DB error:",err.message));
+      pendingUploadsRef.current.delete(msg.id);
+      if(pending.type==="image"){
+        setChat(p=>p.map(m=>m.id===msg.id?{...m,imgSrc:url,uploading:false}:m));
+        if(pending.blobUrl) URL.revokeObjectURL(pending.blobUrl);
+      } else {
+        setChat(p=>p.map(m=>m.id===msg.id?{...m,fileUrl:url,uploading:false}:m));
+      }
+    } catch(err) {
+      console.error("retryUpload error:",err.message);
+      setChat(p=>p.map(m=>m.id===msg.id?{...m,uploading:false,uploadFailed:true}:m));
+    }
+  };
+
+  const sendFile = async (e) => {
+    const file = e.target.files?.[0];
+    if(!file) return;
+    e.target.value = "";
+    if(file.size > 20*1024*1024){alert("Fichier trop grand (max 20 Mo)");return;}
+    const ext = (file.name.split(".").pop()||"bin").slice(0,10);
+    const optimisticId = Date.now();
+    const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
+    setChat(p=>[...p,{id:optimisticId,from:myName,role,text:"",time:now,audio:false,type:"file",fileUrl:null,fileName:file.name,fileSize:file.size,fileMime:file.type,uploading:true}]);
+    setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
+    try {
+      pendingUploadsRef.current.set(optimisticId,{blob:file,ext,mime:file.type||"application/octet-stream",folder:"files",type:"file",fileName:file.name,fileSize:file.size});
+      const url = await uploadMedia(file,ext,file.type||"application/octet-stream","files");
+      if(orgId) fetchWithTimeout(`${SB_URL}/rest/v1/messages`,{
+        method:"POST",
+        headers:{...sbHeaders(),"Prefer":"return=minimal"},
+        body:JSON.stringify({org_id:orgId,from_user:myName,role,text:`FILE:${url}|${file.name}|${file.size}|${file.type}`,audio:false}),
+      },30000).catch(err=>console.error("sendFile DB error:",err.message));
+      pendingUploadsRef.current.delete(optimisticId);
+      setChat(p=>p.map(m=>m.id===optimisticId?{...m,fileUrl:url,uploading:false}:m));
+    } catch(err) {
+      console.error("sendFile upload error:",err.message);
       setChat(p=>p.map(m=>m.id===optimisticId?{...m,uploading:false,uploadFailed:true}:m));
     }
   };
@@ -6640,8 +6698,9 @@ function AppInner() {
                             <div style={{width:28,height:28,border:"3px solid rgba(255,255,255,0.35)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>
                             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                           </div>}
-                          {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.55)",borderRadius:8}}>
+                          {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,background:"rgba(0,0,0,0.55)",borderRadius:8}}>
                             <span style={{color:"#fff",fontSize:11,fontWeight:700}}>❌ Échec</span>
+                            {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"#25D366",border:"none",borderRadius:12,padding:"4px 10px",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>↺ Réessayer</button>}
                           </div>}
                         </div>
                       ):msg.audio?(
@@ -6687,6 +6746,25 @@ function AppInner() {
                             @keyframes wave2{from{height:5px}to{height:14px}}
                             @keyframes wave3{from{height:3px}to{height:10px}}
                           `}</style>
+                        </div>
+                      ):msg.type==="file"?(
+                        <div style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",minWidth:180}}>
+                          <div style={{fontSize:26,flexShrink:0}}>📎</div>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{fontSize:12,fontWeight:700,color:isMe?"#065f46":"#1f2937",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.fileName||"Fichier"}</div>
+                            {msg.fileSize!=null&&<div style={{fontSize:10,color:G.gray}}>{msg.fileSize>1024*1024?(msg.fileSize/1024/1024).toFixed(1)+" Mo":(Math.ceil(msg.fileSize/1024))+" Ko"}</div>}
+                            {msg.uploading&&<div style={{fontSize:10,color:G.gray}}>Envoi…</div>}
+                            {msg.uploadFailed&&<div style={{display:"flex",alignItems:"center",gap:4}}>
+                              <span style={{fontSize:10,color:"#EF4444",fontWeight:700}}>❌ Échec</span>
+                              {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"none",border:"none",color:"#25D366",fontSize:10,fontWeight:700,cursor:"pointer",padding:0}}>↺ Réessayer</button>}
+                            </div>}
+                          </div>
+                          {msg.fileUrl&&!msg.uploading&&!msg.uploadFailed&&(
+                            <a href={msg.fileUrl} download={msg.fileName} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
+                              style={{flexShrink:0,width:30,height:30,borderRadius:"50%",background:isMe?"#128C7E":"#25D366",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:14}}>
+                              ⬇
+                            </a>
+                          )}
                         </div>
                       ):(
                         <div style={{fontSize:13,lineHeight:1.5,wordBreak:"break-word"}}>{msg.text}</div>
@@ -6739,7 +6817,11 @@ function AppInner() {
               <div style={{background:G.white,padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",flexShrink:0,borderTop:`1px solid #DDD`,transition:"padding-bottom 0.15s"}}>
                 {/* Photo */}
                 <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
-                  📷<input type="file" accept="image/*" capture="environment" onChange={sendPhoto} style={{display:"none"}}/>
+                  📷<input type="file" accept="image/*,video/*" onChange={sendPhoto} style={{display:"none"}}/>
+                </label>
+                {/* File */}
+                <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
+                  📎<input type="file" accept="*/*" onChange={sendFile} style={{display:"none"}}/>
                 </label>
                 {/* Input texte */}
                 <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
