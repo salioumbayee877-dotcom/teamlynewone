@@ -1441,6 +1441,8 @@ function AppInner() {
   const loadChatRef                        = useRef(null);
   const loadMainRef                        = useRef(null);
   const [chatShowNew, setChatShowNew]      = useState(false);
+  const [lightboxSrc, setLightboxSrc]     = useState(null);
+  const [attachMenuOpen, setAttachMenuOpen]= useState(false);
   const [chatLoading, setChatLoading]      = useState(true);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
@@ -6692,15 +6694,19 @@ function AppInner() {
                       style={{maxWidth:"75%",background:isMe?"#DCF8C6":G.white,borderRadius:isMe?"14px 4px 14px 14px":"4px 14px 14px 14px",padding:"7px 10px",boxShadow:"0 1px 2px rgba(0,0,0,0.12)",position:"relative",cursor:msg.id&&canDel?"pointer":"default",outline:isSelected?"2px solid #EF4444":"none"}}>
                       {!isMe&&(showAvatar||msg.audio)&&<div style={{fontSize:11,fontWeight:700,color:rc,marginBottom:3,display:"flex",alignItems:"center",gap:5}}><span>{msg.from}</span>{msg.role&&<span style={{background:rc+"22",borderRadius:4,padding:"1px 5px",fontSize:9,fontWeight:600,color:rc,textTransform:"capitalize"}}>{ROLE_LABEL[msg.role]||msg.role}</span>}</div>}
                       {msg.type==="image"?(
-                        <div style={{position:"relative",display:"inline-block",width:"100%"}}>
-                          <img src={msg.imgSrc||msg.text} alt="" style={{maxWidth:"100%",maxHeight:200,borderRadius:8,display:"block",objectFit:"cover",opacity:msg.uploading?0.55:1}}/>
-                          {msg.uploading&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8}}>
-                            <div style={{width:28,height:28,border:"3px solid rgba(255,255,255,0.35)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>
+                        <div style={{position:"relative",display:"inline-block",width:"100%",borderRadius:8,overflow:"hidden"}}>
+                          <img
+                            src={msg.imgSrc||msg.text} alt=""
+                            onClick={e=>{e.stopPropagation();if(!msg.uploading&&!msg.uploadFailed&&(msg.imgSrc||msg.text))setLightboxSrc(msg.imgSrc||msg.text);}}
+                            style={{maxWidth:"100%",maxHeight:220,width:"100%",borderRadius:8,display:"block",objectFit:"cover",opacity:msg.uploading?0.55:1,cursor:msg.uploading||msg.uploadFailed?"default":"zoom-in"}}/>
+                          {msg.uploading&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.25)",borderRadius:8}}>
+                            <div style={{width:32,height:32,border:"3px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>
                             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                           </div>}
-                          {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6,background:"rgba(0,0,0,0.55)",borderRadius:8}}>
-                            <span style={{color:"#fff",fontSize:11,fontWeight:700}}>❌ Échec</span>
-                            {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"#25D366",border:"none",borderRadius:12,padding:"4px 10px",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>↺ Réessayer</button>}
+                          {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(0,0,0,0.6)",borderRadius:8}}>
+                            <span style={{fontSize:22}}>⚠️</span>
+                            <span style={{color:"#fff",fontSize:12,fontWeight:700}}>Échec envoi</span>
+                            {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"#25D366",border:"none",borderRadius:20,padding:"6px 14px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>↺ Réessayer</button>}
                           </div>}
                         </div>
                       ):msg.audio?(
@@ -6748,24 +6754,39 @@ function AppInner() {
                           `}</style>
                         </div>
                       ):msg.type==="file"?(
-                        <div style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",minWidth:180}}>
-                          <div style={{fontSize:26,flexShrink:0}}>📎</div>
-                          <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:12,fontWeight:700,color:isMe?"#065f46":"#1f2937",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{msg.fileName||"Fichier"}</div>
-                            {msg.fileSize!=null&&<div style={{fontSize:10,color:G.gray}}>{msg.fileSize>1024*1024?(msg.fileSize/1024/1024).toFixed(1)+" Mo":(Math.ceil(msg.fileSize/1024))+" Ko"}</div>}
-                            {msg.uploading&&<div style={{fontSize:10,color:G.gray}}>Envoi…</div>}
-                            {msg.uploadFailed&&<div style={{display:"flex",alignItems:"center",gap:4}}>
-                              <span style={{fontSize:10,color:"#EF4444",fontWeight:700}}>❌ Échec</span>
-                              {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"none",border:"none",color:"#25D366",fontSize:10,fontWeight:700,cursor:"pointer",padding:0}}>↺ Réessayer</button>}
-                            </div>}
-                          </div>
-                          {msg.fileUrl&&!msg.uploading&&!msg.uploadFailed&&(
-                            <a href={msg.fileUrl} download={msg.fileName} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
-                              style={{flexShrink:0,width:30,height:30,borderRadius:"50%",background:isMe?"#128C7E":"#25D366",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:14}}>
-                              ⬇
-                            </a>
-                          )}
-                        </div>
+                        (()=>{
+                          const ext=(msg.fileName||"").split(".").pop().toUpperCase().slice(0,5)||"FILE";
+                          const extColor=ext==="PDF"?"#E53935":ext==="DOC"||ext==="DOCX"?"#1565C0":ext==="XLS"||ext==="XLSX"?"#2E7D32":ext==="ZIP"||ext==="RAR"?"#6A1572":"#546E7A";
+                          const fmtSize=msg.fileSize!=null?(msg.fileSize>1024*1024?(msg.fileSize/1024/1024).toFixed(1)+" Mo":(Math.ceil(msg.fileSize/1024))+" Ko"):null;
+                          return (
+                            <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 2px",minWidth:200,maxWidth:260}}>
+                              {/* Type icon */}
+                              <div style={{width:44,height:44,borderRadius:10,background:extColor,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                <span style={{color:"#fff",fontSize:9,fontWeight:800,letterSpacing:0.5}}>{ext}</span>
+                              </div>
+                              {/* Info */}
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:13,fontWeight:600,color:isMe?"#065f46":"#111",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",lineHeight:1.3}}>{msg.fileName||"Fichier"}</div>
+                                <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:6}}>
+                                  {fmtSize&&<span>{fmtSize}</span>}
+                                  {msg.uploading&&<span style={{color:"#25D366",fontWeight:600}}>Envoi…</span>}
+                                  {msg.uploadFailed&&<span style={{color:"#EF4444",fontWeight:600}}>Échec</span>}
+                                </div>
+                                {msg.uploadFailed&&pendingUploadsRef.current.has(msg.id)&&(
+                                  <button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{marginTop:2,background:"none",border:"none",color:"#25D366",fontSize:11,fontWeight:700,cursor:"pointer",padding:0}}>↺ Réessayer</button>
+                                )}
+                              </div>
+                              {/* Download / spinner */}
+                              {msg.uploading&&<div style={{width:32,height:32,border:"3px solid #ddd",borderTopColor:"#25D366",borderRadius:"50%",animation:"spin 0.75s linear infinite",flexShrink:0}}/>}
+                              {msg.fileUrl&&!msg.uploading&&!msg.uploadFailed&&(
+                                <a href={msg.fileUrl} download={msg.fileName} target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
+                                  style={{flexShrink:0,width:34,height:34,borderRadius:"50%",background:isMe?"#128C7E":"#25D366",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",color:"#fff",fontSize:16,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
+                                  ↓
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })()
                       ):(
                         <div style={{fontSize:13,lineHeight:1.5,wordBreak:"break-word"}}>{msg.text}</div>
                       )}
@@ -6814,33 +6835,62 @@ function AppInner() {
 
             {/* Zone saisie */}
             {!isRecording&&(
-              <div style={{background:G.white,padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",flexShrink:0,borderTop:`1px solid #DDD`,transition:"padding-bottom 0.15s"}}>
-                {/* Photo */}
-                <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
-                  📷<input type="file" accept="image/*,video/*" onChange={sendPhoto} style={{display:"none"}}/>
-                </label>
-                {/* File */}
-                <label style={{width:38,height:38,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:18}}>
-                  📎<input type="file" accept="*/*" onChange={sendFile} style={{display:"none"}}/>
-                </label>
-                {/* Input texte */}
-                <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
-                  onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
-                  placeholder="Message…"
-                  style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:13,outline:"none",resize:"none"}}/>
-                {/* Envoyer ou micro */}
-                {chatMsg.trim()?(
-                  <button onClick={()=>sendChat()} style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
-                ):(
-                  <button
-                    onMouseDown={startRecord} onMouseUp={stopRecord}
-                    onTouchStart={e=>{e.preventDefault();startRecord();}} onTouchEnd={stopRecord}
-                    style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                    🎤
-                  </button>
+              <div style={{background:G.white,borderTop:`1px solid #DDD`,flexShrink:0}}>
+                {/* Attach tray (WhatsApp-style popup) */}
+                {attachMenuOpen&&(
+                  <div style={{display:"flex",gap:20,padding:"12px 20px",background:"#F9FBF9",borderBottom:`1px solid #EEE`,justifyContent:"center"}} onClick={()=>setAttachMenuOpen(false)}>
+                    <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}} onClick={e=>e.stopPropagation()}>
+                      <div style={{width:52,height:52,borderRadius:"50%",background:"#EA4335",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>📷</div>
+                      <span style={{fontSize:10,color:G.gray,fontWeight:600}}>Photo</span>
+                      <input type="file" accept="image/*,video/*" onChange={e=>{setAttachMenuOpen(false);sendPhoto(e);}} style={{display:"none"}}/>
+                    </label>
+                    <label style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,cursor:"pointer"}} onClick={e=>e.stopPropagation()}>
+                      <div style={{width:52,height:52,borderRadius:"50%",background:"#7B1FA2",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>📄</div>
+                      <span style={{fontSize:10,color:G.gray,fontWeight:600}}>Document</span>
+                      <input type="file" accept="*/*" onChange={e=>{setAttachMenuOpen(false);sendFile(e);}} style={{display:"none"}}/>
+                    </label>
+                  </div>
                 )}
+                <div style={{padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",transition:"padding-bottom 0.15s"}}>
+                  {/* Attach button */}
+                  <button onClick={()=>setAttachMenuOpen(v=>!v)}
+                    style={{width:38,height:38,borderRadius:"50%",background:attachMenuOpen?"#25D366":"#F3F4F6",border:"none",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,fontSize:20,color:attachMenuOpen?"#fff":"#555",transition:"background 0.15s",transform:attachMenuOpen?"rotate(45deg)":"none"}}>
+                    +
+                  </button>
+                  {/* Input texte */}
+                  <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
+                    onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
+                    onFocus={()=>setAttachMenuOpen(false)}
+                    placeholder="Message…"
+                    style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:13,outline:"none",resize:"none"}}/>
+                  {/* Envoyer ou micro */}
+                  {chatMsg.trim()?(
+                    <button onClick={()=>sendChat()} style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
+                  ):(
+                    <button
+                      onMouseDown={startRecord} onMouseUp={stopRecord}
+                      onTouchStart={e=>{e.preventDefault();startRecord();}} onTouchEnd={stopRecord}
+                      style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      🎤
+                    </button>
+                  )}
+                </div>
               </div>
             )}
+          {/* Lightbox plein écran photo */}
+          {lightboxSrc&&(
+            <div onClick={()=>setLightboxSrc(null)}
+              style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.92)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+              <button onClick={()=>setLightboxSrc(null)}
+                style={{position:"absolute",top:16,right:16,background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",fontSize:22,width:40,height:40,borderRadius:"50%",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+              <img src={lightboxSrc} alt="" onClick={e=>e.stopPropagation()}
+                style={{maxWidth:"100%",maxHeight:"90vh",borderRadius:8,objectFit:"contain",boxShadow:"0 8px 40px rgba(0,0,0,0.6)"}}/>
+              <a href={lightboxSrc} download target="_blank" rel="noreferrer" onClick={e=>e.stopPropagation()}
+                style={{position:"absolute",bottom:24,right:24,background:"#25D366",color:"#fff",border:"none",borderRadius:20,padding:"8px 18px",fontSize:13,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",gap:6}}>
+                ↓ Télécharger
+              </a>
+            </div>
+          )}
           </div>
           );
         })()}
