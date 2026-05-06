@@ -969,11 +969,11 @@ export default function TeamlyLanding() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <a href="#tarifs" style={{
+            <a href="/dashboard" style={{
               fontSize: 13, color: "rgba(255,255,255,.65)",
               textDecoration: "none", fontWeight: 500,
             }}>Connexion</a>
-            <button className="btn-gold" style={{ padding: "9px 18px", fontSize: 13 }}>Commencer →</button>
+            <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ padding: "9px 18px", fontSize: 13 }}>Commencer →</button></a>
           </div>
         </div>
       </nav>
@@ -1026,9 +1026,9 @@ export default function TeamlyLanding() {
               Admin, Closer et Livreur — une seule plateforme. Chaque commande confirmée, livrée et encaissée plus vite.
             </p>
             <div className="hero-ctas" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
+              <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
                 Commencer gratuitement →
-              </button>
+              </button></a>
               <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
                 <button className="btn-outline">💬 WhatsApp</button>
               </a>
@@ -1195,7 +1195,7 @@ export default function TeamlyLanding() {
               </div>
             ))}
           </div>
-          <button className="btn-gold" style={{ marginBottom: 40 }}>Ouvrir sur PC →</button>
+          <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ marginBottom: 40 }}>Ouvrir sur PC →</button></a>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <MockupDesktopCommandes />
           </div>
@@ -1379,14 +1379,16 @@ export default function TeamlyLanding() {
                     </div>
                   ))}
                 </div>
-                <button style={{
-                  width: "100%", padding: "12px", borderRadius: 12,
-                  fontSize: 13, fontWeight: 800, cursor: "pointer",
-                  fontFamily: "'DM Sans', sans-serif", border: "none",
-                  background: plan.highlight ? G.gold : G.greenDark,
-                  color: plan.highlight ? G.greenDark : G.white,
-                  transition: "opacity .15s",
-                }}>{plan.cta}</button>
+                <a href="/dashboard" style={{ textDecoration: "none", display: "block" }}>
+                  <button style={{
+                    width: "100%", padding: "12px", borderRadius: 12,
+                    fontSize: 13, fontWeight: 800, cursor: "pointer",
+                    fontFamily: "'DM Sans', sans-serif", border: "none",
+                    background: plan.highlight ? G.gold : G.greenDark,
+                    color: plan.highlight ? G.greenDark : G.white,
+                    transition: "opacity .15s",
+                  }}>{plan.cta}</button>
+                </a>
               </div>
             ))}
           </div>
@@ -1408,9 +1410,9 @@ export default function TeamlyLanding() {
             Rejoins les 500+ boutiques qui gèrent leurs équipes avec Teamly. 14 jours gratuits, sans carte bancaire.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <button className="btn-gold" style={{ fontSize: 16, padding: "15px 32px" }}>
+            <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 16, padding: "15px 32px" }}>
               Commencer gratuitement
-            </button>
+            </button></a>
             <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
               <button className="btn-outline" style={{ fontSize: 15, padding: "13px 24px" }}>
                 💬 WhatsApp
