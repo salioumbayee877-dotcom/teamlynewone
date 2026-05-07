@@ -2448,6 +2448,29 @@ function AppInner() {
     if (!deviceFingerprint) getDeviceFingerprint().then(setDeviceFingerprint).catch(()=>{});
   }, []);
 
+  // Auto-resync pending orders when zones change (admin only, content-hash to skip polling noise)
+  const lastZonesHashRef = useRef(null);
+  useEffect(() => {
+    if (!sbToken || !orgId || role !== "admin") return;
+    const hash = JSON.stringify({
+      m: mainRegion ? { n: mainRegion.name, p: mainRegion.price, c: mainRegion.cities||[], a: mainRegion.aliases||[] } : null,
+      o: (otherRegions||[]).map(r=>({ n:r.name, p:r.price, ip:r.interurbain_price, c:r.cities||[], a:r.aliases||[] })),
+    });
+    if (lastZonesHashRef.current === null) { lastZonesHashRef.current = hash; return; }
+    if (lastZonesHashRef.current === hash) return; // no real change
+    lastZonesHashRef.current = hash;
+    const timer = setTimeout(() => {
+      fetch("/.netlify/functions/resync-pending-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sbToken}` }
+      })
+        .then(r=>r.json())
+        .then(d=>{ if(d?.resynced>0) addToast(`✅ ${d.resynced} commande${d.resynced>1?"s":""} synchronisée${d.resynced>1?"s":""}`,"✅",G.green); })
+        .catch(()=>{});
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [mainRegion, otherRegions, sbToken, orgId, role]);
+
   // Auto-load active sessions when Settings modal opens
   useEffect(() => {
     if (!showSettings || !sbToken || !currentUser?.id) return;
@@ -5041,6 +5064,48 @@ function AppInner() {
                 </button>
               </div>
             </div>
+
+            {/* ── Sync zones banners (admin only) ── */}
+            {(()=>{
+              const awaiting  = orders.filter(o=>o.sync_status==="awaiting_zone_config");
+              const unmatched = orders.filter(o=>o.sync_status==="unmatched_zone");
+              if (awaiting.length===0 && unmatched.length===0) return null;
+              const cityCounts = {};
+              unmatched.forEach(o=>{ const c=(o.unmatched_city||"Inconnue").trim(); if(c) cityCounts[c]=(cityCounts[c]||0)+1; });
+              const cities = Object.entries(cityCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+              return (
+                <>
+                  {awaiting.length>0&&(
+                    <div style={{background:"#FFF7E6",borderLeft:`4px solid ${G.gold}`,borderRadius:12,padding:14,display:"flex",flexDirection:isDesktop?"row":"column",alignItems:isDesktop?"center":"flex-start",gap:12}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4}}>⚠️ Tarifs de livraison non configurés</div>
+                        <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5}}>Vous avez <strong>{awaiting.length}</strong> commande{awaiting.length>1?"s":""} en attente sans frais de livraison. Configurez vos zones pour synchroniser automatiquement vos commandes Shopify.</div>
+                      </div>
+                      <button onClick={()=>setTab("frais")} style={{background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                        Configurer maintenant →
+                      </button>
+                    </div>
+                  )}
+                  {unmatched.length>0&&(
+                    <div style={{background:"#FFF7E6",borderLeft:`4px solid ${G.gold}`,borderRadius:12,padding:14,display:"flex",flexDirection:"column",gap:10}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4}}>⚠️ Nouvelle zone détectée</div>
+                        <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5,marginBottom:8}}>{unmatched.length} commande{unmatched.length>1?"s":""} provenant de :</div>
+                        <ul style={{margin:0,paddingLeft:20,fontSize:12,color:G.dark,lineHeight:1.7}}>
+                          {cities.map(([city,n])=>(
+                            <li key={city}><strong>{city}</strong> ({n} commande{n>1?"s":""})</li>
+                          ))}
+                        </ul>
+                        <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5,marginTop:8}}>Ajoutez ces zones pour calculer automatiquement leurs frais.</div>
+                      </div>
+                      <button onClick={()=>setTab("frais")} style={{alignSelf:"flex-start",background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                        Ajouter ces zones →
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* KPIs */}
             <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
