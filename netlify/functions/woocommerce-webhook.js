@@ -1,4 +1,5 @@
 const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
+const { deriveSyncStatus }  = require('./lib/syncStatus');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -109,6 +110,7 @@ exports.handler = async (event) => {
 
     // ── Delivery zone matching ──────────────────────────────────────────
     let fraisAmount = 0, matchType = "fallback";
+    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: addr?.state || null };
     try {
       const [mainRes, othRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
@@ -119,6 +121,7 @@ exports.handler = async (event) => {
       const result = matchDeliveryZone(city, main, others);
       fraisAmount  = result.fee;
       matchType    = result.matchType;
+      syncMeta     = deriveSyncStatus(result, main, others, city, addr?.state);
     } catch(e) { console.error("Zone matching error:", e.message); }
     if (matchType === "fallback") {
       try {
@@ -134,7 +137,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:fraisAmount, livreur:null, livreur_id:null, closer:null, closer_id:null }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:fraisAmount, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce" }),
     });
 
     if (!res.ok) {
