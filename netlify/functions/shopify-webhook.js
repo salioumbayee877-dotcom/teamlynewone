@@ -102,12 +102,13 @@ exports.handler = async (event) => {
       syncMeta     = deriveSyncStatus(result, main, others, city, addr?.province);
     } catch(e) { console.error("Zone matching error:", e.message); }
 
-    // Fallback fee from org settings (display only — sync_status remains unmatched/awaiting)
+    // Fallback fee — use regional_local + regional_transport (Autres régions defaults)
     if (matchType === "fallback") {
       try {
-        const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders });
-        const orgData = await orgRes.json();
-        fraisAmount   = orgData?.[0]?.settings?.defaultDeliveryPrice || 3500;
+        const orgRes2  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders });
+        const s        = (await orgRes2.json())?.[0]?.settings || {};
+        const regional = (parseInt(s.regional_local_fee)||0) + (parseInt(s.regional_transport_fee)||0);
+        fraisAmount    = regional > 0 ? regional : (parseInt(s.defaultDeliveryPrice)||3500);
       } catch {}
     }
 

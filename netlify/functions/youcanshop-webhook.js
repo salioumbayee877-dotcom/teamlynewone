@@ -146,7 +146,9 @@ exports.handler = async (event) => {
     if (matchType === "fallback") {
       try {
         const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders });
-        fraisAmount   = (await orgRes.json())?.[0]?.settings?.defaultDeliveryPrice || 3500;
+        const s       = (await orgRes.json())?.[0]?.settings || {};
+        const regional = (parseInt(s.regional_local_fee)||0) + (parseInt(s.regional_transport_fee)||0);
+        fraisAmount   = regional > 0 ? regional : (parseInt(s.defaultDeliveryPrice)||3500);
       } catch {}
     }
 
