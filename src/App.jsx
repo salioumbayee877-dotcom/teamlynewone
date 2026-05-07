@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef, useCallback } from "react";
+import ProductAnalysisPopup from "./ProductAnalysisPopup";
 // ── Supabase REST client (no SDK needed) ──────────────────────────────────
 const SB_URL = import.meta.env.VITE_SUPABASE_URL;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -9420,133 +9421,81 @@ function AppInner() {
         </div>
       )}
 
-      {/* ── MODAL PRICING DETECTION ── */}
+      {/* ── MODAL PRICING DETECTION (ProductAnalysisPopup) ── */}
       {pricingPopup&&(()=>{
         const {orderId, order:pOrder, items:pItems, responses:pResp} = pricingPopup;
-        const allResolved = pResp.every(r=>r.resolved);
-        const updResp = (idx,upd) => setPricingPopup(p=>({...p,responses:p.responses.map((r,i)=>i===idx?{...r,...upd}:r)}));
+        const currentIdx = pResp.findIndex(r => !r.resolved);
 
-        const handleValidate = async() => {
-          for(let i=0;i<pItems.length;i++){
-            const item=pItems[i]; const resp=pResp[i];
-            const existing=pricingRules.find(r=>_normCity(r.product_name)===_normCity(item.name));
-            if(item.case===1){
-              const bq=parseInt(resp.bundleQty)||2;
-              const refUnit=resp.type==="bundle"?Math.round(item.price/bq):item.price;
-              const payload={org_id:orgId,product_name:item.name,type:resp.type||"unit",bundle_quantity:resp.type==="bundle"?bq:null,reference_price_unit:refUnit,reference_price_bundle:resp.type==="bundle"?item.price:null,discount_percentage:null,discount_type:null,updated_at:new Date().toISOString()};
-              const res=await sbFetch("product_pricing_rules","POST",payload).catch(()=>null);
-              const saved=Array.isArray(res)?res[0]:res; if(saved)setPricingRules(prev=>[...prev,saved]);
-            } else if(item.case===2&&resp.bundleQty){
-              const bq=parseInt(resp.bundleQty)||2;
-              const patch={type:"bundle",bundle_quantity:bq,reference_price_bundle:item.price,reference_price_unit:Math.round(item.price/bq),updated_at:new Date().toISOString()};
-              if(existing){await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{});setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r));}
-            } else if(item.case===3&&resp.type==="discount"){
-              const patch={type:"discount",discount_percentage:parseFloat(resp.discountPct)||0,discount_type:resp.discountType||"ponctuel",reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit),updated_at:new Date().toISOString()};
-              if(existing){await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{});setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r));}
+        const persistAndAdvance = async (newResponses) => {
+          // If still some unresolved → just update state and keep popup open
+          if (newResponses.some(r => !r.resolved)) {
+            setPricingPopup(p => ({...p, responses: newResponses}));
+            return;
+          }
+          // All resolved — persist to product_pricing_rules then advance to assignLivreurModal
+          for (let i = 0; i < pItems.length; i++) {
+            const item = pItems[i]; const resp = newResponses[i];
+            const existing = pricingRules.find(r => _normCity(r.product_name) === _normCity(item.name));
+            if (item.case === 1) {
+              const refUnit = item.price;
+              const payload = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:null, reference_price_unit:refUnit, reference_price_bundle:null, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              const res = await sbFetch("product_pricing_rules","POST",payload).catch(()=>null);
+              const saved = Array.isArray(res)?res[0]:res; if (saved) setPricingRules(prev=>[...prev,saved]);
+            } else if (item.case === 2 && resp.type === "acknowledged") {
+              const patch = {reference_price_unit:item.pricePerUnit, updated_at:new Date().toISOString()};
+              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{}); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+            } else if (item.case === 3 && resp.type === "discount") {
+              const pct = item.expectedPrice > 0 ? Math.max(1, Math.round((1 - item.price / item.expectedPrice) * 100)) : 0;
+              const patch = {type:"discount", discount_percentage:pct, discount_type:resp.discountType||"ponctuel", reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit), updated_at:new Date().toISOString()};
+              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{}); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             }
           }
-          setPricingChecked(prev=>new Set([...prev,orderId]));
+          setPricingChecked(prev => new Set([...prev, orderId]));
           setPricingPopup(null);
           setAssignLivreurModal(pOrder);
         };
 
+        const item = pItems[currentIdx] || pItems[0];
+        const alert = item.case === 1
+          ? { type: "new_product",  name: item.name, price: item.price }
+          : item.case === 2
+          ? { type: "price_change", name: item.name, oldPrice: item.expectedPrice, newPrice: item.price }
+          : { type: "price_drop",   name: item.name, oldPrice: item.expectedPrice, newPrice: item.price };
+
+        const onDone = (result) => {
+          let upd = { resolved: true };
+          if (item.case === 1)      upd.type = "unit";
+          else if (item.case === 2) upd.type = "acknowledged";
+          else if (item.case === 3) {
+            if (result?.priceDropType === "discount") { upd.type = "discount"; upd.discountType = "ponctuel"; }
+            else if (result?.priceDropType === "permanent") { upd.type = "discount"; upd.discountType = "permanent"; }
+            else upd.type = "no_discount";
+          }
+          const newResponses = pResp.map((r,i) => i === currentIdx ? {...r, ...upd} : r);
+          persistAndAdvance(newResponses);
+        };
+
+        const onSkip = () => {
+          // Skip this item — mark resolved without writing a pricing rule
+          const newResponses = pResp.map((r,i) => i === currentIdx ? {...r, resolved: true, type: "skipped"} : r);
+          persistAndAdvance(newResponses);
+        };
+
+        // Multi-item progress hint
+        const remaining = pItems.length - currentIdx;
+        const showProgress = pItems.length > 1;
+
         return (
-          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.72)",zIndex:600,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-            <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:"20px 20px 0 0",padding:"20px 18px 28px",width:"100%",maxWidth:480,maxHeight:"92vh",overflowY:"auto"}}>
-              <div style={{width:36,height:4,background:"#E5E7EB",borderRadius:2,margin:"0 auto 14px"}}/>
-              <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:3}}>🔍 Analyse des produits</div>
-              <div style={{fontSize:12,color:G.gray,marginBottom:14}}>{pItems.length} produit{pItems.length>1?"s nécessitent":" nécessite"} une réponse avant de continuer</div>
-
-              {pItems.map((item,idx)=>{
-                const resp=pResp[idx];
-                return (
-                  <div key={idx} style={{background:resp.resolved?"#F0FDF4":"#F9FAFB",borderRadius:14,padding:14,marginBottom:10,border:`1.5px solid ${resp.resolved?G.green:"#E5E7EB"}`}}>
-                    {/* CAS 1 — Nouveau produit */}
-                    {item.case===1&&(
-                      <div>
-                        <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:2}}>🆕 Nouveau produit détecté</div>
-                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>"{item.name}" · {fmt(item.price)} F — Comment vendez-vous ce produit ?</div>
-                        <div style={{display:"flex",gap:6,marginBottom:8}}>
-                          <button onClick={()=>updResp(idx,{type:"unit",resolved:true})}
-                            style={{flex:1,background:resp.type==="unit"?G.green:"#E5E7EB",color:resp.type==="unit"?"#fff":G.dark,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>🟢 Prix unitaire</button>
-                          <button onClick={()=>updResp(idx,{type:"bundle",bundleQty:resp.bundleQty||2,resolved:false})}
-                            style={{flex:1,background:resp.type==="bundle"?"#3B82F6":"#E5E7EB",color:resp.type==="bundle"?"#fff":G.dark,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>🔵 Bundle</button>
-                        </div>
-                        {resp.type==="bundle"&&(
-                          <div>
-                            <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Nombre d'unités dans ce bundle :</div>
-                            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
-                              {[2,3,4,5,6,7,8,9,10].map(n=>(
-                                <button key={n} onClick={()=>updResp(idx,{bundleQty:n,resolved:true})}
-                                  style={{width:36,height:36,background:(resp.bundleQty||2)===n?"#3B82F6":"#E5E7EB",color:(resp.bundleQty||2)===n?"#fff":G.dark,border:"none",borderRadius:8,fontWeight:800,fontSize:14,cursor:"pointer"}}>{n}</button>
-                              ))}
-                            </div>
-                            {resp.bundleQty&&<div style={{fontSize:11,color:"#1E40AF",fontWeight:600}}>Prix unitaire calculé : {fmt(Math.round(item.price/resp.bundleQty))} F</div>}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* CAS 2 — Prix plus élevé */}
-                    {item.case===2&&(
-                      <div>
-                        <div style={{fontWeight:700,fontSize:13,color:"#1E40AF",marginBottom:2}}>🔵 Nouveau prix détecté — {item.name}</div>
-                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>{fmt(item.price)} F <span style={{color:G.gray}}>(réf: {fmt(item.rule.reference_price_unit)} F/u)</span> — Est-ce un bundle ?</div>
-                        <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Nombre d'unités :</div>
-                        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                          {[2,3,4,5,6,7,8,9,10].map(n=>(
-                            <button key={n} onClick={()=>updResp(idx,{bundleQty:n,resolved:true})}
-                              style={{width:36,height:36,background:resp.bundleQty===n?"#3B82F6":"#E5E7EB",color:resp.bundleQty===n?"#fff":G.dark,border:"none",borderRadius:8,fontWeight:800,fontSize:14,cursor:"pointer"}}>{n}</button>
-                          ))}
-                        </div>
-                        {resp.bundleQty&&<div style={{fontSize:11,color:"#1E40AF",fontWeight:600,marginTop:6}}>Prix unitaire : {fmt(Math.round(item.price/resp.bundleQty))} F</div>}
-                      </div>
-                    )}
-                    {/* CAS 3 — Prix inférieur */}
-                    {item.case===3&&(
-                      <div>
-                        <div style={{fontWeight:700,fontSize:13,color:"#D97706",marginBottom:2}}>🟡 Prix inférieur détecté — {item.name}</div>
-                        <div style={{fontSize:12,color:G.gray,marginBottom:10}}>{fmt(item.price)} F <span style={{color:G.gray}}>(réf: {fmt(item.rule.reference_price_unit)} F/u)</span> — Est-ce une remise ?</div>
-                        <div style={{display:"flex",gap:6,marginBottom:10}}>
-                          <button onClick={()=>updResp(idx,{type:"discount",discountType:resp.discountType||"ponctuel",resolved:false})}
-                            style={{flex:1,background:resp.type==="discount"?"#F59E0B":"#E5E7EB",color:resp.type==="discount"?"#fff":G.dark,border:"none",borderRadius:10,padding:"9px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>✅ Oui, remise</button>
-                          <button onClick={()=>updResp(idx,{type:"no_discount",resolved:true})}
-                            style={{flex:1,background:resp.type==="no_discount"?"#6B7280":"#E5E7EB",color:resp.type==="no_discount"?"#fff":G.dark,border:"none",borderRadius:10,padding:"9px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>Non, erreur</button>
-                        </div>
-                        {resp.type==="discount"&&(
-                          <div style={{background:"#FFFBEB",borderRadius:10,padding:10,border:"1px solid #FCD34D"}}>
-                            <div style={{fontSize:11,color:"#92400E",marginBottom:5}}>Pourcentage de remise :</div>
-                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
-                              <input type="number" min="1" max="99" value={resp.discountPct||""} onChange={e=>updResp(idx,{discountPct:e.target.value})}
-                                placeholder="ex: 15" style={{flex:1,border:"1.5px solid #FCD34D",borderRadius:7,padding:"7px 10px",fontSize:13,outline:"none"}}/>
-                              <span style={{fontSize:13,color:"#92400E",fontWeight:700}}>%</span>
-                            </div>
-                            <div style={{fontSize:11,color:"#92400E",marginBottom:5}}>Cette remise est :</div>
-                            <div style={{display:"flex",gap:6,marginBottom:8}}>
-                              <button onClick={()=>updResp(idx,{discountType:"ponctuel"})} style={{flex:1,background:resp.discountType==="ponctuel"?"#F59E0B":"#E5E7EB",color:resp.discountType==="ponctuel"?"#fff":"#6B7280",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:11,cursor:"pointer"}}>Ponctuelle</button>
-                              <button onClick={()=>updResp(idx,{discountType:"permanent"})} style={{flex:1,background:resp.discountType==="permanent"?"#EF4444":"#E5E7EB",color:resp.discountType==="permanent"?"#fff":"#6B7280",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,fontSize:11,cursor:"pointer"}}>Permanente</button>
-                            </div>
-                            {resp.discountPct&&<button onClick={()=>updResp(idx,{resolved:true})}
-                              style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"8px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>✓ Confirmer</button>}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {resp.resolved&&<div style={{marginTop:8,fontSize:11,fontWeight:700,color:G.green}}>✅ Répondu</div>}
-                  </div>
-                );
-              })}
-
-              <button onClick={handleValidate} disabled={!allResolved}
-                style={{width:"100%",background:allResolved?G.green:"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:allResolved?"pointer":"not-allowed",marginBottom:8}}>
-                {allResolved?"✅ Valider et continuer →":"Répondre à tous les produits pour continuer"}
-              </button>
-              <button onClick={()=>{setPricingChecked(prev=>new Set([...prev,orderId]));setPricingPopup(null);setAssignLivreurModal(pOrder);}}
-                style={{width:"100%",background:"none",color:G.gray,border:"none",padding:"8px 0",fontSize:12,cursor:"pointer"}}>
-                Ignorer — continuer sans enregistrer
-              </button>
-            </div>
-          </div>
+          <>
+            {showProgress && (
+              <div style={{position:"fixed",top:12,left:"50%",transform:"translateX(-50%)",background:"#0F1923",color:"#fff",borderRadius:20,padding:"6px 14px",fontSize:11,fontWeight:600,zIndex:3100,boxShadow:"0 4px 12px rgba(0,0,0,0.3)"}}>
+                Produit {currentIdx + 1} / {pItems.length}
+              </div>
+            )}
+            <ProductAnalysisPopup alert={alert} onDone={onDone} onSkip={onSkip}/>
+          </>
         );
+
       })()}
 
       {/* ── MODAL ASSIGNER LIVREUR (Cmdes boutique → obligatoire) ── */}
