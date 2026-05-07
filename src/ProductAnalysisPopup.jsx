@@ -9,6 +9,7 @@ const C = {
   grayLight:  "#F3F4F6",
   dark:       "#0D1F14",
   amber:      "#D97706",
+  amberLight: "#FEF3C7",
 };
 
 const fmt = n => Number(n||0).toLocaleString("fr-FR");
@@ -17,11 +18,21 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
   if (!alert) return null;
   const isNew    = alert.type === "new_product";
   const isChange = alert.type === "price_change";
-  if (!isNew && !isChange) return null;
+  const isDrop   = alert.type === "price_drop";
+  if (!isNew && !isChange && !isDrop) return null;
 
-  const diff    = isChange ? alert.newPrice - alert.oldPrice : 0;
-  const diffPct = isChange && alert.oldPrice ? (diff / alert.oldPrice) * 100 : 0;
+  const showCompare = isChange || isDrop;
+  const diff    = showCompare ? alert.newPrice - alert.oldPrice : 0;
+  const diffPct = showCompare && alert.oldPrice ? (diff / alert.oldPrice) * 100 : 0;
   const up      = diff > 0;
+
+  const headerEmoji = isNew ? "🆕" : isDrop ? "📉" : "💰";
+  const headerTitle = isNew ? "Nouveau produit" : isDrop ? "Baisse de prix" : "Changement de prix";
+  const headerSub   = isNew
+    ? "Un nouveau produit vient d'être ajouté"
+    : isDrop
+      ? "Le prix a baissé — promotion ou changement permanent ?"
+      : "Le prix d'un produit a été modifié";
 
   return (
     <div onClick={onSkip}
@@ -32,13 +43,9 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
 
         {/* Header */}
         <div style={{textAlign:"center",marginBottom:18}}>
-          <div style={{fontSize:38,lineHeight:1,marginBottom:8}}>{isNew ? "🆕" : "💰"}</div>
-          <div style={{fontSize:17,fontWeight:800,color:C.dark,marginBottom:4}}>
-            {isNew ? "Nouveau produit" : "Changement de prix"}
-          </div>
-          <div style={{fontSize:12,color:C.gray}}>
-            {isNew ? "Un nouveau produit vient d'être ajouté" : "Le prix d'un produit a été modifié"}
-          </div>
+          <div style={{fontSize:38,lineHeight:1,marginBottom:8}}>{headerEmoji}</div>
+          <div style={{fontSize:17,fontWeight:800,color:C.dark,marginBottom:4}}>{headerTitle}</div>
+          <div style={{fontSize:12,color:C.gray}}>{headerSub}</div>
         </div>
 
         {/* Card produit */}
@@ -53,7 +60,7 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
             </div>
           )}
 
-          {isChange && (
+          {showCompare && (
             <div style={{paddingTop:10,borderTop:`1px solid ${C.green}22`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <span style={{fontSize:12,color:C.gray,fontWeight:600}}>Ancien prix</span>
@@ -75,16 +82,37 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
         </div>
 
         {/* Boutons */}
-        <div style={{display:"flex",gap:10}}>
-          <button onClick={onSkip}
-            style={{flex:1,background:C.grayLight,color:"#374151",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-            Ignorer
-          </button>
-          <button onClick={onDone}
-            style={{flex:1.4,background:C.green,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:14,cursor:"pointer",boxShadow:"0 2px 8px rgba(26,92,56,0.3)"}}>
-            ✓ Marquer résolu
-          </button>
-        </div>
+        {isDrop ? (
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>onDone&&onDone({priceDropType:"discount"})}
+                style={{flex:1,background:C.amber,color:"#fff",border:"none",borderRadius:14,padding:"14px 8px",fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:"0 2px 8px rgba(217,119,6,0.3)",lineHeight:1.3}}>
+                <div style={{fontSize:18,marginBottom:2}}>🏷️</div>
+                Promotion temporaire
+              </button>
+              <button onClick={()=>onDone&&onDone({priceDropType:"permanent"})}
+                style={{flex:1,background:C.green,color:"#fff",border:"none",borderRadius:14,padding:"14px 8px",fontWeight:700,fontSize:13,cursor:"pointer",boxShadow:"0 2px 8px rgba(26,92,56,0.3)",lineHeight:1.3}}>
+                <div style={{fontSize:18,marginBottom:2}}>📉</div>
+                Baisse permanente
+              </button>
+            </div>
+            <button onClick={onSkip}
+              style={{background:"none",color:C.gray,border:"none",padding:"6px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
+              Ignorer
+            </button>
+          </div>
+        ) : (
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={onSkip}
+              style={{flex:1,background:C.grayLight,color:"#374151",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+              Ignorer
+            </button>
+            <button onClick={()=>onDone&&onDone()}
+              style={{flex:1.4,background:C.green,color:"#fff",border:"none",borderRadius:14,padding:"14px 0",fontWeight:700,fontSize:14,cursor:"pointer",boxShadow:"0 2px 8px rgba(26,92,56,0.3)"}}>
+              ✓ Marquer résolu
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
