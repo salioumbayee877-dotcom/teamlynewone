@@ -7468,6 +7468,36 @@ function AppInner() {
                             style={{flex:1,height:44,border:"1.5px solid #86EFAC",borderRadius:10,padding:"0 12px",fontSize:16,outline:"none",fontWeight:600}}/>
                           <span style={{fontSize:14,color:G.gray,fontWeight:600}}>CFA</span>
                         </div>
+                        {/* Bulk apply Dakar */}
+                        {(()=>{
+                          const cityCount = (mainRegion?.cities||[]).length;
+                          const v = parseInt(mainRegion?.price)||0;
+                          const disabled = role!=="admin" || cityCount===0 || !v;
+                          const helper = cityCount===0
+                            ? "Aucune ville à mettre à jour"
+                            : `${cityCount} ville${cityCount>1?"s":""} ser${cityCount>1?"ont":"a"} mise${cityCount>1?"s":""} à jour`;
+                          return (
+                            <div style={{marginTop:10}}>
+                              <button disabled={disabled}
+                                onClick={()=>setConfirmModal({
+                                  msg:"⚠️ Confirmer l'application",
+                                  sub:`Vous allez appliquer le tarif de ${fmt(v)} CFA à toutes les villes de Dakar (${cityCount}). Cette action remplacera les tarifs individuels existants de chaque ville.`,
+                                  onConfirm: async()=>{
+                                    try {
+                                      const newCities = (mainRegion?.cities||[]).map(cs=>{ const i=cs.lastIndexOf("|"); const name=i===-1?cs:cs.slice(0,i); return `${name}|${v}`; });
+                                      await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:newCities,price:v});
+                                      setMainRegion(r=>({...r,cities:newCities,price:v}));
+                                      addToast(`✅ Tarif appliqué à ${cityCount} ville${cityCount>1?"s":""} de Dakar`,"✅",G.green);
+                                    } catch(e){ addToast("❌ Erreur, réessayer","❌",G.red); }
+                                  }
+                                })}
+                                style={{width:"100%",height:48,background:disabled?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:10,fontWeight:600,fontSize:15,cursor:disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                                ✅ Appliquer à toutes les villes de Dakar
+                              </button>
+                              <div style={{fontSize:11,color:G.gray,textAlign:"center",marginTop:6}}>{helper}</div>
+                            </div>
+                          );
+                        })()}
                       </div>
                       <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
                         {mainCities.map((c,i)=>(
@@ -7591,6 +7621,37 @@ function AppInner() {
                               </div>
                               <div style={{fontSize:16,fontWeight:700,color:total>0?G.green:G.gray}}>{fmt(total)} CFA</div>
                             </div>
+                            {/* Bulk apply Autres régions — single button for both rates */}
+                            {(()=>{
+                              const regionCount = (otherRegions||[]).length;
+                              const disabled = role!=="admin" || regionCount===0 || lf<=0 || tf<=0;
+                              const helper = regionCount===0
+                                ? "Aucune région à mettre à jour"
+                                : `${regionCount} région${regionCount>1?"s":""} ser${regionCount>1?"ont":"a"} mise${regionCount>1?"s":""} à jour avec les 2 tarifs ci-dessus`;
+                              return (
+                                <div style={{marginTop:12}}>
+                                  <button disabled={disabled}
+                                    onClick={()=>setConfirmModal({
+                                      msg:"⚠️ Confirmer l'application",
+                                      sub:`Vous allez appliquer ces tarifs à toutes les régions hors Dakar :\n🏍️ Frais locaux destination : ${fmt(lf)} CFA\n🚐 Frais transport interurbain : ${fmt(tf)} CFA\n💰 Total par région : ${fmt(total)} CFA\n\n${regionCount} région${regionCount>1?"s seront mises":" sera mise"} à jour. Cette action remplacera leurs tarifs individuels.`,
+                                      onConfirm: async()=>{
+                                        try {
+                                          await Promise.all((otherRegions||[]).map(r => {
+                                            const newCities = (r.cities||[]).map(cs=>{ const i=cs.lastIndexOf("|"); const name=i===-1?cs:cs.slice(0,i); return `${name}|${lf}`; });
+                                            return sbFetch(`delivery_other_regions?id=eq.${r.id}`,"PATCH",{price:lf,interurbain_price:tf,cities:newCities});
+                                          }));
+                                          setOtherRegions(prev => prev.map(r => ({...r, price:lf, interurbain_price:tf, cities:(r.cities||[]).map(cs=>{ const i=cs.lastIndexOf("|"); const name=i===-1?cs:cs.slice(0,i); return `${name}|${lf}`; })})));
+                                          addToast(`✅ Tarifs appliqués à ${regionCount} région${regionCount>1?"s":""}`,"✅",G.green);
+                                        } catch(e){ addToast("❌ Erreur, réessayer","❌",G.red); }
+                                      }
+                                    })}
+                                    style={{width:"100%",height:48,background:disabled?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:10,fontWeight:600,fontSize:15,cursor:disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                                    ✅ Appliquer à toutes les régions hors Dakar
+                                  </button>
+                                  <div style={{fontSize:11,color:G.gray,textAlign:"center",marginTop:6}}>{helper}</div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         );
                       })()}
@@ -9329,7 +9390,7 @@ function AppInner() {
           <div style={{background:G.white,borderRadius:20,padding:28,maxWidth:320,width:"100%",textAlign:"center"}}>
             <div style={{fontSize:44,marginBottom:12}}>{confirmModal.danger?"🗑️":"❓"}</div>
             <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:6}}>{confirmModal.msg}</div>
-            {confirmModal.sub&&<div style={{fontSize:12,color:G.gray,marginBottom:20}}>{confirmModal.sub}</div>}
+            {confirmModal.sub&&<div style={{fontSize:12,color:G.gray,marginBottom:20,whiteSpace:"pre-line",textAlign:"left"}}>{confirmModal.sub}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
               <button onClick={()=>{confirmModal.onConfirm();setConfirmModal(null);}}
                 style={{background:confirmModal.danger?G.red:G.green,color:G.white,border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:15,cursor:"pointer"}}>
