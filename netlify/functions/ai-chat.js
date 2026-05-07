@@ -1,3 +1,4 @@
+const { requireUser } = require("./_auth");
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 const SYSTEM = `Tu es l'assistant IA intégré dans Teamly — une application de gestion de commandes COD (Cash On Delivery) pour le e-commerce en Afrique de l'Ouest (Sénégal, Côte d'Ivoire, Mali, Burkina Faso, etc.).
@@ -159,6 +160,10 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method not allowed" };
   const origin = event.headers?.origin || event.headers?.Origin || "";
   if (origin && !ALLOWED.includes(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
+
+  // Auth required to prevent unauthenticated billing abuse
+  const user = await requireUser(event);
+  if (!user) return { statusCode: 401, headers, body: JSON.stringify({ error: "Authentification requise" }) };
 
   if (!ANTHROPIC_API_KEY)
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Clé API non configurée" }) };

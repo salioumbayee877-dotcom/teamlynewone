@@ -6,6 +6,16 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# Security headers — applied to every route
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(self), geolocation=(self), interest-cohort=()"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+
 # Never cache sw.js or app.js so updates are picked up immediately
 [[headers]]
   for = "/sw.js"

@@ -1656,9 +1656,11 @@ function AppInner() {
   useEffect(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("payment")==="success" && params.get("org")===orgId && orgId) {
+      const sessionId = params.get("session") || params.get("session_id") || null;
       fetch("/.netlify/functions/wave-success",{
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({orgId}),
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`},
+        body: JSON.stringify({orgId, sessionId}),
       }).then(r=>r.json()).then(d=>{
         if(d.success){ setIsPro(true); setTrialDaysLeft(31); addToast("Paiement confirmé — Bienvenue en Pro 🎉","✅","#1A5C38"); }
       }).catch(()=>{});
@@ -1688,7 +1690,7 @@ function AppInner() {
     try {
       const res = await fetch("/.netlify/functions/ai-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${_authToken||SB_KEY}` },
         body: JSON.stringify({ messages: next }),
       });
       const data = await res.json();
