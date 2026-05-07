@@ -1452,6 +1452,9 @@ function AppInner() {
     return "login";
   });
   const [authMode, setAuthMode]   = useState("login");
+  const [otpCode, setOtpCode]     = useState(["","","","","",""]);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResendIn, setOtpResendIn]   = useState(0);
   const [phoneOtpSent,    setPhoneOtpSent]    = useState(false);
   const [phoneCountryCode,setPhoneCountryCode] = useState("+34");
   const [authForm, setAuthForm]   = useState(()=>{
@@ -3298,7 +3301,9 @@ function AppInner() {
   const DISPOSABLE_DOMAINS = ["mailinator.com","guerrillamail.com","tempmail.com","10minutemail.com","throwam.com","yopmail.com","sharklasers.com","guerrillamailblock.com","grr.la","guerrillamail.info","spam4.me","trashmail.com","trashmail.me","trashmail.net","fakeinbox.com","maildrop.cc","dispostable.com","mailnull.com","spamgourmet.com","getairmail.com","filzmail.com","throwam.com","mailnesia.com","meltmail.com","tempr.email","discard.email","spamspot.com","spamevade.com","deadaddress.com","spamfree24.org","mt2015.com","dingbone.com","fudgerub.com","lookugly.com","shitmail.me","tempe-mail.com","temp-mail.org","temp-mail.io"];
   const handleRegister = () => {
     if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.nom||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
-    if(authForm.password.length<6) { setAuthError("Mot de passe: 6 caractères minimum"); return; }
+    if(authForm.password.length<8) { setAuthError("Mot de passe: 8 caractères minimum"); return; }
+    if(!/[A-Za-z]/.test(authForm.password)||!/[0-9]/.test(authForm.password)) { setAuthError("Mot de passe: au moins une lettre et un chiffre"); return; }
+    if(authForm.confirmPassword !== undefined && authForm.confirmPassword !== authForm.password) { setAuthError("Les mots de passe ne correspondent pas"); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if(!emailRegex.test(authForm.email)) { setAuthError("Adresse email invalide"); return; }
     const emailDomain = authForm.email.split("@")[1]?.toLowerCase();
@@ -3605,7 +3610,8 @@ function AppInner() {
                 {key:"nom",       label:"👤 Ton prénom & nom *",     ph:"Cheikh Diallo",      type:"text",     ac:"name"},
                 {key:"email",     label:"📧 Email *",                ph:"vous@boutique.sn",   type:"email",    ac:"email"},
                 {key:"phone",     label:"📱 Téléphone *",            ph:"77 123 45 67",       type:"tel",      ac:"tel"},
-                {key:"password",  label:"🔒 Mot de passe *",         ph:"6 caractères min",   type:"password", ac:"new-password"},
+                {key:"password",        label:"🔒 Mot de passe *",         ph:"8 car. min · 1 lettre + 1 chiffre",   type:"password", ac:"new-password"},
+                {key:"confirmPassword", label:"🔒 Confirmer le mot de passe *", ph:"Retape le mot de passe",         type:"password", ac:"new-password"},
               ].map(f=>(
                 <div key={f.key}>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
@@ -3962,9 +3968,96 @@ function AppInner() {
         </div>
       )}
 
-      {authStep==="verify-email"&&(
+      {authStep==="verify-email"&&(()=>{
+        const pending = (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_signup")||"null");}catch(e){return null;}})();
+        const email   = authForm.email || pending?.email || "";
+
+        const setBox = (i, v) => {
+          const clean = (v||"").replace(/\D/g,"").slice(0,1);
+          setOtpCode(prev=>{ const next=[...prev]; next[i]=clean; return next; });
+          if(clean && i<5) document.getElementById(`otp-${i+1}`)?.focus();
+        };
+        const onPaste = (e) => {
+          const txt = (e.clipboardData?.getData("text")||"").replace(/\D/g,"").slice(0,6);
+          if(txt.length>=2){
+            e.preventDefault();
+            const arr = ["","","","","",""];
+            for(let i=0;i<txt.length;i++) arr[i] = txt[i];
+            setOtpCode(arr);
+            const focusIdx = Math.min(txt.length, 5);
+            setTimeout(()=>document.getElementById(`otp-${focusIdx}`)?.focus(), 0);
+          }
+        };
+        const onKey = (i, e) => {
+          if(e.key==="Backspace" && !otpCode[i] && i>0) document.getElementById(`otp-${i-1}`)?.focus();
+        };
+
+        const verifyCode = async () => {
+          const token = otpCode.join("");
+          if(token.length!==6) { setAuthError("Entre les 6 chiffres"); return; }
+          if(!email) { setAuthError("Email manquant — recommence l'inscription"); return; }
+          setOtpVerifying(true); setAuthError("");
+          try {
+            const r = await fetchWithTimeout(`${SB_URL}/auth/v1/verify`, {
+              method:"POST",
+              headers:{"Content-Type":"application/json","apikey":SB_KEY},
+              body: JSON.stringify({email, token, type:"signup"}),
+            }, 20000);
+            const data = await r.json().catch(()=>({}));
+            if(!r.ok || !data.access_token) {
+              const msg = (data.error_description||data.msg||data.message||"").toLowerCase();
+              setAuthError(msg.includes("expired") ? "Code expiré — demandez-en un nouveau" : msg.includes("invalid") || msg.includes("token") ? "Code incorrect, réessayez" : "Erreur de vérification, réessayez");
+              setOtpVerifying(false); return;
+            }
+            const tok = data.access_token; _authToken = tok; setSbToken(tok);
+            const userId = data.user?.id;
+            const newOrgId = pending?.orgId || (crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`);
+            const nom      = pending?.nom      || authForm.nom      || "Admin";
+            const phone    = pending?.phone    || authForm.phone    || "";
+            const boutique = pending?.boutique || authForm.boutique || "Ma Boutique";
+            try {
+              await sbFetch("organizations","POST",{id:newOrgId,name:boutique,whatsapp:phone});
+              await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom,phone,email,role:"admin"});
+            } catch(e){ /* may already exist via realtime — ignore */ }
+            setOrgId(newOrgId); setSbReady(true);
+            setCurrentUser({id:userId, nom, email, role:"admin", phone});
+            setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
+            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:null});
+            try {
+              localStorage.setItem("teamly_token",tok);
+              if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
+              localStorage.setItem("teamly_email",email);
+              localStorage.setItem("teamly_org",newOrgId);
+              localStorage.setItem("teamly_role","admin");
+              localStorage.setItem("teamly_userId",userId||"");
+              localStorage.setItem("teamly_nom",nom);
+              localStorage.removeItem("teamly_pending_signup");
+            } catch(e){}
+            addToast("✅ Compte créé avec succès","✅","#1A5C38");
+            setOtpCode(["","","","","",""]);
+            setOtpVerifying(false);
+            setAuthStep("plan");
+          } catch(e) {
+            setAuthError("Erreur réseau, réessayez");
+            setOtpVerifying(false);
+          }
+        };
+
+        const resendCode = () => {
+          if(otpResendIn>0 || !email) return;
+          setAuthError("");
+          fetchWithTimeout(`${SB_URL}/auth/v1/resend`,{
+            method:"POST",
+            headers:{"Content-Type":"application/json","apikey":SB_KEY},
+            body:JSON.stringify({type:"signup",email}),
+          },15000)
+            .then(()=>{ setAuthError("✓ Code renvoyé"); setOtpResendIn(60); const t=setInterval(()=>setOtpResendIn(s=>{ if(s<=1){clearInterval(t); return 0;} return s-1; }),1000); })
+            .catch(()=>setAuthError("Erreur — réessayez dans quelques secondes"));
+        };
+
+        return (
         <div style={{minHeight:"100dvh",background:"#0F1923",display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif"}}>
-          <div style={{width:"100%",maxWidth:400,display:"flex",flexDirection:"column",gap:20}}>
+          <div style={{width:"100%",maxWidth:400,display:"flex",flexDirection:"column",gap:18}}>
             <div style={{textAlign:"center",marginBottom:4}}>
               <div style={{display:"inline-flex",alignItems:"center",gap:10,marginBottom:24}}>
                 <div style={{width:42,height:42,borderRadius:12,background:"linear-gradient(135deg,#1A5C38,#2E8B57)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -3972,45 +4065,49 @@ function AppInner() {
                 </div>
                 <span style={{color:"#fff",fontWeight:800,fontSize:22,letterSpacing:-0.5}}>Teamly</span>
               </div>
-              <div style={{width:72,height:72,borderRadius:"50%",background:"rgba(240,165,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px"}}>
-                <svg width="36" height="36" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="3" stroke="#F0A500" strokeWidth="2"/><path d="M2 7L12 13L22 7" stroke="#F0A500" strokeWidth="2"/></svg>
+              <div style={{width:64,height:64,borderRadius:"50%",background:"rgba(240,165,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
+                <span style={{fontSize:32}}>✉️</span>
               </div>
-              <div style={{color:"#fff",fontWeight:800,fontSize:22,marginBottom:10}}>Vérifie ton email</div>
-              <div style={{color:"rgba(255,255,255,0.55)",fontSize:14,lineHeight:1.7}}>
-                Un lien de confirmation a été envoyé à<br/>
-                <span style={{color:"#F0A500",fontWeight:600}}>{authForm.email||"ton adresse email"}</span>.<br/>
-                Clique sur le lien pour activer ton compte.
+              <div style={{color:"#fff",fontWeight:800,fontSize:20,marginBottom:8}}>Vérifiez votre email</div>
+              <div style={{color:"rgba(255,255,255,0.6)",fontSize:13,lineHeight:1.6}}>
+                Nous avons envoyé un code à 6 chiffres à<br/>
+                <span style={{color:"#F0A500",fontWeight:600}}>{email||"votre email"}</span>
               </div>
             </div>
-            <div style={{background:"rgba(255,255,255,0.05)",borderRadius:16,padding:"16px 20px",display:"flex",flexDirection:"column",gap:12}}>
-              {[{n:1,t:"Ouvre ta boîte mail"},{n:2,t:"Clique sur le lien de confirmation Teamly"},{n:3,t:"Tu seras connecté automatiquement"}].map(({n,t})=>(
-                <div key={n} style={{display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{width:28,height:28,borderRadius:"50%",background:"rgba(240,165,0,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#F0A500",fontWeight:800,fontSize:13}}>{n}</div>
-                  <span style={{color:"rgba(255,255,255,0.8)",fontSize:14}}>{t}</span>
-                </div>
+
+            {/* OTP boxes */}
+            <div style={{display:"flex",justifyContent:"center",gap:8,marginTop:4}} onPaste={onPaste}>
+              {otpCode.map((v,i)=>(
+                <input key={i} id={`otp-${i}`}
+                  inputMode="numeric" pattern="[0-9]*" maxLength={1} autoComplete="one-time-code"
+                  value={v} onChange={e=>setBox(i,e.target.value)} onKeyDown={e=>onKey(i,e)}
+                  style={{width:46,height:54,textAlign:"center",fontSize:22,fontWeight:700,color:"#fff",background:"rgba(255,255,255,0.08)",border:`1.5px solid ${authError.includes("incorrect")||authError.includes("expir")?"rgba(220,38,38,0.55)":"rgba(255,255,255,0.18)"}`,borderRadius:10,outline:"none",fontFamily:"sans-serif"}}/>
               ))}
             </div>
-            <button onClick={()=>{
-              const em = authForm.email || (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_signup")||"{}").email||"";}catch(e){return "";}})();
-              if(!em) return;
-              setAuthError("");
-              fetchWithTimeout(`${SB_URL}/auth/v1/resend`,{
-                method:"POST",
-                headers:{"Content-Type":"application/json","apikey":SB_KEY},
-                body:JSON.stringify({type:"signup",email:em}),
-              },15000)
-                .then(()=>setAuthError("✓ Email renvoyé !"))
-                .catch(()=>setAuthError("Erreur — réessaie dans quelques secondes"));
-            }} style={{background:"rgba(255,255,255,0.08)",color:"rgba(255,255,255,0.7)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:12,padding:"13px 0",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"sans-serif"}}>
-              Renvoyer l'email de confirmation
+
+            {authError&&<div style={{background:authError.startsWith("✓")?"rgba(26,92,56,0.3)":"rgba(220,38,38,0.2)",border:`1px solid ${authError.startsWith("✓")?"rgba(26,92,56,0.5)":"rgba(220,38,38,0.4)"}`,borderRadius:10,padding:"10px 14px",color:authError.startsWith("✓")?"#4ADE80":"#FCA5A5",fontSize:12,textAlign:"center"}}>{authError}</div>}
+
+            <button onClick={verifyCode} disabled={otpVerifying||otpCode.join("").length!==6}
+              style={{background:otpVerifying||otpCode.join("").length!==6?"#A0845C":"#F0A500",color:"#0F1923",border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:otpVerifying||otpCode.join("").length!==6?"not-allowed":"pointer",fontFamily:"sans-serif"}}>
+              {otpVerifying?"Vérification…":"Vérifier →"}
             </button>
-            {authError&&<div style={{background:authError.startsWith("✓")?"rgba(26,92,56,0.3)":"rgba(220,38,38,0.2)",border:`1px solid ${authError.startsWith("✓")?"rgba(26,92,56,0.5)":"rgba(220,38,38,0.4)"}`,borderRadius:10,padding:"10px 14px",color:authError.startsWith("✓")?"#4ADE80":"#FCA5A5",fontSize:13,textAlign:"center"}}>{authError}</div>}
+
+            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.55)",fontFamily:"sans-serif"}}>
+              Pas reçu ?{" "}
+              <button onClick={resendCode} disabled={otpResendIn>0}
+                style={{background:"none",border:"none",color:otpResendIn>0?"rgba(255,255,255,0.3)":"#F0A500",fontSize:12,cursor:otpResendIn>0?"not-allowed":"pointer",fontFamily:"sans-serif",fontWeight:600,textDecoration:otpResendIn>0?"none":"underline"}}>
+                {otpResendIn>0?`Renvoyer dans ${otpResendIn}s`:"Renvoyer le code"}
+              </button>
+            </div>
+
             <div style={{textAlign:"center"}}>
-              <button onClick={()=>{setAuthStep("login");setAuthError("");}} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour à la connexion</button>
+              <button onClick={()=>{setAuthStep("login");setAuthMode("register");setOtpCode(["","","","","",""]);setAuthError("");}}
+                style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Modifier l'email</button>
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
     </div>
   );
