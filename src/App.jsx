@@ -6078,7 +6078,7 @@ function AppInner() {
                   <div style={{fontSize:13,fontWeight:500,color:"#92400E",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
                   <div style={{fontSize:11,color:"#A16207"}}>Coûts non configurés</div>
                 </div>
-                <button onClick={()=>{setComptaExpandedProd(prod.id);setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]||{cost:"",stock:""}}));}}
+                <button onClick={()=>{setComptaExpandedProd(prod.id);setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]||{cost:prod.cost||"",fraisLiv:prod.fraisLiv||""}}));}}
                   style={{background:"#FEF3C7",color:"#92400E",border:"0.5px solid #FCD34D",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
                   Config
                 </button>
@@ -6114,39 +6114,72 @@ function AppInner() {
                     </div>
                     {isExpanded&&(
                       <div style={{borderTop:"0.5px solid #F3F4F6",background:"#FAFAFA",padding:"12px 14px",display:"flex",flexDirection:"column",gap:8}}>
-                        {(notConfigured||!!comptaCostEdit[prod.id])&&(
-                          <div style={{background:"#FFFBEB",borderRadius:10,padding:"12px",border:"0.5px solid #FCD34D",marginBottom:4}}>
-                            <div style={{fontSize:12,color:"#92400E",fontWeight:500,marginBottom:8}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts"}</div>
-                            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {(notConfigured||!!comptaCostEdit[prod.id])&&(()=>{
+                          const liveCost  = parseFloat(String(costEdit.cost||"").replace(",","."))||0;
+                          const liveFrais = parseInt(costEdit.fraisLiv||0)||0;
+                          const liveMarge = (prod.price||0) - liveCost - liveFrais;
+                          const isSaving  = costEdit.saving === true;
+                          return (
+                          <div style={{background:"#FFFBEB",borderRadius:10,padding:"14px",border:"0.5px solid #FCD34D",marginBottom:4}}>
+                            <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts du produit"}</div>
+                            <div style={{fontSize:11,color:"#A16207",marginBottom:12}}>{prod.name}</div>
+                            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                              {/* Field 1 — CAMV */}
                               <div>
-                                <div style={{fontSize:11,fontWeight:600,color:"#92400E",marginBottom:2}}>💰 Coût total du produit</div>
-                                <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Inclure: prix d'achat + import + douane + transport + emballage</div>
-                                <input type="number" min="0" placeholder="Ex: 7 000 CFA"
-                                  value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
-                                  style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                                <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>📦 Coût d'achat (CAMV)</div>
+                                <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Combien vous payez ce produit (par unité)</div>
+                                <div style={{position:"relative"}}>
+                                  <input type="number" min="0" placeholder="Ex: 7000"
+                                    value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
+                                    style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 28px 8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                                  <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"#A16207",fontWeight:600,pointerEvents:"none"}}>F</span>
+                                </div>
                               </div>
-                              <input type="number" min="0" placeholder="Stock initial"
-                                value={costEdit.stock??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,stock:e.target.value}}))}
-                                style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-                              <div style={{display:"flex",gap:6}}>
-                                <button onClick={()=>{
+                              {/* Field 2 — Frais de livraison */}
+                              <div>
+                                <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>🚚 Frais de livraison</div>
+                                <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Synchronisé avec 🚚 Zones de livraison</div>
+                                <div style={{position:"relative"}}>
+                                  <input type="number" min="0" placeholder="Ex: 1500"
+                                    value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
+                                    style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"8px 28px 8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                                  <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"#A16207",fontWeight:600,pointerEvents:"none"}}>F</span>
+                                </div>
+                              </div>
+                              {/* Read-only — Marge calculée */}
+                              <div style={{background:"#F3F4F6",borderRadius:8,padding:"10px 12px",border:"0.5px solid #E5E7EB"}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <span style={{fontSize:11,color:"#6B7280",fontWeight:600}}>💰 Marge par unité (calculée)</span>
+                                  <span style={{fontSize:15,fontWeight:800,color:liveMarge>=0?G.green:"#DC2626"}}>{fmt(liveMarge)} F</span>
+                                </div>
+                                <div style={{fontSize:10,color:"#9CA3AF",marginTop:3}}>Prix de vente − CAMV − Livraison</div>
+                              </div>
+                              <div style={{display:"flex",gap:6,marginTop:4}}>
+                                <button disabled={isSaving} onClick={async()=>{
                                   const newCost=parseFloat(String(costEdit.cost||"").replace(",","."));
-                                  const newStock=parseInt(costEdit.stock||0)||0;
+                                  const newFrais=parseInt(costEdit.fraisLiv||0)||0;
                                   if(!newCost||newCost<=0){addToast("Entre le coût du produit","⚠️","#F59E0B");return;}
-                                  setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
-                                  setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,stock:newStock,stockInitial:newStock}:x));
-                                  sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,stock:newStock,stock_initial:newStock},_authToken)
-                                    .then(()=>addToast(`${prod.name} enregistré ✅`,"✅",G.green))
-                                    .catch(e=>{console.error("cost save:",e.message);addToast("Erreur de sauvegarde","❌",G.red);});
-                                }} style={{flex:1,background:"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"9px 0",fontWeight:500,fontSize:13,cursor:"pointer"}}>
-                                  ✅ Enregistrer
+                                  setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,saving:true}}));
+                                  try {
+                                    await sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost,frais_liv:newFrais},_authToken);
+                                    setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost,fraisLiv:newFrais}:x));
+                                    setComptaCostEdit(p=>({...p,[prod.id]:undefined}));
+                                    addToast("✅ Coûts mis à jour","✅",G.green);
+                                  } catch(e) {
+                                    console.error("cost save:",e.message);
+                                    setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,saving:false}}));
+                                    addToast("❌ Erreur — réessayer","❌",G.red);
+                                  }
+                                }} style={{flex:1,background:isSaving?"#9CA3AF":"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"10px 0",fontWeight:600,fontSize:13,cursor:isSaving?"not-allowed":"pointer"}}>
+                                  {isSaving?"Enregistrement…":"✅ Enregistrer"}
                                 </button>
-                                {!notConfigured&&<button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:undefined}))}
-                                  style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"9px 12px",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Annuler</button>}
+                                {!notConfigured&&<button disabled={isSaving} onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:undefined}))}
+                                  style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Annuler</button>}
                               </div>
                             </div>
                           </div>
-                        )}
+                          );
+                        })()}
                         {[
                           {l:"CAMV (coûts produits)", v:`${fmt(camv)} F`},
                           {l:"Frais livraison",        v:`${fmt(frais)} F`},
@@ -6183,7 +6216,7 @@ function AppInner() {
                           </div>
                         )}
                         {!notConfigured&&!comptaCostEdit[prod.id]&&(
-                          <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:{cost:prod.cost||"",stock:prod.stock||""}}))}
+                          <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||""}}))}
                             style={{alignSelf:"flex-start",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500,cursor:"pointer",marginTop:2}}>
                             ✏️ Modifier coûts
                           </button>
