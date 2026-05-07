@@ -1539,7 +1539,7 @@ function AppInner() {
   const [kickedOut, setKickedOut] = useState(false);
   const [mySessions, setMySessions] = useState([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
@@ -7446,6 +7446,29 @@ function AppInner() {
                       }
                     </div>
                     <div style={{padding:"12px 16px"}}>
+                      {/* Dakar global rate — single source of truth for the region */}
+                      <div style={{background:"#fff",borderRadius:10,padding:"12px 14px",marginBottom:12,border:"1.5px solid #BBF7D0"}}>
+                        <div style={{fontSize:14,fontWeight:600,color:"#14532D"}}>💰 Frais de livraison locale (Dakar)</div>
+                        <div style={{fontSize:12,color:G.gray,marginBottom:8}}>Appliqué à toutes les villes de la région de Dakar (sauf si surchargé par ville)</div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <input type="number" min="0"
+                            value={mainRegion?.price ?? ""}
+                            onChange={e=>{
+                              const v = parseInt(e.target.value)||0;
+                              setMainRegion(r => r ? {...r, price:v} : {id:null, name:"Dakar", price:v, cities:[], aliases:[]});
+                              if(window.__dakarSaveT) clearTimeout(window.__dakarSaveT);
+                              window.__dakarSaveT = setTimeout(async()=>{
+                                try {
+                                  if(mainRegion?.id) await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{price:v});
+                                  else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:mainRegion?.name||"Dakar",price:v,cities:[]}); const s=Array.isArray(res)?res[0]:res; if(s) setMainRegion(s); }
+                                  addToast("✅ Tarif Dakar mis à jour","✅",G.green);
+                                } catch(e){ addToast("❌ Erreur — réessayez","❌",G.red); }
+                              }, 500);
+                            }}
+                            style={{flex:1,height:44,border:"1.5px solid #86EFAC",borderRadius:10,padding:"0 12px",fontSize:16,outline:"none",fontWeight:600}}/>
+                          <span style={{fontSize:14,color:G.gray,fontWeight:600}}>CFA</span>
+                        </div>
+                      </div>
                       <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
                         {mainCities.map((c,i)=>(
                           <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:"#fff",borderRadius:10,border:"1.5px solid #BBF7D0"}}>
@@ -7521,21 +7544,56 @@ function AppInner() {
                       </div>
                     </div>
                     <div style={{padding:"12px 16px"}}>
-                      {/* Tarif par défaut */}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:"#fff",borderRadius:10,marginBottom:10,border:"1px solid #93C5FD"}}>
-                        <div>
-                          <div style={{fontSize:11,fontWeight:700,color:"#1E40AF"}}>⚠️ Tarif par défaut</div>
-                          <div style={{fontSize:10,color:"#6B7280"}}>Appliqué pour toute ville non reconnue</div>
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
-                          <input type="number" min="0" value={settings.defaultDeliveryPrice||3500} onChange={e=>{
-                            const v=parseInt(e.target.value)||3500;
-                            setSettings(s=>({...s,defaultDeliveryPrice:v}));
-                            sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...settings,defaultDeliveryPrice:v}},_authToken).catch(()=>{});
-                          }} style={{width:80,border:"1.5px solid #93C5FD",borderRadius:8,padding:"6px 10px",fontSize:13,fontWeight:700,outline:"none",textAlign:"right"}}/>
-                          <span style={{fontSize:11,color:"#1E40AF",fontWeight:700}}>CFA</span>
-                        </div>
-                      </div>
+                      {/* Tarifs globaux Autres régions (locaux + transport + total auto) */}
+                      {(()=>{
+                        const lf = parseInt(settings.regional_local_fee ?? 1500) || 0;
+                        const tf = parseInt(settings.regional_transport_fee ?? 2000) || 0;
+                        const total = lf + tf;
+                        const saveSettings = (patch) => {
+                          setSettings(s=>({...s,...patch}));
+                          if(window.__regionalSaveT) clearTimeout(window.__regionalSaveT);
+                          window.__regionalSaveT = setTimeout(async()=>{
+                            try {
+                              await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...settings,...patch}},_authToken);
+                              addToast("✅ Tarifs régionaux mis à jour","✅",G.green);
+                            } catch(e){ addToast("❌ Erreur — réessayez","❌",G.red); }
+                          }, 500);
+                        };
+                        return (
+                          <div style={{background:"#fff",borderRadius:10,padding:"14px",marginBottom:12,border:"1.5px solid #93C5FD"}}>
+                            <div style={{fontSize:14,fontWeight:600,color:"#14213D",marginBottom:2}}>🚐 Tarifs globaux régionaux</div>
+                            <div style={{fontSize:12,color:G.gray,marginBottom:12}}>Appliqués pour toute commande hors Dakar (modifiable par région ci-dessous)</div>
+                            <div style={{marginBottom:10}}>
+                              <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2}}>🏍️ Frais locaux destination</div>
+                              <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Livreur dans la ville du client</div>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <input type="number" min="0" value={settings.regional_local_fee ?? 1500}
+                                  onChange={e=>saveSettings({regional_local_fee: parseInt(e.target.value)||0})}
+                                  style={{flex:1,height:44,border:"1.5px solid #93C5FD",borderRadius:10,padding:"0 12px",fontSize:16,outline:"none",fontWeight:600}}/>
+                                <span style={{fontSize:14,color:G.gray,fontWeight:600}}>CFA</span>
+                              </div>
+                            </div>
+                            <div style={{marginBottom:10}}>
+                              <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2}}>🚐 Frais transport interurbain</div>
+                              <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Transport via transporteur privé</div>
+                              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                                <input type="number" min="0" value={settings.regional_transport_fee ?? 2000}
+                                  onChange={e=>saveSettings({regional_transport_fee: parseInt(e.target.value)||0})}
+                                  style={{flex:1,height:44,border:"1.5px solid #93C5FD",borderRadius:10,padding:"0 12px",fontSize:16,outline:"none",fontWeight:600}}/>
+                                <span style={{fontSize:14,color:G.gray,fontWeight:600}}>CFA</span>
+                              </div>
+                            </div>
+                            <div style={{height:1,background:"#E5E7EB",margin:"12px 0"}}/>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:G.grayLight,borderRadius:10,padding:"12px 14px"}}>
+                              <div>
+                                <div style={{fontSize:12,fontWeight:600,color:G.gray}}>💰 Total régional (calculé)</div>
+                                <div style={{fontSize:10,color:G.gray,marginTop:2}}>Locaux + Transport interurbain</div>
+                              </div>
+                              <div style={{fontSize:16,fontWeight:700,color:total>0?G.green:G.gray}}>{fmt(total)} CFA</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                       <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
                         {otherRegions.map(r=>(
                           <div key={r.id} style={{background:"#fff",borderRadius:10,border:"1.5px solid #BFDBFE",overflow:"hidden"}}>
