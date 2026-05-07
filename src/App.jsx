@@ -6121,13 +6121,14 @@ function AppInner() {
                           const isSaving  = costEdit.saving === true;
                           return (
                           <div style={{background:"#FFFBEB",borderRadius:10,padding:"14px",border:"0.5px solid #FCD34D",marginBottom:4}}>
-                            <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts du produit"}</div>
+                            <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts"}</div>
                             <div style={{fontSize:11,color:"#A16207",marginBottom:12}}>{prod.name}</div>
                             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                              {/* Field 1 — CAMV */}
+                              {/* Field 1 — Coût total */}
                               <div>
-                                <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>📦 Coût d'achat (CAMV)</div>
-                                <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Combien vous payez ce produit (par unité)</div>
+                                <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>💰 Coût total du produit</div>
+                                <div style={{fontSize:10,color:"#A16207",marginBottom:2}}>Inclure: prix d'achat + import + douane + transport + emballage</div>
+                                <div style={{fontSize:10,color:"#A16207",marginBottom:4,fontStyle:"italic"}}>Synchronisé avec 📦 Gestion de produit</div>
                                 <div style={{position:"relative"}}>
                                   <input type="number" min="0" placeholder="Ex: 7000"
                                     value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
