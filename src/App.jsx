@@ -2567,14 +2567,25 @@ function AppInner() {
     const _defFrais = settings.defaultDeliveryPrice||1500;
     const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:_defFrais,fraisLivExtra:_defFrais,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
     setProducts(p=>[...p,newProduct]);
-    if(orgId) { console.log("Saving product to org:", orgId);
-      sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,frais_liv_extra:newProduct.fraisLivExtra,niche:newProduct.niche,archived:false})
-        .then(res=>{
-          const saved=Array.isArray(res)?res[0]:res;
-          if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
-          else console.error("addProduct: no id returned", res);
-        }).catch(e=>console.error("addProduct error:",e.message));
+    if(!orgId) {
+      setProducts(p=>p.filter(x=>x.id!==tempProdId));
+      addToast("⚠️ Connexion incomplète — réessayez","⚠️",G.red);
+      return;
     }
+    sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,frais_liv_extra:newProduct.fraisLivExtra,niche:newProduct.niche,archived:false})
+      .then(res=>{
+        const saved=Array.isArray(res)?res[0]:res;
+        if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
+        else {
+          setProducts(p=>p.filter(x=>x.id!==tempProdId));
+          addToast("❌ Réponse invalide du serveur","❌",G.red);
+          console.error("addProduct: no id returned", res);
+        }
+      }).catch(e=>{
+        setProducts(p=>p.filter(x=>x.id!==tempProdId));
+        addToast(`❌ Erreur d'enregistrement: ${e.message}`,"❌",G.red);
+        console.error("addProduct error:",e.message);
+      });
     setNewProd({name:"",cost:"",price:"",stock:"",niche:"",bundles:[]});
     setNewBundleForm({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
     setShowAddProd(false);
