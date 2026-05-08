@@ -5,34 +5,28 @@ const norm = s => (s || "").toLowerCase()
   .replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 
 /**
- * Determine sync_status for an incoming order based on zone match result.
- * When no zones are configured at all, applies defaults from settings
- * (fallback 2500 main / 4000 other) so the order has a price; admin
- * gets prompted to configure zones, and resync re-matches once they do.
+ * Determine sync_status for an incoming order based on:
+ *   - zone match result (matchDeliveryZone)
+ *   - settings.zones_configured flag (admin has interacted with Frais de livraison)
+ *
+ * Behavior:
+ *   - settings.zones_configured === false (default) → use defaults (2500/4000),
+ *     regardless of any zones present in DB. Status = awaiting_zone_config.
+ *   - settings.zones_configured === true + match → synced with real fee.
+ *   - settings.zones_configured === true + no match → unmatched_zone (frais_liv null).
  *
  * @param {object} matchResult  result from matchDeliveryZone()
- * @param {object|null} mainRegion
- * @param {Array} otherRegions
+ * @param {object|null} mainRegion  unused now (kept for signature back-compat)
+ * @param {Array}  otherRegions     unused now
  * @param {string} city
  * @param {string} region
  * @param {object} [settings]   organizations.settings JSONB
- * @returns {{ sync_status: string, frais_liv: number|null, unmatched_city: string|null, unmatched_region: string|null }}
  */
 function deriveSyncStatus(matchResult, mainRegion, otherRegions, city, region, settings) {
-  const hasZones = !!mainRegion || (Array.isArray(otherRegions) && otherRegions.length > 0);
-  const matched  = matchResult && matchResult.matchType !== "fallback";
+  const s = settings || {};
+  const configured = s.zones_configured === true;
 
-  if (matched) {
-    return {
-      sync_status: "synced",
-      frais_liv: matchResult.fee,
-      unmatched_city: null,
-      unmatched_region: null,
-    };
-  }
-
-  if (!hasZones) {
-    const s = settings || {};
+  if (!configured) {
     const mainDefault  = parseInt(s.defaultMainPrice)  || 2500;
     const otherDefault = parseInt(s.defaultOtherPrice) || 4000;
     const isMain = norm(`${city || ""} ${region || ""}`).includes("dakar");
@@ -41,6 +35,16 @@ function deriveSyncStatus(matchResult, mainRegion, otherRegions, city, region, s
       frais_liv: isMain ? mainDefault : otherDefault,
       unmatched_city: city || null,
       unmatched_region: region || null,
+    };
+  }
+
+  const matched = matchResult && matchResult.matchType !== "fallback";
+  if (matched) {
+    return {
+      sync_status: "synced",
+      frais_liv: matchResult.fee,
+      unmatched_city: null,
+      unmatched_region: null,
     };
   }
 

@@ -36,13 +36,15 @@ exports.handler = async (event) => {
     if (profile.role !== "admin") return { statusCode: 403, headers, body: JSON.stringify({ error: "Réservé à l'admin" }) };
     const orgId = profile.org_id;
 
-    // 1. Fetch zones
-    const [mainRes, othRes] = await Promise.all([
+    // 1. Fetch zones + settings
+    const [mainRes, othRes, setRes] = await Promise.all([
       fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
       fetch(`${SB_URL}/rest/v1/delivery_other_regions?org_id=eq.${orgId}&select=id,name,price,interurbain_price,cities,aliases`, { headers: sbHeaders }),
+      fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders }),
     ]);
-    const main   = (await mainRes.json())[0] || null;
-    const others = (await othRes.json()) || [];
+    const main     = (await mainRes.json())[0] || null;
+    const others   = (await othRes.json()) || [];
+    const settings = (await setRes.json())?.[0]?.settings || {};
 
     // 2. Fetch pending orders
     const pendingRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=in.(awaiting_zone_config,unmatched_zone)&select=id,unmatched_city,unmatched_region`, { headers: sbHeaders });
@@ -55,7 +57,7 @@ exports.handler = async (event) => {
     let resynced = 0;
     await Promise.all(pending.map(async (o) => {
       const result = matchDeliveryZone(o.unmatched_city || "", main, others);
-      const meta   = deriveSyncStatus(result, main, others, o.unmatched_city, o.unmatched_region);
+      const meta   = deriveSyncStatus(result, main, others, o.unmatched_city, o.unmatched_region, settings);
       if (meta.sync_status === "synced") {
         await fetch(`${SB_URL}/rest/v1/orders?id=eq.${o.id}`, {
           method: "PATCH",

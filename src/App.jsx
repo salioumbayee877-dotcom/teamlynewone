@@ -1907,6 +1907,13 @@ function AppInner() {
     if (lastZonesHashRef.current === null) { lastZonesHashRef.current = hash; return; }
     if (lastZonesHashRef.current === hash) return; // no real change
     lastZonesHashRef.current = hash;
+    // First admin interaction with zones flips zones_configured → webhooks
+    // stop using defaults 2500/4000 and start using real configured zones.
+    if (!settings?.zones_configured) {
+      const newSettings = { ...(settings||{}), zones_configured: true };
+      setSettings(newSettings);
+      sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: newSettings }).catch(()=>{});
+    }
     const timer = setTimeout(() => {
       fetch("/.netlify/functions/resync-pending-orders", {
         method: "POST",
@@ -1917,7 +1924,7 @@ function AppInner() {
         .catch(()=>{});
     }, 1500);
     return () => clearTimeout(timer);
-  }, [mainRegion, otherRegions, sbToken, orgId, role]);
+  }, [mainRegion, otherRegions, sbToken, orgId, role, settings]);
 
   // Auto-load active sessions when Settings modal opens
   useEffect(() => {
