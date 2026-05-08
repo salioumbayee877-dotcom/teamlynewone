@@ -812,6 +812,7 @@ function AppInner() {
   const [noteText,setNoteText]   = useState("");
   const [mainRegion,   setMainRegion]   = useState(null);
   const [otherRegions, setOtherRegions] = useState([]);
+  const [zoneBannersDismissed, setZoneBannersDismissed] = useState(false);
   const [fraisConfigTab,    setFraisConfigTab]    = useState("config");
   const [fraisTestCity,     setFraisTestCity]     = useState("");
   const [fraisMainNameEdit, setFraisMainNameEdit] = useState(null);
@@ -4236,6 +4237,7 @@ function AppInner() {
 
             {/* ── Sync zones banners (admin only) ── */}
             {(()=>{
+              if (zoneBannersDismissed) return null;
               const awaiting  = orders.filter(o=>o.sync_status==="awaiting_zone_config");
               // Only count unmatched orders with an actionable city — empty / "-" / "—" / whitespace
               // can never be matched against a zone, so banner-them is useless and creates a permanent banner.
@@ -4253,7 +4255,7 @@ function AppInner() {
                         <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4}}>⚠️ Tarifs de livraison non configurés</div>
                         <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5}}>Vous avez <strong>{awaiting.length}</strong> commande{awaiting.length>1?"s":""} en attente sans frais de livraison. Configurez vos zones pour synchroniser automatiquement vos commandes Shopify.</div>
                       </div>
-                      <button onClick={()=>setTab("frais")} style={{background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                      <button onClick={()=>{setZoneBannersDismissed(true);setTab("frais");}} style={{background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
                         Configurer maintenant →
                       </button>
                     </div>
@@ -4270,7 +4272,7 @@ function AppInner() {
                         </ul>
                         <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5,marginTop:8}}>Ajoutez ces zones pour calculer automatiquement leurs frais.</div>
                       </div>
-                      <button onClick={()=>setTab("frais")} style={{alignSelf:"flex-start",background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                      <button onClick={()=>{setZoneBannersDismissed(true);setTab("frais");}} style={{alignSelf:"flex-start",background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
                         Ajouter ces zones →
                       </button>
                     </div>
