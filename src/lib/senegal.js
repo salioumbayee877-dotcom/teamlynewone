@@ -25,6 +25,18 @@ export const WA_ZONES = [
 export const _nz       = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 export const detectZone = addr => WA_ZONES.find(z => z.kw.some(k => _nz(addr).includes(k))) || WA_ZONES[0];
 
+// Order address formatter — combine the quartier (o.address) with the ville
+// (o.city), avoiding duplication when the address already contains the city
+// (e.g. Shopify webhooks that join address1+city+province).
+export const fullAddr = (o) => {
+  const parts = [];
+  const addr  = (o?.address||"").trim();
+  const city  = (o?.city||"").trim();
+  if (addr) parts.push(addr);
+  if (city && !_nz(addr).includes(_nz(city))) parts.push(city);
+  return parts.join(", ") || "—";
+};
+
 // ── Zone de livraison configurable ─────────────────────────────────────────
 export const _normCity  = s => (s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 export const _parseCity = s => { const idx=(s||"").lastIndexOf("|"); return idx===-1?{name:s||"",price:null}:{name:s.slice(0,idx),price:parseInt(s.slice(idx+1))||null}; };

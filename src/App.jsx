@@ -9,7 +9,7 @@ import { ComptaPage } from "./components/ComptaPage";
 import { FraisPage } from "./components/FraisPage";
 import { ClientsPage } from "./components/ClientsPage";
 import {
-  WA_ZONES, _nz, detectZone,
+  WA_ZONES, _nz, detectZone, fullAddr,
   _normCity, _parseCity, SENEGAL_CITIES, _findSenCity, detectDeliveryZone,
 } from "./lib/senegal";
 // ── Supabase REST client (no SDK needed) ──────────────────────────────────
@@ -4006,7 +4006,7 @@ function AppInner() {
                                     ))}
                                   </div>
                                   <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap",alignItems:"center"}}>
-                                    <span style={{fontSize:11,color:G.gray}}>📍 {o.address||"—"}</span>
+                                    <span style={{fontSize:11,color:G.gray}}>📍 {fullAddr(o)}</span>
                                     <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {fraisDisplay(o).label}</span>
                                     {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>⚠️ Prépayé</span>}
                                   </div>
@@ -5056,7 +5056,7 @@ function AppInner() {
                 :myLiv.filter(o=>!["entregado","rechazado","no_contesta","reprogramar"].includes(o.status)).map(o=>(
                   <div key={o.id} style={{padding:"9px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <div style={{fontWeight:700,fontSize:13}}>{o.client}</div>
-                    <div style={{fontSize:11,color:G.gray}}>📍 {o.address}</div>
+                    <div style={{fontSize:11,color:G.gray}}>📍 {fullAddr(o)}</div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} CFA</div>
                   </div>
                 ))
@@ -7140,7 +7140,7 @@ function AppInner() {
                   <span style={{fontSize:16}}>📱</span><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
                 </a>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{o.address}</span>
+                  <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{fullAddr(o)}</span>
                 </div>
               </div>
               {(()=>{
@@ -7179,7 +7179,7 @@ function AppInner() {
                         ⚠️ PRÉPAIEMENT REQUIS — Livraison internationale {z.flag} {z.label}
                       </div>}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                        <span style={{fontSize:13,color:G.dark}}>{o.address||"—"}</span>
+                        <span style={{fontSize:13,color:G.dark}}>{fullAddr(o)}</span>
                         <span style={{background:z.color+"18",color:z.color,borderRadius:6,padding:"3px 9px",fontSize:12,fontWeight:700}}>{z.flag} {z.label}</span>
                       </div>
                       {/* Payment method */}
@@ -7398,7 +7398,7 @@ function AppInner() {
             <div style={{background:"#FFF8E7",borderRadius:12,padding:"12px 14px",marginBottom:16,borderLeft:"4px solid #F59E0B"}}>
               <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
               <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} CFA</b></div>
-              {o.address&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📍 {o.address}</div>}
+              {(o.address||o.city)&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📍 {fullAddr(o)}</div>}
             </div>
 
             {/* Étape 1 — Sélectionner livreur (obligatoire) */}
