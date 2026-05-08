@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
+import './styles/global.css'
 import App from './App'
 import TeamlyLanding from './teamly-v2'
 

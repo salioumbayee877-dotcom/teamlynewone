@@ -112,26 +112,19 @@ exports.handler = async (event) => {
     let fraisAmount = 0, matchType = "fallback";
     let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: addr?.state || null };
     try {
-      const [mainRes, othRes] = await Promise.all([
+      const [mainRes, othRes, setRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
         fetch(`${SB_URL}/rest/v1/delivery_other_regions?org_id=eq.${orgId}&select=id,name,price,interurbain_price,cities,aliases`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders }),
       ]);
-      const main   = (await mainRes.json())[0] || null;
-      const others = (await othRes.json()) || [];
-      const result = matchDeliveryZone(city, main, others);
-      fraisAmount  = result.fee;
-      matchType    = result.matchType;
-      syncMeta     = deriveSyncStatus(result, main, others, city, addr?.state);
+      const main     = (await mainRes.json())[0] || null;
+      const others   = (await othRes.json()) || [];
+      const settings = (await setRes.json())?.[0]?.settings || {};
+      const result   = matchDeliveryZone(city, main, others);
+      fraisAmount    = result.fee;
+      matchType      = result.matchType;
+      syncMeta       = deriveSyncStatus(result, main, others, city, addr?.state, settings);
     } catch(e) { console.error("Zone matching error:", e.message); }
-    if (matchType === "fallback") {
-      try {
-        const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=settings&limit=1`, { headers: sbHeaders });
-        const s       = (await orgRes.json())?.[0]?.settings || {};
-        const regional = (parseInt(s.regional_local_fee)||0) + (parseInt(s.regional_transport_fee)||0);
-        fraisAmount   = regional > 0 ? regional : (parseInt(s.defaultDeliveryPrice)||3500);
-      } catch {}
-    }
-
     const prodFlag = matched ? " ✓" : autoCreated ? " ★" : "";
     const zoneFlag = matchType === "fallback" ? ` ⚠️🏙️${city}` : matchType === "fuzzy" ? ` ~🏙️${city}` : ` 🏙️${city}`;
     const note     = `Commande WooCommerce ${ref}${prodFlag}${zoneFlag}`;
@@ -139,7 +132,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:fraisAmount, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce" }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce" }),
     });
 
     if (!res.ok) {
