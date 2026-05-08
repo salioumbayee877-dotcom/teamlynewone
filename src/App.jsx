@@ -4237,10 +4237,13 @@ function AppInner() {
             {/* ── Sync zones banners (admin only) ── */}
             {(()=>{
               const awaiting  = orders.filter(o=>o.sync_status==="awaiting_zone_config");
-              const unmatched = orders.filter(o=>o.sync_status==="unmatched_zone");
+              // Only count unmatched orders with an actionable city — empty / "-" / "—" / whitespace
+              // can never be matched against a zone, so banner-them is useless and creates a permanent banner.
+              const hasUsefulCity = c => { const t=(c||"").trim(); return t.length>0 && !/^[-—\s]+$/.test(t); };
+              const unmatched = orders.filter(o=>o.sync_status==="unmatched_zone" && hasUsefulCity(o.unmatched_city));
               if (awaiting.length===0 && unmatched.length===0) return null;
               const cityCounts = {};
-              unmatched.forEach(o=>{ const c=(o.unmatched_city||"Inconnue").trim(); if(c) cityCounts[c]=(cityCounts[c]||0)+1; });
+              unmatched.forEach(o=>{ const c=(o.unmatched_city||"").trim(); if(c) cityCounts[c]=(cityCounts[c]||0)+1; });
               const cities = Object.entries(cityCounts).sort((a,b)=>b[1]-a[1]).slice(0,5);
               return (
                 <>
