@@ -3984,7 +3984,7 @@ function AppInner() {
                                   </div>
                                   <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap",alignItems:"center"}}>
                                     <span style={{fontSize:11,color:G.gray}}>📍 {o.address||"—"}</span>
-                                    <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {fmt(z.price)} F</span>
+                                    <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {o.frais_liv!=null?fmt(o.frais_liv)+" F":"⚠️ à config."}</span>
                                     {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>⚠️ Prépayé</span>}
                                   </div>
                                   <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
@@ -7168,10 +7168,10 @@ function AppInner() {
                         <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,marginTop:3}}>
-                        <span>Frais livraison {z.prepaid?"(prépayé)":""}</span><span style={{fontWeight:600,color:z.color}}>{fmt(z.price)} F</span>
+                        <span>Frais livraison {z.prepaid?"(prépayé)":""}</span><span style={{fontWeight:600,color:z.color}}>{o.frais_liv!=null?fmt(o.frais_liv)+" F":"⚠️ à config."}</span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+z.price).toLocaleString("fr-FR")} F</span>
+                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+(o.frais_liv||0)).toLocaleString("fr-FR")} F</span>
                       </div>
                     </div>
                   </>
