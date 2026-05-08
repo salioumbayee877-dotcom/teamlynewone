@@ -3540,19 +3540,18 @@ function AppInner() {
     // Stock bas
     ...products.filter(p=>p.stock<5).map(p=>({type:"stock",msg:`Stock bas: ${p.name}`,sub:`${p.stock} unités restantes`,id:p.id,color:G.red,bg:"#FEE2E2",icon:"📦"})),
   ];
-  // While settings.zones_configured===false, every order display is overridden
-  // with the default fee (2500 main / 4000 other) + warning, mirroring what the
-  // webhook stores. Once admin saves zones, the real o.frais_liv is shown.
+  // Display logic: treat as configured if either the flag is on OR the admin
+  // has dismissed the warning this session (clicked the ⚙️ button).
   const fraisDisplay = (o) => {
-    if (settings?.zones_configured === true) {
-      return o.frais_liv != null
-        ? { fee: o.frais_liv, label: `${fmt(o.frais_liv)} F`,    warning: false }
-        : { fee: 0,            label: "⚠️ à config.",            warning: true  };
-    }
+    const treatAsConfigured = settings?.zones_configured === true || zoneBannersDismissed;
     const txt    = `${o.address||""} ${o.unmatched_city||""} ${o.unmatched_region||""}`.toLowerCase();
     const isMain = /dakar/.test(txt);
-    const v      = isMain ? (parseInt(settings?.defaultMainPrice)||2500) : (parseInt(settings?.defaultOtherPrice)||4000);
-    return { fee: v, label: `${fmt(v)} F ⚠️ à config.`, warning: true };
+    const def    = isMain ? (parseInt(settings?.defaultMainPrice)||2500) : (parseInt(settings?.defaultOtherPrice)||4000);
+    if (treatAsConfigured) {
+      const v = o.frais_liv != null ? o.frais_liv : def;
+      return { fee: v, label: `${fmt(v)} F`, warning: false };
+    }
+    return { fee: def, label: `${fmt(def)} F`, warning: true };
   };
 
   const livreurAlerts = [
@@ -4007,7 +4006,7 @@ function AppInner() {
                                   </div>
                                   <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap",alignItems:"center"}}>
                                     <span style={{fontSize:11,color:G.gray}}>📍 {o.address||"—"}</span>
-                                    <span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {fraisDisplay(o).label}</span>
+                                    {(()=>{const f=fraisDisplay(o);return(<><span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {f.label}{f.warning&&<span style={{marginLeft:4,color:G.gold}}>⚠️</span>}</span>{f.warning&&<button onClick={e=>{e.stopPropagation();setZoneBannersDismissed(true);setTab("frais");}} title="Configurer les zones" style={{background:G.gold,color:"#fff",border:"none",borderRadius:5,padding:"2px 6px",fontSize:10,fontWeight:700,cursor:"pointer",lineHeight:1}}>⚙️ Config</button>}</>);})()}
                                     {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>⚠️ Prépayé</span>}
                                   </div>
                                   <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
@@ -7194,12 +7193,21 @@ function AppInner() {
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
                         <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,marginTop:3}}>
-                        <span>Frais livraison {z.prepaid?"(prépayé)":""}</span><span style={{fontWeight:600,color:z.color}}>{fraisDisplay(o).label}</span>
+                      {(()=>{const f=fraisDisplay(o);return(<>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:G.gray,marginTop:3,gap:8}}>
+                        <span>Frais livraison {z.prepaid?"(prépayé)":""}</span>
+                        <span style={{display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{fontWeight:600,color:z.color}}>{f.label}</span>
+                          {f.warning&&<>
+                            <span style={{color:G.gold,fontSize:11}}>⚠️ à config.</span>
+                            <button onClick={()=>{setZoneBannersDismissed(true);setTab("frais");}} title="Configurer les zones" style={{background:G.gold,color:"#fff",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>⚙️</button>
+                          </>}
+                        </span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+fraisDisplay(o).fee).toLocaleString("fr-FR")} F</span>
+                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} F</span>
                       </div>
+                      </>);})()}
                     </div>
                   </>
                 );
