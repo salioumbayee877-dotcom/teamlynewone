@@ -1,0 +1,7 @@
+node_modules
+dist
+.netlify
+build
+.next
+coverage
+.git
