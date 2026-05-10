@@ -7155,12 +7155,20 @@ function AppInner() {
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                {Object.entries(STATUS).map(([k,v])=>(
-                  <button key={k} onClick={()=>setEditOrder(p=>({...p,status:k}))}
-                    style={{background:editOrder.status===k?v.bg:"#F4F4F4",color:editOrder.status===k?v.color:G.gray,border:`2px solid ${editOrder.status===k?v.color:G.grayLight}`,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                    {v.label}
-                  </button>
-                ))}
+                {(()=>{
+                  const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
+                  const MAIN_KEYS  = ["pendiente","confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","boutique"];
+                  const keys = editOrder.region_type==="other" ? OTHER_KEYS : MAIN_KEYS;
+                  return keys.filter(k=>STATUS[k]).map(k=>{
+                    const v=STATUS[k];
+                    return (
+                      <button key={k} onClick={()=>setEditOrder(p=>({...p,status:k}))}
+                        style={{background:editOrder.status===k?v.bg:"#F4F4F4",color:editOrder.status===k?v.color:G.gray,border:`2px solid ${editOrder.status===k?v.color:G.grayLight}`,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                        {v.label}
+                      </button>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
