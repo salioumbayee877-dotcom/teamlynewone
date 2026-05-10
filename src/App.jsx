@@ -237,30 +237,6 @@ const signInWithGoogle = async () => {
   }
 };
 
-const sendPhoneOtp = async (fullPhone) => {
-  const res = await fetchWithTimeout(`${SB_URL}/auth/v1/otp`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json","apikey":SB_KEY},
-    body:JSON.stringify({phone:fullPhone,channel:"sms"}),
-  },15000);
-  const text = await res.text();
-  let data; try{data=JSON.parse(text);}catch(e){throw new Error("Erreur serveur");}
-  if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||`Erreur ${res.status}`);
-  return data;
-};
-
-const verifyPhoneOtp = async (fullPhone, token) => {
-  const res = await fetchWithTimeout(`${SB_URL}/auth/v1/verify`,{
-    method:"POST",
-    headers:{"Content-Type":"application/json","apikey":SB_KEY},
-    body:JSON.stringify({type:"sms",phone:fullPhone,token}),
-  },15000);
-  const text = await res.text();
-  let data; try{data=JSON.parse(text);}catch(e){throw new Error("Erreur serveur");}
-  if(!res.ok) throw new Error(data?.error_description||data?.msg||data?.message||`Erreur ${res.status}`);
-  return data;
-};
-
 const G = {
   green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
   gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
@@ -1018,8 +994,6 @@ function AppInner() {
   const [otpCode, setOtpCode]     = useState(["","","","","",""]);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResendIn, setOtpResendIn]   = useState(0);
-  const [phoneOtpSent,    setPhoneOtpSent]    = useState(false);
-  const [phoneCountryCode,setPhoneCountryCode] = useState("+34");
   const [authForm, setAuthForm]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     const org  = params.get("org")  || "";
@@ -2895,7 +2869,7 @@ function AppInner() {
         <div style={{width:"100%",maxWidth:360}}>
           {/* Toggle */}
           <div style={{display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:12,padding:3,gap:3,marginBottom:20}}>
-            {[{k:"login",l:"Email"},{k:"phone",l:"📱 SMS"},{k:"register",l:"S'inscrire"}].map(m=>(
+            {[{k:"login",l:"Email"},{k:"register",l:"S'inscrire"}].map(m=>(
               <button key={m.k} onClick={()=>{setAuthMode(m.k);setAuthError("");setPhoneOtpSent(false);}}
                 style={{flex:1,padding:"9px 0",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"sans-serif",background:authMode===m.k?G.gold:"none",color:authMode===m.k?G.dark:"rgba(255,255,255,0.7)"}}>
                 {m.l}
@@ -3032,108 +3006,6 @@ function AppInner() {
                 <span style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Tu as un lien d'invitation ? </span>
                 <button onClick={()=>setAuthStep("join")} style={{background:"none",border:"none",color:G.gold,fontSize:11,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>Rejoindre une équipe</button>
               </div>
-            </div>
-          )}
-
-          {/* Phone OTP */}
-          {authMode==="phone"&&(
-            <div style={{display:"flex",flexDirection:"column",gap:14}}>
-              {!phoneOtpSent ? (
-                <>
-                  <div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>📱 Numéro de téléphone</div>
-                    <div style={{display:"flex",gap:8}}>
-                      <select value={phoneCountryCode} onChange={e=>setPhoneCountryCode(e.target.value)}
-                        style={{background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 8px",color:"#fff",fontSize:13,outline:"none",flexShrink:0,width:95,fontFamily:"sans-serif"}}>
-                        <option value="+34">🇪🇸 +34</option>
-                        <option value="+221">🇸🇳 +221</option>
-                        <option value="+33">🇫🇷 +33</option>
-                        <option value="+212">🇲🇦 +212</option>
-                        <option value="+225">🇨🇮 +225</option>
-                        <option value="+32">🇧🇪 +32</option>
-                        <option value="+1">🇺🇸 +1</option>
-                      </select>
-                      <input type="tel" inputMode="numeric" autoFocus
-                        value={authForm.phone}
-                        onChange={e=>setAuthForm(p=>({...p,phone:e.target.value.replace(/\D/g,"")}))}
-                        placeholder="667 331 838"
-                        style={{flex:1,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:15,color:"#fff",outline:"none",boxSizing:"border-box",letterSpacing:2,fontFamily:"sans-serif",fontWeight:600}}
-                      />
-                    </div>
-                    <div style={{fontSize:10,color:"rgba(255,255,255,0.3)",marginTop:5,fontFamily:"sans-serif"}}>Numéro complet : {phoneCountryCode}{authForm.phone||"667331838"}</div>
-                  </div>
-                  {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
-                  <button onClick={async()=>{
-                    const num=(authForm.phone||"").replace(/\D/g,"");
-                    if(!num||num.length<6){setAuthError("Numéro invalide");return;}
-                    setAuthError("");setAuthLoading(true);
-                    try{await sendPhoneOtp(phoneCountryCode+num);setPhoneOtpSent(true);}
-                    catch(e){setAuthError(e.message||"Erreur envoi SMS");}
-                    setAuthLoading(false);
-                  }} disabled={authLoading}
-                    style={{background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:authLoading?"not-allowed":"pointer",fontFamily:"sans-serif",marginTop:4}}>
-                    {authLoading?"Envoi en cours...":"Recevoir un code →"}
-                  </button>
-                </>
-              ):(
-                <>
-                  <div style={{textAlign:"center",marginBottom:4}}>
-                    <div style={{fontSize:36,marginBottom:8}}>📩</div>
-                    <div style={{color:"#fff",fontWeight:800,fontSize:17,marginBottom:4}}>Code envoyé !</div>
-                    <div style={{color:"rgba(255,255,255,0.5)",fontSize:12}}>Code envoyé au {phoneCountryCode} {authForm.phone}<br/>Valable 10 minutes</div>
-                  </div>
-                  <div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>🔢 Code à 6 chiffres</div>
-                    <input type="text" inputMode="numeric" maxLength={6} autoFocus
-                      value={authForm.otp||""}
-                      onChange={e=>setAuthForm(p=>({...p,otp:e.target.value.replace(/\D/g,"")}))}
-                      placeholder="000000"
-                      style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.25)",borderRadius:12,padding:"16px",fontSize:28,color:"#fff",outline:"none",boxSizing:"border-box",textAlign:"center",letterSpacing:10,fontWeight:800,fontFamily:"monospace"}}
-                    />
-                  </div>
-                  {authError&&<div style={{fontSize:11,color:authError.startsWith("✓")?"#4ADE80":"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
-                  <button onClick={async()=>{
-                    const otp=(authForm.otp||"").replace(/\D/g,"");
-                    if(otp.length<6){setAuthError("Code incomplet — 6 chiffres requis");return;}
-                    const fullPhone=phoneCountryCode+(authForm.phone||"").replace(/\D/g,"");
-                    setAuthError("");setAuthLoading(true);
-                    try{
-                      const data=await verifyPhoneOtp(fullPhone,otp);
-                      const tok=data.access_token;
-                      _authToken=tok;setSbToken(tok);
-                      const phone=(authForm.phone||"").replace(/\D/g,"");
-                      let profiles=await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
-                      if(!profiles||profiles.length===0) profiles=await sbFetch(`profiles?phone=like.*${phone}*&limit=1`).catch(()=>null);
-                      if(profiles&&profiles.length>0){
-                        const p=profiles[0];
-                        if(!p.org_id){setAuthError("Compte retiré de l'équipe");setAuthLoading(false);return;}
-                        const orgs=await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,created_at,settings`).catch(()=>null);
-                        setOrgId(p.org_id);setSbReady(true);
-                        setSettings(s=>({...s,nom:p.nom||s.nom,boutique:orgs?.[0]?.name||s.boutique,...(orgs?.[0]?.settings||{})}));
-                        setCurrentUser({id:p.id,nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||""});
-                        setRole(p.role||"admin");setTab("dashboard");
-                        try{localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",p.email||"");localStorage.setItem("teamly_org",p.org_id);localStorage.setItem("teamly_role",p.role||"admin");localStorage.setItem("teamly_userId",p.id||"");localStorage.setItem("teamly_nom",p.nom||"");}catch(e){}
-                      } else {
-                        setAuthError("Aucun compte trouvé pour ce numéro — crée un compte email d'abord");
-                      }
-                    }catch(e){setAuthError(e.message||"Code incorrect ou expiré");}
-                    setAuthLoading(false);
-                  }} disabled={authLoading}
-                    style={{background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:authLoading?"not-allowed":"pointer",fontFamily:"sans-serif"}}>
-                    {authLoading?"Vérification...":"Valider le code →"}
-                  </button>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
-                    <button onClick={()=>{setPhoneOtpSent(false);setAuthForm(p=>({...p,otp:""}));setAuthError("");}}
-                      style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>← Changer de numéro</button>
-                    <button onClick={async()=>{
-                      const fullPhone=phoneCountryCode+(authForm.phone||"").replace(/\D/g,"");
-                      setAuthError("");
-                      try{await sendPhoneOtp(fullPhone);setAuthError("✓ Code renvoyé !");}
-                      catch(e){setAuthError(e.message||"Erreur");}
-                    }} style={{background:"none",border:"none",color:"rgba(255,255,255,0.5)",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",textDecoration:"underline"}}>Renvoyer le code</button>
-                  </div>
-                </>
-              )}
             </div>
           )}
 
