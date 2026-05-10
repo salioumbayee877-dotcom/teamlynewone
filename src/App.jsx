@@ -198,6 +198,11 @@ const sbAuth = async (email, password, type="login") => {
 };
 
 
+const signInWithGoogle = () => {
+  const redirectTo = `${window.location.origin}/dashboard`;
+  window.location.href = `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(redirectTo)}`;
+};
+
 const sendPhoneOtp = async (fullPhone) => {
   const res = await fetchWithTimeout(`${SB_URL}/auth/v1/otp`,{
     method:"POST",
@@ -813,6 +818,7 @@ function AppInner() {
   const [mainRegion,   setMainRegion]   = useState(null);
   const [otherRegions, setOtherRegions] = useState([]);
   const [zoneBannersDismissed, setZoneBannersDismissed] = useState(false);
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(()=>{ try{return localStorage.getItem("teamly_email_banner_dismissed")==="1";}catch(e){return false;} });
   const [fraisConfigTab,    setFraisConfigTab]    = useState("config");
   const [fraisTestCity,     setFraisTestCity]     = useState("");
   const [fraisMainNameEdit, setFraisMainNameEdit] = useState(null);
@@ -961,7 +967,10 @@ function AppInner() {
     if(params.get("org") && params.get("role")) return "join";
     return "login";
   });
-  const [authMode, setAuthMode]   = useState("login");
+  const [authMode, setAuthMode]   = useState(()=>{
+    try { return new URLSearchParams(window.location.search).get("signup")==="1" ? "register" : "login"; }
+    catch(e) { return "login"; }
+  });
   const [otpCode, setOtpCode]     = useState(["","","","","",""]);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResendIn, setOtpResendIn]   = useState(0);
@@ -1378,6 +1387,67 @@ function AppInner() {
     const _confirmToken = _hp.get("access_token");
     const _confirmType  = _hp.get("type") || _qp.get("type");
     const _tokenHash    = _qp.get("token_hash");
+    // OAuth callback (Google, etc.) — Supabase puts access_token in hash without type=signup
+    const _isOAuthCallback = _confirmToken && !_confirmType;
+    if(_isOAuthCallback) {
+      (async()=>{
+        try {
+          const jwt = _confirmToken;
+          const refresh = _hp.get("refresh_token");
+          // Decode JWT to get user info synchronously
+          let payload = {};
+          try { payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e) {}
+          const userId = payload.sub;
+          const email = payload.email || "";
+          const meta = payload.user_metadata || {};
+          const fullName = meta.full_name || meta.name || email.split("@")[0] || "Admin";
+          console.log("[OAUTH] callback decoded:", {userId, email, fullName});
+          if(!userId) { console.error("[OAUTH] no userId in JWT"); setAppLoading(false); return; }
+          _authToken = jwt;
+          let profiles = await sbFetch(`profiles?id=eq.${userId}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-id failed:",e);return null;});
+          console.log("[OAUTH] profile-by-id result:", profiles);
+          if(!profiles || profiles.length===0) {
+            profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-email failed:",e);return null;});
+            console.log("[OAUTH] profile-by-email result:", profiles);
+          }
+          let orgIdToSave, roleToSave, nomToSave, profileId;
+          if(profiles && profiles.length>0) {
+            const p = profiles[0];
+            if(!p.org_id){ console.error("[OAUTH] account removed from team"); setAppLoading(false); return; }
+            orgIdToSave = p.org_id;
+            roleToSave = p.role || "admin";
+            nomToSave = p.nom || fullName;
+            profileId = p.id;
+            console.log("[OAUTH] existing profile found:", {orgId:orgIdToSave, role:roleToSave});
+          } else {
+            // New Google signup — create org+profile
+            const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+            try {
+              await sbFetch("organizations","POST",{id:newOrgId,name:"Ma Boutique",whatsapp:""});
+              await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom:fullName,phone:"",email,role:"admin"});
+              console.log("[OAUTH] created new org+profile:", newOrgId);
+            } catch(e) { console.error("[OAUTH] failed to create org/profile:", e); }
+            orgIdToSave = newOrgId;
+            roleToSave = "admin";
+            nomToSave = fullName;
+            profileId = userId;
+          }
+          // Persist session and reload — let session-restore handle the rest
+          try{
+            localStorage.setItem("teamly_token",jwt);
+            if(refresh) localStorage.setItem("teamly_refresh_token",refresh);
+            localStorage.setItem("teamly_email",email);
+            localStorage.setItem("teamly_org",orgIdToSave);
+            localStorage.setItem("teamly_role",roleToSave);
+            localStorage.setItem("teamly_userId",profileId);
+            localStorage.setItem("teamly_nom",nomToSave);
+          }catch(e){}
+          console.log("[OAUTH] session persisted, reloading to /dashboard");
+          window.location.replace("/dashboard");
+        } catch(e) { console.error("[OAUTH] handler error:",e); setAppLoading(false); }
+      })();
+      return;
+    }
     if((_confirmToken && _confirmType === "signup") || (_tokenHash && _confirmType === "email")) {
       (async()=>{
         try {
@@ -2727,7 +2797,7 @@ function AppInner() {
                         if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
                       }
                     }
-                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
+                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||"",email_confirmed_at:data.user?.email_confirmed_at||null});
                     setRole(p.role||"admin"); setTab("dashboard");
                     try {
                       localStorage.setItem("teamly_token", tok);
@@ -2787,11 +2857,6 @@ function AppInner() {
             <div style={{display:"flex",flexDirection:"column",gap:14}}>
               {!phoneOtpSent ? (
                 <>
-                  <div style={{textAlign:"center",marginBottom:4}}>
-                    <div style={{fontSize:36,marginBottom:8}}>🔐</div>
-                    <div style={{color:"#fff",fontWeight:800,fontSize:17,marginBottom:4}}>Connexion rapide et sécurisée</div>
-                    <div style={{color:"rgba(255,255,255,0.5)",fontSize:12}}>Reçois un code SMS en quelques secondes</div>
-                  </div>
                   <div>
                     <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>📱 Numéro de téléphone</div>
                     <div style={{display:"flex",gap:8}}>
@@ -2892,6 +2957,23 @@ function AppInner() {
           {/* Register */}
           {authMode==="register"&&(
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {/* Google OAuth */}
+              <button onClick={signInWithGoogle}
+                style={{background:"#FFFFFF",color:"#1A1A1A",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 0",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:"sans-serif"}}>
+                <svg width="18" height="18" viewBox="0 0 18 18">
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                  <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/>
+                </svg>
+                Continuer avec Google
+              </button>
+              {/* "ou" separator */}
+              <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0"}}>
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+                <span style={{fontSize:11,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif"}}>ou</span>
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+              </div>
               {[
                 {key:"boutique",  label:"🏪 Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
                 {key:"nom",       label:"👤 Ton prénom & nom *",     ph:"Cheikh Diallo",      type:"text",     ac:"name"},
@@ -3739,6 +3821,25 @@ function AppInner() {
           </div>
         );
       })()}
+
+      {/* ── BANNIÈRE EMAIL NON CONFIRMÉ (dismissible) ── */}
+      {currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed && (
+        <div style={{background:"#FFF4D6",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0,borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
+          <div style={{fontSize:12,color:G.green,fontWeight:500,flex:1}}>
+            📧 Vérifie ton email pour sécuriser ton compte
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+            <button onClick={async()=>{
+              try {
+                await fetch(`${SB_URL}/auth/v1/resend`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({type:"signup",email:currentUser.email})});
+                addToast("✅ Email de vérification renvoyé","✅",G.green);
+              } catch(e) { addToast("Erreur — réessaie","❌",G.red); }
+            }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Renvoyer</button>
+            <button onClick={()=>{ setEmailBannerDismissed(true); try{localStorage.setItem("teamly_email_banner_dismissed","1");}catch(e){} }}
+              style={{background:"none",border:"none",color:G.green,fontSize:18,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+          </div>
+        </div>
+      )}
 
       {/* ── BANNIÈRE TRIAL (derniers 3 jours) ── */}
       {!isPro&&!trialExpired&&trialDaysLeft<=3&&(
