@@ -131,6 +131,15 @@ export const OCard = ({ o, showPrendre = false }) => {
                 <span style={{fontSize:20}}>🚌</span> Remis au transporteur
               </button>
             )}
+            {role==="livreur" && o.status==="remis_transporteur" && (
+              <div style={{background:"#CFFAFE",border:"1px solid #0891B2",borderRadius:10,padding:"10px 12px",marginTop:6,display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:22}}>🚌</span>
+                <div>
+                  <div style={{fontSize:13,fontWeight:800,color:"#0891B2"}}>✅ Livré au transporteur</div>
+                  <div style={{fontSize:11,color:"#0E7490",marginTop:2}}>🔒 Ta mission est terminée — Admin/Closer confirme la livraison finale</div>
+                </div>
+              </div>
+            )}
             {isAdminOrCloser && o.status==="remis_transporteur" && (
               <button onClick={()=>upSt(o.id,"entregado")}
                 style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>

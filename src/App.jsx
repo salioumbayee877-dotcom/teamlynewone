@@ -3862,9 +3862,9 @@ function AppInner() {
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
     const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START);
     if(role==="livreur") {
-      // Pedidos hors zone principale: visibles seulement de paiement_confirme à en_route inclus
+      // Pedidos hors zone principale: visibles de paiement_confirme à remis_transporteur (livreur garde la trace)
       if(o.region_type==="other") {
-        const VISIBLE_OTHER = new Set(["paiement_confirme","colis_en_main","en_route"]);
+        const VISIBLE_OTHER = new Set(["paiement_confirme","colis_en_main","en_route","remis_transporteur"]);
         if(!VISIBLE_OTHER.has(o.status)) return false;
       }
       const hasResult  = livResultFilter.length>0;
