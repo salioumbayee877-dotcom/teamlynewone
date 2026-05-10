@@ -2765,12 +2765,25 @@ function AppInner() {
     const {userId, email, fullName} = googleOnboard;
     const nom = (fullName || email.split("@")[0] || "Admin").slice(0, 60);
     const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
+    const upsert = async (table, body) => {
+      const r = await fetchWithTimeout(`${SB_URL}/rest/v1/${table}`,{
+        method:"POST",
+        headers:{
+          "Content-Type":"application/json",
+          "apikey":SB_KEY,
+          "Authorization":`Bearer ${_authToken||SB_KEY}`,
+          "Prefer":"return=representation,resolution=merge-duplicates",
+        },
+        body:JSON.stringify(body),
+      },10000);
+      if(!r.ok){ const t=await r.text(); throw new Error(`${table} ${r.status}: ${t.slice(0,200)}`); }
+    };
     try {
-      await sbFetch("organizations","POST",{id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim()});
-      await sbFetch("profiles","POST",{id:userId, org_id:newOrgId, nom, phone:authForm.phone.trim(), email, role:"admin"});
+      await upsert("organizations",{id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim()});
+      await upsert("profiles",{id:userId, org_id:newOrgId, nom, phone:authForm.phone.trim(), email, role:"admin"});
     } catch(e) {
       console.error("[TEAMLY OAuth] onboard create failed:", e?.message);
-      setAuthError("Erreur création — réessaye");
+      setAuthError("Erreur création — "+(e?.message||"réessaye").slice(0,180));
       return;
     }
     setOrgId(newOrgId); setSbReady(true);
