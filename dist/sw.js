@@ -1,4 +1,4 @@
-const CACHE = "teamly-v6";
+const CACHE = "teamly-v7";
 const STATIC = ["/", "/index.html", "/app.js", "/apple-touch-icon.png", "/manifest.json"];
 const SKIP_CACHE = ["/rest/v1/", "supabase.co", ".netlify/functions", "nominatim.openstreetmap", "anthropic"];
 
@@ -16,13 +16,17 @@ self.addEventListener("activate", e => {
 
 const safePut = (cache, req, res) => {
   if (res && res.ok && res.type !== "opaque") {
-    try { cache.put(req, res); } catch(e) {}
+    cache.put(req, res).catch(()=>{});
   }
 };
 
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
   const url = e.request.url;
+
+  // Browser extensions (chrome-extension://, moz-extension://, etc.) issue
+  // requests we can't cache — bail before the cache.put would reject.
+  if (!url.startsWith("http://") && !url.startsWith("https://")) return;
 
   // Never cache API / Supabase / AI calls
   if (SKIP_CACHE.some(s => url.includes(s))) return;

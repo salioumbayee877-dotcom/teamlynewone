@@ -197,6 +197,46 @@ const sbAuth = async (email, password, type="login") => {
   }
 };
 
+// PKCE helpers — newer Supabase projects default to PKCE for OAuth, which means
+// the callback comes back as ?code=… in the query (not #access_token=… in the
+// hash). We generate a code_verifier, store it in localStorage, and send the
+// hashed code_challenge to /authorize. The callback handler exchanges the code
+// + verifier for tokens at /auth/v1/token?grant_type=pkce.
+const _b64url = (buf) => btoa(String.fromCharCode(...buf))
+  .replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+
+const _pkceVerifier = () => {
+  const arr = new Uint8Array(32);
+  (typeof crypto!=="undefined"?crypto:window.crypto).getRandomValues(arr);
+  return _b64url(arr);
+};
+
+const _pkceChallenge = async (verifier) => {
+  const data = new TextEncoder().encode(verifier);
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return _b64url(new Uint8Array(hash));
+};
+
+// Sends the user to Supabase /authorize for Google. Uses PKCE so the callback
+// returns ?code=… which the startup useEffect exchanges for tokens. The
+// redirect_to URL must be whitelisted in Supabase → URL Configuration.
+const signInWithGoogle = async () => {
+  try {
+    const verifier  = _pkceVerifier();
+    const challenge = await _pkceChallenge(verifier);
+    try { localStorage.setItem("teamly_pkce_verifier", verifier); } catch(e){}
+    const redirectTo = `${window.location.origin}/dashboard`;
+    const url = `${SB_URL}/auth/v1/authorize?provider=google`
+      + `&redirect_to=${encodeURIComponent(redirectTo)}`
+      + `&code_challenge=${challenge}`
+      + `&code_challenge_method=S256`;
+    window.location.href = url;
+  } catch(e) {
+    console.error("[TEAMLY OAuth] signInWithGoogle error:", e);
+    alert("Erreur lors de l'initialisation Google: "+(e?.message||""));
+  }
+};
+
 
 const sendPhoneOtp = async (fullPhone) => {
   const res = await fetchWithTimeout(`${SB_URL}/auth/v1/otp`,{
@@ -1429,6 +1469,128 @@ function AppInner() {
         } catch(e) { console.error("Email confirmation error:",e); }
         setAppLoading(false);
       })();
+      return;
+    }
+    // ── Detect Google OAuth callback (PKCE or implicit) ──────────────────
+    // PKCE: ?code=…  →  POST /auth/v1/token?grant_type=pkce  → tokens
+    // Implicit: #access_token=…&refresh_token=…              → tokens directly
+    const _processOAuthTokens = async (jwt, refreshTok) => {
+      try {
+        const uRes = await fetchWithTimeout(`${SB_URL}/auth/v1/user`,{
+          headers:{"Authorization":`Bearer ${jwt}`,"apikey":SB_KEY},
+        },10000);
+        const uData = await uRes.json();
+        console.log("[TEAMLY OAuth] /auth/v1/user response:", uRes.status, uData);
+        const userId = uData.id;
+        const email  = uData.email || "";
+        const fullName = uData?.user_metadata?.full_name || uData?.user_metadata?.name || (email? email.split("@")[0] : "");
+        if(!userId) {
+          console.error("[TEAMLY OAuth] No userId in /auth/v1/user response — token rejected?");
+          setAuthError("Erreur Google : token rejeté par Supabase");
+          setAppLoading(false);
+          return;
+        }
+        _authToken = jwt; setSbToken(jwt);
+        try {
+          localStorage.setItem("teamly_token", jwt);
+          if(refreshTok) localStorage.setItem("teamly_refresh_token", refreshTok);
+          localStorage.setItem("teamly_email", email);
+        } catch(e){}
+        const profiles = await sbFetch(`profiles?id=eq.${userId}&limit=1`).catch((e)=>{
+          console.error("[TEAMLY OAuth] profile lookup failed:", e?.message);
+          return null;
+        });
+        console.log("[TEAMLY OAuth] profile lookup result:", profiles);
+        if(profiles && profiles.length > 0 && profiles[0].org_id) {
+          const p = profiles[0];
+          console.log("[TEAMLY OAuth] Existing user — routing to dashboard, role:", p.role);
+          const orgs = await sbFetch(`organizations?id=eq.${p.org_id}&limit=1&select=id,name,whatsapp,plan,plan_expires_at,created_at,settings`).catch(()=>null);
+          const orgName  = orgs?.[0]?.name  || "Ma Boutique";
+          const orgPhone = orgs?.[0]?.whatsapp || "";
+          setOrgId(p.org_id); setSbReady(true);
+          setSettings(s=>({...s, nom:p.nom||s.nom, whatsapp:p.phone||orgPhone||s.whatsapp, boutique:orgName, ...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{}), ...(orgs?.[0]?.settings||{})}));
+          setOrg(orgs?.[0] ? {id:orgs[0].id, name:orgs[0].name, whatsapp:orgs[0].whatsapp, plan:orgs[0].plan} : null);
+          setCurrentUser({id:p.id, nom:p.nom||fullName, email:p.email||email, role:p.role||"admin", phone:p.phone||"", birthday:p.birthday||""});
+          setRole(p.role||"admin"); setTab("dashboard");
+          try {
+            localStorage.setItem("teamly_org", p.org_id);
+            localStorage.setItem("teamly_role", p.role||"admin");
+            localStorage.setItem("teamly_userId", p.id||"");
+            localStorage.setItem("teamly_nom", p.nom||fullName||"");
+          } catch(e){}
+        } else {
+          console.log("[TEAMLY OAuth] New user — creating org + profile");
+          const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
+          try {
+            await sbFetch("organizations","POST",{id:newOrgId, name:"Ma Boutique", whatsapp:""});
+            await sbFetch("profiles","POST",{id:userId, org_id:newOrgId, nom:fullName||"Admin", phone:"", email, role:"admin"});
+          } catch(e){ console.error("[TEAMLY OAuth] org/profile create failed:", e?.message); }
+          setOrgId(newOrgId); setSbReady(true);
+          setCurrentUser({id:userId, nom:fullName||"Admin", email, role:"admin", phone:""});
+          setSettings(s=>({...s, nom:fullName||"Admin", boutique:"Ma Boutique"}));
+          setOrg({id:newOrgId, name:"Ma Boutique", whatsapp:"", plan:null});
+          setRole("admin");
+          try {
+            localStorage.setItem("teamly_org", newOrgId);
+            localStorage.setItem("teamly_role", "admin");
+            localStorage.setItem("teamly_userId", userId);
+            localStorage.setItem("teamly_nom", fullName||"Admin");
+          } catch(e){}
+          setAuthStep("plan");
+        }
+        registerDeviceSession(jwt).catch(()=>{});
+        window.history.replaceState(null,"",window.location.pathname);
+        console.log("[TEAMLY OAuth] Done — auth state should now show dashboard/plan");
+      } catch(e) {
+        console.error("[TEAMLY OAuth] processing error:", e?.message, e);
+        setAuthError("Erreur de connexion Google : "+(e?.message||"réessayez"));
+      }
+      setAppLoading(false);
+    };
+
+    // PKCE callback — Supabase default for OAuth in newer projects
+    const _code = _qp.get("code");
+    if(_code && !_qp.get("token_hash")) {
+      console.log("[TEAMLY OAuth] PKCE code received, exchanging for tokens…");
+      (async()=>{
+        try {
+          const verifier = (()=>{ try{return localStorage.getItem("teamly_pkce_verifier");}catch(e){return null;} })();
+          if(!verifier) {
+            console.error("[TEAMLY OAuth] No code_verifier in storage — flow state lost");
+            setAuthError("Erreur OAuth : session expirée, réessayez");
+            setAppLoading(false);
+            return;
+          }
+          const tokRes = await fetchWithTimeout(`${SB_URL}/auth/v1/token?grant_type=pkce`,{
+            method:"POST",
+            headers:{"Content-Type":"application/json","apikey":SB_KEY},
+            body: JSON.stringify({ auth_code: _code, code_verifier: verifier }),
+          }, 15000);
+          const tokData = await tokRes.json().catch(()=>({}));
+          console.log("[TEAMLY OAuth] PKCE token exchange:", tokRes.status, tokData);
+          try { localStorage.removeItem("teamly_pkce_verifier"); } catch(e){}
+          if(!tokRes.ok || !tokData.access_token) {
+            setAuthError("Erreur OAuth : "+(tokData?.error_description||tokData?.msg||tokData?.error||"échec d'échange"));
+            setAppLoading(false);
+            return;
+          }
+          await _processOAuthTokens(tokData.access_token, tokData.refresh_token);
+        } catch(e) {
+          console.error("[TEAMLY OAuth] PKCE error:", e?.message, e);
+          setAuthError("Erreur OAuth PKCE : "+(e?.message||""));
+          setAppLoading(false);
+        }
+      })();
+      return;
+    }
+
+    // Implicit flow fallback — tokens directly in URL hash
+    const _refreshInHash = _hp.get("refresh_token");
+    const _isOAuth = _confirmToken && _refreshInHash &&
+      _confirmType !== "signup" && _confirmType !== "email" && _confirmType !== "recovery";
+    if(_isOAuth) {
+      console.log("[TEAMLY OAuth] Detected implicit flow callback (hash tokens)");
+      (async()=>{ await _processOAuthTokens(_confirmToken, _refreshInHash); })();
       return;
     }
     try {
@@ -2668,6 +2830,21 @@ function AppInner() {
           {/* Login */}
           {authMode==="login"&&(
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={signInWithGoogle} type="button"
+                style={{background:"#fff",color:"#1F1F1F",border:"none",borderRadius:10,padding:"11px 14px",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%"}}>
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                  <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                </svg>
+                Continuer avec Google
+              </button>
+              <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0",color:"rgba(255,255,255,0.4)",fontSize:11,fontFamily:"sans-serif"}}>
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+                ou
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+              </div>
               {[{key:"email",label:"📧 Email",ph:"vous@boutique.sn",type:"email"},{key:"password",label:"🔒 Mot de passe",ph:"••••••••",type:"password"}].map(f=>(
                 <div key={f.key}>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
@@ -2892,6 +3069,21 @@ function AppInner() {
           {/* Register */}
           {authMode==="register"&&(
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <button onClick={signInWithGoogle} type="button"
+                style={{background:"#fff",color:"#1F1F1F",border:"none",borderRadius:10,padding:"11px 14px",fontWeight:600,fontSize:13,cursor:"pointer",fontFamily:"sans-serif",display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%"}}>
+                <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                  <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                  <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                  <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+                  <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+                </svg>
+                S'inscrire avec Google
+              </button>
+              <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0",color:"rgba(255,255,255,0.4)",fontSize:11,fontFamily:"sans-serif"}}>
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+                ou
+                <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
+              </div>
               {[
                 {key:"boutique",  label:"🏪 Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
                 {key:"nom",       label:"👤 Ton prénom & nom *",     ph:"Cheikh Diallo",      type:"text",     ac:"name"},
