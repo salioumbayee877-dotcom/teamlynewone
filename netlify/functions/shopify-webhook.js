@@ -105,6 +105,8 @@ exports.handler = async (event) => {
     } catch(e) { console.error("Zone matching error:", e.message); }
 
     const fraisBlocked = matchType === "fallback";
+    const regionType   = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
+    const paymentType  = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
 
     // ── Product catalog matching ──────────────────────────────────────────
     let finalProduct = shopifyProduct, matched = false, autoCreated = false;
@@ -136,7 +138,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         org_id: orgId, client: clientName, phone, address,
         product: finalProduct, price,
-        status: "boutique",
+        status: regionType === "other" ? "en_attente_paiement" : "boutique",
         note, archived: false,
         is_bundle: totalQty > 1 || lineItems.length > 1,
         frais_liv: syncMeta.frais_liv,
@@ -145,6 +147,8 @@ exports.handler = async (event) => {
         unmatched_city:   syncMeta.unmatched_city,
         unmatched_region: syncMeta.unmatched_region,
         platform: "shopify",
+        region_type:  regionType,
+        payment_type: paymentType,
       }),
     });
 

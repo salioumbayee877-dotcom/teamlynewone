@@ -416,22 +416,32 @@ const NavIcon = ({name, size=20, color="#fff"}) => {
 };
 
 const STATUS = {
-  pendiente:        {label:"En attente",        color:"#F0A500",bg:"#FFF8E7"},
-  confirmado:       {label:"Client confirmé ✅", color:"#2E8B57",bg:"#E8F5EE"},
-  livreur_en_route: {label:"Livreur en route 🏍️",color:"#7C3AED",bg:"#EDE9FE"},
-  colis_pris:       {label:"Colis en main 📦",         color:"#2563EB",bg:"#DBEAFE"},
-  en_camino:        {label:"Vers le client 🚀",        color:"#0284C7",bg:"#E0F2FE"},
-  chez_client:      {label:"Livreur chez le client 📍",color:"#D97706",bg:"#FEF3C7"},
-  entregado:        {label:"✅ Encaissé",          color:"#1A5C38",bg:"#D1FAE5"},
-  rechazado:        {label:"Rejeté",             color:"#DC2626",bg:"#FEE2E2"},
-  no_contesta:      {label:"Absent",             color:"#6B7280",bg:"#F3F4F6"},
-  reprogramar:      {label:"Reporter",           color:"#7C3AED",bg:"#EDE9FE"},
-  boutique:         {label:"Boutique Shopify 🛒", color:"#96BF48",bg:"#F0F7E6"},
+  pendiente:           {label:"En attente",        color:"#F0A500",bg:"#FFF8E7"},
+  confirmado:          {label:"Client confirmé ✅", color:"#2E8B57",bg:"#E8F5EE"},
+  livreur_en_route:    {label:"Livreur en route 🏍️",color:"#7C3AED",bg:"#EDE9FE"},
+  colis_pris:          {label:"Colis en main 📦",         color:"#2563EB",bg:"#DBEAFE"},
+  en_camino:           {label:"Vers le client 🚀",        color:"#0284C7",bg:"#E0F2FE"},
+  chez_client:         {label:"Livreur chez le client 📍",color:"#D97706",bg:"#FEF3C7"},
+  entregado:           {label:"✅ Encaissé",          color:"#1A5C38",bg:"#D1FAE5"},
+  rechazado:           {label:"Rejeté",             color:"#DC2626",bg:"#FEE2E2"},
+  no_contesta:         {label:"Absent",             color:"#6B7280",bg:"#F3F4F6"},
+  reprogramar:         {label:"Reporter",           color:"#7C3AED",bg:"#EDE9FE"},
+  boutique:            {label:"Boutique Shopify 🛒", color:"#96BF48",bg:"#F0F7E6"},
+  // ── Régions hors zone principale (prépayé) ──
+  en_attente_paiement: {label:"En attente de paiement ⏳", color:"#F0A500",bg:"#FFF8E7"},
+  paiement_confirme:   {label:"Paiement confirmé ✅",       color:"#2E8B57",bg:"#E8F5EE"},
+  colis_en_main:       {label:"Colis en main 📦",           color:"#2563EB",bg:"#DBEAFE"},
+  en_route:            {label:"En route 🏍️",                color:"#7C3AED",bg:"#EDE9FE"},
+  remis_transporteur:  {label:"Remis au transporteur 🚌",   color:"#0891B2",bg:"#CFFAFE"},
 };
 
 // Statuts intermédiaires livreur — l'ordre ne doit JAMAIS disparaître tant qu'il n'est pas final
-const LIV_ACTIVE = new Set(["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar"]);
-const LIV_FINAL  = new Set(["entregado","rechazado"]);
+const LIV_ACTIVE = new Set([
+  "confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar",
+  // Flux régions hors zone principale (visibles livreur dès paiement_confirme)
+  "paiement_confirme","colis_en_main","en_route",
+]);
+const LIV_FINAL  = new Set(["entregado","rechazado","remis_transporteur"]);
 
 const INIT_PRODUCTS = [
   {id:1,name:"Chaussures Nike",cost:7000, price:25000,stock:42,fraisLiv:1500,niche:"Mode & Chaussures",
@@ -1778,7 +1788,7 @@ function AppInner() {
     if(!sbReady||!orgId) return;
     console.log("[TEAMLY DEBUG][MOUNT] sbReady=true orgId="+orgId+" _authToken="+(_authToken?_authToken.slice(0,20)+"...":"NULL")+" filterDate="+filterDate+" filterStatus="+filterStatus);
 
-    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden}));
+    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden,region_type:o.region_type,payment_type:o.payment_type}));
     const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,fraisLivExtra:p.frais_liv_extra,stockInitial:p.stock_initial}));
     const mapMsgs   = (msgs) => msgs.map(m=>{
       const t=m.text||"";
@@ -2312,7 +2322,9 @@ function AppInner() {
     const _zoneType = _dynZone.type;
     const _zoneName = _dynZone.name || newOrder.deliveryZoneName || "";
     const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,created_at:new Date().toISOString()};
+    const _regionType  = _zoneType === "other" ? "other" : _zoneType === "main" ? "main" : null;
+    const _paymentType = _regionType === "other" ? "prepaid" : _regionType === "main" ? "cod" : null;
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,region_type:_regionType,payment_type:_paymentType,created_at:new Date().toISOString()};
     setOrders(o=>[...o,order]);
     pendingOrderUpdates.current[tempId] = Date.now();
     // Auto-save unknown city with manually-entered fee for future autocomplete
@@ -2323,7 +2335,7 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) {
@@ -3850,6 +3862,11 @@ function AppInner() {
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
     const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START);
     if(role==="livreur") {
+      // Pedidos hors zone principale: visibles seulement de paiement_confirme à en_route inclus
+      if(o.region_type==="other") {
+        const VISIBLE_OTHER = new Set(["paiement_confirme","colis_en_main","en_route"]);
+        if(!VISIBLE_OTHER.has(o.status)) return false;
+      }
       const hasResult  = livResultFilter.length>0;
       const hasTournee = filterStatus!=="all";
       if(hasResult)  return matchDate && matchSearch && livResultFilter.includes(o.status);

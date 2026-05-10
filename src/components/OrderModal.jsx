@@ -52,13 +52,21 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
             value={newOrder.city||""}
             onCityChange={(cityName, zoneInfo)=>{
               const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : "";
-              setNewOrder(p=>({
-                ...p, city:cityName,
-                deliveryZoneType: zoneInfo.type,
-                deliveryZoneName: zoneInfo.name||"",
-                deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
-                deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
-              }));
+              const OTHER = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur"];
+              const MAIN  = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"];
+              setNewOrder(p=>{
+                let ds = p.deliveryStatus;
+                if (zoneInfo.type === "other" && MAIN.includes(ds)) ds = "en_attente_paiement";
+                else if (zoneInfo.type !== "other" && OTHER.includes(ds)) ds = "confirmado";
+                return {
+                  ...p, city:cityName,
+                  deliveryZoneType: zoneInfo.type,
+                  deliveryZoneName: zoneInfo.name||"",
+                  deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
+                  deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
+                  deliveryStatus: ds,
+                };
+              });
             }}
             onConfig={onOpenFraisConfig ? ()=>{onClose();onOpenFraisConfig();} : null}
             mainRegion={mainRegion} otherRegions={otherRegions}
@@ -164,16 +172,30 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
         <div style={{marginBottom:12}}>
           <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600}}>
             📦 Situation du colis <span style={{color:"#EF4444",fontWeight:700}}>*</span>
+            {zoneInfo.type==="other"&&<span style={{marginLeft:6,background:"#DBEAFE",color:"#1E40AF",borderRadius:5,padding:"1px 6px",fontSize:9,fontWeight:700}}>🚌 Hors zone — prépayé</span>}
           </div>
           <select value={newOrder.deliveryStatus||""} onChange={e=>setNewOrder({...newOrder,deliveryStatus:e.target.value})}
             style={{width:"100%",border:`1.5px solid ${!newOrder.deliveryStatus?"#FCA5A5":G.green}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:newOrder.deliveryStatus?G.dark:"#9CA3AF",background:G.white,boxSizing:"border-box"}}>
             <option value="" disabled>— Sélectionner la situation —</option>
-            <option value="confirmado">🔔 Client confirmé — Prêt pour livraison</option>
-            <option value="livreur_en_route">🏍️ En route pour récupérer le colis</option>
-            <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
-            <option value="en_camino">🚀 En route vers le client</option>
-            <option value="chez_client">📍 Déjà chez le client</option>
-            <option value="entregado">💰 Payé — Livraison encaissée</option>
+            {zoneInfo.type==="other"?(
+              <>
+                <option value="en_attente_paiement">⏳ En attente de paiement</option>
+                <option value="paiement_confirme">✅ Paiement confirmé</option>
+                <option value="colis_en_main">📦 Colis en main</option>
+                <option value="en_route">🏍️ En route</option>
+                <option value="remis_transporteur">🚌 Remis au transporteur</option>
+                <option value="entregado">✅ Livré</option>
+              </>
+            ):(
+              <>
+                <option value="confirmado">🔔 Client confirmé — Prêt pour livraison</option>
+                <option value="livreur_en_route">🏍️ En route pour récupérer le colis</option>
+                <option value="colis_pris">📦 Colis en main — Prêt à livrer</option>
+                <option value="en_camino">🚀 En route vers le client</option>
+                <option value="chez_client">📍 Déjà chez le client</option>
+                <option value="entregado">💰 Payé — Livraison encaissée</option>
+              </>
+            )}
           </select>
           {!newOrder.deliveryStatus&&<div style={{fontSize:10,color:"#EF4444",marginTop:4}}>⚠️ Champ obligatoire — sans ça, impossible d'enregistrer</div>}
         </div>

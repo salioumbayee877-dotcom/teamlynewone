@@ -47,7 +47,7 @@ exports.handler = async (event) => {
     const settings = (await setRes.json())?.[0]?.settings || {};
 
     // 2. Fetch pending orders
-    const pendingRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=in.(awaiting_zone_config,unmatched_zone)&select=id,unmatched_city,unmatched_region`, { headers: sbHeaders });
+    const pendingRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=in.(awaiting_zone_config,unmatched_zone)&select=id,unmatched_city,unmatched_region,status`, { headers: sbHeaders });
     const pending    = await pendingRes.json();
     if (!Array.isArray(pending) || pending.length === 0) {
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, resynced: 0, total: 0 }) };
@@ -59,15 +59,22 @@ exports.handler = async (event) => {
       const result = matchDeliveryZone(o.unmatched_city || "", main, others);
       const meta   = deriveSyncStatus(result, main, others, o.unmatched_city, o.unmatched_region, settings);
       if (meta.sync_status === "synced") {
+        const regionType  = result.zone?._type === "other" ? "other" : result.zone?._type === "main" ? "main" : null;
+        const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
+        const patch = {
+          sync_status: "synced",
+          frais_liv:   meta.frais_liv,
+          unmatched_city:   null,
+          unmatched_region: null,
+          region_type:  regionType,
+          payment_type: paymentType,
+        };
+        // Boutique-imported other-region orders should enter the prepaid flow once matched
+        if (regionType === "other" && o.status === "boutique") patch.status = "en_attente_paiement";
         await fetch(`${SB_URL}/rest/v1/orders?id=eq.${o.id}`, {
           method: "PATCH",
           headers: { ...sbHeaders, Prefer: "return=minimal" },
-          body: JSON.stringify({
-            sync_status: "synced",
-            frais_liv:   meta.frais_liv,
-            unmatched_city:   null,
-            unmatched_region: null,
-          }),
+          body: JSON.stringify(patch),
         });
         resynced++;
       }

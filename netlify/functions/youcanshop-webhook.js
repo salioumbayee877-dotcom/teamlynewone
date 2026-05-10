@@ -129,7 +129,7 @@ exports.handler = async (event) => {
     } catch(e) { console.error("Catalog error:", e.message); }
 
     // ── Delivery zone matching ──────────────────────────────────────────
-    let fraisAmount = 0, matchType = "fallback";
+    let fraisAmount = 0, matchType = "fallback", matchedZone = null;
     let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: null };
     try {
       const region = addrObj.province || addrObj.state || addrObj.region || null;
@@ -144,8 +144,11 @@ exports.handler = async (event) => {
       const result   = matchDeliveryZone(city, main, others);
       fraisAmount    = result.fee;
       matchType      = result.matchType;
+      matchedZone    = result.zone;
       syncMeta       = deriveSyncStatus(result, main, others, city, region, settings);
     } catch(e) { console.error("Zone matching error:", e.message); }
+    const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
+    const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
     const prodFlag = matched ? " ✓" : autoCreated ? " ★" : "";
     const zoneFlag = matchType === "fallback" ? ` ⚠️🏙️${city}` : matchType === "fuzzy" ? ` ~🏙️${city}` : ` 🏙️${city}`;
     const note     = `Commande YouCan ${ref}${prodFlag}${zoneFlag}`;
@@ -153,7 +156,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan" }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, product:finalProduct, price, status:regionType==="other"?"en_attente_paiement":"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType }),
     });
 
     if (!res.ok) {

@@ -21,6 +21,11 @@ export const OCard = ({ o, showPrendre = false }) => {
   const totalQty = items.reduce((s, p) => s + p.qty, 0);
   const prodLine = items.map(p => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`).join(" + ");
 
+  // ── Flux régions hors zone principale (prépayé) ─────────────────────────
+  const isOtherFlow = o.region_type === "other";
+  const OTHER_STATUSES = new Set(["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur"]);
+  const inOtherFlow = isOtherFlow && (OTHER_STATUSES.has(o.status) || o.status === "entregado");
+
   return (
     <div style={{borderRadius:12,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
 
@@ -49,8 +54,118 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* ── Actions zone ── */}
       <div onClick={e=>e.stopPropagation()} style={{padding:"6px 12px 10px",borderTop:"1px solid #F3F4F6"}}>
 
+      {/* ── Flux régions hors zone principale (prépayé) ── */}
+      {inOtherFlow&&(()=>{
+        const OFLOW = [
+          {icon:"⏳", label:"Paiement",     keys:["en_attente_paiement"], color:"#F0A500"},
+          {icon:"✅", label:"Confirmé",     keys:["paiement_confirme"],   color:"#2E8B57"},
+          {icon:"📦", label:"Colis",        keys:["colis_en_main"],       color:"#2563EB"},
+          {icon:"🏍️", label:"En route",     keys:["en_route"],            color:"#7C3AED"},
+          {icon:"🚌", label:"Transporteur", keys:["remis_transporteur"],  color:"#0891B2"},
+          {icon:"✅", label:"Livré",        keys:["entregado"],           color:G.green},
+        ];
+        const OORDER = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur","entregado"];
+        const curOrd = OORDER.indexOf(o.status);
+        const isAdminOrCloser = role==="admin"||role==="closer";
+        return (
+          <>
+            {/* Stepper visuel */}
+            <div style={{marginBottom:8,marginTop:8}}>
+              <div style={{display:"flex",alignItems:"center"}}>
+                {OFLOW.map((step,i)=>{
+                  const stepOrd = OORDER.indexOf(step.keys[0]);
+                  const done = stepOrd < curOrd;
+                  const active = step.keys.includes(o.status);
+                  const col = done||active ? step.color : "#E5E7EB";
+                  return (
+                    <div key={i} style={{display:"flex",alignItems:"center",flex:i<OFLOW.length-1?1:0}}>
+                      <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`}}>
+                        {done?"✓":step.icon}
+                      </div>
+                      {i<OFLOW.length-1&&<div style={{flex:1,height:2,background:stepOrd<curOrd?step.color:"#E5E7EB"}}/>}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                {OFLOW.map((step,i)=>{
+                  const stepOrd = OORDER.indexOf(step.keys[0]);
+                  const done = stepOrd < curOrd;
+                  const active = step.keys.includes(o.status);
+                  return (
+                    <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:active?step.color:done?"#9CA3AF":"#D1D5DB",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                      {step.label}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Boutons d'action selon rôle + statut */}
+            {isAdminOrCloser && o.status==="en_attente_paiement" && (
+              <button onClick={()=>upSt(o.id,"paiement_confirme")}
+                style={{width:"100%",background:"#2E8B57",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:18}}>✅</span> Confirmer le paiement reçu
+              </button>
+            )}
+            {isAdminOrCloser && o.status==="paiement_confirme" && (
+              <div style={{background:"#E8F5EE",borderRadius:10,padding:"9px 12px",fontSize:11,color:"#1A5C38",fontWeight:600,marginTop:6}}>
+                ⏱️ En attente que le livreur prenne le colis en main
+              </div>
+            )}
+            {role==="livreur" && o.status==="paiement_confirme" && (
+              <button onClick={()=>upSt(o.id,"colis_en_main")}
+                style={{width:"100%",background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:20}}>📦</span> Colis en main
+              </button>
+            )}
+            {role==="livreur" && o.status==="colis_en_main" && (
+              <button onClick={()=>upSt(o.id,"en_route")}
+                style={{width:"100%",background:"#7C3AED",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:20}}>🏍️</span> En route
+              </button>
+            )}
+            {role==="livreur" && o.status==="en_route" && (
+              <button onClick={()=>upSt(o.id,"remis_transporteur")}
+                style={{width:"100%",background:"#0891B2",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:20}}>🚌</span> Remis au transporteur
+              </button>
+            )}
+            {isAdminOrCloser && o.status==="remis_transporteur" && (
+              <button onClick={()=>upSt(o.id,"entregado")}
+                style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:18}}>✅</span> Marquer comme livré
+              </button>
+            )}
+            {o.status==="entregado" && (
+              <div style={{background:G.greenLight,borderRadius:10,padding:"9px 12px",fontSize:12,color:G.green,fontWeight:700,marginTop:6,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:16}}>✅</span> Livraison confirmée
+              </div>
+            )}
+
+            {/* Actions rapides — bas de carte */}
+            <div style={{display:"flex",gap:5,marginTop:8}}>
+              <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+                style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
+                📞 Appeler
+              </a>
+              <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note||"");}}
+                style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                📝 {o.note?"Note ●":"+ Note"}
+              </button>
+              {isAdminOrCloser&&(
+                <button onClick={()=>setEditOrder({...o})}
+                  style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                  ✏️ Modifier
+                </button>
+              )}
+            </div>
+          </>
+        );
+      })()}
+
       {/* ── Stepper COD complet (admin / closer) ── */}
-      {role!=="livreur"&&(()=>{
+      {!inOtherFlow&&role!=="livreur"&&(()=>{
         const FLOW = [
           {icon:"✅",label:"Confirmé",keys:["confirmado"],            color:"#2E8B57"},
           {icon:"🏍️",label:"Livreur", keys:["livreur_en_route","colis_pris"], color:"#7C3AED"},
@@ -102,7 +217,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       })()}
 
       {/* WhatsApp — admin et closer */}
-      {(role==="admin"||role==="closer")&&o.phone&&(()=>{
+      {!inOtherFlow&&(role==="admin"||role==="closer")&&o.phone&&(()=>{
         const waSent = waSentIds.has(o.id);
         const phone = `221${o.phone.replace(/\s+/g,"")}`;
         const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
@@ -117,7 +232,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       })()}
 
       {/* Livreur — statut final bloqué (entregado / rechazado) */}
-      {role==="livreur"&&(o.status==="entregado"||o.status==="rechazado")&&(
+      {!inOtherFlow&&role==="livreur"&&(o.status==="entregado"||o.status==="rechazado")&&(
         <div style={{marginTop:8,background:o.status==="entregado"?G.greenLight:"#FEF2F2",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:18}}>{o.status==="entregado"?"✅":"❌"}</span>
           <div>
@@ -132,7 +247,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       )}
 
       {/* Livreur — tracking complet 6 étapes */}
-      {role==="livreur"&&o.status!=="entregado"&&o.status!=="rechazado"&&(
+      {!inOtherFlow&&role==="livreur"&&o.status!=="entregado"&&o.status!=="rechazado"&&(
         <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:8}}>
 
           {/* Barre de progression visuelle */}
@@ -271,7 +386,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       )}
 
       {/* Modifier statut — livreur (toggle) */}
-      {role==="livreur"&&(
+      {!inOtherFlow&&role==="livreur"&&(
         <div style={{marginTop:8}}>
           <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
             style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
@@ -314,6 +429,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       )}
 
       {/* Actions rapides — bas de carte */}
+      {!inOtherFlow&&(
       <div style={{display:"flex",gap:5,marginTop:6}}>
         <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
           style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
@@ -330,6 +446,7 @@ export const OCard = ({ o, showPrendre = false }) => {
           </button>
         )}
       </div>
+      )}
       </div>{/* end actions zone */}
     </div>
   );
