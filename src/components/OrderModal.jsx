@@ -66,8 +66,8 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
           />
           {newOrder.city&&(
             <div style={{marginTop:5}}>
-              {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
-              {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {zoneInfo.name} · {fmt(zoneInfo.price)} F</span>}
+              {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
+              {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
               {zoneInfo.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {zoneInfo.name} · tarif par défaut</span>}
               {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — frais à saisir</span>}
             </div>

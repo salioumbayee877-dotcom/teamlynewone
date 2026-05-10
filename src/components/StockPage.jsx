@@ -138,7 +138,7 @@ export const StockPage = () => {
                   <div>
                     <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:6}}>🎁 BUNDLES</div>
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                      {prod.bundles.map(b=><span key={b.id} style={{background:"#FFF8E7",color:G.gold,borderRadius:7,padding:"3px 9px",fontSize:11,fontWeight:600}}>🎁 {b.label} — {fmt(b.prixVente)}F</span>)}
+                      {prod.bundles.map(b=><span key={b.id} style={{background:"#FFF8E7",color:G.gold,borderRadius:7,padding:"3px 9px",fontSize:11,fontWeight:600}}>🎁 {b.label} — {fmt(b.prixVente)} CFA</span>)}
                     </div>
                   </div>
                 )}
@@ -176,7 +176,7 @@ export const StockPage = () => {
             const nL=orders.filter(o=>o.product?.startsWith(p.name)&&o.status==="entregado").length;
             const si=p.stockInitial||p.stock+nL;
             const sr=Math.max(0,si-nL);
-            return [p.name,<span style={{fontWeight:700,color:sr<5?G.red:G.green}}>{sr}</span>,<span style={{color:G.greenMid,fontWeight:600}}>{nL}</span>,`${fmt(p.cost)}F`,`${fmt(p.price)}F`,<span style={{color:G.green,fontWeight:700}}>{fmt(p.price-p.cost-p.fraisLiv)}F</span>];
+            return [p.name,<span style={{fontWeight:700,color:sr<5?G.red:G.green}}>{sr}</span>,<span style={{color:G.greenMid,fontWeight:600}}>{nL}</span>,`${fmt(p.cost)} CFA`,`${fmt(p.price)} CFA`,<span style={{color:G.green,fontWeight:700}}>{fmt(p.price-p.cost-p.fraisLiv)} CFA</span>];
           })}
         />
       </div>

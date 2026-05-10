@@ -12,9 +12,15 @@ Sentry.init({
 
 const path = window.location.pathname;
 const hasToken = !!localStorage.getItem("teamly_token");
+const hasOAuthHash = /access_token=|error=/.test(window.location.hash || "");
 
 function Root() {
   if (path === '/' || path === '') {
+    if (hasOAuthHash) {
+      // OAuth callback landed on root — redirect to /dashboard preserving the hash
+      window.location.replace('/dashboard' + window.location.hash);
+      return null;
+    }
     if (hasToken) {
       window.location.replace('/dashboard');
       return null;

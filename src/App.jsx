@@ -774,7 +774,7 @@ function TourneeBlock({orders, onConfirm, G, fmt, mode="recuperer"}) {
                   📍 {o.address} · 📦 {o.product}
                 </div>
               </div>
-              <div style={{fontWeight:700,fontSize:13,color:accent,flexShrink:0}}>{fmt(o.price)}F</div>
+              <div style={{fontWeight:700,fontSize:13,color:accent,flexShrink:0}}>{fmt(o.price)} CFA</div>
             </div>
           );
         })}
@@ -5042,7 +5042,7 @@ function AppInner() {
                       <div key={j} style={{background:G.grayLight,borderRadius:8,padding:"6px 10px",fontSize:11,color:G.dark,marginBottom:3}}>
                         <span style={{fontWeight:600}}>{o.client}</span>
                         <span style={{color:G.gray}}> · {STATUS[o.status]?.label||o.status}</span>
-                        <span style={{float:"right",fontWeight:700,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                        <span style={{float:"right",fontWeight:700,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
                       </div>
                     ))}
                   </div>
@@ -5942,7 +5942,7 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                     <div>
                       <span style={{fontWeight:700,fontSize:14,color:G.dark}}>{mainRegion.name}</span>
-                      <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} F</span>
+                      <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} CFA</span>
                     </div>
                     <button onClick={()=>setZoneMainEdit({...mainRegion,cityInput:""})}
                       style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Modifier</button>
@@ -5994,7 +5994,7 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                     <div>
                       <span style={{fontWeight:700,fontSize:13,color:G.dark}}>{r.name}</span>
-                      <span style={{fontSize:13,color:"#1E40AF",fontWeight:700,marginLeft:10}}>{fmt(r.price)} F</span>
+                      <span style={{fontSize:13,color:"#1E40AF",fontWeight:700,marginLeft:10}}>{fmt(r.price)} CFA</span>
                     </div>
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setZoneOtherEdit({...r,cityInput:""})}
@@ -6957,8 +6957,8 @@ function AppInner() {
                 const z=detectDeliveryZone(editOrder.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
                 return (
                   <div style={{marginTop:5}}>
-                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} F</span>}
-                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} F</span>}
+                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} CFA</span>}
+                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} CFA</span>}
                     {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {z.name} · tarif par défaut</span>}
                     {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue</span>}
                   </div>
@@ -7278,7 +7278,7 @@ function AppInner() {
                         </div>
                         <div style={{textAlign:"right"}}>
                           <div style={{fontSize:10,color:G.gray}}>Montant COD</div>
-                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} CFA</div>
                         </div>
                       </div>
                       {items.map((p,pi)=>(
@@ -7312,7 +7312,7 @@ function AppInner() {
                         </div> : null;
                       })()}
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                        <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
                       </div>
                       {(()=>{const f=fraisDisplay(o);return(<>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:G.gray,marginTop:3,gap:8}}>
@@ -7326,7 +7326,7 @@ function AppInner() {
                         </span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} F</span>
+                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} CFA</span>
                       </div>
                       </>);})()}
                     </div>
