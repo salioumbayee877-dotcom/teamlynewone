@@ -994,6 +994,7 @@ function AppInner() {
   const [otpCode, setOtpCode]     = useState(["","","","","",""]);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResendIn, setOtpResendIn]   = useState(0);
+  const [googleOnboard, setGoogleOnboard] = useState(null); // {userId, email, fullName} when new Google user needs to set boutique+phone
   const [authForm, setAuthForm]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
     const org  = params.get("org")  || "";
@@ -1405,67 +1406,6 @@ function AppInner() {
     const _confirmToken = _hp.get("access_token");
     const _confirmType  = _hp.get("type") || _qp.get("type");
     const _tokenHash    = _qp.get("token_hash");
-    // OAuth callback (Google, etc.) — Supabase puts access_token in hash without type=signup
-    const _isOAuthCallback = _confirmToken && !_confirmType;
-    if(_isOAuthCallback) {
-      (async()=>{
-        try {
-          const jwt = _confirmToken;
-          const refresh = _hp.get("refresh_token");
-          // Decode JWT to get user info synchronously
-          let payload = {};
-          try { payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e) {}
-          const userId = payload.sub;
-          const email = payload.email || "";
-          const meta = payload.user_metadata || {};
-          const fullName = meta.full_name || meta.name || email.split("@")[0] || "Admin";
-          console.log("[OAUTH] callback decoded:", {userId, email, fullName});
-          if(!userId) { console.error("[OAUTH] no userId in JWT"); setAppLoading(false); return; }
-          _authToken = jwt;
-          let profiles = await sbFetch(`profiles?id=eq.${userId}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-id failed:",e);return null;});
-          console.log("[OAUTH] profile-by-id result:", profiles);
-          if(!profiles || profiles.length===0) {
-            profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-email failed:",e);return null;});
-            console.log("[OAUTH] profile-by-email result:", profiles);
-          }
-          let orgIdToSave, roleToSave, nomToSave, profileId;
-          if(profiles && profiles.length>0) {
-            const p = profiles[0];
-            if(!p.org_id){ console.error("[OAUTH] account removed from team"); setAppLoading(false); return; }
-            orgIdToSave = p.org_id;
-            roleToSave = p.role || "admin";
-            nomToSave = p.nom || fullName;
-            profileId = p.id;
-            console.log("[OAUTH] existing profile found:", {orgId:orgIdToSave, role:roleToSave});
-          } else {
-            // New Google signup — create org+profile
-            const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
-            try {
-              await sbFetch("organizations","POST",{id:newOrgId,name:"Ma Boutique",whatsapp:""});
-              await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom:fullName,phone:"",email,role:"admin"});
-              console.log("[OAUTH] created new org+profile:", newOrgId);
-            } catch(e) { console.error("[OAUTH] failed to create org/profile:", e); }
-            orgIdToSave = newOrgId;
-            roleToSave = "admin";
-            nomToSave = fullName;
-            profileId = userId;
-          }
-          // Persist session and reload — let session-restore handle the rest
-          try{
-            localStorage.setItem("teamly_token",jwt);
-            if(refresh) localStorage.setItem("teamly_refresh_token",refresh);
-            localStorage.setItem("teamly_email",email);
-            localStorage.setItem("teamly_org",orgIdToSave);
-            localStorage.setItem("teamly_role",roleToSave);
-            localStorage.setItem("teamly_userId",profileId);
-            localStorage.setItem("teamly_nom",nomToSave);
-          }catch(e){}
-          console.log("[OAUTH] session persisted, reloading to /dashboard");
-          window.location.replace("/dashboard");
-        } catch(e) { console.error("[OAUTH] handler error:",e); setAppLoading(false); }
-      })();
-      return;
-    }
     if((_confirmToken && _confirmType === "signup") || (_tokenHash && _confirmType === "email")) {
       (async()=>{
         try {
@@ -1567,24 +1507,11 @@ function AppInner() {
             localStorage.setItem("teamly_nom", p.nom||fullName||"");
           } catch(e){}
         } else {
-          console.log("[TEAMLY OAuth] New user — creating org + profile");
-          const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
-          try {
-            await sbFetch("organizations","POST",{id:newOrgId, name:"Ma Boutique", whatsapp:""});
-            await sbFetch("profiles","POST",{id:userId, org_id:newOrgId, nom:fullName||"Admin", phone:"", email, role:"admin"});
-          } catch(e){ console.error("[TEAMLY OAuth] org/profile create failed:", e?.message); }
-          setOrgId(newOrgId); setSbReady(true);
-          setCurrentUser({id:userId, nom:fullName||"Admin", email, role:"admin", phone:""});
-          setSettings(s=>({...s, nom:fullName||"Admin", boutique:"Ma Boutique"}));
-          setOrg({id:newOrgId, name:"Ma Boutique", whatsapp:"", plan:null});
-          setRole("admin");
-          try {
-            localStorage.setItem("teamly_org", newOrgId);
-            localStorage.setItem("teamly_role", "admin");
-            localStorage.setItem("teamly_userId", userId);
-            localStorage.setItem("teamly_nom", fullName||"Admin");
-          } catch(e){}
-          setAuthStep("plan");
+          console.log("[TEAMLY OAuth] New user — onboarding (boutique + phone)");
+          // Defer org creation until user fills boutique + phone in onboarding screen
+          setGoogleOnboard({userId, email, fullName: fullName||""});
+          setAuthForm(p=>({...p, email, nom: fullName||"", boutique:"", phone:""}));
+          setAuthStep("google-onboard");
         }
         registerDeviceSession(jwt).catch(()=>{});
         window.history.replaceState(null,"",window.location.pathname);
@@ -2791,22 +2718,22 @@ function AppInner() {
 
   const DISPOSABLE_DOMAINS = ["mailinator.com","guerrillamail.com","tempmail.com","10minutemail.com","throwam.com","yopmail.com","sharklasers.com","guerrillamailblock.com","grr.la","guerrillamail.info","spam4.me","trashmail.com","trashmail.me","trashmail.net","fakeinbox.com","maildrop.cc","dispostable.com","mailnull.com","spamgourmet.com","getairmail.com","filzmail.com","throwam.com","mailnesia.com","meltmail.com","tempr.email","discard.email","spamspot.com","spamevade.com","deadaddress.com","spamfree24.org","mt2015.com","dingbone.com","fudgerub.com","lookugly.com","shitmail.me","tempe-mail.com","temp-mail.org","temp-mail.io"];
   const handleRegister = () => {
-    if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.nom||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
+    if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
     if(authForm.password.length<8) { setAuthError("Mot de passe: 8 caractères minimum"); return; }
     if(!/[A-Za-z]/.test(authForm.password)||!/[0-9]/.test(authForm.password)) { setAuthError("Mot de passe: au moins une lettre et un chiffre"); return; }
-    if(authForm.confirmPassword !== undefined && authForm.confirmPassword !== authForm.password) { setAuthError("Les mots de passe ne correspondent pas"); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if(!emailRegex.test(authForm.email)) { setAuthError("Adresse email invalide"); return; }
     const emailDomain = authForm.email.split("@")[1]?.toLowerCase();
     if(DISPOSABLE_DOMAINS.includes(emailDomain)) { setAuthError("Les emails temporaires ne sont pas autorisés — utilise une vraie adresse email"); return; }
     setAuthError("");
+    const derivedNom = (authForm.email.split("@")[0] || "Admin").slice(0, 60);
     sbAuth(authForm.email, authForm.password, "register")
       .then(async(data)=>{
         if(!data.access_token) {
           // Supabase email confirmation is enabled — save pending data, show verify screen
           const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
           try { localStorage.setItem("teamly_pending_signup", JSON.stringify({
-            userId: data.user?.id, email: authForm.email, nom: authForm.nom,
+            userId: data.user?.id, email: authForm.email, nom: derivedNom,
             phone: authForm.phone, boutique: authForm.boutique, orgId: newOrgId,
           })); } catch(e) {}
           setAuthStep("verify-email");
@@ -2816,16 +2743,50 @@ function AppInner() {
         // Generate org UUID client-side so we don't need to read it back
         const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
         await sbFetch("organizations","POST",{id:newOrgId,name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""});
-        await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:authForm.nom||"Admin",phone:authForm.phone||"",email:authForm.email,role:"admin"});
+        await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:derivedNom,phone:authForm.phone||"",email:authForm.email,role:"admin"});
         // Set REAL UUID - critical for invite links
         setOrgId(newOrgId);
         setSbReady(true);
-        setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:"admin"});
-        setSettings(s=>(({...s,nom:authForm.nom,whatsapp:authForm.phone,boutique:authForm.boutique})));
+        setCurrentUser({id:data.user.id,nom:derivedNom,email:authForm.email,role:"admin"});
+        setSettings(s=>(({...s,nom:derivedNom,whatsapp:authForm.phone,boutique:authForm.boutique})));
         setOrg({id:newOrgId,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
-        try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",authForm.nom||"Admin");}catch(e){}
+        try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",derivedNom);}catch(e){}
         setAuthStep("plan"); // Move to plan AFTER org is created
       }).catch(e=>setAuthError(e.message||"Erreur inscription — email déjà utilisé ?"));
+  };
+
+  const handleGoogleOnboardSubmit = async () => {
+    if(!googleOnboard) return;
+    if(!authForm.boutique?.trim() || !authForm.phone?.trim()) {
+      setAuthError("Nom de la boutique et téléphone obligatoires *");
+      return;
+    }
+    setAuthError("");
+    const {userId, email, fullName} = googleOnboard;
+    const nom = (fullName || email.split("@")[0] || "Admin").slice(0, 60);
+    const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
+    try {
+      await sbFetch("organizations","POST",{id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim()});
+      await sbFetch("profiles","POST",{id:userId, org_id:newOrgId, nom, phone:authForm.phone.trim(), email, role:"admin"});
+    } catch(e) {
+      console.error("[TEAMLY OAuth] onboard create failed:", e?.message);
+      setAuthError("Erreur création — réessaye");
+      return;
+    }
+    setOrgId(newOrgId); setSbReady(true);
+    setCurrentUser({id:userId, nom, email, role:"admin", phone:authForm.phone.trim()});
+    setSettings(s=>({...s, nom, whatsapp:authForm.phone.trim(), boutique:authForm.boutique.trim()}));
+    setOrg({id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim(), plan:null});
+    setRole("admin");
+    try {
+      localStorage.setItem("teamly_org", newOrgId);
+      localStorage.setItem("teamly_role", "admin");
+      localStorage.setItem("teamly_userId", userId);
+      localStorage.setItem("teamly_nom", nom);
+      localStorage.setItem("teamly_phone", authForm.phone.trim());
+    } catch(e){}
+    setGoogleOnboard(null);
+    setAuthStep("plan");
   };
 
   const handlePlan = (plan) => {
@@ -2870,7 +2831,7 @@ function AppInner() {
           {/* Toggle */}
           <div style={{display:"flex",background:"rgba(0,0,0,0.25)",borderRadius:12,padding:3,gap:3,marginBottom:20}}>
             {[{k:"login",l:"Email"},{k:"register",l:"S'inscrire"}].map(m=>(
-              <button key={m.k} onClick={()=>{setAuthMode(m.k);setAuthError("");setPhoneOtpSent(false);}}
+              <button key={m.k} onClick={()=>{setAuthMode(m.k);setAuthError("");}}
                 style={{flex:1,padding:"9px 0",borderRadius:10,border:"none",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"sans-serif",background:authMode===m.k?G.gold:"none",color:authMode===m.k?G.dark:"rgba(255,255,255,0.7)"}}>
                 {m.l}
               </button>
@@ -3029,11 +2990,9 @@ function AppInner() {
               </div>
               {[
                 {key:"boutique",  label:"🏪 Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
-                {key:"nom",       label:"👤 Ton prénom & nom *",     ph:"Cheikh Diallo",      type:"text",     ac:"name"},
                 {key:"email",     label:"📧 Email *",                ph:"vous@boutique.sn",   type:"email",    ac:"email"},
                 {key:"phone",     label:"📱 Téléphone *",            ph:"77 123 45 67",       type:"tel",      ac:"tel"},
-                {key:"password",        label:"🔒 Mot de passe *",         ph:"8 car. min · 1 lettre + 1 chiffre",   type:"password", ac:"new-password"},
-                {key:"confirmPassword", label:"🔒 Confirmer le mot de passe *", ph:"Retape le mot de passe",         type:"password", ac:"new-password"},
+                {key:"password",  label:"🔒 Mot de passe *",         ph:"8 car. min · 1 lettre + 1 chiffre",   type:"password", ac:"new-password"},
               ].map(f=>(
                 <div key={f.key}>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
@@ -3054,6 +3013,34 @@ function AppInner() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── ÉTAPE Google onboard: boutique + téléphone ── */}
+      {authStep==="google-onboard"&&(
+        <div style={{width:"100%",maxWidth:380}}>
+          <div style={{textAlign:"center",marginBottom:22}}>
+            <div style={{fontSize:36,marginBottom:8}}>🎉</div>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Bienvenue {googleOnboard?.fullName||""} !</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Quelques infos pour finaliser ton compte</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>🏪 Nom de ta boutique *</div>
+              <input type="text" value={authForm.boutique||""} onChange={e=>setAuthForm(p=>({...p,boutique:e.target.value}))} placeholder="Ma Boutique Dakar"
+                style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>📱 Téléphone *</div>
+              <input type="tel" value={authForm.phone||""} onChange={e=>setAuthForm(p=>({...p,phone:e.target.value}))} placeholder="77 123 45 67"
+                style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+            </div>
+            {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+            <button onClick={handleGoogleOnboardSubmit}
+              style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:6,fontFamily:"sans-serif"}}>
+              Continuer →
+            </button>
+          </div>
         </div>
       )}
 
