@@ -69,11 +69,14 @@ function PhoneFrame({ children, width = 270 }) {
         width: 80, height: 18, background: "#0a0f0c", borderRadius: 12,
         margin: "0 auto 6px", position: "relative", zIndex: 2,
       }} />
-      <div style={{ background: "#fff", borderRadius: 26, overflow: "hidden", marginTop: -22 }}>
+      <div style={{
+        background: "#fff", borderRadius: 26, overflow: "hidden", marginTop: -22,
+        minHeight: 560, display: "flex", flexDirection: "column",
+      }}>
         <div style={{
           height: 28, background: G.greenDark, padding: "8px 22px",
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          color: "#fff", fontSize: 11, fontWeight: 700,
+          color: "#fff", fontSize: 11, fontWeight: 700, flexShrink: 0,
         }}>
           <span>15:13</span>
           <span style={{ display: "flex", gap: 4, alignItems: "center", fontSize: 10 }}>
@@ -81,6 +84,11 @@ function PhoneFrame({ children, width = 270 }) {
           </span>
         </div>
         {children}
+        <div style={{ flex: 1, background: "#fafafa", minHeight: 8 }} />
+        <div style={{
+          height: 4, width: 100, background: "#0a0f0c", borderRadius: 4,
+          margin: "6px auto 8px", opacity: 0.85, flexShrink: 0,
+        }} />
       </div>
     </div>
   );
@@ -159,7 +167,7 @@ function MockupDashboard() {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: G.dark }}>Sac à main</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: G.greenDark }}>250 000 F</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: G.greenDark }}>250 000 CFA</span>
           </div>
           <div style={{ fontSize: 8, color: G.greenMid, fontWeight: 600, marginTop: 1 }}>
             Bénéfice : 165 000 CFA
@@ -171,7 +179,7 @@ function MockupDashboard() {
         }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span style={{ fontSize: 10, fontWeight: 700, color: G.dark }}>Bouchon rotatif</span>
-            <span style={{ fontSize: 10, fontWeight: 800, color: G.dark }}>15 000 F</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: G.dark }}>15 000 CFA</span>
           </div>
           <div style={{ fontSize: 8, color: G.red, fontWeight: 600, marginTop: 1 }}>
             Bénéfice : -1 360 CFA
@@ -375,9 +383,9 @@ function MockupGps() {
           }}>5 liv.</div>
         </div>
         {[
-          { n: "Saliou Mbaye", s: "Colis en main 📦", p: "20 000 F", c: G.gold },
-          { n: "Saliou Mbaye", s: "Vers le client 🚀", p: "19 125 F", c: G.blue },
-          { n: "Saliou Mbaye", s: "Chez le client 📍", p: "7 500 F", c: G.greenMid },
+          { n: "Saliou Mbaye", s: "Colis en main 📦", p: "20 000 CFA", c: G.gold },
+          { n: "Saliou Mbaye", s: "Vers le client 🚀", p: "19 125 CFA", c: G.blue },
+          { n: "Saliou Mbaye", s: "Chez le client 📍", p: "7 500 CFA", c: G.greenMid },
         ].map((o, i) => (
           <div key={i} style={{
             background: "#fff", borderRadius: 8, padding: "7px 10px",
@@ -423,9 +431,9 @@ function MockupCompta() {
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 12 }}>
           {[
-            ["CA", "265 000 F", G.greenDark],
-            ["Coûts", "101 360 F", G.red],
-            ["Pub", "0 F", G.muted],
+            ["CA", "265 000 CFA", G.greenDark],
+            ["Coûts", "101 360 CFA", G.red],
+            ["Pub", "0 CFA", G.muted],
             ["Livrées/Rej.", "12 / 0", G.greenMid],
           ].map(([l, v, c]) => (
             <div key={l} style={{
@@ -439,8 +447,8 @@ function MockupCompta() {
         </div>
         <div style={{ fontSize: 9, fontWeight: 800, color: G.dark, marginBottom: 6 }}>Produits</div>
         {[
-          { n: "Sac à main", d: "10 livrés · 250 000 F", m: "66.0%", b: "165 000 F", c: G.greenDark, mc: G.greenMid },
-          { n: "Bouchon rotatif", d: "2 livrés · 15 000 F", m: "-9.1%", b: "-1 360 F", c: G.red, mc: G.red },
+          { n: "Sac à main", d: "10 livrés · 250 000 CFA", m: "66.0%", b: "165 000 CFA", c: G.greenDark, mc: G.greenMid },
+          { n: "Bouchon rotatif", d: "2 livrés · 15 000 CFA", m: "-9.1%", b: "-1 360 CFA", c: G.red, mc: G.red },
           { n: "Adaptateur Carplay", d: "0 livrés", m: "—", b: "—", c: G.muted, mc: G.muted },
         ].map((p, i) => (
           <div key={i} style={{
@@ -480,7 +488,7 @@ function MockupLivreur() {
             fontWeight: 800, padding: "4px 8px", borderRadius: 6,
             display: "inline-block", marginBottom: 8,
           }}>📍 Livreur chez le client · 17:12</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>7 500 F</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>7 500 CFA</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: G.dark }}>Saliou Mbaye</div>
           <div style={{ fontSize: 9, color: G.muted, marginBottom: 10 }}>📦 Bouchon rotatif 360° · 🏍️ Ibou</div>
           <div style={{
@@ -525,7 +533,7 @@ function MockupLivreur() {
             fontWeight: 800, padding: "4px 8px", borderRadius: 6,
             display: "inline-block", marginBottom: 8,
           }}>📦 Colis en main · Étape 3</div>
-          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>25 000 F</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: G.gold, marginBottom: 4 }}>25 000 CFA</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: G.dark }}>Diallo</div>
           <div style={{ fontSize: 9, color: G.muted, marginBottom: 10 }}>📦 Sac à main · Keur Massar</div>
           <div style={{
@@ -659,9 +667,9 @@ function MockupDesktopCommandes() {
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
             {[
-              { n: "Saliou Mbaye", p: "Adaptateur Carplay", price: "20 000 F" },
-              { n: "Hhhhhh", p: "Sac à main", price: "25 000 F" },
-              { n: "Saliou", p: "Sac à main", price: "25 000 F" },
+              { n: "Saliou Mbaye", p: "Adaptateur Carplay", price: "20 000 CFA" },
+              { n: "Hhhhhh", p: "Sac à main", price: "25 000 CFA" },
+              { n: "Saliou", p: "Sac à main", price: "25 000 CFA" },
             ].map((o, i) => (
               <div key={i} style={{
                 background: "rgba(255,255,255,0.05)", borderRadius: 7,
@@ -792,7 +800,7 @@ function MockupDesktopDashboard() {
                 <div style={{ fontSize: 8, color: "rgba(255,255,255,0.5)", fontWeight: 800, marginBottom: 4 }}>💰 CA PAR PRODUIT</div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
                   <span style={{ fontSize: 9, color: "#fff", fontWeight: 700 }}>Sac à main</span>
-                  <span style={{ fontSize: 9, color: G.gold, fontWeight: 800 }}>250 000 F</span>
+                  <span style={{ fontSize: 9, color: G.gold, fontWeight: 800 }}>250 000 CFA</span>
                 </div>
               </div>
             </div>
@@ -848,9 +856,15 @@ function FeatureSection({ id, kicker, title, titleAccent, desc, points, mockup, 
   );
 }
 
+const PRICE_TABLE = {
+  XOF: { unit: "CFA / mois", basic: "8 000", pro: "14 000", scale: "25 000" },
+  EUR: { unit: "€ / mois", basic: "15", pro: "25", scale: "45" },
+  USD: { unit: "$ / mois", basic: "15", pro: "25", scale: "45" },
+};
+
 const PLANS = [
   {
-    name: "Gratuit", badge: "14 JOURS D'ESSAI", price: "0", unit: "",
+    name: "Gratuit", badge: "14 JOURS D'ESSAI", priceKey: null,
     tagline: "Pour découvrir Teamly", summary: "30 cmd · 2 membres",
     highlight: false, cta: "Activer Gratuit",
     features: [
@@ -865,7 +879,7 @@ const PLANS = [
     ],
   },
   {
-    name: "Basic", badge: "LE PLUS POPULAIRE", price: "8 000", unit: "CFA / mois",
+    name: "Basic", badge: "LE PLUS POPULAIRE", priceKey: "basic",
     tagline: "Pour démarrer", summary: "100 cmd · 3 membres · 1 boutique",
     highlight: true, cta: "Choisir Basic",
     features: [
@@ -880,7 +894,7 @@ const PLANS = [
     ],
   },
   {
-    name: "Pro", badge: "POUR LES ÉQUIPES", price: "14 000", unit: "CFA / mois",
+    name: "Pro", badge: "POUR LES ÉQUIPES", priceKey: "pro",
     tagline: "En croissance", summary: "2000 cmd · 5 membres · 2 boutiques",
     highlight: false, cta: "Activer Pro",
     features: [
@@ -895,7 +909,7 @@ const PLANS = [
     ],
   },
   {
-    name: "Scale", badge: "GRANDES ÉQUIPES", price: "25 000", unit: "CFA / mois",
+    name: "Scale", badge: "GRANDES ÉQUIPES", priceKey: "scale",
     tagline: "Sans limites", summary: "Illimité · 4 boutiques",
     highlight: false, cta: "Activer Scale",
     features: [
@@ -913,11 +927,19 @@ const PLANS = [
 
 export default function TeamlyLanding() {
   const [scrolled, setScrolled] = useState(false);
+  const [currency, setCurrency] = useState("XOF");
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", h);
     return () => window.removeEventListener("scroll", h);
   }, []);
+  useEffect(() => {
+    fetch("/api/geo")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && PRICE_TABLE[d.currency]) setCurrency(d.currency); })
+      .catch(() => {});
+  }, []);
+  const prices = PRICE_TABLE[currency];
 
   return (
     <div style={{ fontFamily: "'DM Sans', sans-serif", background: G.offwhite, color: G.text, overflowX: "hidden" }}>
@@ -969,11 +991,11 @@ export default function TeamlyLanding() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <a href="/dashboard" style={{
+            <a href="/dashboard?signup=1" style={{
               fontSize: 13, color: "rgba(255,255,255,.65)",
               textDecoration: "none", fontWeight: 500,
             }}>Connexion</a>
-            <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ padding: "9px 18px", fontSize: 13 }}>Commencer →</button></a>
+            <a href="/dashboard?signup=1" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ padding: "9px 18px", fontSize: 13 }}>Commencer →</button></a>
           </div>
         </div>
       </nav>
@@ -1026,7 +1048,7 @@ export default function TeamlyLanding() {
               Admin, Closer et Livreur — une seule plateforme. Chaque commande confirmée, livrée et encaissée plus vite.
             </p>
             <div className="hero-ctas" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
+              <a href="/dashboard?signup=1" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
                 Commencer gratuitement →
               </button></a>
               <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
@@ -1195,7 +1217,7 @@ export default function TeamlyLanding() {
               </div>
             ))}
           </div>
-          <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ marginBottom: 40 }}>Ouvrir sur PC →</button></a>
+          <a href="/dashboard?signup=1" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ marginBottom: 40 }}>Ouvrir sur PC →</button></a>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <MockupDesktopCommandes />
           </div>
@@ -1313,7 +1335,9 @@ export default function TeamlyLanding() {
               letterSpacing: -1, marginBottom: 14,
             }}>Simple et transparent</h2>
             <p style={{ fontSize: 16, color: G.muted }}>
-              Payez en CFA via Wave ou Orange Money. Sans engagement.
+              {currency === "XOF"
+                ? "Payez en CFA via Wave ou Orange Money. Sans engagement."
+                : "Paiement par carte bancaire. Sans engagement."}
             </p>
           </div>
           <div className="pricing-grid" style={{
@@ -1352,11 +1376,11 @@ export default function TeamlyLanding() {
                   <span style={{
                     fontSize: 32, fontWeight: 900,
                     color: plan.highlight ? G.gold : G.dark,
-                  }}>{plan.price}</span>
-                  {plan.unit && <span style={{
+                  }}>{plan.priceKey ? prices[plan.priceKey] : "0"}</span>
+                  {plan.priceKey && <span style={{
                     fontSize: 11,
                     color: plan.highlight ? "rgba(255,255,255,.5)" : G.muted,
-                  }}>{plan.unit}</span>}
+                  }}>{prices.unit}</span>}
                 </div>
                 <div style={{
                   fontSize: 10, fontWeight: 700,
@@ -1379,7 +1403,7 @@ export default function TeamlyLanding() {
                     </div>
                   ))}
                 </div>
-                <a href="/dashboard" style={{ textDecoration: "none", display: "block" }}>
+                <a href="/dashboard?signup=1" style={{ textDecoration: "none", display: "block" }}>
                   <button style={{
                     width: "100%", padding: "12px", borderRadius: 12,
                     fontSize: 13, fontWeight: 800, cursor: "pointer",
@@ -1410,7 +1434,7 @@ export default function TeamlyLanding() {
             Rejoins les 500+ boutiques qui gèrent leurs équipes avec Teamly. 14 jours gratuits, sans carte bancaire.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-            <a href="/dashboard" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 16, padding: "15px 32px" }}>
+            <a href="/dashboard?signup=1" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 16, padding: "15px 32px" }}>
               Commencer gratuitement
             </button></a>
             <a href="https://wa.me/34643164129" style={{ textDecoration: "none" }}>
