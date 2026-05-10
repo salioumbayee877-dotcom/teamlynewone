@@ -254,13 +254,13 @@ export const ComptaPage = () => {
                 style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,userSelect:"none"}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:500,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
-                  <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>{nLiv} livré{nLiv!==1?"s":""} · {fmt(ca)} F</div>
+                  <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>{nLiv} livré{nLiv!==1?"s":""} · {fmt(ca)} CFA</div>
                 </div>
                 <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
                   <span style={{background:badgeBg,color:badgeColor,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:500,display:"inline-block"}}>
                     {hasSales?pct(marge):"—"}
                   </span>
-                  {hasSales&&<div style={{fontSize:12,color:badgeColor}}>{fmt(ben)} F</div>}
+                  {hasSales&&<div style={{fontSize:12,color:badgeColor}}>{fmt(ben)} CFA</div>}
                 </div>
                 <span style={{color:"#D1D5DB",fontSize:11,flexShrink:0}}>{isExpanded?"▲":"▾"}</span>
               </div>
@@ -303,7 +303,7 @@ export const ComptaPage = () => {
                         <div style={{background:"#F3F4F6",borderRadius:8,padding:"10px 12px",border:"0.5px solid #E5E7EB"}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                             <span style={{fontSize:11,color:"#6B7280",fontWeight:600}}>💰 Marge par unité (calculée)</span>
-                            <span style={{fontSize:15,fontWeight:800,color:liveMarge>=0?G.green:"#DC2626"}}>{fmt(liveMarge)} F</span>
+                            <span style={{fontSize:15,fontWeight:800,color:liveMarge>=0?G.green:"#DC2626"}}>{fmt(liveMarge)} CFA</span>
                           </div>
                           <div style={{fontSize:10,color:"#9CA3AF",marginTop:3}}>Prix de vente − CAMV − Livraison</div>
                         </div>
@@ -353,12 +353,12 @@ export const ComptaPage = () => {
                             <span style={{fontSize:12,color:"#374151"}}>{z.label}</span>
                             {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:9}}>PRÉPAYÉ</span>}
                           </div>
-                          <span style={{fontSize:12,color:"#6B7280"}}>{count} · {fmt(count*z.price)} F</span>
+                          <span style={{fontSize:12,color:"#6B7280"}}>{count} · {fmt(count*z.price)} CFA</span>
                         </div>
                       ))}
                       <div style={{display:"flex",justifyContent:"space-between",paddingTop:5,marginTop:4,borderTop:"0.5px solid #E2E8F0"}}>
                         <span style={{fontSize:12,color:"#374151"}}>Total livraison</span>
-                        <span style={{fontSize:12,fontWeight:500,color:"#111827"}}>{fmt(frais)} F</span>
+                        <span style={{fontSize:12,fontWeight:500,color:"#111827"}}>{fmt(frais)} CFA</span>
                       </div>
                     </div>
                   )}
@@ -407,7 +407,7 @@ export const ComptaPage = () => {
                         onBlur={()=>localStorage.setItem("teamly_ad_spend",JSON.stringify(adSpend))}
                         placeholder="0"
                         style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
-                      {adSpend[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(adSpend[prod.id]||0))} F</div>}
+                      {adSpend[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(adSpend[prod.id]||0))} CFA</div>}
                     </div>
                   </div>
                   {/* Frais échecs input */}
@@ -422,7 +422,7 @@ export const ComptaPage = () => {
                         onBlur={()=>localStorage.setItem("teamly_echecs",JSON.stringify(livraisonsEchouees))}
                         placeholder="0"
                         style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
-                      {livraisonsEchouees[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(livraisonsEchouees[prod.id]||0))} F</div>}
+                      {livraisonsEchouees[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(livraisonsEchouees[prod.id]||0))} CFA</div>}
                     </div>
                   </div>
                 </div>
@@ -441,7 +441,7 @@ export const ComptaPage = () => {
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
                   <input type="number" min="0" value={cashRemis||""} onChange={e=>setCashRemis(e.target.value)} placeholder="0"
                     style={{width:100,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
-                  {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} F</div>}
+                  {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} CFA</div>}
                 </div>
               </div>
             </div>

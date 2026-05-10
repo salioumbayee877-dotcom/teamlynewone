@@ -391,9 +391,9 @@ export const FraisPage = () => {
                           <div>
                             <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{r.name}</div>
                             <div style={{fontSize:11,color:"#1E40AF",marginTop:2}}>
-                              <span>🏍️ Locale: {fmt(r.price||0)} F</span>
-                              {(r.interurbain_price||0)>0&&<span style={{marginLeft:6}}>+ 🚐 Régionale: {fmt(r.interurbain_price)} F</span>}
-                              <span style={{marginLeft:6,fontWeight:800}}>= 💰 Total: {fmt((r.price||0)+(r.interurbain_price||0))} F</span>
+                              <span>🏍️ Locale: {fmt(r.price||0)} CFA</span>
+                              {(r.interurbain_price||0)>0&&<span style={{marginLeft:6}}>+ 🚐 Régionale: {fmt(r.interurbain_price)} CFA</span>}
+                              <span style={{marginLeft:6,fontWeight:800}}>= 💰 Total: {fmt((r.price||0)+(r.interurbain_price||0))} CFA</span>
                             </div>
                           </div>
                           <div style={{display:"flex",gap:6}}>
@@ -509,7 +509,7 @@ export const FraisPage = () => {
                   </div>
                   <div style={{textAlign:"right",fontSize:12,color:G.gray}}>{fmt(r.fraisLocale)}</div>
                   <div style={{textAlign:"right",fontSize:12,color:r.interurbain>0?"#7C3AED":G.gray}}>{r.interurbain>0?fmt(r.interurbain):"—"}</div>
-                  <div style={{textAlign:"right",fontSize:13,fontWeight:800,color:G.green}}>{fmt(r.total)} F</div>
+                  <div style={{textAlign:"right",fontSize:13,fontWeight:800,color:G.green}}>{fmt(r.total)} CFA</div>
                 </div>
               ))}
             </div>
@@ -541,7 +541,7 @@ export const FraisPage = () => {
                   </div>
                 )}
                 {z.type==="senegal"&&<div style={{fontSize:11,color:"#6B7280",marginTop:4}}>Région : {z.name} · Tarif par défaut appliqué. Configurez dans Zones → Autres régions pour un tarif personnalisé.</div>}
-                {z.type==="unknown"&&<div style={{fontSize:11,color:"#92400E",marginTop:4}}>Tarif par défaut appliqué : {fmt(defaultPrice)} F</div>}
+                {z.type==="unknown"&&<div style={{fontSize:11,color:"#92400E",marginTop:4}}>Tarif par défaut appliqué : {fmt(defaultPrice)} CFA</div>}
               </div>
             )}
           </div>

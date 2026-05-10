@@ -237,7 +237,6 @@ const signInWithGoogle = async () => {
   }
 };
 
-
 const sendPhoneOtp = async (fullPhone) => {
   const res = await fetchWithTimeout(`${SB_URL}/auth/v1/otp`,{
     method:"POST",
@@ -809,7 +808,7 @@ function TourneeBlock({orders, onConfirm, G, fmt, mode="recuperer"}) {
                   📍 {o.address} · 📦 {o.product}
                 </div>
               </div>
-              <div style={{fontWeight:700,fontSize:13,color:accent,flexShrink:0}}>{fmt(o.price)}F</div>
+              <div style={{fontWeight:700,fontSize:13,color:accent,flexShrink:0}}>{fmt(o.price)} CFA</div>
             </div>
           );
         })}
@@ -853,6 +852,7 @@ function AppInner() {
   const [mainRegion,   setMainRegion]   = useState(null);
   const [otherRegions, setOtherRegions] = useState([]);
   const [zoneBannersDismissed, setZoneBannersDismissed] = useState(false);
+  const [emailBannerDismissed, setEmailBannerDismissed] = useState(()=>{ try{return localStorage.getItem("teamly_email_banner_dismissed")==="1";}catch(e){return false;} });
   const [fraisConfigTab,    setFraisConfigTab]    = useState("config");
   const [fraisTestCity,     setFraisTestCity]     = useState("");
   const [fraisMainNameEdit, setFraisMainNameEdit] = useState(null);
@@ -1001,7 +1001,10 @@ function AppInner() {
     if(params.get("org") && params.get("role")) return "join";
     return "login";
   });
-  const [authMode, setAuthMode]   = useState("login");
+  const [authMode, setAuthMode]   = useState(()=>{
+    try { return new URLSearchParams(window.location.search).get("signup")==="1" ? "register" : "login"; }
+    catch(e) { return "login"; }
+  });
   const [otpCode, setOtpCode]     = useState(["","","","","",""]);
   const [otpVerifying, setOtpVerifying] = useState(false);
   const [otpResendIn, setOtpResendIn]   = useState(0);
@@ -1418,6 +1421,67 @@ function AppInner() {
     const _confirmToken = _hp.get("access_token");
     const _confirmType  = _hp.get("type") || _qp.get("type");
     const _tokenHash    = _qp.get("token_hash");
+    // OAuth callback (Google, etc.) — Supabase puts access_token in hash without type=signup
+    const _isOAuthCallback = _confirmToken && !_confirmType;
+    if(_isOAuthCallback) {
+      (async()=>{
+        try {
+          const jwt = _confirmToken;
+          const refresh = _hp.get("refresh_token");
+          // Decode JWT to get user info synchronously
+          let payload = {};
+          try { payload = JSON.parse(atob(jwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); } catch(e) {}
+          const userId = payload.sub;
+          const email = payload.email || "";
+          const meta = payload.user_metadata || {};
+          const fullName = meta.full_name || meta.name || email.split("@")[0] || "Admin";
+          console.log("[OAUTH] callback decoded:", {userId, email, fullName});
+          if(!userId) { console.error("[OAUTH] no userId in JWT"); setAppLoading(false); return; }
+          _authToken = jwt;
+          let profiles = await sbFetch(`profiles?id=eq.${userId}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-id failed:",e);return null;});
+          console.log("[OAUTH] profile-by-id result:", profiles);
+          if(!profiles || profiles.length===0) {
+            profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(email)}&limit=1`).catch(e=>{console.error("[OAUTH] profile-by-email failed:",e);return null;});
+            console.log("[OAUTH] profile-by-email result:", profiles);
+          }
+          let orgIdToSave, roleToSave, nomToSave, profileId;
+          if(profiles && profiles.length>0) {
+            const p = profiles[0];
+            if(!p.org_id){ console.error("[OAUTH] account removed from team"); setAppLoading(false); return; }
+            orgIdToSave = p.org_id;
+            roleToSave = p.role || "admin";
+            nomToSave = p.nom || fullName;
+            profileId = p.id;
+            console.log("[OAUTH] existing profile found:", {orgId:orgIdToSave, role:roleToSave});
+          } else {
+            // New Google signup — create org+profile
+            const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+            try {
+              await sbFetch("organizations","POST",{id:newOrgId,name:"Ma Boutique",whatsapp:""});
+              await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom:fullName,phone:"",email,role:"admin"});
+              console.log("[OAUTH] created new org+profile:", newOrgId);
+            } catch(e) { console.error("[OAUTH] failed to create org/profile:", e); }
+            orgIdToSave = newOrgId;
+            roleToSave = "admin";
+            nomToSave = fullName;
+            profileId = userId;
+          }
+          // Persist session and reload — let session-restore handle the rest
+          try{
+            localStorage.setItem("teamly_token",jwt);
+            if(refresh) localStorage.setItem("teamly_refresh_token",refresh);
+            localStorage.setItem("teamly_email",email);
+            localStorage.setItem("teamly_org",orgIdToSave);
+            localStorage.setItem("teamly_role",roleToSave);
+            localStorage.setItem("teamly_userId",profileId);
+            localStorage.setItem("teamly_nom",nomToSave);
+          }catch(e){}
+          console.log("[OAUTH] session persisted, reloading to /dashboard");
+          window.location.replace("/dashboard");
+        } catch(e) { console.error("[OAUTH] handler error:",e); setAppLoading(false); }
+      })();
+      return;
+    }
     if((_confirmToken && _confirmType === "signup") || (_tokenHash && _confirmType === "email")) {
       (async()=>{
         try {
@@ -2904,7 +2968,7 @@ function AppInner() {
                         if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
                       }
                     }
-                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
+                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||"",email_confirmed_at:data.user?.email_confirmed_at||null});
                     setRole(p.role||"admin"); setTab("dashboard");
                     try {
                       localStorage.setItem("teamly_token", tok);
@@ -2964,11 +3028,6 @@ function AppInner() {
             <div style={{display:"flex",flexDirection:"column",gap:14}}>
               {!phoneOtpSent ? (
                 <>
-                  <div style={{textAlign:"center",marginBottom:4}}>
-                    <div style={{fontSize:36,marginBottom:8}}>🔐</div>
-                    <div style={{color:"#fff",fontWeight:800,fontSize:17,marginBottom:4}}>Connexion rapide et sécurisée</div>
-                    <div style={{color:"rgba(255,255,255,0.5)",fontSize:12}}>Reçois un code SMS en quelques secondes</div>
-                  </div>
                   <div>
                     <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:6,fontFamily:"sans-serif"}}>📱 Numéro de téléphone</div>
                     <div style={{display:"flex",gap:8}}>
@@ -3931,6 +3990,25 @@ function AppInner() {
           </div>
         );
       })()}
+
+      {/* ── BANNIÈRE EMAIL NON CONFIRMÉ (dismissible) ── */}
+      {currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed && (
+        <div style={{background:"#FFF4D6",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0,borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
+          <div style={{fontSize:12,color:G.green,fontWeight:500,flex:1}}>
+            📧 Vérifie ton email pour sécuriser ton compte
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
+            <button onClick={async()=>{
+              try {
+                await fetch(`${SB_URL}/auth/v1/resend`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({type:"signup",email:currentUser.email})});
+                addToast("✅ Email de vérification renvoyé","✅",G.green);
+              } catch(e) { addToast("Erreur — réessaie","❌",G.red); }
+            }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Renvoyer</button>
+            <button onClick={()=>{ setEmailBannerDismissed(true); try{localStorage.setItem("teamly_email_banner_dismissed","1");}catch(e){} }}
+              style={{background:"none",border:"none",color:G.green,fontSize:18,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
+          </div>
+        </div>
+      )}
 
       {/* ── BANNIÈRE TRIAL (derniers 3 jours) ── */}
       {!isPro&&!trialExpired&&trialDaysLeft<=3&&(
@@ -5133,7 +5211,7 @@ function AppInner() {
                       <div key={j} style={{background:G.grayLight,borderRadius:8,padding:"6px 10px",fontSize:11,color:G.dark,marginBottom:3}}>
                         <span style={{fontWeight:600}}>{o.client}</span>
                         <span style={{color:G.gray}}> · {STATUS[o.status]?.label||o.status}</span>
-                        <span style={{float:"right",fontWeight:700,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                        <span style={{float:"right",fontWeight:700,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
                       </div>
                     ))}
                   </div>
@@ -6033,7 +6111,7 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                     <div>
                       <span style={{fontWeight:700,fontSize:14,color:G.dark}}>{mainRegion.name}</span>
-                      <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} F</span>
+                      <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} CFA</span>
                     </div>
                     <button onClick={()=>setZoneMainEdit({...mainRegion,cityInput:""})}
                       style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Modifier</button>
@@ -6085,7 +6163,7 @@ function AppInner() {
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
                     <div>
                       <span style={{fontWeight:700,fontSize:13,color:G.dark}}>{r.name}</span>
-                      <span style={{fontSize:13,color:"#1E40AF",fontWeight:700,marginLeft:10}}>{fmt(r.price)} F</span>
+                      <span style={{fontSize:13,color:"#1E40AF",fontWeight:700,marginLeft:10}}>{fmt(r.price)} CFA</span>
                     </div>
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setZoneOtherEdit({...r,cityInput:""})}
@@ -7048,8 +7126,8 @@ function AppInner() {
                 const z=detectDeliveryZone(editOrder.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
                 return (
                   <div style={{marginTop:5}}>
-                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} F</span>}
-                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} F</span>}
+                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} CFA</span>}
+                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} CFA</span>}
                     {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {z.name} · tarif par défaut</span>}
                     {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue</span>}
                   </div>
@@ -7369,7 +7447,7 @@ function AppInner() {
                         </div>
                         <div style={{textAlign:"right"}}>
                           <div style={{fontSize:10,color:G.gray}}>Montant COD</div>
-                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} F</div>
+                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} CFA</div>
                         </div>
                       </div>
                       {items.map((p,pi)=>(
@@ -7403,7 +7481,7 @@ function AppInner() {
                         </div> : null;
                       })()}
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} F</span>
+                        <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
                       </div>
                       {(()=>{const f=fraisDisplay(o);return(<>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:G.gray,marginTop:3,gap:8}}>
@@ -7417,7 +7495,7 @@ function AppInner() {
                         </span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} F</span>
+                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} CFA</span>
                       </div>
                       </>);})()}
                     </div>

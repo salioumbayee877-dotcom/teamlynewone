@@ -33,7 +33,7 @@ export const OCard = ({ o, showPrendre = false }) => {
             <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700}}>🎁 {totalQty}</span>}</div>
           </div>
           <div style={{flexShrink:0,textAlign:"right"}}>
-            <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(o.price)} F</div>
+            <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(o.price)} CFA</div>
             <span style={{display:"inline-block",marginTop:3,background:st.color+"22",color:st.color,borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
           </div>
         </div>

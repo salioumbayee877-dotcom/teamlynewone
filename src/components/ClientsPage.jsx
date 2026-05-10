@@ -160,7 +160,7 @@ export const ClientsPage = () => {
                             {d&&<div style={{fontSize:10,color:G.gray}}>📅 {d}</div>}
                           </div>
                           <div style={{textAlign:'right'}}>
-                            <div style={{fontSize:13,fontWeight:800,color:G.green}}>{fmt(o.price)} F</div>
+                            <div style={{fontSize:13,fontWeight:800,color:G.green}}>{fmt(o.price)} CFA</div>
                             <span style={{background:st.bg,color:st.color,borderRadius:5,padding:'2px 7px',fontSize:10,fontWeight:600}}>{st.label}</span>
                           </div>
                         </div>
