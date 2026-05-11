@@ -991,7 +991,7 @@ export default function TeamlyLanding() {
             ))}
           </div>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <a href="/dashboard?signup=1" style={{
+            <a href="/dashboard" style={{
               fontSize: 13, color: "rgba(255,255,255,.65)",
               textDecoration: "none", fontWeight: 500,
             }}>Connexion</a>
