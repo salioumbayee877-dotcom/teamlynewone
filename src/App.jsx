@@ -2480,11 +2480,17 @@ function AppInner() {
   const tMarge= tCA>0?tBen/tCA:0;
 
   // ── Comptabilité filtrée par plage de dates + filtres avancés ──
+  // Statuses interurbain/en-cours qui ne doivent pas apparaître en Compta tant que la commande n'est pas livrée
+  const COMPTA_EXCLUDED_STATUS = new Set([
+    "en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur",
+  ]);
   const comptaOrders = (()=>{
     const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
     const to   = dateTo   ? new Date(dateTo  +"T23:59:59.999Z") : null;
     const cf   = comptaFilters;
     return orders.filter(o=>{
+      // Exclure les pedidos en transit (interurbain pas encore livré, etc.)
+      if(COMPTA_EXCLUDED_STATUS.has(o.status)) return false;
       // Date
       const d = o.created_at ? new Date(o.created_at) : null;
       if(from && (!d||d<from)) return false;
