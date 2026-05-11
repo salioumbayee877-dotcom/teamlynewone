@@ -879,6 +879,7 @@ function AppInner() {
   const [livFinalConfirm, setLivFinalConfirm] = useState(null); // {orderId, type:"livre"|"rejete", client, price}
   const [livFinalNote,    setLivFinalNote]    = useState("");
   const [livBtnLoading,   setLivBtnLoading]   = useState(null);
+  const [trendPeriod,     setTrendPeriod]     = useState(()=>{try{return localStorage.getItem("teamly_trend_period")||"7j";}catch(e){return "7j";}});
   const [livConfirming,   setLivConfirming]   = useState(false);
   const [conflictDelivery,setConflictDelivery]= useState(null);
   const [showClientDetail, setShowClientDetail] = useState(null);
@@ -4477,10 +4478,26 @@ function AppInner() {
           const confirmed = myClo.filter(o=>o.status==="confirmado");
           const pending   = myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status));
           const revenue   = myClo.filter(o=>o.status==="entregado").reduce((s,o)=>s+(parseFloat(o.price)||0),0);
-          const days7     = Array.from({length:7},(_,i)=>{ const d=new Date(); d.setDate(d.getDate()-6+i); const ds=d.toISOString().slice(0,10); return {label:d.toLocaleDateString("fr",{weekday:"short"}).slice(0,3), count:myClo.filter(o=>(o.created_at||"").startsWith(ds)).length}; });
-          const maxCnt    = Math.max(...days7.map(d=>d.count),1);
+          const trendCfg = {
+            "7j":  {label:"7 jours",  buckets:7,  unit:"day",  fmt:d=>d.toLocaleDateString("fr",{weekday:"short"}).slice(0,3)},
+            "30j": {label:"30 jours", buckets:30, unit:"day",  fmt:d=>String(d.getDate())},
+            "90j": {label:"90 jours", buckets:13, unit:"week", fmt:d=>"S"+Math.ceil(d.getDate()/7)+"/"+(d.getMonth()+1)},
+            "12m": {label:"12 mois",  buckets:12, unit:"month",fmt:d=>d.toLocaleDateString("fr",{month:"short"}).slice(0,3)},
+          };
+          const tcfg = trendCfg[trendPeriod] || trendCfg["7j"];
+          const trendData = Array.from({length:tcfg.buckets},(_,i)=>{
+            const d=new Date(); d.setHours(0,0,0,0);
+            let start, end;
+            if(tcfg.unit==="day"){ d.setDate(d.getDate()-(tcfg.buckets-1)+i); start=d.toISOString().slice(0,10); end=start; }
+            else if(tcfg.unit==="week"){ d.setDate(d.getDate()-7*(tcfg.buckets-1-i)); const e=new Date(d); e.setDate(e.getDate()+6); start=d.toISOString().slice(0,10); end=e.toISOString().slice(0,10); }
+            else { d.setDate(1); d.setMonth(d.getMonth()-(tcfg.buckets-1)+i); const e=new Date(d.getFullYear(),d.getMonth()+1,0); start=d.toISOString().slice(0,10); end=e.toISOString().slice(0,10); }
+            const count = myClo.filter(o=>{const ds=(o.created_at||"").slice(0,10); return ds>=start&&ds<=end;}).length;
+            return {label:tcfg.fmt(d), count};
+          });
+          const maxCnt    = Math.max(...trendData.map(d=>d.count),1);
           const cW=280, cH=80;
-          const pts = days7.map((d,i)=>`${(i/(days7.length-1))*cW},${cH-(d.count/maxCnt)*(cH-10)}`).join(" ");
+          const pts = trendData.map((d,i)=>`${(i/Math.max(trendData.length-1,1))*cW},${cH-(d.count/maxCnt)*(cH-10)}`).join(" ");
+          const labelStride = Math.max(1, Math.ceil(trendData.length/7));
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -4498,12 +4515,19 @@ function AppInner() {
               ))}
             </div>
             <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>TENDANCE 7 JOURS</div>
-              <svg width="100%" viewBox={`0 0 ${cW} ${cH+20}`} style={{overflow:"visible"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5}}>TENDANCE {tcfg.label.toUpperCase()}</div>
+                <div style={{display:"flex",gap:4}}>
+                  {Object.keys(trendCfg).map(k=>(
+                    <button key={k} onClick={()=>{setTrendPeriod(k);try{localStorage.setItem("teamly_trend_period",k);}catch(e){}}} style={{background:trendPeriod===k?G.green:G.grayLight,color:trendPeriod===k?"#fff":G.dark,border:"none",borderRadius:8,padding:"4px 9px",fontSize:11,fontWeight:600,cursor:"pointer"}}>{k}</button>
+                  ))}
+                </div>
+              </div>
+              <svg width="100%" height="140" viewBox={`0 0 ${cW} ${cH+20}`} preserveAspectRatio="xMidYMid meet" style={{overflow:"visible",display:"block"}}>
                 <defs><linearGradient id="cloTrend" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={G.green} stopOpacity="0.2"/><stop offset="100%" stopColor={G.green} stopOpacity="0"/></linearGradient></defs>
                 <polygon points={`0,${cH} ${pts} ${cW},${cH}`} fill="url(#cloTrend)"/>
                 <polyline points={pts} fill="none" stroke={G.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                {days7.map((d,i)=>{ const x=(i/(days7.length-1))*cW; const y=cH-(d.count/maxCnt)*(cH-10); return (<g key={i}><circle cx={x} cy={y} r="3" fill={G.green}/>{d.count>0&&<text x={x} y={y-7} textAnchor="middle" fontSize="9" fill={G.green} fontWeight="700">{d.count}</text>}<text x={x} y={cH+16} textAnchor="middle" fontSize="9" fill={G.gray}>{d.label}</text></g>); })}
+                {trendData.map((d,i)=>{ const x=(i/Math.max(trendData.length-1,1))*cW; const y=cH-(d.count/maxCnt)*(cH-10); const showLabel=(i%labelStride===0)||i===trendData.length-1; const dotR=trendData.length>20?2:3; return (<g key={i}><circle cx={x} cy={y} r={dotR} fill={G.green}/>{d.count>0&&trendData.length<=14&&<text x={x} y={y-7} textAnchor="middle" fontSize="9" fill={G.green} fontWeight="700">{d.count}</text>}{showLabel&&<text x={x} y={cH+16} textAnchor="middle" fontSize="9" fill={G.gray}>{d.label}</text>}</g>); })}
               </svg>
             </div>
             <div style={{display:"flex",gap:10}}>
