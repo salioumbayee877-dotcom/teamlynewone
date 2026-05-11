@@ -2095,7 +2095,7 @@ function AppInner() {
         const data = await r.json().catch(()=>({}));
         if (data?.kicked) {
           cancelled = true;
-          setKickedOut(true);
+          setKickedOut({ role: role || "admin" });
           // Clear auth state to drop back to login screen
           _authToken = null;
           setSbToken(null);
@@ -3504,7 +3504,7 @@ function AppInner() {
           <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
             <div style={{fontSize:54,marginBottom:14}}>🚪</div>
             <div style={{fontWeight:800,fontSize:22,color:"#fff",marginBottom:10}}>Vous avez été déconnecté</div>
-            <div style={{fontSize:13,color:"rgba(255,255,255,0.65)",lineHeight:1.6,marginBottom:24}}>Un autre appareil a pris votre place.<br/>Pour des raisons de sécurité, votre compte est limité à 2 appareils.</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.65)",lineHeight:1.6,marginBottom:24}}>Un autre appareil a pris votre place.<br/>{kickedOut?.role==="admin" ? "Votre compte est limité à 2 appareils (1 mobile + 1 PC)." : "Une seule session active autorisée à la fois sur ce compte."}</div>
             <button onClick={()=>{ setKickedOut(false); setAuthStep("login"); }}
               style={{background:"#F0A500",color:"#0F1923",border:"none",borderRadius:12,padding:"13px 32px",fontWeight:700,fontSize:14,cursor:"pointer"}}>
               Se reconnecter
