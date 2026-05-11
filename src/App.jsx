@@ -4089,16 +4089,6 @@ function AppInner() {
           <input autoFocus value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔍 Rechercher client, téléphone, produit..."
             style={{width:"100%",border:`1.5px solid ${G.green}`,borderRadius:10,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
 
-          {role==="admin"&&(
-            <div style={{display:"flex",gap:6,overflowX:"auto"}}>
-              {["all",...teamMembers.filter(m=>m.role==="livreur").map(m=>m.nom)].map(l=>(
-                <button key={l} onClick={()=>setFilterLivreur(l)}
-                  style={{background:filterLivreur===l?G.greenMid:"#F4F4F4",color:filterLivreur===l?G.white:G.gray,border:"none",borderRadius:20,padding:"5px 12px",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>
-                  {l==="all"?"Tous livreurs":"🏍️ "+l}
-                </button>
-              ))}
-            </div>
-          )}
           {(searchQuery||filterStatus!=="all"||filterLivreur!=="all")&&(
             <div style={{fontSize:11,color:G.gray}}>{filteredOrders.length} résultat{filteredOrders.length!==1?"s":""} trouvé{filteredOrders.length!==1?"s":""}</div>
           )}
