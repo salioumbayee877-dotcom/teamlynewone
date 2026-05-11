@@ -7351,9 +7351,13 @@ function AppInner() {
               {!isRejected&&(
                 <div style={{marginBottom:20,padding:"16px",background:"#F8FAFC",borderRadius:16,border:"1px solid #E2E8F0"}}>
                   <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:14,textTransform:"uppercase",letterSpacing:0.5}}>📊 Suivi de commande</div>
-                  {PSTEPS.map((step,i)=>{
-                    const done = activeIdx>i || o.status==="entregado";
-                    const active = activeIdx===i && o.status!=="entregado";
+                  {(()=>{
+                    // When the order reaches a final step (entregado, or remis_transporteur for interurbain),
+                    // freeze the tracker: mark everything up to activeIdx as done, stop the pulsing "EN COURS".
+                    const isFinal = o.status==="entregado" || o.status==="remis_transporteur";
+                    return PSTEPS.map((step,i)=>{
+                    const done = activeIdx>i || (isFinal && activeIdx>=i);
+                    const active = activeIdx===i && !isFinal;
                     const isLast = i===PSTEPS.length-1;
                     return (
                       <div key={step.key} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
@@ -7384,7 +7388,8 @@ function AppInner() {
                         </div>
                       </div>
                     );
-                  })}
+                  });
+                  })()}
                 </div>
               )}
 
