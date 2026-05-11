@@ -400,6 +400,7 @@ export const ComptaPage = () => {
                     <span style={{fontSize:15,flexShrink:0}}>📣</span>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Pub</div>
+                      <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Meta · TikTok · Google Ads · Influencer · SMS/WhatsApp</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
                       <input type="number" min="0" value={adSpend[prod.id]||""}
@@ -414,7 +415,8 @@ export const ComptaPage = () => {
                   <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10,borderTop:"0.5px solid #F3F4F6"}}>
                     <span style={{fontSize:15,flexShrink:0}}>🚫</span>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Frais échecs</div>
+                      <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Frais extra</div>
+                      <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Échec livraison · Produit endommagé · Frais transfert (Wave/Orange Money)</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
                       <input type="number" min="0" value={livraisonsEchouees[prod.id]||""}
