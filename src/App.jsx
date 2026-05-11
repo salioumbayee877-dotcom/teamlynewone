@@ -2471,20 +2471,21 @@ function AppInner() {
     const op     = comptaOrders.filter(o=>o.product?.startsWith(prod.name));
     const nLiv   = op.filter(o=>o.status==="entregado").length;
     const nRej   = op.filter(o=>o.status==="rechazado").length;
-    const ca     = nLiv*prod.price;
     const camv   = nLiv*prod.cost;
     const livOps = op.filter(o=>o.status==="entregado");
     const frais  = livOps.reduce((s,o)=>{
       if(o.fraisLiv) return s+o.fraisLiv;
       return s+detectZone(o.address).price;
     },0)||nLiv*(prod.fraisLiv||FRAIS_LIV);
+    // CA net : le prix produit inclut déjà la livraison, donc on retire les frais
+    const ca     = nLiv*prod.price - frais;
     const zoneBreakdown = WA_ZONES.map(z=>({
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
     })).filter(x=>x.count>0);
     const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
     const pub      = parseFloat(adSpend[prod.id]||0);
-    const ben      = ca-camv-frais-echouees-pub;
+    const ben      = ca-camv-echouees-pub;
     const marge    = ca>0?ben/ca:0;
     return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown};
   });
@@ -7146,7 +7147,7 @@ function AppInner() {
                         </span>
                       </div>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
-                        <span style={{color:G.dark}}>Total client</span><span style={{color:G.green}}>{Number(o.price+f.fee).toLocaleString("fr-FR")} CFA</span>
+                        <span style={{color:G.dark}}>Total net</span><span style={{color:G.green}}>{Number(o.price-f.fee).toLocaleString("fr-FR")} CFA</span>
                       </div>
                       </>);})()}
                     </div>
