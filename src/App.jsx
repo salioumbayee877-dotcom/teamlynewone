@@ -827,7 +827,7 @@ function AppInner() {
   const [cashRemis,setCashRemis]       = useState("");
   const [comptaExpandedProd,setComptaExpandedProd] = useState(null);
   const [comptaExportOpen,setComptaExportOpen]     = useState(false);
-  const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="thismonth"||s==="lastmonth")return"mois";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
+  const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="yesterday")return"hier";if(s==="thisweek")return"semaine";if(s==="thismonth"||s==="lastmonth")return"mois";if(s==="today")return"jour";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
   const [fraisAdminEditId,setFraisAdminEditId]     = useState(null);
   const [fraisAdminEditVal,setFraisAdminEditVal]   = useState("");
   const _COMPTA_FILTERS_DEFAULT = {produits:[],livraisonType:"all",region:"",ville:"",livreurs:[],statuts:["entregado"],source:"all"};

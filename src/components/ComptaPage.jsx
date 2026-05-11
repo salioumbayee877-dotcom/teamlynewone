@@ -159,17 +159,19 @@ export const ComptaPage = () => {
 
       {/* ── Section 1: Period selector ── */}
       {(()=>{
-        const _iso=d=>d.toISOString().slice(0,10);
+        const _iso=d=>{ const z=new Date(d); z.setHours(12,0,0,0); return `${z.getFullYear()}-${String(z.getMonth()+1).padStart(2,"0")}-${String(z.getDate()).padStart(2,"0")}`; };
         const setPeriod=k=>{
           setComptaPeriodMode(k);
           if(k==="jour"){setDateFrom(TODAY);setDateTo(TODAY);setComptaShortcut("today");}
-          else if(k==="mois"){const now=new Date();setDateFrom(TODAY.slice(0,7)+"-01");setDateTo(TODAY);setComptaShortcut("thismonth");}
+          else if(k==="hier"){const y=new Date();y.setDate(y.getDate()-1);const ys=_iso(y);setDateFrom(ys);setDateTo(ys);setComptaShortcut("yesterday");}
+          else if(k==="semaine"){const n=new Date();const dow=(n.getDay()+6)%7;/* lundi=0 */ const m=new Date(n);m.setDate(n.getDate()-dow);setDateFrom(_iso(m));setDateTo(TODAY);setComptaShortcut("thisweek");}
+          else if(k==="mois"){setDateFrom(TODAY.slice(0,7)+"-01");setDateTo(TODAY);setComptaShortcut("thismonth");}
         };
         return (
           <>
-            <div style={{display:"flex",background:"#F3F4F6",borderRadius:10,padding:3}}>
-              {[["jour","Jour"],["mois","Mois"],["plage","Plage"]].map(([k,l])=>(
-                <button key={k} onClick={()=>setPeriod(k)} style={{flex:1,background:comptaPeriodMode===k?"#fff":"transparent",border:"none",borderRadius:8,padding:"9px 0",fontSize:13,fontWeight:comptaPeriodMode===k?500:400,color:comptaPeriodMode===k?"#111827":"#6B7280",cursor:"pointer",boxShadow:comptaPeriodMode===k?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.15s"}}>{l}</button>
+            <div style={{display:"flex",background:"#F3F4F6",borderRadius:10,padding:3,gap:2,flexWrap:"wrap"}}>
+              {[["jour","Aujourd'hui"],["hier","Hier"],["semaine","Cette semaine"],["mois","Ce mois"],["plage","Plage"]].map(([k,l])=>(
+                <button key={k} onClick={()=>setPeriod(k)} style={{flex:"1 1 auto",minWidth:0,background:comptaPeriodMode===k?"#fff":"transparent",border:"none",borderRadius:8,padding:"9px 6px",fontSize:12,fontWeight:comptaPeriodMode===k?500:400,color:comptaPeriodMode===k?"#111827":"#6B7280",cursor:"pointer",boxShadow:comptaPeriodMode===k?"0 1px 4px rgba(0,0,0,0.08)":"none",transition:"all 0.15s",whiteSpace:"nowrap"}}>{l}</button>
               ))}
             </div>
             {comptaPeriodMode==="plage"&&(
@@ -185,11 +187,16 @@ export const ComptaPage = () => {
 
       {/* ── Section 2: Global summary card ── */}
       {(()=>{
+        const _fmtDay = d => new Date(d+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
         const periodLabel = comptaPeriodMode==="jour"
-          ? new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"})
-          : comptaPeriodMode==="mois"
-            ? new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})
-            : `${dateFrom||"—"} → ${dateTo||"—"}`;
+          ? `Aujourd'hui · ${_fmtDay(dateFrom||TODAY)}`
+          : comptaPeriodMode==="hier"
+            ? `Hier · ${_fmtDay(dateFrom||TODAY)}`
+            : comptaPeriodMode==="semaine"
+              ? `Cette semaine · ${_fmtDay(dateFrom||TODAY)} → ${_fmtDay(dateTo||TODAY)}`
+              : comptaPeriodMode==="mois"
+                ? new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{month:"long",year:"numeric"})
+                : `${dateFrom||"—"} → ${dateTo||"—"}`;
         const nLivrees  = comptaOrders.filter(o=>o.status==="entregado").length;
         const nRejetees = comptaOrders.filter(o=>o.status==="rechazado").length;
         const totalCouts= comptaCamv+comptaFrais+comptaPub+comptaCalcProd.reduce((a,x)=>a+x.echouees,0);
