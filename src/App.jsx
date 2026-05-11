@@ -116,67 +116,6 @@ const sbFetch = async (path, method="GET", body=null, token=null) => {
   }
 };
 
-// ── Device fingerprint + info (Web Crypto, no deps) ────────────────────
-const getDeviceInfo = () => {
-  const ua = navigator.userAgent || "";
-  const isTablet  = /iPad|Tablet|PlayBook|Silk(?!.*Mobile)/i.test(ua);
-  const isMobile  = !isTablet && /Mobi|Android|iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini/i.test(ua);
-  const device_type = isTablet ? "tablet" : isMobile ? "mobile" : "desktop";
-  let os = "Unknown";
-  if (/Windows NT 11/.test(ua)) os = "Windows 11";
-  else if (/Windows NT 10/.test(ua)) os = "Windows 10";
-  else if (/Mac OS X (\d+[._]\d+)/.test(ua)) os = "macOS " + ua.match(/Mac OS X (\d+[._]\d+)/)[1].replace("_",".");
-  else if (/Android (\d+(\.\d+)?)/.test(ua)) os = "Android " + ua.match(/Android (\d+(\.\d+)?)/)[1];
-  else if (/iPhone OS (\d+_\d+)/.test(ua)) os = "iOS " + ua.match(/iPhone OS (\d+_\d+)/)[1].replace("_",".");
-  else if (/CPU OS (\d+_\d+)/.test(ua)) os = "iOS " + ua.match(/CPU OS (\d+_\d+)/)[1].replace("_",".");
-  else if (/Linux/.test(ua)) os = "Linux";
-  let browser = "Browser";
-  if (/Edg\/(\d+)/.test(ua))     browser = "Edge "    + ua.match(/Edg\/(\d+)/)[1];
-  else if (/OPR\/(\d+)/.test(ua))browser = "Opera "   + ua.match(/OPR\/(\d+)/)[1];
-  else if (/Firefox\/(\d+)/.test(ua)) browser = "Firefox " + ua.match(/Firefox\/(\d+)/)[1];
-  else if (/CriOS\/(\d+)/.test(ua)) browser = "Chrome iOS " + ua.match(/CriOS\/(\d+)/)[1];
-  else if (/Chrome\/(\d+)/.test(ua)) browser = "Chrome " + ua.match(/Chrome\/(\d+)/)[1];
-  else if (/Version\/(\d+).*Safari/.test(ua)) browser = "Safari " + ua.match(/Version\/(\d+)/)[1];
-  const device_name = device_type === "desktop" ? `${browser} Desktop` : `${os.split(" ")[0]} ${browser.split(" ")[0]}`;
-  return { device_type, os, browser, device_name, user_agent: ua };
-};
-
-const getDeviceFingerprint = async () => {
-  let deviceId = null;
-  try { deviceId = localStorage.getItem("teamly_device_id"); } catch(e){}
-  if (!deviceId) {
-    deviceId = (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : "did_" + Date.now() + "_" + Math.random().toString(36).slice(2);
-    try { localStorage.setItem("teamly_device_id", deviceId); } catch(e){}
-  }
-  const parts = [
-    navigator.userAgent || "",
-    `${(screen?.width)||0}x${(screen?.height)||0}`,
-    String(new Date().getTimezoneOffset()),
-    String(screen?.colorDepth || 0),
-    deviceId,
-  ].join("|");
-  try {
-    const buf = new TextEncoder().encode(parts);
-    const hash = await crypto.subtle.digest("SHA-256", buf);
-    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
-  } catch(e) {
-    // Fallback: hex of deviceId padded
-    return (deviceId.replace(/-/g,"") + "0".repeat(64)).slice(0,64);
-  }
-};
-
-const registerDeviceSession = async (token) => {
-  const fp = await getDeviceFingerprint();
-  const info = getDeviceInfo();
-  const r = await fetch("/.netlify/functions/register-session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-    body: JSON.stringify({ device_fingerprint: fp, device_info: info }),
-  });
-  const data = await r.json().catch(()=>({}));
-  return { fingerprint: fp, ...data };
-};
-
 const sbAuth = async (email, password, type="login") => {
   try {
     const endpoint = type==="login" ? "/auth/v1/token?grant_type=password" : "/auth/v1/signup";
@@ -1010,12 +949,6 @@ function AppInner() {
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [showNotifPanel, setShowNotifPanel]     = useState(false);
-  // Device session limit
-  const [deviceFingerprint, setDeviceFingerprint] = useState(null);
-  const [deviceLimitModal, setDeviceLimitModal] = useState(null); // {sessions, retry}
-  const [kickedOut, setKickedOut] = useState(false);
-  const [mySessions, setMySessions] = useState([]);
-  const [loadingSessions, setLoadingSessions] = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -1513,7 +1446,6 @@ function AppInner() {
           setAuthForm(p=>({...p, email, nom: fullName||"", boutique:"", phone:""}));
           setAuthStep("google-onboard");
         }
-        registerDeviceSession(jwt).catch(()=>{});
         window.history.replaceState(null,"",window.location.pathname);
         console.log("[TEAMLY OAuth] Done — auth state should now show dashboard/plan");
       } catch(e) {
@@ -2033,11 +1965,6 @@ function AppInner() {
     }
   },[tab]);
 
-  // Compute device fingerprint once on mount (so heartbeat works after page reload)
-  useEffect(() => {
-    if (!deviceFingerprint) getDeviceFingerprint().then(setDeviceFingerprint).catch(()=>{});
-  }, []);
-
   // Auto-resync pending orders when zones change (admin only, content-hash to skip polling noise)
   const lastZonesHashRef = useRef(null);
   useEffect(() => {
@@ -2067,59 +1994,6 @@ function AppInner() {
     }, 1500);
     return () => clearTimeout(timer);
   }, [mainRegion, otherRegions, sbToken, orgId, role, settings]);
-
-  // Auto-load active sessions when Settings modal opens
-  useEffect(() => {
-    if (!showSettings || !sbToken || !currentUser?.id) return;
-    fetch(`${SB_URL}/rest/v1/user_sessions?user_id=eq.${currentUser.id}&is_active=eq.true&order=last_active_at.desc&select=*`, {
-      headers: { apikey: SB_KEY, Authorization: `Bearer ${sbToken}` }
-    })
-      .then(r => r.json())
-      .then(data => Array.isArray(data) && setMySessions(data))
-      .catch(()=>{});
-  }, [showSettings, sbToken, currentUser?.id]);
-
-  // Device session heartbeat — every 30s when in foreground
-  useEffect(() => {
-    if (!sbToken || !deviceFingerprint || kickedOut) return;
-    let cancelled = false;
-    let intervalId = null;
-    const ping = async () => {
-      if (document.hidden || cancelled) return;
-      try {
-        const r = await fetch("/.netlify/functions/session-heartbeat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sbToken}` },
-          body: JSON.stringify({ device_fingerprint: deviceFingerprint }),
-        });
-        const data = await r.json().catch(()=>({}));
-        if (data?.kicked) {
-          cancelled = true;
-          setKickedOut({ role: role || "admin" });
-          // Clear auth state to drop back to login screen
-          _authToken = null;
-          setSbToken(null);
-          setRole(null);
-          setOrgId(null);
-          setSbReady(false);
-          setCurrentUser({nom:"",email:"",role:""});
-          setAuthStep("login");
-          try {
-            localStorage.removeItem("teamly_token");
-            localStorage.removeItem("teamly_refresh_token");
-            localStorage.removeItem("teamly_role");
-            localStorage.removeItem("teamly_org");
-          } catch(e){}
-        }
-      } catch(e) { /* network error — try again next tick */ }
-    };
-    const start = () => { if (!intervalId) intervalId = setInterval(ping, 30000); };
-    const stop  = () => { if (intervalId) { clearInterval(intervalId); intervalId = null; } };
-    if (!document.hidden) start();
-    const onVis = () => { document.hidden ? stop() : (ping(), start()); };
-    document.addEventListener("visibilitychange", onVis);
-    return () => { cancelled = true; stop(); document.removeEventListener("visibilitychange", onVis); };
-  }, [sbToken, deviceFingerprint, kickedOut]);
 
   // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
@@ -2903,28 +2777,6 @@ function AppInner() {
                   const data = await sbAuth(authForm.email, authForm.password, "login");
                   const tok = data.access_token;
                   _authToken = tok; setSbToken(tok);
-                  // Device session check (max 2 devices for admin; closer/livreur single-device)
-                  const sess = await registerDeviceSession(tok).catch(()=>({ok:true}));
-                  setDeviceFingerprint(sess.fingerprint);
-                  if (sess.blocked) {
-                    const msg = sess.reason === "livreur_desktop"
-                      ? "Accès PC interdit pour les livreurs. Connecte-toi depuis ton téléphone."
-                      : sess.reason === "admin_mobile_limit"
-                        ? "Vous avez déjà une session active sur un autre mobile. Déconnectez-le d'abord."
-                        : sess.reason === "admin_pc_limit"
-                          ? "Vous avez déjà une session active sur un autre PC. Déconnectez-le d'abord."
-                          : "Connexion refusée — limite d'appareils atteinte.";
-                    setAuthError(msg);
-                    _authToken = null; setSbToken(null);
-                    try { localStorage.removeItem("teamly_token"); localStorage.removeItem("teamly_refresh_token"); } catch(e){}
-                    setAuthLoading(false);
-                    return;
-                  }
-                  if (sess.limit_reached) {
-                    setDeviceLimitModal({ sessions: sess.existing_sessions || [], token: tok, fingerprint: sess.fingerprint });
-                    setAuthLoading(false);
-                    return;
-                  }
                   // Fetch profile by user ID, fallback to email if not found
                   let profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
                   if(!profiles||profiles.length===0) profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`).catch(()=>null);
@@ -3419,96 +3271,6 @@ function AppInner() {
             <div style={{textAlign:"center"}}>
               <button onClick={()=>setAuthStep("login")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal: limite 2 appareils ── */}
-      {deviceLimitModal&&(()=>{
-        const fmtRel = (iso) => {
-          if(!iso) return "—";
-          const diff = Math.max(0, Date.now() - new Date(iso).getTime());
-          const mins = Math.floor(diff/60000);
-          if (mins < 1)   return "à l'instant";
-          if (mins < 60)  return `il y a ${mins} min`;
-          const hrs = Math.floor(mins/60);
-          if (hrs < 24)   return `il y a ${hrs} h`;
-          const days = Math.floor(hrs/24);
-          return days < 7 ? `il y a ${days} j` : new Date(iso).toLocaleDateString("fr-FR");
-        };
-        const iconFor = (t) => t==="mobile" ? "📱" : t==="tablet" ? "📱" : "💻";
-        const kick = async (sid) => {
-          try {
-            await fetch("/.netlify/functions/revoke-session", {
-              method: "POST",
-              headers: { "Content-Type":"application/json", "Authorization":`Bearer ${deviceLimitModal.token}` },
-              body: JSON.stringify({ session_id: sid, by_fingerprint: deviceLimitModal.fingerprint }),
-            });
-            // Retry register-session — should succeed now (count = 1)
-            const r = await fetch("/.netlify/functions/register-session", {
-              method: "POST",
-              headers: { "Content-Type":"application/json", "Authorization":`Bearer ${deviceLimitModal.token}` },
-              body: JSON.stringify({ device_fingerprint: deviceLimitModal.fingerprint, device_info: getDeviceInfo() }),
-            });
-            const data = await r.json().catch(()=>({}));
-            if (!data.ok) { addToast("Erreur — réessayez","❌","#DC2626"); return; }
-            // Restore token + reload login to fetch profile
-            _authToken = deviceLimitModal.token;
-            setSbToken(deviceLimitModal.token);
-            setDeviceFingerprint(deviceLimitModal.fingerprint);
-            setDeviceLimitModal(null);
-            addToast("✅ Connecté","✅","#1A5C38");
-            // Trigger profile fetch via login retry — simplest: tell user to retry
-            try { localStorage.setItem("teamly_token", deviceLimitModal.token); } catch(e){}
-            window.location.reload();
-          } catch(e) {
-            addToast("Erreur réseau","❌","#DC2626");
-          }
-        };
-        return (
-        <div onClick={()=>setDeviceLimitModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:5000,display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"sans-serif"}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:18,padding:"22px 20px",width:"100%",maxWidth:420,maxHeight:"92vh",overflowY:"auto",boxShadow:"0 12px 40px rgba(0,0,0,0.4)"}}>
-            <div style={{textAlign:"center",marginBottom:16}}>
-              <div style={{fontSize:38,marginBottom:6}}>⚠️</div>
-              <div style={{fontWeight:800,fontSize:17,color:"#0F1923",marginBottom:6}}>Limite de 2 appareils atteinte</div>
-              <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5}}>Vous êtes déjà connecté sur 2 appareils. Choisissez celui à déconnecter pour continuer :</div>
-            </div>
-            <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              {(deviceLimitModal.sessions||[]).map(s=>(
-                <div key={s.id} style={{border:"1px solid #E5E7EB",borderRadius:12,padding:"12px 14px",display:"flex",alignItems:"center",gap:12}}>
-                  <div style={{fontSize:28,flexShrink:0}}>{iconFor(s.device_type)}</div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:700,color:"#0F1923"}}>{s.device_name||"Appareil inconnu"}</div>
-                    <div style={{fontSize:11,color:"#6B7280",marginTop:2}}>{s.os||""}{s.location?` · ${s.location}`:""}</div>
-                    <div style={{fontSize:11,color:"#9CA3AF",marginTop:2}}>Dernière activité : {fmtRel(s.last_active_at)}</div>
-                  </div>
-                  <button onClick={()=>kick(s.id)} style={{background:"#DC2626",color:"#fff",border:"none",borderRadius:9,padding:"8px 12px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0}}>Déconnecter</button>
-                </div>
-              ))}
-            </div>
-            <button onClick={()=>{
-              setDeviceLimitModal(null);
-              _authToken = null; setSbToken(null);
-              try { localStorage.removeItem("teamly_token"); localStorage.removeItem("teamly_refresh_token"); } catch(e){}
-            }} style={{marginTop:14,width:"100%",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:11,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              Annuler
-            </button>
-          </div>
-        </div>
-        );
-      })()}
-
-      {/* ── Modal: kicked out ── */}
-      {kickedOut&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(15,25,35,0.96)",zIndex:5500,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif"}}>
-          <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
-            <div style={{fontSize:54,marginBottom:14}}>🚪</div>
-            <div style={{fontWeight:800,fontSize:22,color:"#fff",marginBottom:10}}>Vous avez été déconnecté</div>
-            <div style={{fontSize:13,color:"rgba(255,255,255,0.65)",lineHeight:1.6,marginBottom:24}}>Un autre appareil a pris votre place.<br/>{kickedOut?.role==="admin" ? "Votre compte est limité à 2 appareils (1 mobile + 1 PC)." : "Une seule session active autorisée à la fois sur ce compte."}</div>
-            <button onClick={()=>{ setKickedOut(false); setAuthStep("login"); }}
-              style={{background:"#F0A500",color:"#0F1923",border:"none",borderRadius:12,padding:"13px 32px",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-              Se reconnecter
-            </button>
           </div>
         </div>
       )}
@@ -6636,94 +6398,6 @@ function AppInner() {
             </button>
             </>)}
 
-            {/* ── Mes appareils ── */}
-            {(()=>{
-              const fmtRel = (iso) => {
-                if(!iso) return "—";
-                const diff = Math.max(0, Date.now() - new Date(iso).getTime());
-                const m = Math.floor(diff/60000);
-                if (m<1) return "à l'instant";
-                if (m<60) return `il y a ${m} min`;
-                const h = Math.floor(m/60);
-                if (h<24) return `il y a ${h} h`;
-                const d = Math.floor(h/24);
-                return d<7 ? `il y a ${d} j` : new Date(iso).toLocaleDateString("fr-FR");
-              };
-              const iconFor = (t) => t==="mobile"||t==="tablet" ? "📱" : "💻";
-              const refresh = async () => {
-                if (!sbToken) return;
-                setLoadingSessions(true);
-                try {
-                  const r = await fetch(`${SB_URL}/rest/v1/user_sessions?user_id=eq.${currentUser.id}&is_active=eq.true&order=last_active_at.desc&select=*`, {
-                    headers: { apikey: SB_KEY, Authorization: `Bearer ${sbToken}` }
-                  });
-                  const data = await r.json().catch(()=>[]);
-                  setMySessions(Array.isArray(data) ? data : []);
-                } catch(e) {}
-                setLoadingSessions(false);
-              };
-              const revoke = async (sid) => {
-                try {
-                  await fetch("/.netlify/functions/revoke-session", {
-                    method:"POST",
-                    headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${sbToken}` },
-                    body: JSON.stringify({ session_id: sid, by_fingerprint: deviceFingerprint }),
-                  });
-                  setMySessions(p=>p.filter(s=>s.id!==sid));
-                  addToast("Appareil déconnecté ✅","✅",G.green);
-                } catch(e){ addToast("Erreur","❌",G.red); }
-              };
-              const revokeOthers = async () => {
-                if (!deviceFingerprint) return;
-                try {
-                  await fetch("/.netlify/functions/revoke-session", {
-                    method:"POST",
-                    headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${sbToken}` },
-                    body: JSON.stringify({ all_others: true, by_fingerprint: deviceFingerprint }),
-                  });
-                  setMySessions(p=>p.filter(s=>s.device_fingerprint===deviceFingerprint));
-                  addToast("Tous les autres appareils déconnectés ✅","✅",G.green);
-                } catch(e){ addToast("Erreur","❌",G.red); }
-              };
-              return (
-              <div style={{marginTop:18,paddingTop:18,borderTop:`1px solid ${G.grayLight}`}}>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                  <div style={{fontSize:12,fontWeight:700,color:G.gray,letterSpacing:0.5}}>🔐 MES APPAREILS CONNECTÉS</div>
-                  <button onClick={refresh} disabled={loadingSessions} style={{background:"none",border:"none",color:G.gray,fontSize:12,cursor:loadingSessions?"not-allowed":"pointer"}}>{loadingSessions?"…":"↺"}</button>
-                </div>
-                <div style={{fontSize:11,color:G.gray,marginBottom:10}}>Maximum 2 appareils par compte</div>
-                {mySessions.length===0 && !loadingSessions && (
-                  <button onClick={refresh} style={{width:"100%",background:G.grayLight,border:"none",borderRadius:8,padding:"10px 0",fontSize:12,color:G.gray,cursor:"pointer",marginBottom:10}}>Charger mes appareils</button>
-                )}
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  {mySessions.map(s=>{
-                    const isCurrent = s.device_fingerprint===deviceFingerprint;
-                    return (
-                      <div key={s.id} style={{border:`1px solid ${isCurrent?G.green+"55":G.grayLight}`,background:isCurrent?G.greenLight+"55":"#fff",borderRadius:10,padding:"10px 12px",display:"flex",alignItems:"center",gap:10}}>
-                        <div style={{fontSize:24,flexShrink:0}}>{iconFor(s.device_type)}</div>
-                        <div style={{flex:1,minWidth:0}}>
-                          <div style={{fontSize:12,fontWeight:700,color:G.dark,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                            {s.device_name||"Appareil"}
-                            {isCurrent && <span style={{background:G.green,color:"#fff",borderRadius:4,padding:"1px 6px",fontSize:9,fontWeight:700}}>✅ CET APPAREIL</span>}
-                          </div>
-                          <div style={{fontSize:10,color:G.gray,marginTop:2}}>{s.os||""}{s.location?` · ${s.location}`:""}</div>
-                          <div style={{fontSize:10,color:G.gray,marginTop:1}}>Dernière activité : {fmtRel(s.last_active_at)}</div>
-                        </div>
-                        {!isCurrent && (
-                          <button onClick={()=>revoke(s.id)} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:7,padding:"6px 10px",fontSize:10,fontWeight:700,cursor:"pointer",flexShrink:0}}>Déconnecter</button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-                {mySessions.length>1 && (
-                  <button onClick={revokeOthers} style={{marginTop:10,width:"100%",background:"#FFF8E7",color:"#92400E",border:`1px solid ${G.gold}55`,borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-                    Déconnecter tous les autres appareils
-                  </button>
-                )}
-              </div>
-              );
-            })()}
           </div>
         </div>
       )}
