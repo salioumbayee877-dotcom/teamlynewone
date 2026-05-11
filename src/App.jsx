@@ -949,6 +949,7 @@ function AppInner() {
   const [dragIdx,setDragIdx]               = useState(null);
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [showNotifPanel, setShowNotifPanel]     = useState(false);
+  const [sessionExpired, setSessionExpired]     = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000});
   const [showSettings, setShowSettings] = useState(false);
   const [showPlanModal, setShowPlanModal] = useState(false);
@@ -1994,6 +1995,53 @@ function AppInner() {
     }, 1500);
     return () => clearTimeout(timer);
   }, [mainRegion, otherRegions, sbToken, orgId, role, settings]);
+
+  // Single-session enforcement — ping /auth/v1/user every 45s.
+  // If Supabase has revoked the session (another device logged in), the JWT
+  // becomes invalid server-side and we get 401 → force logout.
+  useEffect(() => {
+    if (!sbToken || sessionExpired) return;
+    let cancelled = false;
+    let intervalId = null;
+    const forceLogout = () => {
+      _authToken = null;
+      try {
+        localStorage.removeItem("teamly_token");
+        localStorage.removeItem("teamly_refresh_token");
+        localStorage.removeItem("teamly_role");
+        localStorage.removeItem("teamly_org");
+        localStorage.removeItem("teamly_userId");
+        localStorage.removeItem("teamly_nom");
+        localStorage.removeItem("teamly_email");
+      } catch(e){}
+      setSessionExpired(true);
+      setSbToken(null);
+      setRole(null);
+      setOrgId(null);
+      setSbReady(false);
+      setCurrentUser({nom:"",email:"",role:""});
+    };
+    const ping = async () => {
+      if (document.hidden || cancelled) return;
+      try {
+        const r = await fetch(`${SB_URL}/auth/v1/user`, {
+          headers: { apikey: SB_KEY, Authorization: `Bearer ${_authToken||sbToken}` },
+        });
+        if (cancelled) return;
+        if (r.status === 401 || r.status === 403) {
+          // Try one refresh before giving up — handles normal JWT expiry
+          const fresh = await tryRefreshToken();
+          if (!fresh) { cancelled = true; forceLogout(); }
+        }
+      } catch(e) { /* network blip — retry next tick */ }
+    };
+    const start = () => { if (!intervalId) intervalId = setInterval(ping, 45000); };
+    const stop  = () => { if (intervalId) { clearInterval(intervalId); intervalId = null; } };
+    if (!document.hidden) start();
+    const onVis = () => { document.hidden ? stop() : (ping(), start()); };
+    document.addEventListener("visibilitychange", onVis);
+    return () => { cancelled = true; stop(); document.removeEventListener("visibilitychange", onVis); };
+  }, [sbToken, sessionExpired]);
 
   // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
@@ -3272,6 +3320,21 @@ function AppInner() {
             <div style={{textAlign:"center"}}>
               <button onClick={()=>setAuthStep("login")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>← Retour</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal: session expired (Supabase single-session enforcement) ── */}
+      {sessionExpired&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(15,25,35,0.96)",zIndex:5500,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif"}}>
+          <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
+            <div style={{fontSize:54,marginBottom:14}}>🚪</div>
+            <div style={{fontWeight:800,fontSize:22,color:"#fff",marginBottom:10}}>Session terminée</div>
+            <div style={{fontSize:13,color:"rgba(255,255,255,0.65)",lineHeight:1.6,marginBottom:24}}>Vous vous êtes connecté sur un autre appareil.<br/>Une seule session active est autorisée à la fois.</div>
+            <button onClick={()=>{ setSessionExpired(false); setAuthStep("login"); }}
+              style={{background:"#F0A500",color:"#0F1923",border:"none",borderRadius:12,padding:"13px 32px",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+              Se reconnecter
+            </button>
           </div>
         </div>
       )}
