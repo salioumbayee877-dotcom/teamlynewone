@@ -2196,6 +2196,23 @@ function AppInner() {
   };
 
   const addOrder = wa => {
+    // Plan limit guard (monthly orders)
+    try {
+      const _isOwnerEarly = OWNER_EMAILS.includes(currentUser.email);
+      if(!_isOwnerEarly){
+        const _limits = {gratuit:30, starter:30, trial:30, basic:100, pro:200, scale:Infinity};
+        const _key = settings.plan || "gratuit";
+        const _max = _limits[_key] ?? 30;
+        const _ym  = new Date().toISOString().slice(0,7);
+        const _count = orders.filter(o=>(o.created_at||"").slice(0,7)===_ym).length;
+        if(isFinite(_max) && _count >= _max){
+          addToast(`Limite ${_max} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");
+          setShowPlanModal(true);
+          setShowAdd(false);
+          return;
+        }
+      }
+    } catch(e){}
     if(!newOrder.client.trim()) { addToast("Nom du client obligatoire","⚠️","#F59E0B"); return; }
     if(!newOrder.product)       { addToast("Sélectionne un produit","⚠️","#F59E0B"); return; }
     if(!newOrder.deliveryStatus){ addToast("Situation du colis obligatoire","⚠️",G.red); return; }
@@ -2672,12 +2689,12 @@ function AppInner() {
       locked:[],
     },
     {
-      key:"pro", name:"Pro", price:"14 000 CFA", priceNum:14000, maxMembers:5, maxOrders:2000, maxStores:2, color:G.blue, bg:"#EFF6FF",
+      key:"pro", name:"Pro", price:"14 000 CFA", priceNum:14000, maxMembers:5, maxOrders:200, maxStores:2, color:G.blue, bg:"#EFF6FF",
       tag:"Pour les équipes",
       description:"Pour les boutiques en croissance",
       features:[
         "5 membres — 3 rôles (Admin, Closer, Livreur)",
-        "2 000 commandes / mois",
+        "200 commandes / mois",
         "2 boutiques connectées (Shopify, WooCommerce, YouCan)",
         "Toutes les fonctions Basic",
         "Confirmation WhatsApp automatique",
@@ -3647,7 +3664,7 @@ function AppInner() {
   const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
-  const PLAN_ORDER_LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:2000, scale:Infinity};
+  const PLAN_ORDER_LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:200, scale:Infinity};
   const currentPlanKey    = settings.plan || "gratuit";
   const orderLimit        = isOwner ? Infinity : (PLAN_ORDER_LIMITS[currentPlanKey] ?? 30);
   const THIS_MONTH        = new Date().toISOString().slice(0,7);
@@ -4049,7 +4066,7 @@ function AppInner() {
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
             <button
-              onClick={()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passez au plan supérieur`,"🔒","#DC2626");return;} setShowAdd(true); }}
+              onClick={()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); }}
               style={{background:orderLimitReached?"rgba(255,255,255,0.15)":G.gold,border:"none",borderRadius:10,padding:"8px 14px",cursor:orderLimitReached?"not-allowed":"pointer",fontWeight:700,fontSize:12,color:orderLimitReached?"rgba(255,255,255,0.6)":G.dark,letterSpacing:0.2,flexShrink:0}}
               title={orderLimitReached?`Limite de ${orderLimit} commandes/mois atteinte`:""}>
               {orderLimitReached?"Limite":"+ Commande"}
@@ -4227,31 +4244,64 @@ function AppInner() {
               )}
 
               {/* Guide intégration webhook */}
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:12}}>🔗 Connecter ta boutique</div>
-
-                {[
-                  {icon:"🛒", label:"Shopify", url:webhookUrl, steps:["Va dans ton admin Shopify","Settings → Notifications → Webhooks","Clique \"Create webhook\"","Event: Order payment · Format: JSON","Colle l'URL ci-dessous → Save"]},
-                  {icon:"⚡", label:"YouCan Shop", url:youcanUrl, steps:["Va dans ton panel YouCan Shop","Settings → Webhooks","Clique \"Add webhook\"","Event: Order created","Colle l'URL ci-dessous → Save"]},
-                  {icon:"🔧", label:"WooCommerce", url:wooUrl, steps:["Va dans ton admin WordPress","WooCommerce → Settings → Advanced → Webhooks","Clique \"Add webhook\"","Topic: Order created · Format: JSON","Colle l'URL ci-dessous → Save"]},
-                ].map(p=>(
-                  <div key={p.label} style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:10}}>
-                    <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",gap:6}}>
-                      {p.icon} {p.label}
-                    </div>
-                    <div style={{padding:"10px 12px"}}>
-                      <div style={{fontSize:11,color:G.gray,lineHeight:1.8,marginBottom:8}}>
-                        {p.steps.map((s,i)=><div key={i}>{i+1}. {s}</div>)}
-                      </div>
-                      <div style={{background:"#F3F4F6",borderRadius:7,padding:"6px 10px",fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:6}}>{p.url}</div>
-                      <button onClick={()=>navigator.clipboard?.writeText(p.url).then(()=>addToast(`URL ${p.label} copiée ✅`,"✅",G.green))}
-                        style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:7,padding:"8px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                        📋 Copier l'URL {p.label}
-                      </button>
-                    </div>
+              {(()=>{
+                const PLAN_STORE_LIMITS = {gratuit:0, starter:0, trial:0, basic:1, pro:2, scale:4};
+                const storeLimit = isOwner ? Infinity : (PLAN_STORE_LIMITS[currentPlanKey] ?? 0);
+                const connectedSet = new Set(orders.map(o=>o.platform).filter(p=>p && ["shopify","woocommerce","youcan"].includes(p)));
+                const platformsList = [
+                  {icon:"🛒", label:"Shopify",     key:"shopify",     url:webhookUrl, steps:["Va dans ton admin Shopify","Settings → Notifications → Webhooks","Clique \"Create webhook\"","Event: Order payment · Format: JSON","Colle l'URL ci-dessous → Save"]},
+                  {icon:"⚡", label:"YouCan Shop", key:"youcan",      url:youcanUrl,  steps:["Va dans ton panel YouCan Shop","Settings → Webhooks","Clique \"Add webhook\"","Event: Order created","Colle l'URL ci-dessous → Save"]},
+                  {icon:"🔧", label:"WooCommerce", key:"woocommerce", url:wooUrl,     steps:["Va dans ton admin WordPress","WooCommerce → Settings → Advanced → Webhooks","Clique \"Add webhook\"","Topic: Order created · Format: JSON","Colle l'URL ci-dessous → Save"]},
+                ];
+                const curPlanObj = PLANS.find(p=>p.key===currentPlanKey)||PLANS[0];
+                return (
+                <div style={{background:G.white,borderRadius:14,padding:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🔗 Connecter ta boutique</div>
+                    <div style={{fontSize:11,color:G.gray,fontWeight:600}}>{connectedSet.size}/{isFinite(storeLimit)?storeLimit:"∞"} boutiques</div>
                   </div>
-                ))}
-              </div>
+                  {storeLimit===0&&(
+                    <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
+                      ⚠️ Plan {curPlanObj.name} : connexion boutique non incluse — passe au plan Basic ou supérieur
+                    </div>
+                  )}
+                  {storeLimit>0&&connectedSet.size>=storeLimit&&(
+                    <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
+                      ⚠️ Limite {curPlanObj.name} : {storeLimit} boutique{storeLimit>1?"s":""} max — passe au plan supérieur
+                    </div>
+                  )}
+                  {platformsList.map(p=>{
+                    const already = connectedSet.has(p.key);
+                    const blocked = !already && (storeLimit===0 || connectedSet.size>=storeLimit);
+                    return (
+                    <div key={p.label} style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:10,opacity:blocked?0.6:1}}>
+                      <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>{p.icon} {p.label}</div>
+                        {already&&<div style={{fontSize:10,color:G.green,fontWeight:700}}>✓ connectée</div>}
+                      </div>
+                      <div style={{padding:"10px 12px"}}>
+                        <div style={{fontSize:11,color:G.gray,lineHeight:1.8,marginBottom:8}}>
+                          {p.steps.map((s,i)=><div key={i}>{i+1}. {s}</div>)}
+                        </div>
+                        <div style={{background:"#F3F4F6",borderRadius:7,padding:"6px 10px",fontSize:9,color:"#374151",wordBreak:"break-all",fontFamily:"monospace",marginBottom:6}}>{p.url}</div>
+                        <button onClick={()=>{
+                          if(blocked){
+                            addToast(`Limite ${curPlanObj.name} atteinte — passe au plan supérieur`,"🔒","#F0A500");
+                            setShowPlanModal(true);
+                            return;
+                          }
+                          navigator.clipboard?.writeText(p.url).then(()=>addToast(`URL ${p.label} copiée ✅`,"✅",G.green));
+                        }}
+                          style={{width:"100%",background:blocked?"#D1D5DB":G.green,color:blocked?"#6B7280":"#fff",border:"none",borderRadius:7,padding:"8px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                          {blocked?`🔒 Limite atteinte`:`📋 Copier l'URL ${p.label}`}
+                        </button>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+                );
+              })()}
             </div>
           );
         })()}
@@ -4557,7 +4607,7 @@ function AppInner() {
               <ST>⚡ ACTIONS RAPIDES</ST>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
-                  {icon:"📦",label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
+                  {icon:"📦",label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
                   {icon:"📦",label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
                   {icon:"👤",label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
                   {icon:"🗺️",label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
@@ -5637,9 +5687,12 @@ function AppInner() {
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
+          // When keyboard is open, the bottom tab bar is hidden behind it — don't reserve space for it.
           const chatH = isDesktop
             ? "calc(100vh - 54px)"
-            : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
+            : keyboardH>0
+              ? `calc(100dvh - 58px - env(safe-area-inset-top, 0px) - ${keyboardH}px)`
+              : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
           const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
 
           return (
@@ -5851,7 +5904,7 @@ function AppInner() {
             {/* Zone saisie */}
             {!isRecording&&(
               <div style={{background:G.white,borderTop:`1px solid #DDD`,flexShrink:0}}>
-                <div style={{padding:"8px 10px",paddingBottom:keyboardH>0?`${keyboardH+8}px`:"8px",display:"flex",gap:6,alignItems:"flex-end",transition:"padding-bottom 0.15s"}}>
+                <div style={{padding:"8px 10px",paddingBottom:keyboardH>0?"8px":"calc(8px + env(safe-area-inset-bottom, 0px))",display:"flex",gap:6,alignItems:"flex-end"}}>
                   <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
                     placeholder="Message…"
@@ -6465,15 +6518,21 @@ function AppInner() {
               {(()=>{
                 const curPlan = PLANS.find(p=>p.key===settings.plan)||(isPro?PLANS.find(p=>p.key==="basic"):PLANS[0])||PLANS[0];
                 const membersUsed = teamMembers.length + 1;
-                const atLimit = curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
-                const canInvite = orgMemberCount !== null && !atLimit;
+                const atLimit = !isOwner && curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 return (<>
-                  {canInvite&&<div style={{marginTop:10,display:"flex",gap:6}}>
+                  <div style={{marginTop:10,fontSize:11,color:atLimit?G.red:G.gray,fontWeight:600}}>{membersUsed}/{curPlan.maxMembers||"∞"} membres</div>
+                  {atLimit&&<div style={{marginTop:6,background:"#FEF3C7",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#92400E"}}>⚠️ Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus</div>}
+                  <div style={{marginTop:8,display:"flex",gap:6}}>
                     {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
-                      <button key={r.role} onClick={()=>{const token=Math.random().toString(36).substring(2,10).toUpperCase();const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");}}
-                        style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{r.label} 📲</button>
+                      <button key={r.role} onClick={()=>{
+                        if(atLimit){ setShowPlanModal(true); return; }
+                        const token=Math.random().toString(36).substring(2,10).toUpperCase();
+                        const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;
+                        window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
+                      }}
+                        style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:atLimit?"#9CA3AF":G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",opacity:atLimit?0.7:1}}>{r.label} {atLimit?"🔒":"📲"}</button>
                     ))}
-                  </div>}
+                  </div>
                 </>);
               })()}
             </div>
