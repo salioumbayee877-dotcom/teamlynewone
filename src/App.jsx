@@ -4552,6 +4552,7 @@ function AppInner() {
         {dataReady&&tab==="dashboard"&&role==="livreur"&&(()=>{
           const toConfirm  = myLiv.filter(o=>o.status==="confirmado");
           const toPickup   = myLiv.filter(o=>o.status==="livreur_en_route");
+          const toPickupOther = myLiv.filter(o=>o.region_type==="other"&&o.status==="paiement_confirme");
           const inProgress = myLiv.filter(o=>["colis_pris","en_camino","chez_client"].includes(o.status));
           const isBatch    = livBtnLoading==="batch";
 
@@ -4579,11 +4580,42 @@ function AppInner() {
                 ⚠️ Aucune livraison assignée à <strong>{currentUser.nom}</strong>. Demande à l'Admin de t'assigner des commandes.
               </div>
             )}
-            {toConfirm.length===0&&toPickup.length===0&&inProgress.length===0&&myLiv.length>0&&(
+            {toConfirm.length===0&&toPickup.length===0&&toPickupOther.length===0&&inProgress.length===0&&myLiv.length>0&&(
               <div style={{background:G.greenLight,borderRadius:14,padding:20,textAlign:"center",border:`1px solid ${G.green}33`}}>
                 <div style={{fontSize:32,marginBottom:6}}>✅</div>
                 <div style={{fontWeight:700,fontSize:15,color:G.green}}>Toutes les livraisons sont terminées</div>
                 <div style={{fontSize:12,color:G.gray,marginTop:4}}>Bien joué ! Attends de nouvelles assignations.</div>
+              </div>
+            )}
+
+            {/* ── BATCH NOTIFICATION OTHER — Paiement confirmé (régions hors zone) ── */}
+            {toPickupOther.length>0&&(
+              <div style={{background:"#E8F5EE",borderRadius:16,border:"2px solid #86EFAC",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                  <span style={{fontSize:28,lineHeight:1}}>✅</span>
+                  <div>
+                    <div style={{fontWeight:800,fontSize:16,color:"#166534"}}>Paiement confirmé · {toPickupOther.length} colis</div>
+                    <div style={{fontSize:11,color:"#15803D",fontWeight:600,marginTop:2}}>Régions hors zone — récupérer pour transporteur</div>
+                  </div>
+                </div>
+                <div style={{background:"rgba(255,255,255,0.75)",borderRadius:10,padding:"10px 12px",marginBottom:14}}>
+                  {toPickupOther.slice(0,5).map((o,i)=>{
+                    const ref=o.note?.match(/#[\w-]+/)?.[0]||"";
+                    return (
+                      <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickupOther.length,5)-1?"0.5px solid #BBF7D0":"none"}}>
+                        {ref&&<span style={{fontSize:10,color:"#15803D",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
+                        <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||"—"}</span>
+                      </div>
+                    );
+                  })}
+                  {toPickupOther.length>5&&<div style={{fontSize:11,color:"#15803D",marginTop:5,fontWeight:600}}>+{toPickupOther.length-5} autres colis…</div>}
+                </div>
+                <button disabled={isBatch}
+                  onClick={()=>batchAdvance(toPickupOther,"colis_en_main","Colis récupérés — prêts pour le transporteur 📦")}
+                  style={{width:"100%",background:isBatch?"#9CA3AF":"#15803D",color:"#fff",border:"none",borderRadius:12,padding:"16px 0",fontWeight:800,fontSize:15,cursor:isBatch?"not-allowed":"pointer",transition:"background 150ms"}}>
+                  {isBatch?"…":"J'ai récupéré les colis"}
+                </button>
               </div>
             )}
 
