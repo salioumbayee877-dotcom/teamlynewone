@@ -152,6 +152,35 @@ export const OCard = ({ o, showPrendre = false }) => {
               </div>
             )}
 
+            {/* Modifier statut — livreur (interurbain) */}
+            {role==="livreur"&&o.status!=="entregado"&&(
+              <div style={{marginTop:8}}>
+                <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
+                  style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                  <span>{showModif?"▲":"✏️"}</span>
+                  <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
+                </button>
+                {showModif&&(
+                  <div style={{marginTop:6,padding:"10px",background:"#F8FAFC",borderRadius:10,border:"1px solid #E2E8F0"}}>
+                    <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
+                    <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+                      {[
+                        {s:"paiement_confirme",  ico:"✅", l:"Paiement confirmé"},
+                        {s:"colis_en_main",      ico:"📦", l:"Colis en main"},
+                        {s:"en_route",           ico:"🏍️", l:"En route"},
+                        {s:"remis_transporteur", ico:"🚌", l:"Remis au transporteur"},
+                      ].map(({s,ico,l})=>(
+                        <button key={s} onClick={()=>{ upSt(o.id,s); setOpenModifId(null); }}
+                          style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
+                          <span>{ico}</span><span>{l}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Actions rapides — bas de carte */}
             <div style={{display:"flex",gap:5,marginTop:8}}>
               <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
