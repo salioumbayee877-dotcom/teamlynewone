@@ -1959,7 +1959,9 @@ function AppInner() {
                 broadcast: {self: false},
                 postgres_changes: [
                   {event:"INSERT", schema:"public", table:"messages",      filter:`org_id=eq.${orgId}`},
-                  {event:"INSERT", schema:"public", table:"notifications",  filter:`org_id=eq.${orgId}`}
+                  {event:"INSERT", schema:"public", table:"notifications",  filter:`org_id=eq.${orgId}`},
+                  {event:"UPDATE", schema:"public", table:"orders",         filter:`org_id=eq.${orgId}`},
+                  {event:"INSERT", schema:"public", table:"orders",         filter:`org_id=eq.${orgId}`}
                 ]
               },
               access_token: _authToken || SB_KEY
@@ -1975,10 +1977,12 @@ function AppInner() {
           try {
             const d = JSON.parse(evt.data);
             // Nouveau message INSERT détecté → charger immédiatement
-            if(d.event === "postgres_changes" && d.payload?.data?.type === "INSERT") {
-              const tbl = d.payload?.data?.table;
-              if(!tbl || tbl === "messages")      loadChat(false);
-              if(!tbl || tbl === "notifications")  loadNotifs();
+            if(d.event === "postgres_changes") {
+              const tbl  = d.payload?.data?.table;
+              const type = d.payload?.data?.type;
+              if(type === "INSERT" && (!tbl || tbl === "messages"))      loadChat(false);
+              if(type === "INSERT" && (!tbl || tbl === "notifications")) loadNotifs();
+              if(tbl === "orders" && (type === "UPDATE" || type === "INSERT")) loadMain();
             }
           } catch(e) {}
         };
@@ -2519,7 +2523,7 @@ function AppInner() {
   const revenus = orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
   const taux    = orders.length>0?Math.round(livres/orders.length*100):0;
   const myLiv   = orders.filter(o=>o.livreur_id===currentUser.id);
-  const myClo   = role==="closer" ? orders : orders.filter(o=>o.closer_id===currentUser.id);
+  const myClo   = orders.filter(o=>String(o.closer_id)===String(currentUser.id));
 
   // ── compta par produit ──
   const calcProd = products.map(prod=>{
@@ -7308,10 +7312,11 @@ function AppInner() {
 
       {/* ── MODAL: Détail commande ── */}
       {orderDetail&&(()=>{
-        const o=orderDetail;
+        // Lookup live order from state so realtime UPDATE refreshes the modal
+        const o = orders.find(x=>x.id===orderDetail.id) || orderDetail;
         const st=STATUS[o.status]||STATUS.pendiente;
         const isRejected=["rechazado","no_contesta","reprogramar"].includes(o.status);
-        const PSTEPS=[
+        const PSTEPS_MAIN=[
           {key:"pendiente",       label:"En attente",        sub:"Commande reçue",                  icon:"🕐", color:"#F0A500"},
           {key:"confirmado",      label:"Confirmé",          sub:"Client a confirmé",                icon:"✅", color:"#2E8B57"},
           {key:"livreur_en_route",label:"Livreur en route",  sub:"Se dirige vers le dépôt",          icon:"🏍️", color:"#7C3AED"},
@@ -7320,6 +7325,15 @@ function AppInner() {
           {key:"chez_client",     label:"Chez le client",    sub:"Livreur est à destination",        icon:"📍", color:"#D97706"},
           {key:"entregado",       label:"Livré & Encaissé",  sub:"Paiement COD reçu ✓",             icon:"💰", color:"#1A5C38"},
         ];
+        const PSTEPS_OTHER=[
+          {key:"en_attente_paiement",label:"En attente de paiement", sub:"En attente du virement client",  icon:"⏳", color:"#F0A500"},
+          {key:"paiement_confirme",  label:"Paiement confirmé",       sub:"Virement reçu",                  icon:"✅", color:"#2E8B57"},
+          {key:"colis_en_main",      label:"Colis en main",           sub:"Livreur a récupéré le colis",    icon:"📦", color:"#2563EB"},
+          {key:"en_route",           label:"En route",                sub:"En route vers le transporteur",  icon:"🏍️", color:"#7C3AED"},
+          {key:"remis_transporteur", label:"Remis au transporteur",   sub:"Colis confié au transporteur",   icon:"🚌", color:"#0891B2"},
+          {key:"entregado",          label:"Livré",                   sub:"Client a reçu le colis ✓",       icon:"✅", color:"#1A5C38"},
+        ];
+        const PSTEPS = o.region_type==="other" ? PSTEPS_OTHER : PSTEPS_MAIN;
         const activeIdx=PSTEPS.findIndex(s=>s.key===o.status);
         return (
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:400,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}} onClick={()=>setOrderDetail(null)}>
