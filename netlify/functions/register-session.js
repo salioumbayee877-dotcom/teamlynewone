@@ -1,4 +1,4 @@
-const { requireUser } = require("./_auth");
+const { requireUser, getProfile } = require("./_auth");
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL      = process.env.SUPABASE_URL;
@@ -36,6 +36,16 @@ exports.handler = async (event) => {
 
     const ip = event.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() || event.headers?.["client-ip"] || null;
 
+    // 0. Fetch profile (role drives device policy)
+    const profile = await getProfile(user.id, SERVICE_KEY);
+    const role = profile?.role || "admin";
+    const incomingType = device_info.device_type === "desktop" ? "desktop" : "mobile"; // tablet treated as mobile
+
+    // Livreur: PC blocked entirely
+    if (role === "livreur" && incomingType === "desktop") {
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: false, blocked: true, reason: "livreur_desktop" }) };
+    }
+
     // 1. Fetch active sessions for this user
     const sessRes = await fetch(`${SB_URL}/rest/v1/user_sessions?user_id=eq.${user.id}&is_active=eq.true&order=last_active_at.desc&select=*`, { headers: sbHeaders });
     if (!sessRes.ok) {
@@ -46,7 +56,7 @@ exports.handler = async (event) => {
     const sessions = await sessRes.json();
     const existing = Array.isArray(sessions) ? sessions.find(s => s.device_fingerprint === device_fingerprint) : null;
 
-    // 2. If existing session matches → reactivate / refresh
+    // 2. If existing session matches → reactivate / refresh (same physical device)
     if (existing) {
       await fetch(`${SB_URL}/rest/v1/user_sessions?id=eq.${existing.id}`, {
         method: "PATCH",
@@ -56,9 +66,27 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ ok: true, session_id: existing.id, sessions }) };
     }
 
-    // 3. New device — check limit
-    if (Array.isArray(sessions) && sessions.length >= 2) {
-      return { statusCode: 200, headers, body: JSON.stringify({ ok: false, limit_reached: true, existing_sessions: sessions }) };
+    // 3. Role-based limits for new devices
+    const revokeAll = async (rows) => {
+      if (!Array.isArray(rows) || rows.length === 0) return;
+      const now = new Date().toISOString();
+      const ids = rows.map(s => s.id).join(",");
+      await fetch(`${SB_URL}/rest/v1/user_sessions?id=in.(${ids})`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({ is_active: false, revoked_at: now, revoked_by_device_fingerprint: device_fingerprint }),
+      }).catch(()=>{});
+    };
+
+    if (role === "closer" || role === "livreur") {
+      // Single-device roles → auto-revoke previous sessions
+      await revokeAll(sessions);
+    } else {
+      // admin: 1 mobile + 1 PC, hard block on duplicate type
+      const sameType = sessions.filter(s => (s.device_type === "desktop" ? "desktop" : "mobile") === incomingType);
+      if (sameType.length > 0) {
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: false, blocked: true, reason: incomingType === "desktop" ? "admin_pc_limit" : "admin_mobile_limit", existing_sessions: sameType }) };
+      }
     }
 
     // 4. Insert new session

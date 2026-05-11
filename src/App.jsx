@@ -2885,6 +2885,20 @@ function AppInner() {
                   // Device session check (max 2 devices)
                   const sess = await registerDeviceSession(tok).catch(()=>({ok:true}));
                   setDeviceFingerprint(sess.fingerprint);
+                  if (sess.blocked) {
+                    const msg = sess.reason === "livreur_desktop"
+                      ? "Accès PC interdit pour les livreurs. Connecte-toi depuis ton téléphone."
+                      : sess.reason === "admin_mobile_limit"
+                        ? "Vous avez déjà une session active sur un autre mobile. Déconnectez-le d'abord."
+                        : sess.reason === "admin_pc_limit"
+                          ? "Vous avez déjà une session active sur un autre PC. Déconnectez-le d'abord."
+                          : "Connexion refusée — limite d'appareils atteinte.";
+                    setAuthError(msg);
+                    _authToken = null; setSbToken(null);
+                    try { localStorage.removeItem("teamly_token"); localStorage.removeItem("teamly_refresh_token"); } catch(e){}
+                    setAuthLoading(false);
+                    return;
+                  }
                   if (sess.limit_reached) {
                     setDeviceLimitModal({ sessions: sess.existing_sessions || [], token: tok, fingerprint: sess.fingerprint });
                     setAuthLoading(false);
