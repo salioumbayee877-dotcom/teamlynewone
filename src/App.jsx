@@ -2024,14 +2024,24 @@ function AppInner() {
     const ping = async () => {
       if (document.hidden || cancelled) return;
       try {
-        const r = await fetch(`${SB_URL}/auth/v1/user`, {
-          headers: { apikey: SB_KEY, Authorization: `Bearer ${_authToken||sbToken}` },
+        // Calls the SECURITY DEFINER fn that checks auth.sessions directly.
+        // /auth/v1/user only validates the JWT signature, not session revocation,
+        // so it can't detect a session kicked by "Enforce single session per user".
+        const r = await fetch(`${SB_URL}/rest/v1/rpc/is_my_session_active`, {
+          method: "POST",
+          headers: { apikey: SB_KEY, "Content-Type":"application/json", Authorization: `Bearer ${_authToken||sbToken}` },
+          body: "{}",
         });
         if (cancelled) return;
         if (r.status === 401 || r.status === 403) {
-          // Try one refresh before giving up — handles normal JWT expiry
+          // JWT itself is invalid — try a refresh, then give up
           const fresh = await tryRefreshToken();
           if (!fresh) { cancelled = true; forceLogout(); }
+          return;
+        }
+        if (r.ok) {
+          const active = await r.json().catch(()=>true);
+          if (active === false) { cancelled = true; forceLogout(); }
         }
       } catch(e) { /* network blip — retry next tick */ }
     };
