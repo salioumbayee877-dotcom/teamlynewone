@@ -11,23 +11,38 @@ SET search_path = public
 AS $$
 DECLARE
   sid uuid;
+  uid uuid;
+  most_recent_id uuid;
 BEGIN
-  -- session_id is included in Supabase Auth JWTs (newer versions)
+  -- session_id + sub (user id) come from JWT claims
   BEGIN
     sid := (current_setting('request.jwt.claims', true)::json ->> 'session_id')::uuid;
+    uid := (current_setting('request.jwt.claims', true)::json ->> 'sub')::uuid;
   EXCEPTION WHEN others THEN
     RETURN false;
   END;
 
-  IF sid IS NULL THEN
-    -- Old JWT without session_id claim — treat as invalid so the user is forced
-    -- to re-login and get a fresh JWT with session_id.
+  IF sid IS NULL OR uid IS NULL THEN
     RETURN false;
   END IF;
 
+  -- Single-session enforcement: only the most recently created session for
+  -- this user is valid. Supabase's "Enforce single session per user" toggle
+  -- doesn't reliably set not_after on invalidated rows, so we infer freshness
+  -- by ordering on created_at.
+  SELECT id INTO most_recent_id
+  FROM auth.sessions
+  WHERE user_id = uid
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF most_recent_id IS NULL OR sid <> most_recent_id THEN
+    RETURN false;
+  END IF;
+
+  -- Also respect explicit expiration if Supabase did set it
   RETURN EXISTS (
-    SELECT 1
-    FROM auth.sessions
+    SELECT 1 FROM auth.sessions
     WHERE id = sid
       AND (not_after IS NULL OR not_after > now())
   );
