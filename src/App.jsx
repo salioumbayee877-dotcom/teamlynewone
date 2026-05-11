@@ -2764,42 +2764,24 @@ function AppInner() {
     setAuthError("");
     const {userId, email, fullName} = googleOnboard;
     const nom = (fullName || email.split("@")[0] || "Admin").slice(0, 60);
-    const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
-    // Resolve the user JWT freshly — _authToken may have been refreshed/cleared between OAuth callback and click.
-    let userJwt = _authToken || (typeof localStorage!=="undefined" ? localStorage.getItem("teamly_token") : null);
+    const userJwt = _authToken || (typeof localStorage!=="undefined" ? localStorage.getItem("teamly_token") : null);
+    let newOrgId;
     try {
-      const payload = userJwt ? JSON.parse(atob(userJwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))) : null;
-      console.log("[TEAMLY OAuth] onboard JWT check:", {sub: payload?.sub, expectedUserId: userId, role: payload?.role, exp: payload?.exp, now: Math.floor(Date.now()/1000)});
-      if(!payload?.sub) throw new Error("JWT sans sub (token absent ou invalide)");
-      if(payload.sub !== userId) throw new Error(`JWT sub (${payload.sub}) ≠ userId (${userId})`);
-      if(payload.exp && payload.exp*1000 < Date.now()) throw new Error("JWT expiré, recharge la page");
+      const r = await fetchWithTimeout("/.netlify/functions/google-onboard", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "Authorization":`Bearer ${userJwt||""}` },
+        body: JSON.stringify({ boutique: authForm.boutique.trim(), phone: authForm.phone.trim(), nom }),
+      }, 15000);
+      const data = await r.json().catch(()=>({}));
+      if (!r.ok || !data.ok) {
+        console.error("[TEAMLY OAuth] onboard fn failed:", r.status, data);
+        setAuthError("Erreur création — "+((data?.error||`HTTP ${r.status}`)||"réessaye").slice(0,180));
+        return;
+      }
+      newOrgId = data.orgId;
     } catch(e) {
-      setAuthError("Erreur auth — "+(e?.message||"token absent").slice(0,180));
-      return;
-    }
-    const insertOrUpsert = async (table, body, upsert) => {
-      const prefer = upsert ? "return=representation,resolution=merge-duplicates" : "return=representation";
-      const r = await fetchWithTimeout(`${SB_URL}/rest/v1/${table}`,{
-        method:"POST",
-        headers:{
-          "Content-Type":"application/json",
-          "apikey":SB_KEY,
-          "Authorization":`Bearer ${userJwt}`,
-          "Prefer":prefer,
-        },
-        body:JSON.stringify(body),
-      },10000);
-      if(!r.ok){ const t=await r.text(); throw new Error(`${table} ${r.status}: ${t.slice(0,200)}`); }
-    };
-    try {
-      // organizations: plain INSERT — id is a fresh UUID, never conflicts.
-      // Upsert would trigger UPDATE-policy check (id = auth_org_id()) which is NULL pre-onboarding → 403.
-      await insertOrUpsert("organizations",{id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim()}, false);
-      // profiles: upsert because an auth-trigger may have pre-created the row.
-      await insertOrUpsert("profiles",{id:userId, org_id:newOrgId, nom, phone:authForm.phone.trim(), email, role:"admin"}, true);
-    } catch(e) {
-      console.error("[TEAMLY OAuth] onboard create failed:", e?.message);
-      setAuthError("Erreur création — "+(e?.message||"réessaye").slice(0,180));
+      console.error("[TEAMLY OAuth] onboard fn error:", e?.message);
+      setAuthError("Erreur réseau — "+(e?.message||"réessaye").slice(0,180));
       return;
     }
     setOrgId(newOrgId); setSbReady(true);
