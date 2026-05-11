@@ -2765,6 +2765,18 @@ function AppInner() {
     const {userId, email, fullName} = googleOnboard;
     const nom = (fullName || email.split("@")[0] || "Admin").slice(0, 60);
     const newOrgId = (typeof crypto!=="undefined" && crypto.randomUUID) ? crypto.randomUUID() : `org_${Date.now()}`;
+    // Resolve the user JWT freshly — _authToken may have been refreshed/cleared between OAuth callback and click.
+    let userJwt = _authToken || (typeof localStorage!=="undefined" ? localStorage.getItem("teamly_token") : null);
+    try {
+      const payload = userJwt ? JSON.parse(atob(userJwt.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))) : null;
+      console.log("[TEAMLY OAuth] onboard JWT check:", {sub: payload?.sub, expectedUserId: userId, role: payload?.role, exp: payload?.exp, now: Math.floor(Date.now()/1000)});
+      if(!payload?.sub) throw new Error("JWT sans sub (token absent ou invalide)");
+      if(payload.sub !== userId) throw new Error(`JWT sub (${payload.sub}) ≠ userId (${userId})`);
+      if(payload.exp && payload.exp*1000 < Date.now()) throw new Error("JWT expiré, recharge la page");
+    } catch(e) {
+      setAuthError("Erreur auth — "+(e?.message||"token absent").slice(0,180));
+      return;
+    }
     const insertOrUpsert = async (table, body, upsert) => {
       const prefer = upsert ? "return=representation,resolution=merge-duplicates" : "return=representation";
       const r = await fetchWithTimeout(`${SB_URL}/rest/v1/${table}`,{
@@ -2772,7 +2784,7 @@ function AppInner() {
         headers:{
           "Content-Type":"application/json",
           "apikey":SB_KEY,
-          "Authorization":`Bearer ${_authToken||SB_KEY}`,
+          "Authorization":`Bearer ${userJwt}`,
           "Prefer":prefer,
         },
         body:JSON.stringify(body),
