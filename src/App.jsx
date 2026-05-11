@@ -2081,10 +2081,6 @@ function AppInner() {
 
   // Device session heartbeat — every 30s when in foreground
   useEffect(() => {
-    // ── Session enforcement DISABLED (2026-05-11) — kicking users incorrectly. ──
-    // Re-enable once register-session / session-heartbeat logic is reviewed.
-    return;
-    // eslint-disable-next-line no-unreachable
     if (!sbToken || !deviceFingerprint || kickedOut) return;
     let cancelled = false;
     let intervalId = null;
@@ -2907,9 +2903,28 @@ function AppInner() {
                   const data = await sbAuth(authForm.email, authForm.password, "login");
                   const tok = data.access_token;
                   _authToken = tok; setSbToken(tok);
-                  // ── Device session limits DISABLED (2026-05-11) — let everyone in. ──
-                  // Still register fingerprint silently so the UI's "Mes appareils" panel keeps working.
-                  registerDeviceSession(tok).then(sess=>{ if(sess?.fingerprint) setDeviceFingerprint(sess.fingerprint); }).catch(()=>{});
+                  // Device session check (max 2 devices for admin; closer/livreur single-device)
+                  const sess = await registerDeviceSession(tok).catch(()=>({ok:true}));
+                  setDeviceFingerprint(sess.fingerprint);
+                  if (sess.blocked) {
+                    const msg = sess.reason === "livreur_desktop"
+                      ? "Accès PC interdit pour les livreurs. Connecte-toi depuis ton téléphone."
+                      : sess.reason === "admin_mobile_limit"
+                        ? "Vous avez déjà une session active sur un autre mobile. Déconnectez-le d'abord."
+                        : sess.reason === "admin_pc_limit"
+                          ? "Vous avez déjà une session active sur un autre PC. Déconnectez-le d'abord."
+                          : "Connexion refusée — limite d'appareils atteinte.";
+                    setAuthError(msg);
+                    _authToken = null; setSbToken(null);
+                    try { localStorage.removeItem("teamly_token"); localStorage.removeItem("teamly_refresh_token"); } catch(e){}
+                    setAuthLoading(false);
+                    return;
+                  }
+                  if (sess.limit_reached) {
+                    setDeviceLimitModal({ sessions: sess.existing_sessions || [], token: tok, fingerprint: sess.fingerprint });
+                    setAuthLoading(false);
+                    return;
+                  }
                   // Fetch profile by user ID, fallback to email if not found
                   let profiles = await sbFetch(`profiles?id=eq.${data.user.id}&limit=1`).catch(()=>null);
                   if(!profiles||profiles.length===0) profiles = await sbFetch(`profiles?email=eq.${encodeURIComponent(authForm.email)}&limit=1`).catch(()=>null);
