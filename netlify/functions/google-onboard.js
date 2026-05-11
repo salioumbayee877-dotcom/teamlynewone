@@ -1,3 +1,4 @@
+const { randomUUID } = require("crypto");
 const { requireUser } = require("./_auth");
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -45,7 +46,7 @@ exports.handler = async (event) => {
     }
   } catch {}
 
-  const orgId = (globalThis.crypto?.randomUUID?.() || `org_${Date.now()}_${Math.random().toString(36).slice(2,10)}`);
+  const orgId = randomUUID();
 
   try {
     const orgRes = await fetch(`${SB_URL}/rest/v1/organizations`, {
