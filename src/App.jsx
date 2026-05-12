@@ -354,7 +354,7 @@ const STATUS = {
 const LIV_ACTIVE = new Set([
   "confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar",
   // Flux régions hors zone principale (visibles livreur dès paiement_confirme)
-  "paiement_confirme","colis_en_main",
+  "paiement_confirme","colis_en_main","en_route",
 ]);
 const LIV_FINAL  = new Set(["entregado","rechazado","remis_transporteur"]);
 
@@ -2530,7 +2530,7 @@ function AppInner() {
   // ── Comptabilité filtrée par plage de dates + filtres avancés ──
   // Statuses interurbain/en-cours qui ne doivent pas apparaître en Compta tant que la commande n'est pas livrée
   const COMPTA_EXCLUDED_STATUS = new Set([
-    "en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur",
+    "en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur",
   ]);
   const comptaOrders = (()=>{
     const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
@@ -3649,7 +3649,7 @@ function AppInner() {
     if(role==="livreur") {
       // Pedidos hors zone principale: visibles de paiement_confirme à remis_transporteur (livreur garde la trace)
       if(o.region_type==="other") {
-        const VISIBLE_OTHER = new Set(["paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur"]);
+        const VISIBLE_OTHER = new Set(["paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur"]);
         if(!VISIBLE_OTHER.has(o.status)) return false;
       }
       const hasResult  = livResultFilter.length>0;
@@ -6945,7 +6945,7 @@ function AppInner() {
               <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                 {(()=>{
-                  const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
+                  const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
                   const MAIN_KEYS  = ["pendiente","confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","boutique"];
                   const keys = editOrder.region_type==="other" ? OTHER_KEYS : MAIN_KEYS;
                   return keys.filter(k=>STATUS[k]).map(k=>{
@@ -7183,7 +7183,8 @@ function AppInner() {
           {key:"paiement_confirme",  label:"Paiement confirmé",       sub:"Virement reçu",                  icon:"✅", color:"#2E8B57"},
           {key:"livreur_en_route",   label:"Livreur en route",        sub:"Se dirige vers le dépôt",        icon:"🏍️", color:"#7C3AED"},
           {key:"colis_en_main",      label:"Colis en main",           sub:"Livreur a récupéré le colis",    icon:"📦", color:"#2563EB"},
-          {key:"remis_transporteur", label:"Vers le transporteur",    sub:"Colis confié au transporteur",   icon:"🚌", color:"#0891B2"},
+          {key:"en_route",           label:"Aller vers le transporteur", sub:"En route vers le transporteur", icon:"🏍️", color:"#7C3AED"},
+          {key:"remis_transporteur", label:"Remis au transporteur",   sub:"Colis confié au transporteur",   icon:"🚌", color:"#0891B2"},
           {key:"entregado",          label:"Livré",                   sub:"Client a reçu le colis ✓",       icon:"✅", color:"#1A5C38"},
         ];
         const PSTEPS = o.region_type==="other" ? PSTEPS_OTHER : PSTEPS_MAIN;
