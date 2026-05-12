@@ -4614,7 +4614,7 @@ function AppInner() {
                 <button disabled={isBatch}
                   onClick={()=>batchAdvance(toPickupOther,"colis_en_main","Colis récupérés — prêts pour le transporteur 📦")}
                   style={{width:"100%",background:isBatch?"#9CA3AF":"#15803D",color:"#fff",border:"none",borderRadius:12,padding:"16px 0",fontWeight:800,fontSize:15,cursor:isBatch?"not-allowed":"pointer",transition:"background 150ms"}}>
-                  {isBatch?"…":"J'ai récupéré les colis"}
+                  {isBatch?"…":(toPickupOther.length>1?"J'ai récupéré les colis":"J'ai récupéré le colis")}
                 </button>
               </div>
             )}
