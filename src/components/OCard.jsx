@@ -45,7 +45,14 @@ export const OCard = ({ o, showPrendre = false }) => {
         {/* Row 2: meta */}
         <div style={{display:"flex",gap:10,fontSize:11,color:"#9CA3AF",alignItems:"center",flexWrap:"wrap"}}>
           {o.phone&&<span>📱 {o.phone}</span>}
-          {(o.address||o.city)&&<span title={fullAddr(o)} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:240}}>📍 {fullAddr(o)}</span>}
+          {(o.address||o.city)&&(()=>{
+            const city=(o.city||"").trim();
+            const addr=(o.address||"").trim();
+            const _norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+            const quartier=city&&_norm(addr).includes(_norm(city))?addr.replace(new RegExp(city,"i"),"").replace(/^[\s,·-]+|[\s,·-]+$/g,"").trim():addr;
+            const display=[city,quartier].filter(Boolean).join(" · ")||addr||city;
+            return <span title={fullAddr(o)} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:240,fontWeight:city?600:400,color:city?"#374151":"#9CA3AF"}}>📍 {display}</span>;
+          })()}
           {o.livreur&&<span style={{background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"1px 7px",fontWeight:600,fontSize:10}}>🏍️ {o.livreur}</span>}
           {o.created_at&&<span style={{marginLeft:"auto",flexShrink:0}}>{new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>}
         </div>
