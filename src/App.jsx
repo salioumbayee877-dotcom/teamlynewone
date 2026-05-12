@@ -974,10 +974,8 @@ function AppInner() {
   const pendingOrderUpdates           = useRef({});
   const dragItemRef                   = useRef(null);
   const [localOrderIds, setLocalOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_order")||"[]")}catch(e){return []}});
-  const [pinnedOrderIds, setPinnedOrderIds] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_pinned")||"[]")}catch(e){return []}});
   const [openModifId, setOpenModifId] = useState(null);
   const [waSentIds, setWaSentIds] = useState(()=>{try{return new Set(JSON.parse(localStorage.getItem("teamly_wa_sent")||"[]"))}catch(e){return new Set()}});
-  useEffect(()=>{try{localStorage.setItem("teamly_pinned",JSON.stringify(pinnedOrderIds))}catch(e){}},[pinnedOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_order",JSON.stringify(localOrderIds))}catch(e){}},[localOrderIds]);
   useEffect(()=>{try{localStorage.setItem("teamly_dismissed",JSON.stringify([...dismissedNotifs]))}catch(e){}},[dismissedNotifs]);
   useEffect(()=>{try{localStorage.setItem("teamly_wa_sent",JSON.stringify([...waSentIds]))}catch(e){}},[waSentIds]);
@@ -1022,11 +1020,46 @@ function AppInner() {
   };
 
   // ── actions ──
+  // ── Épinglage global (admin/closer) — source de vérité = orders.pinned ──
+  const pinnedOrderIds = React.useMemo(()=>orders.filter(o=>o.pinned).map(o=>o.id),[orders]);
+  const togglePin = (id) => {
+    const o = orders.find(x=>x.id===id);
+    if(!o) return;
+    const next = !o.pinned;
+    const prev = orders;
+    setOrders(arr=>arr.map(x=>x.id===id?{...x,pinned:next}:x));
+    if(!String(id).startsWith("tmp_")) {
+      sbFetch(`orders?id=eq.${id}`,"PATCH",{pinned:next}).catch(e=>{
+        console.error("togglePin error:",e);
+        setOrders(prev);
+        addToast("Épinglage non sauvegardé — vérifie ta connexion","⚠️",G.red);
+      });
+    }
+    addToast(next?`${o.client} épinglé 📌`:`${o.client} désépinglé`, next?"📌":"↺", next?"#F0A500":G.gray);
+  };
+  const unpinAll = () => {
+    const ids = orders.filter(o=>o.pinned).map(o=>o.id);
+    if(ids.length===0) return;
+    const prev = orders;
+    setOrders(arr=>arr.map(x=>x.pinned?{...x,pinned:false}:x));
+    const real = ids.filter(id=>!String(id).startsWith("tmp_"));
+    if(real.length>0) {
+      sbFetch(`orders?id=in.(${real.join(",")})`,"PATCH",{pinned:false}).catch(e=>{
+        console.error("unpinAll error:",e);
+        setOrders(prev);
+        addToast("Désépinglage non sauvegardé","⚠️",G.red);
+      });
+    }
+  };
+
   const upSt = (id,s) => {
     const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
     const prevOrders = orders;
+    // Auto-pin interurbain quand le livreur passe en "en_route" (remise transporteur en cours)
+    const target = orders.find(x=>x.id===id);
+    const autoPin = s==="en_route" && target?.region_type==="other" && !target?.pinned;
     setOrders(o=>o.map(x=>{
       if(x.id!==id) return x;
       if(s==="entregado"&&x.status!=="entregado") {
@@ -1037,14 +1070,15 @@ function AppInner() {
         setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:pr.stock+1}:pr));
         sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"rechazado",delta:+1,reason:"Retour stock — livraison annulée",order_id:x.id}).catch(()=>{});
       }
-      return {...x,status:s};
+      return {...x,status:s, ...(autoPin?{pinned:true}:{})};
     }));
     pendingOrderUpdates.current[id] = Date.now();
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
     // Save to Supabase — rollback local state if it fails
     if(!String(id).startsWith("tmp_")) {
-      sbFetch(`orders?id=eq.${id}`,"PATCH",{status:s}).catch(e=>{
+      const patch = autoPin ? {status:s, pinned:true} : {status:s};
+      sbFetch(`orders?id=eq.${id}`,"PATCH",patch).catch(e=>{
         console.error("upSt error:",e);
         setOrders(prevOrders);
         addToast("Statut non sauvegardé — vérifie ta connexion","⚠️",G.red);
@@ -3665,7 +3699,7 @@ function AppInner() {
     setClientCat, setClientDate, setClientLoading, setShowClientDetail, setShowPlanModal,
     setFraisConfigTab, setFraisMainNameEdit, setFraisEditCity, setFraisNewMain, setFraisNewOther,
     setFraisTableauSearch, setFraisTableauFilter, setFraisTestCity,
-    upSt, addToast,
+    upSt, addToast, togglePin,
   };
 
   return (
@@ -4889,7 +4923,7 @@ function AppInner() {
             )}
             {(localOrderIds.length>0||pinnedOrderIds.length>0)&&(
               <div style={{display:"flex",justifyContent:"flex-end",gap:8,marginBottom:4}}>
-                {pinnedOrderIds.length>0&&<button onClick={()=>setPinnedOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>📌 Tout désépingler</button>}
+                {pinnedOrderIds.length>0&&<button onClick={unpinAll} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>📌 Tout désépingler</button>}
                 {localOrderIds.length>0&&<button onClick={()=>setLocalOrderIds([])} style={{background:"none",border:"none",color:G.gray,fontSize:11,cursor:"pointer",padding:"4px 8px",borderRadius:6,textDecoration:"underline dotted"}}>↺ Ordre par défaut</button>}
               </div>
             )}

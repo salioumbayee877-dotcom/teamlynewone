@@ -9,8 +9,9 @@ export const OCard = ({ o, showPrendre = false }) => {
     openModifId, pinnedOrderIds, waSentIds,
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
-    upSt, addToast,
+    upSt, addToast, togglePin,
   } = useAppContext();
+  const canPin = role==="admin"||role==="closer";
 
   const showModif = openModifId === o.id;
   const setShowModif = (val) => setOpenModifId(typeof val === "function" ? (val(showModif) ? o.id : null) : (val ? o.id : null));
@@ -27,10 +28,21 @@ export const OCard = ({ o, showPrendre = false }) => {
   const inOtherFlow = isOtherFlow && (OTHER_STATUSES.has(o.status) || o.status === "entregado");
 
   return (
-    <div style={{borderRadius:12,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+    <div style={{position:"relative",borderRadius:12,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+
+      {/* ── Bouton épingle (admin/closer uniquement) ── */}
+      {canPin&&(
+        <button
+          onClick={(e)=>{e.stopPropagation(); togglePin(o.id);}}
+          title={isPinned?"Désépingler":"Épingler cette commande"}
+          aria-label={isPinned?"Désépingler":"Épingler"}
+          style={{position:"absolute",top:8,right:8,zIndex:3,background:isPinned?"#FEF3C7":"#F4F4F5",border:`1px solid ${isPinned?"#F0A500":"#E5E7EB"}`,borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>
+          <span style={{filter:isPinned?"none":"grayscale(1)",opacity:isPinned?1:0.45}}>📌</span>
+        </button>
+      )}
 
       {/* ── Corps cliquable ── */}
-      <div onClick={()=>setOrderDetail(o)} style={{padding:"11px 12px 8px",cursor:"pointer"}}>
+      <div onClick={()=>setOrderDetail(o)} style={{padding:`11px ${canPin?44:12}px 8px 12px`,cursor:"pointer"}}>
         {/* Row 1: Client + Price */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
           <div style={{minWidth:0,flex:1}}>
