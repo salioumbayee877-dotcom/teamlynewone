@@ -4647,7 +4647,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickupOther.length,5)-1?"0.5px solid #BBF7D0":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#15803D",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||"—"}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4678,7 +4678,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toConfirm.length,5)-1?"0.5px solid #EDE9FE":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#7C3AED",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>{o.city||"—"}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4709,7 +4709,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickup.length,5)-1?"0.5px solid #BAE6FD":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#0284C7",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||"—"}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
