@@ -84,10 +84,8 @@ export const OCard = ({ o, showPrendre = false }) => {
           {icon:"🚌", label:"Remis",        keys:["remis_transporteur"],  color:"#0891B2"},
           {icon:"✅", label:"Livré",        keys:["entregado"],           color:G.green},
         ];
-        // Livreur: hide en_attente_paiement + entregado (admin/closer-only steps)
-        const OFLOW = role==="livreur"
-          ? OFLOW_FULL.filter(s=>!s.keys.includes("en_attente_paiement")&&!s.keys.includes("entregado"))
-          : OFLOW_FULL;
+        // Stepper unifié pour tous les rôles : 5 pas actionnables (paiement_confirme → remis_transporteur)
+        const OFLOW = OFLOW_FULL.filter(s=>!s.keys.includes("en_attente_paiement")&&!s.keys.includes("entregado"));
         const OORDER = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur","entregado"];
         const curOrd = OORDER.indexOf(o.status);
         const isAdminOrCloser = role==="admin"||role==="closer";
