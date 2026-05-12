@@ -7287,22 +7287,26 @@ function AppInner() {
                     {/* Zone + delivery cost + payment */}
                     <div style={{background:z.prepaid?"#FFF7ED":"#F8FAFC",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${z.prepaid?"#FED7AA":"#E2E8F0"}`}}>
                       <div style={{fontSize:11,fontWeight:700,color:z.prepaid?"#92400E":G.gray,marginBottom:8,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Zone & Livraison</div>
-                      {(o.city||o.address)&&(
-                        <div style={{background:G.white,border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-                          {o.city&&(
-                            <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
-                              <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
-                              <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{o.city}</span>
-                            </div>
-                          )}
-                          {o.address&&(
-                            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                              <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Adresse du client</span>
-                              <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                      {(()=>{
+                        const cityShown=(o.city||o.deliveryZoneName||o.unmatched_city||"").trim();
+                        if(!cityShown&&!o.address) return null;
+                        return (
+                          <div style={{background:G.white,border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                            {cityShown&&(
+                              <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
+                                <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
+                                <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{cityShown}</span>
+                              </div>
+                            )}
+                            {o.address&&(
+                              <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                                <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Adresse du client</span>
+                                <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {z.prepaid&&<div style={{background:"#FEF3C7",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,fontWeight:700,color:"#92400E"}}>
                         ⚠️ PRÉPAIEMENT REQUIS — Livraison internationale {z.flag} {z.label}
                       </div>}
