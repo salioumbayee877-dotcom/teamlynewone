@@ -4603,11 +4603,15 @@ function AppInner() {
             const origMap = Object.fromEntries(batchOrds.map(o=>[o.id,o.status]));
             setLivBtnLoading("batch");
             setOrders(prev=>prev.map(o=>origMap[o.id]!==undefined?{...o,status:nextStatus}:o));
+            // Protect the optimistic update from being overwritten by realtime-triggered loadMain
+            const stampNow = Date.now();
+            batchOrds.forEach(o=>{ pendingOrderUpdates.current[o.id] = stampNow; });
             try {
               await Promise.all(batchOrds.map(o=>sbFetch(`orders?id=eq.${o.id}`,"PATCH",{status:nextStatus})));
               addToast(toastMsg,"✅",G.green);
             } catch(e) {
               setOrders(prev=>prev.map(o=>origMap[o.id]!==undefined?{...o,status:origMap[o.id]}:o));
+              batchOrds.forEach(o=>{ delete pendingOrderUpdates.current[o.id]; });
               addToast("Échec de la mise à jour, réessayez","❌",G.red);
             } finally {
               setLivBtnLoading(null);
