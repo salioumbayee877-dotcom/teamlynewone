@@ -3885,6 +3885,11 @@ function AppInner() {
             try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_email");localStorage.removeItem("teamly_org");localStorage.removeItem("teamly_role");localStorage.removeItem("teamly_userId");localStorage.removeItem("teamly_nom");}catch(e){}
             _authToken = null;
             setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setChat([]);
+            setAuthMode("login");setAuthStep("login");
+            try{
+              const url = new URL(window.location.href);
+              if(url.searchParams.has("signup")){ url.searchParams.delete("signup"); window.history.replaceState({}, "", url.pathname + (url.search?url.search:"") + url.hash); }
+            }catch(e){}
           }} style={{background:"rgba(220,38,38,0.15)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:"#FCA5A5",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
             🚪 <span>Déconnexion</span>
           </button>
@@ -7212,12 +7217,26 @@ function AppInner() {
               )}
               <div style={{marginBottom:14}}>
                 <div style={{fontWeight:800,fontSize:20,color:G.dark,marginBottom:8}}>{o.client}</div>
-                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,textDecoration:"none"}}>
+                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,textDecoration:"none"}}>
                   <span style={{fontSize:16}}>📱</span><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
                 </a>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <span style={{fontSize:16}}>📍</span><span style={{fontSize:14,color:G.dark}}>{fullAddr(o)}</span>
-                </div>
+                {(o.city||o.address)&&(
+                  <div style={{background:"#F9FAFB",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px"}}>
+                    <div style={{fontSize:10,fontWeight:700,color:G.gray,letterSpacing:0.5,textTransform:"uppercase",marginBottom:6}}>📌 Localisation client</div>
+                    {o.city&&(
+                      <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
+                        <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
+                        <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{o.city}</span>
+                      </div>
+                    )}
+                    {o.address&&(
+                      <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                        <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Quartier ou rue</span>
+                        <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               {(()=>{
                 const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
@@ -7254,10 +7273,6 @@ function AppInner() {
                       {z.prepaid&&<div style={{background:"#FEF3C7",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,fontWeight:700,color:"#92400E"}}>
                         ⚠️ PRÉPAIEMENT REQUIS — Livraison internationale {z.flag} {z.label}
                       </div>}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                        <span style={{fontSize:13,color:G.dark}}>{fullAddr(o)}</span>
-                        <span style={{background:z.color+"18",color:z.color,borderRadius:6,padding:"3px 9px",fontSize:12,fontWeight:700}}>{z.flag} {z.label}</span>
-                      </div>
                       {/* Payment method */}
                       {(()=>{
                         const pm = o.note?.match(/PM:\s*([^·\n]+)/)?.[1]?.trim();

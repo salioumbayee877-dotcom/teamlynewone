@@ -45,47 +45,51 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
             </div>
           )}
         </div>
-        {/* ── Ville du client — combo box ── */}
-        <div style={{marginBottom:9}}>
-          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
-          <CityComboBox
-            value={newOrder.city||""}
-            onCityChange={(cityName, zoneInfo)=>{
-              const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : "";
-              const OTHER = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur"];
-              const MAIN  = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"];
-              setNewOrder(p=>{
-                let ds = p.deliveryStatus;
-                if (zoneInfo.type === "other" && MAIN.includes(ds)) ds = "en_attente_paiement";
-                else if (zoneInfo.type !== "other" && OTHER.includes(ds)) ds = "confirmado";
-                return {
-                  ...p, city:cityName,
-                  deliveryZoneType: zoneInfo.type,
-                  deliveryZoneName: zoneInfo.name||"",
-                  deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
-                  deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
-                  deliveryStatus: ds,
-                };
-              });
-            }}
-            onConfig={onOpenFraisConfig ? ()=>{onClose();onOpenFraisConfig();} : null}
-            mainRegion={mainRegion} otherRegions={otherRegions}
-            defaultDeliveryPrice={defaultDeliveryPrice} G={G} fmt={fmt}
-          />
-          {newOrder.city&&(
-            <div style={{marginTop:5}}>
-              {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
-              {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
-              {zoneInfo.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {zoneInfo.name} · tarif par défaut</span>}
-              {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — frais à saisir</span>}
-            </div>
-          )}
-        </div>
+        {/* ── Localisation client (Ville + Quartier/Rue regroupés) ── */}
+        <div style={{marginBottom:9,background:"#F9FAFB",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px"}}>
+          <div style={{fontSize:10,fontWeight:700,color:G.gray,letterSpacing:0.5,textTransform:"uppercase",marginBottom:8}}>📌 Localisation client</div>
 
-        <div style={{marginBottom:9}}>
-          <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Adresse du client</div>
-          <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, rue 10"
-            style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+          <div style={{marginBottom:9}}>
+            <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
+            <CityComboBox
+              value={newOrder.city||""}
+              onCityChange={(cityName, zoneInfo)=>{
+                const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : "";
+                const OTHER = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur"];
+                const MAIN  = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"];
+                setNewOrder(p=>{
+                  let ds = p.deliveryStatus;
+                  if (zoneInfo.type === "other" && MAIN.includes(ds)) ds = "en_attente_paiement";
+                  else if (zoneInfo.type !== "other" && OTHER.includes(ds)) ds = "confirmado";
+                  return {
+                    ...p, city:cityName,
+                    deliveryZoneType: zoneInfo.type,
+                    deliveryZoneName: zoneInfo.name||"",
+                    deliveryFee: p.deliveryFeeOverridden ? p.deliveryFee : autoFee,
+                    deliveryFeeOverridden: zoneInfo.type!=="unknown" ? false : p.deliveryFeeOverridden,
+                    deliveryStatus: ds,
+                  };
+                });
+              }}
+              onConfig={onOpenFraisConfig ? ()=>{onClose();onOpenFraisConfig();} : null}
+              mainRegion={mainRegion} otherRegions={otherRegions}
+              defaultDeliveryPrice={defaultDeliveryPrice} G={G} fmt={fmt}
+            />
+            {newOrder.city&&(
+              <div style={{marginTop:5}}>
+                {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
+                {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
+                {zoneInfo.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {zoneInfo.name} · tarif par défaut</span>}
+                {zoneInfo.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue — frais à saisir</span>}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📍 Quartier ou rue</div>
+            <input type="text" value={newOrder.address||""} onChange={e=>setNewOrder(p=>({...p,address:e.target.value}))} placeholder="Médina, rue 10"
+              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",background:G.white}}/>
+          </div>
         </div>
 
         {/* ── Frais de livraison (auto-rempli, modifiable) ── */}
