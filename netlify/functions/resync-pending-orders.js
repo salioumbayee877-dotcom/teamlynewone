@@ -64,6 +64,9 @@ exports.handler = async (event) => {
         const patch = {
           sync_status: "synced",
           frais_liv:   meta.frais_liv,
+          city:        o.unmatched_city || null,
+          delivery_zone_name: result.zone?.name || null,
+          delivery_zone_type: regionType,
           unmatched_city:   null,
           unmatched_region: null,
           region_type:  regionType,

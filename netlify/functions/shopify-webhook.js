@@ -137,6 +137,9 @@ exports.handler = async (event) => {
       headers: { ...sbHeaders, Prefer: "return=representation" },
       body: JSON.stringify({
         org_id: orgId, client: clientName, phone, address,
+        city: city || null,
+        delivery_zone_name: matchedZone?.name || null,
+        delivery_zone_type: regionType,
         product: finalProduct, price,
         status: regionType === "other" ? "en_attente_paiement" : "boutique",
         note, archived: false,
