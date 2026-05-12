@@ -57,8 +57,8 @@ export const OCard = ({ o, showPrendre = false }) => {
         {/* Row 2: meta */}
         <div style={{display:"flex",gap:10,fontSize:11,color:"#9CA3AF",alignItems:"center",flexWrap:"wrap"}}>
           {o.phone&&<span>📱 {o.phone}</span>}
-          {(o.address||o.city)&&(()=>{
-            const city=(o.city||"").trim();
+          {(o.address||o.city||o.deliveryZoneName||o.unmatched_city)&&(()=>{
+            const city=(o.city||o.deliveryZoneName||o.unmatched_city||"").trim();
             const addr=(o.address||"").trim();
             const _norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
             const quartier=city&&_norm(addr).includes(_norm(city))?addr.replace(new RegExp(city,"i"),"").replace(/^[\s,·-]+|[\s,·-]+$/g,"").trim():addr;
