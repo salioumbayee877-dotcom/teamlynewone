@@ -7254,23 +7254,6 @@ function AppInner() {
                 <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,textDecoration:"none"}}>
                   <span style={{fontSize:16}}>📱</span><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
                 </a>
-                {(o.city||o.address)&&(
-                  <div style={{background:"#F9FAFB",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px"}}>
-                    <div style={{fontSize:10,fontWeight:700,color:G.gray,letterSpacing:0.5,textTransform:"uppercase",marginBottom:6}}>📌 Localisation client</div>
-                    {o.city&&(
-                      <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
-                        <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
-                        <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{o.city}</span>
-                      </div>
-                    )}
-                    {o.address&&(
-                      <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                        <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Quartier ou rue</span>
-                        <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
               {(()=>{
                 const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
@@ -7304,6 +7287,22 @@ function AppInner() {
                     {/* Zone + delivery cost + payment */}
                     <div style={{background:z.prepaid?"#FFF7ED":"#F8FAFC",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${z.prepaid?"#FED7AA":"#E2E8F0"}`}}>
                       <div style={{fontSize:11,fontWeight:700,color:z.prepaid?"#92400E":G.gray,marginBottom:8,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Zone & Livraison</div>
+                      {(o.city||o.address)&&(
+                        <div style={{background:G.white,border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                          {o.city&&(
+                            <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
+                              <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
+                              <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{o.city}</span>
+                            </div>
+                          )}
+                          {o.address&&(
+                            <div style={{display:"flex",alignItems:"baseline",gap:6}}>
+                              <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Adresse du client</span>
+                              <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       {z.prepaid&&<div style={{background:"#FEF3C7",borderRadius:8,padding:"6px 10px",marginBottom:10,fontSize:11,fontWeight:700,color:"#92400E"}}>
                         ⚠️ PRÉPAIEMENT REQUIS — Livraison internationale {z.flag} {z.label}
                       </div>}
