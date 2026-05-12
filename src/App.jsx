@@ -2224,7 +2224,7 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||null,delivery_zone_name:order.deliveryZoneName||null,delivery_zone_type:order.deliveryZoneType||null,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) {
@@ -6986,6 +6986,7 @@ function AppInner() {
                   try {
                     await sbFetch(`orders?id=eq.${id}`,"PATCH",{
                       client:updated.client,phone:updated.phone,address:updated.address,
+                      city:updated.city||null,delivery_zone_name:updated.deliveryZoneName||null,delivery_zone_type:updated.deliveryZoneType||null,
                       product:updated.product,price:updated.price,frais_liv:_fl||null,
                       status:updated.status,livreur:updated.livreur||null,note:updated.note||""
                     });
