@@ -178,7 +178,7 @@ const signInWithGoogle = async () => {
 
 const G = {
   green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
-  gold:"#D97706",dark:"#1A1A1A",gray:"#6B7280",
+  gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
   grayLight:"#F4F4F4",white:"#FFFFFF",red:"#DC2626",blue:"#2563EB",
 };
 
@@ -331,7 +331,7 @@ const NavIcon = ({name, size=20, color="#fff"}) => {
 };
 
 const STATUS = {
-  pendiente:           {label:"En attente",              color:"#D97706",bg:"#FFF8E7"},
+  pendiente:           {label:"En attente",              color:"#F0A500",bg:"#FFF8E7"},
   confirmado:          {label:"Client confirmé",         color:"#2E8B57",bg:"#E8F5EE"},
   livreur_en_route:    {label:"Livreur en route",        color:"#7C3AED",bg:"#EDE9FE"},
   colis_pris:          {label:"Colis en main",           color:"#2563EB",bg:"#DBEAFE"},
@@ -343,7 +343,7 @@ const STATUS = {
   reprogramar:         {label:"Reporter",                color:"#7C3AED",bg:"#EDE9FE"},
   boutique:            {label:"Boutique Shopify",        color:"#96BF48",bg:"#F0F7E6"},
   // ── Régions hors zone principale (prépayé) ──
-  en_attente_paiement: {label:"En attente de paiement",  color:"#D97706",bg:"#FFF8E7"},
+  en_attente_paiement: {label:"En attente de paiement",  color:"#F0A500",bg:"#FFF8E7"},
   paiement_confirme:   {label:"Paiement confirmé",       color:"#2E8B57",bg:"#E8F5EE"},
   colis_en_main:       {label:"Colis en main",           color:"#2563EB",bg:"#DBEAFE"},
   en_route:            {label:"En route",                color:"#7C3AED",bg:"#EDE9FE"},
