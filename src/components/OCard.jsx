@@ -28,7 +28,7 @@ export const OCard = ({ o, showPrendre = false }) => {
   const inOtherFlow = isOtherFlow && (OTHER_STATUSES.has(o.status) || o.status === "entregado");
 
   return (
-    <div style={{position:"relative",borderRadius:12,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+    <div style={{position:"relative",borderRadius:10,background:"#fff",border:`1px solid #E9ECEF`,borderLeft:`3px solid ${st.color}`,marginBottom:8,overflow:"hidden",boxShadow:"0 1px 3px rgba(0,0,0,0.05)"}}>
 
       {/* ── Bouton épingle (admin/closer uniquement) ── */}
       {canPin&&(
