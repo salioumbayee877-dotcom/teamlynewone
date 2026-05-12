@@ -2762,8 +2762,24 @@ function AppInner() {
         const tok=data.access_token; _authToken=tok; setSbToken(tok);
         // Generate org UUID client-side so we don't need to read it back
         const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
-        await sbFetch("organizations","POST",{id:newOrgId,name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""});
-        await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:derivedNom,phone:authForm.phone||"",email:authForm.email,role:"admin"});
+        try {
+          await sbFetch("organizations","POST",{id:newOrgId,name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""});
+          await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:derivedNom,phone:authForm.phone||"",email:authForm.email,role:"admin"});
+        } catch(insertErr) {
+          // RLS rejected the INSERT — the user's Supabase likely requires email confirmation
+          // before granting full auth. Persist pending data and route to verify-email screen.
+          let code=""; try { code = JSON.parse(insertErr.message)?.code || ""; } catch(_){}
+          if(code==="42501" || /row-level security|row level security/i.test(insertErr.message||"")) {
+            try { localStorage.setItem("teamly_pending_signup", JSON.stringify({
+              userId: data.user?.id, email: authForm.email, nom: derivedNom,
+              phone: authForm.phone, boutique: authForm.boutique, orgId: newOrgId,
+            })); } catch(e){}
+            _authToken = null; setSbToken(null);
+            setAuthStep("verify-email");
+            return;
+          }
+          throw insertErr;
+        }
         // Set REAL UUID - critical for invite links
         setOrgId(newOrgId);
         setSbReady(true);
