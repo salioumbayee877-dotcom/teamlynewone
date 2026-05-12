@@ -55,7 +55,7 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
               value={newOrder.city||""}
               onCityChange={(cityName, zoneInfo)=>{
                 const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : "";
-                const OTHER = ["en_attente_paiement","paiement_confirme","remis_transporteur"];
+                const OTHER = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur"];
                 const MAIN  = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"];
                 setNewOrder(p=>{
                   let ds = p.deliveryStatus;
@@ -185,7 +185,9 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
               <>
                 <option value="en_attente_paiement">⏳ En attente de paiement</option>
                 <option value="paiement_confirme">✅ Paiement confirmé</option>
-                <option value="remis_transporteur">🚌 Remis au transporteur</option>
+                <option value="livreur_en_route">🏍️ Livreur en route</option>
+                <option value="colis_en_main">📦 Colis en main</option>
+                <option value="remis_transporteur">🚌 Vers le transporteur</option>
                 <option value="entregado">✅ Livré</option>
               </>
             ):(

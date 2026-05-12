@@ -24,7 +24,7 @@ export const OCard = ({ o, showPrendre = false }) => {
 
   // ── Flux régions hors zone principale (prépayé) ─────────────────────────
   const isOtherFlow = o.region_type === "other";
-  const OTHER_STATUSES = new Set(["en_attente_paiement","paiement_confirme","remis_transporteur"]);
+  const OTHER_STATUSES = new Set(["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur"]);
   const inOtherFlow = isOtherFlow && (OTHER_STATUSES.has(o.status) || o.status === "entregado");
 
   return (
@@ -78,10 +78,12 @@ export const OCard = ({ o, showPrendre = false }) => {
         const OFLOW = [
           {icon:"⏳", label:"Paiement",     keys:["en_attente_paiement"], color:"#F0A500"},
           {icon:"✅", label:"Confirmé",     keys:["paiement_confirme"],   color:"#2E8B57"},
+          {icon:"🏍️", label:"Livreur",      keys:["livreur_en_route"],    color:"#7C3AED"},
+          {icon:"📦", label:"Colis",        keys:["colis_en_main"],       color:"#2563EB"},
           {icon:"🚌", label:"Transporteur", keys:["remis_transporteur"],  color:"#0891B2"},
           {icon:"✅", label:"Livré",        keys:["entregado"],           color:G.green},
         ];
-        const OORDER = ["en_attente_paiement","paiement_confirme","remis_transporteur","entregado"];
+        const OORDER = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","remis_transporteur","entregado"];
         const curOrd = OORDER.indexOf(o.status);
         const isAdminOrCloser = role==="admin"||role==="closer";
         return (
@@ -131,6 +133,18 @@ export const OCard = ({ o, showPrendre = false }) => {
               </div>
             )}
             {role==="livreur" && o.status==="paiement_confirme" && (
+              <button onClick={()=>upSt(o.id,"livreur_en_route")}
+                style={{width:"100%",background:"#7C3AED",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:20}}>🏍️</span> Je pars récupérer
+              </button>
+            )}
+            {role==="livreur" && o.status==="livreur_en_route" && (
+              <button onClick={()=>upSt(o.id,"colis_en_main")}
+                style={{width:"100%",background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                <span style={{fontSize:20}}>📦</span> Colis en main
+              </button>
+            )}
+            {role==="livreur" && o.status==="colis_en_main" && (
               <button onClick={()=>upSt(o.id,"remis_transporteur")}
                 style={{width:"100%",background:"#0891B2",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
                 <span style={{fontSize:20}}>🚌</span> Remis au transporteur
@@ -171,6 +185,8 @@ export const OCard = ({ o, showPrendre = false }) => {
                     <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                       {[
                         {s:"paiement_confirme",  ico:"✅", l:"Paiement confirmé"},
+                        {s:"livreur_en_route",   ico:"🏍️", l:"Livreur en route"},
+                        {s:"colis_en_main",      ico:"📦", l:"Colis en main"},
                         {s:"remis_transporteur", ico:"🚌", l:"Remis au transporteur"},
                       ].map(({s,ico,l})=>(
                         <button key={s} onClick={()=>{ upSt(o.id,s); setOpenModifId(null); }}
