@@ -516,18 +516,24 @@ function makeMarkerIcon(L, name, city="") {
   });
 }
 
+// Forward geocode cache — addresses rarely change so we keep them indefinitely.
+const _geoFwdCache = new Map();
 async function geocodeAddress(address) {
   if(!address) return null;
+  const key = address.trim().toLowerCase();
+  if(_geoFwdCache.has(key)) return _geoFwdCache.get(key);
   try {
     const q = encodeURIComponent(address.trim()+", Sénégal");
     const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1&accept-language=fr`);
+    if(!r.ok) { _geoFwdCache.set(key, null); return null; }
     const d = await r.json();
-    if(d&&d.length>0) return {lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)};
-  } catch(e) {}
-  return null;
+    const res = (d&&d.length>0) ? {lat:parseFloat(d[0].lat),lng:parseFloat(d[0].lon)} : null;
+    _geoFwdCache.set(key, res);
+    return res;
+  } catch(e) { _geoFwdCache.set(key, null); return null; }
 }
 
-// Reverse-geocode helper with cache + min interval to respect Nominatim 1 req/s + avoid 429s.
+// Reverse-geocode helper with cache (incl. negatives) + min interval to respect Nominatim 1 req/s.
 // Cache key = coords rounded to 3 decimals (~100m). Min 6s between live calls.
 const _revGeoCache = new Map();
 let _revGeoLastTs = 0;
@@ -540,12 +546,12 @@ async function reverseGeocode(lat, lng) {
   _revGeoLastTs = now;
   try {
     const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`);
-    if(!r.ok) return "";
+    if(!r.ok) { _revGeoCache.set(key, ""); return ""; }
     const gd = await r.json();
     const city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
     _revGeoCache.set(key, city);
     return city;
-  } catch(e) { return ""; }
+  } catch(e) { _revGeoCache.set(key, ""); return ""; }
 }
 
 function MapView({positions, role, isDesktop=false, destination=null, livreurPos=null}) {
