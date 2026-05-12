@@ -354,7 +354,7 @@ const STATUS = {
 const LIV_ACTIVE = new Set([
   "confirmado","livreur_en_route","colis_pris","en_camino","chez_client","no_contesta","reprogramar",
   // Flux régions hors zone principale (visibles livreur dès paiement_confirme)
-  "paiement_confirme","colis_en_main","en_route",
+  "paiement_confirme",
 ]);
 const LIV_FINAL  = new Set(["entregado","rechazado","remis_transporteur"]);
 
@@ -2527,7 +2527,7 @@ function AppInner() {
   // ── Comptabilité filtrée par plage de dates + filtres avancés ──
   // Statuses interurbain/en-cours qui ne doivent pas apparaître en Compta tant que la commande n'est pas livrée
   const COMPTA_EXCLUDED_STATUS = new Set([
-    "en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur",
+    "en_attente_paiement","paiement_confirme","remis_transporteur",
   ]);
   const comptaOrders = (()=>{
     const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
@@ -3646,7 +3646,7 @@ function AppInner() {
     if(role==="livreur") {
       // Pedidos hors zone principale: visibles de paiement_confirme à remis_transporteur (livreur garde la trace)
       if(o.region_type==="other") {
-        const VISIBLE_OTHER = new Set(["paiement_confirme","colis_en_main","en_route","remis_transporteur"]);
+        const VISIBLE_OTHER = new Set(["paiement_confirme","remis_transporteur"]);
         if(!VISIBLE_OTHER.has(o.status)) return false;
       }
       const hasResult  = livResultFilter.length>0;
@@ -4651,7 +4651,7 @@ function AppInner() {
                   {toPickupOther.length>5&&<div style={{fontSize:11,color:"#15803D",marginTop:5,fontWeight:600}}>+{toPickupOther.length-5} autres colis…</div>}
                 </div>
                 <button disabled={isBatch}
-                  onClick={()=>batchAdvance(toPickupOther,"colis_en_main","Colis récupérés — prêts pour le transporteur 📦")}
+                  onClick={()=>batchAdvance(toPickupOther,"remis_transporteur","Colis remis au transporteur 🚌")}
                   style={{width:"100%",background:isBatch?"#9CA3AF":"#15803D",color:"#fff",border:"none",borderRadius:12,padding:"16px 0",fontWeight:800,fontSize:15,cursor:isBatch?"not-allowed":"pointer",transition:"background 150ms"}}>
                   {isBatch?"…":(toPickupOther.length>1?"J'ai récupéré les colis":"J'ai récupéré le colis")}
                 </button>
@@ -6942,7 +6942,7 @@ function AppInner() {
               <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                 {(()=>{
-                  const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","colis_en_main","en_route","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
+                  const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
                   const MAIN_KEYS  = ["pendiente","confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado","rechazado","no_contesta","reprogramar","boutique"];
                   const keys = editOrder.region_type==="other" ? OTHER_KEYS : MAIN_KEYS;
                   return keys.filter(k=>STATUS[k]).map(k=>{
@@ -7178,8 +7178,6 @@ function AppInner() {
         const PSTEPS_OTHER=[
           {key:"en_attente_paiement",label:"En attente de paiement", sub:"En attente du virement client",  icon:"⏳", color:"#F0A500"},
           {key:"paiement_confirme",  label:"Paiement confirmé",       sub:"Virement reçu",                  icon:"✅", color:"#2E8B57"},
-          {key:"colis_en_main",      label:"Colis en main",           sub:"Livreur a récupéré le colis",    icon:"📦", color:"#2563EB"},
-          {key:"en_route",           label:"En route",                sub:"En route vers le transporteur",  icon:"🏍️", color:"#7C3AED"},
           {key:"remis_transporteur", label:"Remis au transporteur",   sub:"Colis confié au transporteur",   icon:"🚌", color:"#0891B2"},
           {key:"entregado",          label:"Livré",                   sub:"Client a reçu le colis ✓",       icon:"✅", color:"#1A5C38"},
         ];
