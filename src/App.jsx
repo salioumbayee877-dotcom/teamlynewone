@@ -1021,15 +1021,17 @@ function AppInner() {
 
   // ── actions ──
   // ── Épinglage global (admin/closer) — source de vérité = orders.pinned ──
-  const pinnedOrderIds = React.useMemo(()=>orders.filter(o=>o.pinned).map(o=>o.id),[orders]);
+  // Tri par pinned_at DESC : la commande épinglée le plus récemment apparaît en premier
+  const pinnedOrderIds = React.useMemo(()=>orders.filter(o=>o.pinned).sort((a,b)=>new Date(b.pinned_at||0)-new Date(a.pinned_at||0)).map(o=>o.id),[orders]);
   const togglePin = (id) => {
     const o = orders.find(x=>x.id===id);
     if(!o) return;
     const next = !o.pinned;
+    const nextAt = next ? new Date().toISOString() : null;
     const prev = orders;
-    setOrders(arr=>arr.map(x=>x.id===id?{...x,pinned:next}:x));
+    setOrders(arr=>arr.map(x=>x.id===id?{...x,pinned:next,pinned_at:nextAt}:x));
     if(!String(id).startsWith("tmp_")) {
-      sbFetch(`orders?id=eq.${id}`,"PATCH",{pinned:next}).catch(e=>{
+      sbFetch(`orders?id=eq.${id}`,"PATCH",{pinned:next,pinned_at:nextAt}).catch(e=>{
         console.error("togglePin error:",e);
         setOrders(prev);
         addToast("Épinglage non sauvegardé — vérifie ta connexion","⚠️",G.red);
@@ -1041,10 +1043,10 @@ function AppInner() {
     const ids = orders.filter(o=>o.pinned).map(o=>o.id);
     if(ids.length===0) return;
     const prev = orders;
-    setOrders(arr=>arr.map(x=>x.pinned?{...x,pinned:false}:x));
+    setOrders(arr=>arr.map(x=>x.pinned?{...x,pinned:false,pinned_at:null}:x));
     const real = ids.filter(id=>!String(id).startsWith("tmp_"));
     if(real.length>0) {
-      sbFetch(`orders?id=in.(${real.join(",")})`,"PATCH",{pinned:false}).catch(e=>{
+      sbFetch(`orders?id=in.(${real.join(",")})`,"PATCH",{pinned:false,pinned_at:null}).catch(e=>{
         console.error("unpinAll error:",e);
         setOrders(prev);
         addToast("Désépinglage non sauvegardé","⚠️",G.red);
@@ -1057,9 +1059,10 @@ function AppInner() {
     const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
     const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
     const prevOrders = orders;
-    // Auto-pin interurbain quand le livreur passe en "en_route" (remise transporteur en cours)
+    // Auto-pin interurbain quand le livreur passe en "livreur_en_route" (départ pour récupérer le colis)
     const target = orders.find(x=>x.id===id);
-    const autoPin = s==="en_route" && target?.region_type==="other" && !target?.pinned;
+    const autoPin = s==="livreur_en_route" && target?.region_type==="other" && !target?.pinned;
+    const autoPinAt = autoPin ? new Date().toISOString() : null;
     setOrders(o=>o.map(x=>{
       if(x.id!==id) return x;
       if(s==="entregado"&&x.status!=="entregado") {
@@ -1070,14 +1073,14 @@ function AppInner() {
         setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:pr.stock+1}:pr));
         sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"rechazado",delta:+1,reason:"Retour stock — livraison annulée",order_id:x.id}).catch(()=>{});
       }
-      return {...x,status:s, ...(autoPin?{pinned:true}:{})};
+      return {...x,status:s, ...(autoPin?{pinned:true,pinned_at:autoPinAt}:{})};
     }));
     pendingOrderUpdates.current[id] = Date.now();
     const order = orders.find(x=>x.id===id);
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
     // Save to Supabase — rollback local state if it fails
     if(!String(id).startsWith("tmp_")) {
-      const patch = autoPin ? {status:s, pinned:true} : {status:s};
+      const patch = autoPin ? {status:s, pinned:true, pinned_at:autoPinAt} : {status:s};
       sbFetch(`orders?id=eq.${id}`,"PATCH",patch).catch(e=>{
         console.error("upSt error:",e);
         setOrders(prevOrders);
