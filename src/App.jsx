@@ -3937,6 +3937,11 @@ function AppInner() {
 
         {/* Bottom actions */}
         <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",gap:6}}>
+          {!trialExpired&&canUseAI&&(
+            <button onClick={()=>{setAiOpen(true);setSidebarOpen(false);}} style={{background:"linear-gradient(135deg,rgba(26,92,56,0.6),rgba(13,148,136,0.6))",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:600}}>
+              🧑‍💼 <span>Support Teamly</span>
+            </button>
+          )}
           <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
             ⚙️ <span>Paramètres</span>
           </button>
@@ -7783,16 +7788,7 @@ function AppInner() {
       })()}
 
       {/* ── AI ASSISTANT ── */}
-      {/* Floating button */}
-      {!aiOpen&&!trialExpired&&canUseAI&&(
-        <button onClick={()=>setAiOpen(true)} style={{
-          position:"fixed",bottom:isDesktop?28:tab==="chat"?210:180,right:18,zIndex:8000,
-          width:52,height:52,borderRadius:"50%",border:"none",cursor:"pointer",
-          background:"linear-gradient(135deg,#1A5C38,#0D9488)",
-          boxShadow:"0 4px 16px rgba(0,0,0,0.25)",
-          display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,
-        }}>🧑‍💼</button>
-      )}
+      {/* Floating button removed — Support Teamly only accessible from the sidebar */}
 
       {/* Chat panel */}
       {aiOpen&&(
