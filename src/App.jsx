@@ -527,6 +527,27 @@ async function geocodeAddress(address) {
   return null;
 }
 
+// Reverse-geocode helper with cache + min interval to respect Nominatim 1 req/s + avoid 429s.
+// Cache key = coords rounded to 3 decimals (~100m). Min 6s between live calls.
+const _revGeoCache = new Map();
+let _revGeoLastTs = 0;
+async function reverseGeocode(lat, lng) {
+  if(typeof lat!=="number"||typeof lng!=="number") return "";
+  const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  if(_revGeoCache.has(key)) return _revGeoCache.get(key);
+  const now = Date.now();
+  if(now - _revGeoLastTs < 6000) return "";
+  _revGeoLastTs = now;
+  try {
+    const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`);
+    if(!r.ok) return "";
+    const gd = await r.json();
+    const city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
+    _revGeoCache.set(key, city);
+    return city;
+  } catch(e) { return ""; }
+}
+
 function MapView({positions, role, isDesktop=false, destination=null, livreurPos=null}) {
   const containerRef   = useRef(null);
   const stateRef       = useRef({map:null, markers:{}, loaded:false});
@@ -1234,12 +1255,7 @@ function AppInner() {
           async pos => {
             const {latitude:lat,longitude:lng,accuracy} = pos.coords;
             setGpsPos({lat,lng,accuracy:Math.round(accuracy)});
-            let city = "";
-            try {
-              const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-              const gd  = await geo.json();
-              city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
-            } catch(e){}
+            const city = await reverseGeocode(lat,lng);
             const uid = currentUserRef.current?.id;
             const nom = currentUserRef.current?.nom;
             if(uid) sbFetch(`profiles?id=eq.${uid}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
@@ -5153,12 +5169,7 @@ function AppInner() {
               navigator.geolocation.getCurrentPosition(
                 async(pos)=>{
                   const lat=pos.coords.latitude, lng=pos.coords.longitude;
-                  let city="";
-                  try {
-                    const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-                    const gd  = await geo.json();
-                    city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||"";
-                  } catch(e){}
+                  const city = await reverseGeocode(lat,lng);
                   setGpsPos({lat,lng,accuracy:Math.round(pos.coords.accuracy||0)});
                   setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
                   // Sauvegarder dans Supabase pour que l'Admin voie la position
@@ -5220,13 +5231,7 @@ function AppInner() {
                       async pos => {
                         const {latitude:lat,longitude:lng,accuracy} = pos.coords;
                         setGpsPos({lat,lng,accuracy:Math.round(accuracy)});
-                        // Reverse geocoding — ciudad real
-                        let city = "";
-                        try {
-                          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
-                          const gd  = await geo.json();
-                          city = gd.address?.city||gd.address?.town||gd.address?.village||gd.address?.county||gd.address?.state||"";
-                        } catch(e){}
+                        const city = await reverseGeocode(lat,lng);
                         // Guardar en Supabase con el token de l'utilisateur
                         sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{lat,lng,city},_authToken).catch(()=>{});
                         setLivreurPositions(p=>({...p,[currentUser.nom]:{lat,lng,name:currentUser.nom,city,order:"En livraison"}}));
