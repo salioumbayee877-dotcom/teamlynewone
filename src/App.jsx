@@ -5678,12 +5678,16 @@ function AppInner() {
           const ROLE_COLOR = {admin:G.gold, closer:"#7C3AED", livreur:"#0284C7"};
 
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
+          // Banners between header and content also consume vertical space — subtract them
+          const showTrialBanner = !isPro && !trialExpired && trialDaysLeft<=3;
+          const showEmailBanner = currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed;
+          const bannersH = (showTrialBanner?32:0) + (showEmailBanner?38:0);
           // When keyboard is open, the bottom tab bar is hidden behind it — don't reserve space for it.
           const chatH = isDesktop
-            ? "calc(100vh - 54px)"
+            ? `calc(100vh - 54px - ${bannersH}px)`
             : keyboardH>0
-              ? `calc(100dvh - 58px - env(safe-area-inset-top, 0px) - ${keyboardH}px)`
-              : "calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px))";
+              ? `calc(100dvh - 58px - env(safe-area-inset-top, 0px) - ${keyboardH}px - ${bannersH}px)`
+              : `calc(100dvh - 58px - env(safe-area-inset-top, 0px) - 54px - env(safe-area-inset-bottom, 0px) - ${bannersH}px)`;
           const chatMargin = isDesktop ? "-24px -24px -24px" : "-14px -14px 0px";
 
           return (
