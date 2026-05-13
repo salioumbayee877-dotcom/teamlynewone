@@ -381,7 +381,7 @@ export const ComptaPage = () => {
           <div>
             <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>SAISIES DU JOUR</div>
             <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"hidden"}}>
-              {comptaCalcProd.map(({prod},idx)=>{
+              {comptaCalcProd.map(({prod,nLiv,nRej},idx)=>{
                 const notConfigured = !prod.cost||prod.cost===0;
                 return (
                 <div key={prod.id} style={{borderBottom:idx<comptaCalcProd.length-1?"1px solid #E5E7EB":"none"}}>
@@ -399,8 +399,14 @@ export const ComptaPage = () => {
                       </button>
                     </div>
                   ) : (
-                    <div style={{padding:"9px 14px 6px",background:"#F9FAFB",borderBottom:"0.5px solid #F3F4F6"}}>
-                      <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                    <div style={{padding:"9px 14px 7px",background:"#F9FAFB",borderBottom:"0.5px solid #F3F4F6",display:"flex",alignItems:"center",gap:8}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                      </div>
+                      <div style={{display:"flex",gap:6,flexShrink:0}}>
+                        <span style={{background:"#F0FDF4",color:"#166534",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600}}>✅ {nLiv}</span>
+                        <span style={{background:"#FEF2F2",color:"#991B1B",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600}}>❌ {nRej}</span>
+                      </div>
                     </div>
                   )}
                   {/* Pub input */}
