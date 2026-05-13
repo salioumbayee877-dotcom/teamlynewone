@@ -173,19 +173,18 @@ exports.handler = async (event) => {
     if (!messages || !Array.isArray(messages))
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Messages invalides" }) };
 
-    const res = await fetch("https://api.deepseek.com/chat/completions", {
+    const res = await fetch("https://api.deepseek.com/anthropic/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
+        "x-api-key": DEEPSEEK_API_KEY,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: "deepseek-chat",
         max_tokens: 1024,
-        messages: [
-          { role: "system", content: SYSTEM },
-          ...messages.slice(-10),
-        ],
+        system: SYSTEM,
+        messages: messages.slice(-10),
       }),
     });
 
@@ -196,7 +195,7 @@ exports.handler = async (event) => {
     }
 
     const data = await res.json();
-    const reply = data.choices?.[0]?.message?.content || "";
+    const reply = data.content?.[0]?.text || "";
     return { statusCode: 200, headers, body: JSON.stringify({ reply }) };
   } catch (e) {
     console.error("AI chat error:", e.message);
