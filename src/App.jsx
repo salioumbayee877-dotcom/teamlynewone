@@ -5166,7 +5166,7 @@ function AppInner() {
 
             {/* Liste livreurs avec leurs livraisons actives */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Bike size={14}/> LIVREURS</div>
               {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
                 const name=m.nom;
                 const active = orders.filter(o=>o.livreur_id===m.id&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status));
@@ -5175,7 +5175,7 @@ function AppInner() {
                 return (
                   <div key={i} style={{padding:"10px 0",borderBottom:i<livreurs.length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:active.length>0?6:0}}>
-                      <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🏍️ {name}</div>
+                      <div style={{fontWeight:700,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Bike size={13}/> {name}</div>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
                         {pos?<div style={{width:8,height:8,borderRadius:"50%",background:G.green,boxShadow:"0 0 0 3px #BBF7D0"}}/>:<div style={{width:8,height:8,borderRadius:"50%",background:"#D1D5DB"}}/>}
                         <span style={{fontSize:11,fontWeight:600,color:pos?G.green:G.gray}}>{pos?`GPS actif${pos.city?" · "+pos.city:""}` :"Hors ligne"}</span>
@@ -5222,12 +5222,12 @@ function AppInner() {
                 {enableHighAccuracy:true,timeout:10000,maximumAge:0}
               );
             }} style={{background:"#0284C7",color:G.white,border:"none",borderRadius:14,padding:"16px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
-              📍 Partager ma position maintenant
+<MapPin size={16}/> Partager ma position maintenant
             </button>
 
             {/* Explication GPS */}
             <div style={{background:"#EFF6FF",borderRadius:12,padding:"12px 14px",border:"1px solid #BFDBFE",fontSize:11,color:"#1D4ED8"}}>
-              <div style={{fontWeight:700,marginBottom:4}}>📱 Comment ça fonctionne</div>
+              <div style={{fontWeight:700,marginBottom:4,display:"flex",alignItems:"center",gap:5}}><Smartphone size={13}/> Comment ça fonctionne</div>
               <div style={{lineHeight:1.6}}>
                 1. Sur votre <strong>téléphone</strong>, appuyez sur "Démarrer le GPS"<br/>
                 2. Autorisez la localisation quand le navigateur demande<br/>
@@ -5238,22 +5238,22 @@ function AppInner() {
 
             {/* Bouton GPS */}
             <div style={{background:G.white,borderRadius:14,padding:20,textAlign:"center"}}>
-              <div style={{fontSize:44,marginBottom:10}}>{gpsActive?"📡":"📍"}</div>
-              <div style={{fontWeight:700,fontSize:16,color:G.dark,marginBottom:6}}>
-                {gpsActive?"GPS Actif ✅":"GPS Inactif"}
+              <div style={{marginBottom:10,display:"flex",justifyContent:"center"}}>{gpsActive?<Wifi size={44} color={G.green}/>:<MapPin size={44} color={G.gray}/>}</div>
+              <div style={{fontWeight:700,fontSize:16,color:G.dark,marginBottom:6,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                {gpsActive?<>GPS Actif <Check size={16} color={G.green}/></>:"GPS Inactif"}
               </div>
               <div style={{fontSize:12,color:G.gray,marginBottom:16,lineHeight:1.5}}>
                 {gpsActive?"L'Admin peut voir ta position en temps réel":"Active le GPS pendant tes livraisons"}
               </div>
               {gpsError&&(
                 <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",marginBottom:12,fontSize:11,color:G.red,textAlign:"left"}}>
-                  ⚠️ {gpsError}
+<AlertTriangle size={13} style={{display:"inline",verticalAlign:"-2px"}}/> {gpsError}
                 </div>
               )}
               {gpsPos&&(
                 <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:12,color:G.green,fontWeight:600,textAlign:"left"}}>
-                  📍 {livreurPositions[currentUser.nom]?.city||`${gpsPos.lat.toFixed(4)}°, ${gpsPos.lng.toFixed(4)}°`}
-                  <div style={{fontSize:10,color:"#4B7A5A",fontWeight:400,marginTop:2}}>Précision ±{gpsPos.accuracy}m · Partagé avec l'Admin ✅</div>
+<span style={{display:"inline-flex",alignItems:"center",gap:5}}><MapPin size={13}/> {livreurPositions[currentUser.nom]?.city||`${gpsPos.lat.toFixed(4)}°, ${gpsPos.lng.toFixed(4)}°`}</span>
+                  <div style={{fontSize:10,color:"#4B7A5A",fontWeight:400,marginTop:2,display:"flex",alignItems:"center",gap:4}}>Précision ±{gpsPos.accuracy}m · Partagé avec l'Admin <Check size={10}/></div>
                 </div>
               )}
               <button onClick={()=>{
@@ -5293,7 +5293,7 @@ function AppInner() {
             {/* Carte position livreur — position uniquement, pas de route ni destination */}
             {gpsPos&&(
               <div style={{background:G.white,borderRadius:14,overflow:"hidden"}}>
-                <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green}}>📍 Équipe en temps réel</div>
+                <div style={{padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,fontWeight:700,fontSize:13,color:G.green,display:"flex",alignItems:"center",gap:6}}><MapPin size={14}/> Équipe en temps réel</div>
                 <MapView positions={{
                   ...Object.fromEntries(Object.entries(livreurPositions).filter(([k,v])=>v?.lat&&teamMembers.some(m=>m.role==="livreur"&&m.nom===k))),
                   [currentUser.nom]:{...gpsPos,name:currentUser.nom,order:"Ma position"},
@@ -5303,13 +5303,13 @@ function AppInner() {
 
             {/* Livraisons en cours */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📦 MES LIVRAISONS</div>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Package size={14}/> MES LIVRAISONS</div>
               {myLiv.filter(o=>!["entregado","rechazado","no_contesta","reprogramar"].includes(o.status)).length===0
                 ?<div style={{fontSize:13,color:G.gray,textAlign:"center",padding:"16px 0"}}>Aucune livraison en cours</div>
                 :myLiv.filter(o=>!["entregado","rechazado","no_contesta","reprogramar"].includes(o.status)).map(o=>(
                   <div key={o.id} style={{padding:"9px 0",borderBottom:`1px solid ${G.grayLight}`}}>
                     <div style={{fontWeight:700,fontSize:13}}>{o.client}</div>
-                    <div style={{fontSize:11,color:G.gray}}>📍 {fullAddr(o)}</div>
+                    <div style={{fontSize:11,color:G.gray,display:"flex",alignItems:"center",gap:4}}><MapPin size={11}/> {fullAddr(o)}</div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginTop:2}}>{fmt(o.price)} CFA</div>
                   </div>
                 ))
@@ -5327,15 +5327,15 @@ function AppInner() {
             {role==="livreur"&&(
               <>
                 <div style={{background:G.greenLight,borderRadius:12,padding:"10px 14px",fontSize:12,color:G.green,fontWeight:600}}>
-                  👥 Les contacts de ton équipe
+    <Users size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Les contacts de ton équipe
                 </div>
 
                 {/* Admin */}
                 <div style={{background:G.white,borderRadius:14,padding:14}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>👑 ADMIN</div>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Crown size={14}/> ADMIN</div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <div>
-                      <div style={{fontWeight:700,fontSize:14,color:G.dark}}>👑 {settings.nom||"Admin"}</div>
+                      <div style={{fontWeight:700,fontSize:14,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Crown size={14}/> {settings.nom||"Admin"}</div>
                       <div style={{fontSize:10,color:G.gold,marginTop:2,fontWeight:600}}>Responsable de la boutique</div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -5353,17 +5353,17 @@ function AppInner() {
 
                 {/* Closers */}
                 <div style={{background:G.white,borderRadius:14,padding:14}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📞 CLOSERS</div>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Phone size={14}/> CLOSERS</div>
                   {teamMembers.filter(m=>m.role==="closer").map((m,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:13,color:G.dark}}>📞 {m.nom}</div>
-                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        <div style={{fontWeight:700,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Phone size={13}/> {m.nom}</div>
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {m.phone}</div>}
                       </div>
                       {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
-                          <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
-                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
+                          <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
+                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
                         </div>
                       )}
                     </div>
@@ -5372,19 +5372,19 @@ function AppInner() {
 
                 {/* Livreurs */}
                 <div style={{background:G.white,borderRadius:14,padding:14}}>
-                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+                  <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:10,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Bike size={14}/> LIVREURS</div>
                   {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                       <div>
                         <div style={{fontWeight:700,fontSize:13,color:m.email===currentUser.email?G.green:G.dark}}>
-                          🏍️ {m.nom} {m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
+<span style={{display:"inline-flex",alignItems:"center",gap:5}}><Bike size={13}/> {m.nom}</span> {m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,fontWeight:600}}>(toi)</span>}
                         </div>
-                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone}</div>}
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {m.phone}</div>}
                       </div>
                       {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
-                          <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>📞</a>
-                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700}}>💬</a>
+                          <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
+                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
                         </div>
                       )}
                     </div>
@@ -5399,27 +5399,27 @@ function AppInner() {
             {/* Admin card */}
             <div style={{background:`linear-gradient(135deg,${G.green},${G.greenDark||"#0D3D25"})`,borderRadius:14,padding:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <div>
-                <div style={{fontWeight:800,fontSize:15,color:G.gold}}>👑 {settings.nom||"Admin"}</div>
+                <div style={{fontWeight:800,fontSize:15,color:G.gold,display:"flex",alignItems:"center",gap:5}}><Crown size={15}/> {settings.nom||"Admin"}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>Responsable boutique · Admin</div>
               </div>
             </div>
 
             {/* Closers */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>📞 CLOSERS</div>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Phone size={14}/> CLOSERS</div>
               {teamMembers.filter(m=>m.role==="closer").map((m,i)=>{
                 const all=orders.filter(o=>o.closer_id===m.id);
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark}}>📞 {m.nom}</div>
-                        <div style={{fontSize:11,color:G.gray,marginTop:2}}>{m.email!==currentUser.email&&`📱 ${m.phone} · `}📧 {m.email}</div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Phone size={14}/> {m.nom}</div>
+                        <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>{m.email!==currentUser.email&&<><Smartphone size={11}/> {m.phone} · </>}<Mail size={11}/> {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
-                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
-                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
+                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
+                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center"}}><Pencil size={13}/></button>}
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
@@ -5437,7 +5437,7 @@ function AppInner() {
 
             {/* Livreurs */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`}}>🏍️ LIVREURS</div>
+              <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Bike size={14}/> LIVREURS</div>
               {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
                 const all=orders.filter(o=>o.livreur_id===m.id);
                 const gains=all.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
@@ -5445,13 +5445,13 @@ function AppInner() {
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:m.email===currentUser.email?G.green:G.dark}}>🏍️ {m.nom}{m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
-                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {m.phone} · 📧 {m.email}</div>}
+                        <div style={{fontWeight:700,fontSize:14,color:m.email===currentUser.email?G.green:G.dark,display:"flex",alignItems:"center",gap:5,flexWrap:"wrap"}}><Bike size={14}/> {m.nom}{m.email===currentUser.email&&<span style={{fontSize:10,color:G.green,marginLeft:6}}>(moi)</span>}</div>
+                        {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}><Smartphone size={11}/> {m.phone} · <Mail size={11}/> {m.email}</div>}
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>📞</a>}
-                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none"}}>💬</a>}
-                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600}}>✏️</button>}
+                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
+                        {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center"}}><Pencil size={13}/></button>}
                       </div>
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} CFA encaissés</div>
@@ -5476,18 +5476,18 @@ function AppInner() {
               return (
                 <div style={{background:G.white,borderRadius:14,padding:14,marginTop:4}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{fontWeight:700,fontSize:13,color:G.dark}}>➕ Inviter un membre</div>
+                    <div style={{fontWeight:700,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Plus size={14}/> Inviter un membre</div>
                     <div style={{fontSize:11,color:atLimit?G.red:G.gray,fontWeight:600}}>
                       {membersUsed}/{curPlan.maxMembers||"∞"} membres
                     </div>
                   </div>
                   {atLimit&&(
                     <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
-                      ⚠️ Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus
+        <AlertTriangle size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus
                     </div>
                   )}
                   <div style={{display:"flex",gap:8}}>
-                    {[{role:"closer",label:"📞 Closer"},{role:"livreur",label:"🏍️ Livreur"}].map(r=>(
+                    {[{role:"closer",label:"Closer",Ico:Phone},{role:"livreur",label:"Livreur",Ico:Bike}].map(r=>(
                       <button key={r.role} onClick={()=>{
                         if(atLimit){ setShowPlanModal(true); return; }
                         const token=Math.random().toString(36).substring(2,10).toUpperCase();
@@ -5501,7 +5501,7 @@ function AppInner() {
                         fontSize:12,fontWeight:700,cursor:"pointer",
                         opacity:atLimit?0.7:1,
                       }}>
-                        {r.label} {atLimit?"🔒":"📲"}
+<span style={{display:"inline-flex",alignItems:"center",gap:5}}><r.Ico size={13}/> {r.label}</span> {atLimit?<Lock size={13} style={{display:"inline",verticalAlign:"-2px"}}/>:<Send size={13} style={{display:"inline",verticalAlign:"-2px"}}/>}
                       </button>
                     ))}
                   </div>
@@ -5517,11 +5517,11 @@ function AppInner() {
         {/* ── COMPTA locked screen for closer without permission ── */}
         {dataReady&&tab==="compta"&&role==="closer"&&!pC.closerCompta&&(
           <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:320,gap:16,padding:24}}>
-            <div style={{width:72,height:72,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center",fontSize:34}}>🔒</div>
+            <div style={{width:72,height:72,borderRadius:"50%",background:"#F3F4F6",display:"flex",alignItems:"center",justifyContent:"center"}}><Lock size={34} color="#6B7280"/></div>
             <div style={{fontWeight:800,fontSize:17,color:"#374151",textAlign:"center"}}>Comptabilité bloquée</div>
             <div style={{fontSize:13,color:"#6B7280",textAlign:"center",maxWidth:260,lineHeight:1.5}}>Demande à ton admin d'activer l'accès à la comptabilité dans ses paramètres.</div>
             <div style={{background:"#F0FDF4",borderRadius:12,padding:"10px 16px",border:"1px solid #BBF7D0",fontSize:12,color:"#15803D",textAlign:"center",maxWidth:280}}>
-              ✅ Paramètres → Permission Closer → Activer Comptabilité
+<Check size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Paramètres → Permission Closer → Activer Comptabilité
             </div>
           </div>
         )}
@@ -6442,7 +6442,7 @@ function AppInner() {
               <div style={{width:40,height:4,borderRadius:2,background:G.grayLight}}/>
             </div>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-              <div style={{fontWeight:700,fontSize:16,color:G.green}}>⚙️ Paramètres</div>
+              <div style={{fontWeight:700,fontSize:16,color:G.green,display:"flex",alignItems:"center",gap:6}}><IcoSettings size={17}/> Paramètres</div>
               <button onClick={()=>setShowSettings(false)} style={{background:"none",border:"none",fontSize:20,color:G.gray,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
             </div>
 
@@ -6451,12 +6451,12 @@ function AppInner() {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON COMPTE</div>
               {[
-                {key:"nom",      label:"👤 Ton nom",           ph:"Admin"},
-                {key:"boutique", label:"🏪 Nom de la boutique", ph:settings.boutique||"Ma Boutique Dakar"},
-                {key:"whatsapp", label:"📱 Numéro WhatsApp",    ph:"221 77 123 45 67"},
+                {key:"nom",      Ico:User,       label:"Ton nom",           ph:"Admin"},
+                {key:"boutique", Ico:Building2,  label:"Nom de la boutique", ph:settings.boutique||"Ma Boutique Dakar"},
+                {key:"whatsapp", Ico:Smartphone, label:"Numéro WhatsApp",    ph:"221 77 123 45 67"},
               ].map(f=>(
                 <div key={f.key} style={{marginBottom:10}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
                   <input type="text" value={settings[f.key]} onChange={e=>setSettings(s=>({...s,[f.key]:e.target.value}))} placeholder={f.ph}
                     style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                 </div>
@@ -6528,16 +6528,16 @@ function AppInner() {
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON ÉQUIPE</div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {teamMembers.map((m,i)=>({...m,icon:m.role==="closer"?"📞":"🏍️"})).map((m,i)=>(
+                {teamMembers.map((m,i)=>({...m,Ico:m.role==="closer"?Phone:Bike})).map((m,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:G.grayLight,borderRadius:10,padding:"9px 12px"}}>
                     <div>
-                      <div style={{fontSize:13,fontWeight:600}}>{m.icon} {m.nom}</div>
-                      {m.phone&&<div style={{fontSize:11,color:G.gray,marginTop:1}}>📱 {m.phone}</div>}
+                      <div style={{fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:5}}><m.Ico size={13}/> {m.nom}</div>
+                      {m.phone&&<div style={{fontSize:11,color:G.gray,marginTop:1,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {m.phone}</div>}
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
                       <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({memberId:m.id,orgId,adminJwt:_authToken})});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Erreur");setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe ✅`,"✅",G.green);}catch(e){addToast(`Erreur: ${e.message}`,"❌",G.red);}}})}
-                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700}}>🗑️</button>
+                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Trash2 size={14}/></button>
                     </div>
                   </div>
                 ))}
@@ -6548,16 +6548,16 @@ function AppInner() {
                 const atLimit = !isOwner && curPlan.maxMembers && membersUsed >= curPlan.maxMembers;
                 return (<>
                   <div style={{marginTop:10,fontSize:11,color:atLimit?G.red:G.gray,fontWeight:600}}>{membersUsed}/{curPlan.maxMembers||"∞"} membres</div>
-                  {atLimit&&<div style={{marginTop:6,background:"#FEF3C7",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#92400E"}}>⚠️ Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus</div>}
+                  {atLimit&&<div style={{marginTop:6,background:"#FEF3C7",borderRadius:8,padding:"7px 10px",fontSize:11,color:"#92400E",display:"flex",alignItems:"center",gap:5}}><AlertTriangle size={12}/> Limite {curPlan.name} atteinte — passe au plan supérieur pour inviter plus</div>}
                   <div style={{marginTop:8,display:"flex",gap:6}}>
-                    {[{role:"closer",label:"📞 Inviter Closer"},{role:"livreur",label:"🏍️ Inviter Livreur"}].map(r=>(
+                    {[{role:"closer",label:"Inviter Closer",Ico:Phone},{role:"livreur",label:"Inviter Livreur",Ico:Bike}].map(r=>(
                       <button key={r.role} onClick={()=>{
                         if(atLimit){ setShowPlanModal(true); return; }
                         const token=Math.random().toString(36).substring(2,10).toUpperCase();
                         const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;
                         window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
                       }}
-                        style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:atLimit?"#9CA3AF":G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",opacity:atLimit?0.7:1}}>{r.label} {atLimit?"🔒":"📲"}</button>
+                        style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:atLimit?"#9CA3AF":G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",opacity:atLimit?0.7:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}><r.Ico size={12}/> {r.label} {atLimit?<Lock size={12}/>:<Send size={12}/>}</button>
                     ))}
                   </div>
                 </>);
