@@ -1,6 +1,11 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
 import { fullAddr } from "../lib/senegal";
+import {
+  Pin, Gift, Smartphone, MapPin, Bike, Check, Package, Bus, Rocket,
+  Phone, Pencil, StickyNote, MessageCircle, Send, X, RotateCcw, PhoneOff,
+  Lock, AlertTriangle, Coins,
+} from "lucide-react";
 
 export const OCard = ({ o, showPrendre = false }) => {
   const {
@@ -37,7 +42,7 @@ export const OCard = ({ o, showPrendre = false }) => {
           title={isPinned?"Désépingler":"Épingler cette commande"}
           aria-label={isPinned?"Désépingler":"Épingler"}
           style={{position:"absolute",top:8,right:8,zIndex:3,background:isPinned?"#FEF3C7":"#F4F4F5",border:`1px solid ${isPinned?"#F0A500":"#E5E7EB"}`,borderRadius:8,width:28,height:28,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:13,padding:0,lineHeight:1}}>
-          <span style={{filter:isPinned?"none":"grayscale(1)",opacity:isPinned?1:0.45}}>📌</span>
+          <Pin size={14} fill={isPinned?"#F0A500":"none"} color={isPinned?"#F0A500":"#9CA3AF"}/>
         </button>
       )}
 
@@ -47,7 +52,7 @@ export const OCard = ({ o, showPrendre = false }) => {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
           <div style={{minWidth:0,flex:1}}>
             <div style={{fontWeight:800,fontSize:15,color:"#111",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.client}</div>
-            <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700}}>🎁 {totalQty}</span>}</div>
+            <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}><Gift size={10}/> {totalQty}</span>}</div>
           </div>
           <div style={{flexShrink:0,textAlign:"right"}}>
             <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(o.price)} CFA</div>
@@ -56,16 +61,16 @@ export const OCard = ({ o, showPrendre = false }) => {
         </div>
         {/* Row 2: meta */}
         <div style={{display:"flex",gap:10,fontSize:11,color:"#9CA3AF",alignItems:"center",flexWrap:"wrap"}}>
-          {o.phone&&<span>📱 {o.phone}</span>}
+          {o.phone&&<span style={{display:"inline-flex",alignItems:"center",gap:3}}><Smartphone size={11}/> {o.phone}</span>}
           {(o.address||o.city||o.deliveryZoneName||o.unmatched_city)&&(()=>{
             const city=(o.city||o.deliveryZoneName||o.unmatched_city||"").trim();
             const addr=(o.address||"").trim();
             const _norm=s=>s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
             const quartier=city&&_norm(addr).includes(_norm(city))?addr.replace(new RegExp(city,"i"),"").replace(/^[\s,·-]+|[\s,·-]+$/g,"").trim():addr;
             const display=[city,quartier].filter(Boolean).join(" · ")||addr||city;
-            return <span title={fullAddr(o)} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:240,fontWeight:city?600:400,color:city?"#374151":"#9CA3AF"}}>📍 {display}</span>;
+            return <span title={fullAddr(o)} style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:240,fontWeight:city?600:400,color:city?"#374151":"#9CA3AF",display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11}/> {display}</span>;
           })()}
-          {o.livreur&&<span style={{background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"1px 7px",fontWeight:600,fontSize:10}}>🏍️ {o.livreur}</span>}
+          {o.livreur&&<span style={{background:"#EFF6FF",color:"#1D4ED8",borderRadius:8,padding:"1px 7px",fontWeight:600,fontSize:10,display:"inline-flex",alignItems:"center",gap:3}}><Bike size={11}/> {o.livreur}</span>}
           {o.created_at&&<span style={{marginLeft:"auto",flexShrink:0}}>{new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}</span>}
         </div>
       </div>
@@ -127,7 +132,7 @@ export const OCard = ({ o, showPrendre = false }) => {
             {isAdminOrCloser && o.status==="en_attente_paiement" && (
               <button onClick={()=>upSt(o.id,"paiement_confirme")}
                 style={{width:"100%",background:"#2E8B57",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:18}}>✅</span> Confirmer le paiement reçu
+                <Check size={18}/> Confirmer le paiement reçu
               </button>
             )}
             {isAdminOrCloser && o.status==="paiement_confirme" && (
@@ -138,45 +143,45 @@ export const OCard = ({ o, showPrendre = false }) => {
             {role==="livreur" && o.status==="paiement_confirme" && (
               <button onClick={()=>upSt(o.id,"livreur_en_route")}
                 style={{width:"100%",background:"#7C3AED",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:20}}>🏍️</span> Je pars récupérer
+                <Bike size={20}/> Je pars récupérer
               </button>
             )}
             {role==="livreur" && o.status==="livreur_en_route" && (
               <button onClick={()=>upSt(o.id,"colis_en_main")}
                 style={{width:"100%",background:"#2563EB",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:20}}>📦</span> Colis en main
+                <Package size={20}/> Colis en main
               </button>
             )}
             {role==="livreur" && o.status==="colis_en_main" && (
               <button onClick={()=>upSt(o.id,"en_route")}
                 style={{width:"100%",background:"#7C3AED",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:20}}>🏍️</span> Aller vers le transporteur
+                <Bike size={20}/> Aller vers le transporteur
               </button>
             )}
             {role==="livreur" && o.status==="en_route" && (
               <button onClick={()=>upSt(o.id,"remis_transporteur")}
                 style={{width:"100%",background:"#0891B2",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:20}}>🚌</span> Remis au transporteur
+                <Bus size={20}/> Remis au transporteur
               </button>
             )}
             {role==="livreur" && o.status==="remis_transporteur" && (
               <div style={{background:"#CFFAFE",border:"1px solid #0891B2",borderRadius:10,padding:"10px 12px",marginTop:6,display:"flex",alignItems:"center",gap:10}}>
-                <span style={{fontSize:22}}>🚌</span>
+                <Bus size={22} color="#0891B2"/>
                 <div>
-                  <div style={{fontSize:13,fontWeight:800,color:"#0891B2"}}>✅ Livré au transporteur</div>
-                  <div style={{fontSize:11,color:"#0E7490",marginTop:2}}>🔒 Ta mission est terminée — Admin/Closer confirme la livraison finale</div>
+                  <div style={{fontSize:13,fontWeight:800,color:"#0891B2",display:"flex",alignItems:"center",gap:5}}><Check size={14}/> Livré au transporteur</div>
+                  <div style={{fontSize:11,color:"#0E7490",marginTop:2,display:"flex",alignItems:"center",gap:4}}><Lock size={11}/> Ta mission est terminée — Admin/Closer confirme la livraison finale</div>
                 </div>
               </div>
             )}
             {isAdminOrCloser && o.status==="remis_transporteur" && (
               <button onClick={()=>upSt(o.id,"entregado")}
                 style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <span style={{fontSize:18}}>✅</span> Marquer comme livré
+                <Check size={18}/> Marquer comme livré
               </button>
             )}
             {o.status==="entregado" && (
               <div style={{background:G.greenLight,borderRadius:10,padding:"9px 12px",fontSize:12,color:G.green,fontWeight:700,marginTop:6,display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:16}}>✅</span> Livraison confirmée
+                <Check size={16}/> Livraison confirmée
               </div>
             )}
 
@@ -185,7 +190,7 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{marginTop:8}}>
                 <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
                   style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  <span>{showModif?"▲":"✏️"}</span>
+                  <span style={{display:"inline-flex",alignItems:"center"}}>{showModif?"▲":<Pencil size={13}/>}</span>
                   <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
                 </button>
                 {showModif&&(
@@ -214,16 +219,16 @@ export const OCard = ({ o, showPrendre = false }) => {
             <div style={{display:"flex",gap:5,marginTop:8}}>
               <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
                 style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
-                📞 Appeler
+                <Phone size={12}/> Appeler
               </a>
               <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note||"");}}
-                style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                📝 {o.note?"Note ●":"+ Note"}
+                style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                <StickyNote size={12}/> {o.note?"Note ●":"+ Note"}
               </button>
               {isAdminOrCloser&&(
                 <button onClick={()=>setEditOrder({...o})}
-                  style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-                  ✏️ Modifier
+                  style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}>
+                  <Pencil size={12}/> Modifier
                 </button>
               )}
             </div>
@@ -245,7 +250,7 @@ export const OCard = ({ o, showPrendre = false }) => {
         const isTerminal = ["rechazado","no_contesta","reprogramar"].includes(o.status);
         if(isTerminal) return (
           <div style={{display:"flex",alignItems:"center",gap:8,background:o.status==="rechazado"?"#FEE2E2":o.status==="reprogramar"?"#EDE9FE":"#F3F4F6",borderRadius:8,padding:"7px 10px",marginBottom:6}}>
-            <span style={{fontSize:14}}>{o.status==="rechazado"?"❌":o.status==="reprogramar"?"🔄":"📵"}</span>
+            {o.status==="rechazado"?<X size={14}/>:o.status==="reprogramar"?<RotateCcw size={14}/>:<PhoneOff size={14}/>}
             <span style={{fontSize:11,fontWeight:700,color:o.status==="rechazado"?"#DC2626":o.status==="reprogramar"?"#7C3AED":"#6B7280"}}>{st.label}</span>
           </div>
         );
@@ -293,7 +298,7 @@ export const OCard = ({ o, showPrendre = false }) => {
             target="_blank" rel="noreferrer"
             onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
             style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
-            {waSent?"✓ Renvoyer confirmation WA":"📲 Confirmer par WhatsApp"}
+            {waSent?<><Check size={13}/> Renvoyer confirmation WA</>:<><Send size={13}/> Confirmer par WhatsApp</>}
           </a>
         );
       })()}
@@ -301,13 +306,13 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* Livreur — statut final bloqué (entregado / rechazado) */}
       {!inOtherFlow&&role==="livreur"&&(o.status==="entregado"||o.status==="rechazado")&&(
         <div style={{marginTop:8,background:o.status==="entregado"?G.greenLight:"#FEF2F2",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",gap:8}}>
-          <span style={{fontSize:18}}>{o.status==="entregado"?"✅":"❌"}</span>
+          {o.status==="entregado"?<Check size={18} color={G.green}/>:<X size={18} color={G.red}/>}
           <div>
             <div style={{fontSize:12,fontWeight:700,color:o.status==="entregado"?G.green:G.red}}>
               {o.status==="entregado"?"Livraison terminée — Cash encaissé":"Rejeté — Colis retourné"}
             </div>
-            <div style={{fontSize:10,color:G.gray,marginTop:1}}>
-              🔒 Statut final — Contacte l'Admin pour toute correction
+            <div style={{fontSize:10,color:G.gray,marginTop:1,display:"flex",alignItems:"center",gap:4}}>
+              <Lock size={11}/> Statut final — Contacte l'Admin pour toute correction
             </div>
           </div>
         </div>
@@ -345,12 +350,12 @@ export const OCard = ({ o, showPrendre = false }) => {
           {/* Étape: livreur en route → arrive chez admin */}
           {o.status==="livreur_en_route"&&(
             <>
-              <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600}}>
-                🏍️ Étape 2 — En route vers l'Admin pour récupérer
+              <div style={{background:"#EDE9FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#7C3AED",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                <Bike size={14}/> Étape 2 — En route vers l'Admin pour récupérer
               </div>
               <button onClick={()=>upSt(o.id,"colis_pris")}
                 style={{width:"100%",background:"#7C3AED",color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:20}}>📦</span> J'ai récupéré le colis
+                <Package size={20}/> J'ai récupéré le colis
               </button>
             </>
           )}
@@ -358,8 +363,8 @@ export const OCard = ({ o, showPrendre = false }) => {
           {/* Étape: colis pris → partir vers client */}
           {o.status==="colis_pris"&&(
             <>
-              <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600}}>
-                📦 Étape 3 — Colis en main, pars vers le client
+              <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                <Package size={14}/> Étape 3 — Colis en main, pars vers le client
               </div>
               <button onClick={()=>{
                 const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&(x.status==="en_camino"||x.status==="chez_client")&&x.id!==o.id);
@@ -367,7 +372,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                 upSt(o.id,"en_camino");
               }}
                 style={{width:"100%",background:G.blue,color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:20}}>🚀</span> Je pars vers le client
+                <Rocket size={20}/> Je pars vers le client
               </button>
             </>
           )}
@@ -375,8 +380,8 @@ export const OCard = ({ o, showPrendre = false }) => {
           {/* Étape: en route → arrivé chez client */}
           {o.status==="en_camino"&&(
             <>
-              <div style={{background:"#E0F2FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#0284C7",fontWeight:600}}>
-                🚀 Étape 4 — En route vers {o.client}
+              <div style={{background:"#E0F2FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#0284C7",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                <Rocket size={14}/> Étape 4 — En route vers {o.client}
               </div>
               {/* Rappel WhatsApp personnalisé */}
               {o.phone&&(()=>{
@@ -385,13 +390,13 @@ export const OCard = ({ o, showPrendre = false }) => {
                   <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
                     target="_blank" rel="noreferrer"
                     style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
-                    <span style={{fontSize:20}}>💬</span> Rappeler le client par WhatsApp
+                    <MessageCircle size={20}/> Rappeler le client par WhatsApp
                   </a>
                 );
               })()}
               <button onClick={()=>upSt(o.id,"chez_client")}
                 style={{width:"100%",background:"#0284C7",color:G.white,border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:20}}>📍</span> Je suis arrivé chez le client
+                <MapPin size={20}/> Je suis arrivé chez le client
               </button>
             </>
           )}
@@ -399,32 +404,32 @@ export const OCard = ({ o, showPrendre = false }) => {
           {/* Étape finale: chez client → résultat */}
           {o.status==="chez_client"&&(
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
-              <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#D97706",fontWeight:600}}>
-                📍 Étape 5 — Vous êtes chez {o.client}. Comment ça s'est passé ?
+              <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#D97706",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
+                <MapPin size={14}/> Étape 5 — Vous êtes chez {o.client}. Comment ça s'est passé ?
               </div>
               <button onClick={()=>{setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"livre",client:o.client,price:o.price});}}
                 style={{width:"100%",background:"#D1FAE5",color:"#1A5C38",border:"2px solid #6EE7B7",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                <span style={{fontSize:22}}>✅</span> Livré — Cash encaissé
+                <Check size={22}/> Livré — Cash encaissé
               </button>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
                 <button onClick={()=>{setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"rejete",client:o.client,price:o.price});}} style={{background:"#FEE2E2",color:"#DC2626",border:"2px solid #FCA5A5",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                  <span style={{fontSize:18}}>❌</span><span>Rejeté</span>
+                  <X size={18}/><span>Rejeté</span>
                 </button>
                 <button onClick={()=>upSt(o.id,"no_contesta")} style={{background:"#F3F4F6",color:"#6B7280",border:"2px solid #D1D5DB",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                  <span style={{fontSize:18}}>📵</span><span>Absent</span>
+                  <PhoneOff size={18}/><span>Absent</span>
                 </button>
                 <button onClick={()=>upSt(o.id,"reprogramar")} style={{background:"#EDE9FE",color:"#7C3AED",border:"2px solid #C4B5FD",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                  <span style={{fontSize:18}}>🔄</span><span>Reporter</span>
+                  <RotateCcw size={18}/><span>Reporter</span>
                 </button>
               </div>
-              {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"6px 0",fontSize:11,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><span>📞</span> Rappeler le client</a>}
+              {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"6px 0",fontSize:11,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><Phone size={12}/> Rappeler le client</a>}
             </div>
           )}
 
           {/* Statuts bloqués */}
           {!["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)&&(
-            <button onClick={()=>upSt(o.id,"en_camino")} style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer"}}>
-              🔄 Reprendre la livraison
+            <button onClick={()=>upSt(o.id,"en_camino")} style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              <RotateCcw size={13}/> Reprendre la livraison
             </button>
           )}
 
@@ -445,7 +450,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                 addToast("Étape corrigée ✏️","✏️",G.gray);
               }}
                 style={{width:"100%",background:"none",border:"none",color:"#9CA3AF",fontSize:11,cursor:"pointer",padding:"5px 0",textDecoration:"underline dotted",marginTop:2}}>
-                ✏️ {prev.l}
+<Pencil size={11} style={{display:"inline",verticalAlign:"-1px"}}/> {prev.l}
               </button>
             );
           })()}

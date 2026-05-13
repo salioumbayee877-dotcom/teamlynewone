@@ -1,4 +1,15 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import {
+  Package, Check, X, Bike, Truck, MapPin, Phone, Smartphone, AlertTriangle,
+  Pencil, Coins, BarChart3, Zap, User, Users, Map as IcoMap, Flame, Bell,
+  Rocket, Bus, ClipboardList, Calendar, Search, Pin, Lock, RotateCcw,
+  PhoneOff, MessageCircle, Send, Settings as IcoSettings, ShoppingCart,
+  Crown, FileText, TrendingUp, Mail, Eye, EyeOff, Hand, LogOut, KeyRound,
+  Megaphone, Building2, Camera, Mic, Trash2, Image as IcoImage, Paperclip,
+  Bookmark, ArrowRight, Globe, Clock, Sparkles, Hourglass, Save, ChevronDown,
+  ChevronUp, Plus, Minus, Star, ShieldCheck, Cake, MailCheck, ListChecks,
+  Wifi, Briefcase, Maximize2,
+} from "lucide-react";
 import ProductAnalysisPopup from "./ProductAnalysisPopup";
 import { CityComboBox, CityAutocomplete } from "./components/CityComboBox";
 import { OrderModal } from "./components/OrderModal";
@@ -4429,7 +4440,7 @@ function AppInner() {
                   {awaiting.length>0&&(
                     <div style={{background:"#FFF7E6",borderLeft:`4px solid ${G.gold}`,borderRadius:12,padding:14,display:"flex",flexDirection:isDesktop?"row":"column",alignItems:isDesktop?"center":"flex-start",gap:12}}>
                       <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4}}>⚠️ Tarifs de livraison non configurés</div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4,display:"flex",alignItems:"center",gap:5}}><AlertTriangle size={15}/> Tarifs de livraison non configurés</div>
                         <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5}}>Vous avez <strong>{awaiting.length}</strong> commande{awaiting.length>1?"s":""} en attente sans frais de livraison. Configurez vos zones pour synchroniser automatiquement vos commandes Shopify.</div>
                       </div>
                       <button onClick={()=>openFraisAndDismiss()} style={{background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
@@ -4440,7 +4451,7 @@ function AppInner() {
                   {unmatched.length>0&&(
                     <div style={{background:"#FFF7E6",borderLeft:`4px solid ${G.gold}`,borderRadius:12,padding:14,display:"flex",flexDirection:"column",gap:10}}>
                       <div>
-                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4}}>⚠️ Nouvelle zone détectée</div>
+                        <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4,display:"flex",alignItems:"center",gap:5}}><AlertTriangle size={15}/> Nouvelle zone détectée</div>
                         <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5,marginBottom:8}}>{unmatched.length} commande{unmatched.length>1?"s":""} provenant de :</div>
                         <ul style={{margin:0,paddingLeft:20,fontSize:12,color:G.dark,lineHeight:1.7}}>
                           {cities.map(([city,n])=>(
@@ -4460,10 +4471,10 @@ function AppInner() {
 
             {/* KPIs */}
             <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
-              <SC icon="📦" label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
-              <SC icon="✅" label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
-              <SC icon="❌" label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
-              <SC icon="🏍️" label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
+              <SC icon={<Package size={18}/>} label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
+              <SC icon={<Check size={18}/>} label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
+              <SC icon={<X size={18}/>} label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
+              <SC icon={<Bike size={18}/>} label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
             </div>
 
             {/* Aperçu du jour */}
@@ -4479,7 +4490,7 @@ function AppInner() {
               const maxB = Math.max(...bars.map(b=>b.count),1);
               return (
                 <div style={{background:G.white,borderRadius:14,padding:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12}}>📊 Aperçu du jour</div>
+                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Aperçu du jour</div>
                   <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
                     {bars.map((b,i)=>(
                       <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
@@ -4507,7 +4518,7 @@ function AppInner() {
             {/* CA par produit — visuel */}
             {calcProd.filter(x=>x.ca>0).length>0&&(
               <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST>💰 CA PAR PRODUIT</ST>
+                <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><Coins size={13}/> CA PAR PRODUIT</span></ST>
                 {calcProd.filter(x=>x.ca>0).sort((a,b)=>b.ca-a.ca).map(({prod,ca,nLiv,ben},i)=>{
                   const maxCA = Math.max(...calcProd.map(x=>x.ca),1);
                   const pctBar = Math.round(ca/maxCA*100);
@@ -4536,17 +4547,17 @@ function AppInner() {
 
             {/* Actions rapides */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>⚡ ACTIONS RAPIDES</ST>
+              <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><Zap size={13}/> ACTIONS RAPIDES</span></ST>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
-                  {icon:"📦",label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
-                  {icon:"📦",label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
-                  {icon:"👤",label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
-                  {icon:"🗺️",label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
-                  {icon:"👥",label:"Équipe",  action:()=>setTab("equipe"),  bg:"#F0FDF4",color:G.green},
+                  {Ico:ShoppingCart,label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
+                  {Ico:Package,label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
+                  {Ico:User,label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
+                  {Ico:IcoMap,label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
+                  {Ico:Users,label:"Équipe",  action:()=>setTab("equipe"),  bg:"#F0FDF4",color:G.green},
                 ].map((a,i)=>(
                   <button key={i} onClick={a.action} style={{background:a.bg,border:"none",borderRadius:10,padding:"12px 8px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                    <span style={{fontSize:22}}>{a.icon}</span>
+                    <a.Ico size={22} color={a.color}/>
                     <span style={{fontSize:11,fontWeight:700,color:a.color}}>{a.label}</span>
                   </button>
                 ))}
@@ -4587,13 +4598,13 @@ function AppInner() {
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
               {[
-                {icon:"📦",label:"Aujourd'hui",value:todayOrds.length,color:"#0284C7",bg:"#E0F2FE"},
-                {icon:"✅",label:"Confirmées", value:confirmed.length, color:G.green,  bg:G.greenLight},
-                {icon:"⏳",label:"En attente", value:pending.length,   color:G.gold,   bg:"#FFF8E7"},
-                {icon:"💰",label:"Revenu livré",value:fmt(revenue),    color:"#7C3AED",bg:"#EDE9FE"},
+                {Ico:Package,label:"Aujourd'hui",value:todayOrds.length,color:"#0284C7",bg:"#E0F2FE"},
+                {Ico:Check,label:"Confirmées", value:confirmed.length, color:G.green,  bg:G.greenLight},
+                {Ico:Hourglass,label:"En attente", value:pending.length,   color:G.gold,   bg:"#FFF8E7"},
+                {Ico:Coins,label:"Revenu livré",value:fmt(revenue),    color:"#7C3AED",bg:"#EDE9FE"},
               ].map((kpi,i)=>(
                 <div key={i} style={{background:G.white,borderRadius:14,padding:"14px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-                  <div style={{fontSize:20,marginBottom:4}}>{kpi.icon}</div>
+                  <div style={{marginBottom:4}}><kpi.Ico size={20} color={kpi.color}/></div>
                   <div style={{fontSize:22,fontWeight:800,color:kpi.color}}>{kpi.value}</div>
                   <div style={{fontSize:11,color:G.gray,fontWeight:500,marginTop:2}}>{kpi.label}</div>
                 </div>
@@ -4616,18 +4627,18 @@ function AppInner() {
               </svg>
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{setTab("commandes");setTimeout(()=>setShowAdd(true),50);}} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>➕ Nouvelle commande</button>
-              <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}>💬 WhatsApp</a>
+              <button onClick={()=>{setTab("commandes");setTimeout(()=>setShowAdd(true),50);}} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Plus size={14}/> Nouvelle commande</button>
+              <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}><MessageCircle size={14}/> WhatsApp</a>
             </div>
             {pending.length>0&&(
             <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>🔥 À TRAITER EN PRIORITÉ</div>
-              {pending.map(o=>{const st=STATUS[o.status];return(<div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}><div><div style={{fontSize:13,fontWeight:600}}>{o.client}</div><div style={{fontSize:11,color:G.gray}}>📱 {o.phone}</div></div><span style={{background:st.bg,color:st.color,borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:600}}>{st.label}</span></div>);})}
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10,display:"flex",alignItems:"center",gap:5}}><Flame size={12}/> À TRAITER EN PRIORITÉ</div>
+              {pending.map(o=>{const st=STATUS[o.status];return(<div key={o.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}><div><div style={{fontSize:13,fontWeight:600}}>{o.client}</div><div style={{fontSize:11,color:G.gray,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {o.phone}</div></div><span style={{background:st.bg,color:st.color,borderRadius:8,padding:"3px 9px",fontSize:11,fontWeight:600}}>{st.label}</span></div>);})}
             </div>
             )}
             <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10}}>🏍️ LIVREURS</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{teamMembers.filter(m=>m.role==="livreur").map(m=>{const busy=orders.filter(o=>o.livreur_id===m.id&&o.status==="en_camino").length;return(<div key={m.id} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green}}>🏍️ {m.nom} {busy>0?`(${busy} en route)`:"· Dispo"}</div>);})}{teamMembers.filter(m=>m.role==="livreur").length===0&&<div style={{fontSize:12,color:G.gray}}>Aucun livreur dans l'équipe</div>}</div>
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:10,display:"flex",alignItems:"center",gap:5}}><Bike size={12}/> LIVREURS</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:7}}>{teamMembers.filter(m=>m.role==="livreur").map(m=>{const busy=orders.filter(o=>o.livreur_id===m.id&&o.status==="en_camino").length;return(<div key={m.id} style={{background:busy>0?"#FFF8E7":G.greenLight,borderRadius:10,padding:"7px 11px",fontSize:12,fontWeight:600,color:busy>0?G.gold:G.green,display:"inline-flex",alignItems:"center",gap:4}}><Bike size={12}/> {m.nom} {busy>0?`(${busy} en route)`:"· Dispo"}</div>);})}{teamMembers.filter(m=>m.role==="livreur").length===0&&<div style={{fontSize:12,color:G.gray}}>Aucun livreur dans l'équipe</div>}</div>
             </div>
           </div>
           );
@@ -4667,12 +4678,12 @@ function AppInner() {
             {/* Empty states */}
             {myLiv.length===0&&orders.length>0&&(
               <div style={{background:"#FFF8E7",borderRadius:12,padding:14,fontSize:12,color:"#92400E",border:"1px solid #FDE68A"}}>
-                ⚠️ Aucune livraison assignée à <strong>{currentUser.nom}</strong>. Demande à l'Admin de t'assigner des commandes.
+<AlertTriangle size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Aucune livraison assignée à <strong>{currentUser.nom}</strong>. Demande à l'Admin de t'assigner des commandes.
               </div>
             )}
             {toConfirm.length===0&&toPickup.length===0&&toPickupOther.length===0&&toColisOther.length===0&&inProgress.length===0&&myLiv.length>0&&(
               <div style={{background:G.greenLight,borderRadius:14,padding:20,textAlign:"center",border:`1px solid ${G.green}33`}}>
-                <div style={{fontSize:32,marginBottom:6}}>✅</div>
+                <div style={{marginBottom:6,display:"flex",justifyContent:"center"}}><Check size={32} color={G.green}/></div>
                 <div style={{fontWeight:700,fontSize:15,color:G.green}}>Toutes les livraisons sont terminées</div>
                 <div style={{fontSize:12,color:G.gray,marginTop:4}}>Bien joué ! Attends de nouvelles assignations.</div>
               </div>
@@ -4682,7 +4693,7 @@ function AppInner() {
             {toPickupOther.length>0&&(
               <div style={{background:"#E8F5EE",borderRadius:16,border:"2px solid #86EFAC",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:28,lineHeight:1}}>✅</span>
+                  <Check size={28} color="#166534"/>
                   <div>
                     <div style={{fontWeight:800,fontSize:16,color:"#166534"}}>Paiement confirmé · {toPickupOther.length} colis</div>
                     <div style={{fontSize:11,color:"#15803D",fontWeight:600,marginTop:2}}>Régions hors zone — récupérer pour transporteur</div>
@@ -4695,7 +4706,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickupOther.length,5)-1?"0.5px solid #BBF7D0":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#15803D",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11}/> {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4713,7 +4724,7 @@ function AppInner() {
             {toColisOther.length>0&&toPickupOther.length===0&&(
               <div style={{background:"#DBEAFE",borderRadius:16,border:"2px solid #93C5FD",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:28,lineHeight:1}}>📦</span>
+                  <Package size={28} color="#1E40AF"/>
                   <div>
                     <div style={{fontWeight:800,fontSize:16,color:"#1E40AF"}}>Colis récupérés · {toColisOther.length}</div>
                     <div style={{fontSize:11,color:"#2563EB",fontWeight:600,marginTop:2}}>Régions hors zone — confirmer la prise en charge</div>
@@ -4726,7 +4737,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toColisOther.length,5)-1?"0.5px solid #BFDBFE":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#2563EB",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11}/> {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4744,7 +4755,7 @@ function AppInner() {
             {toConfirm.length>0&&(
               <div style={{background:"#EDE9FE",borderRadius:16,border:"2px solid #C4B5FD",padding:"18px 16px 20px",boxShadow:"0 2px 12px rgba(0,0,0,0.08)",animation:"livFadeIn 220ms ease"}}>
                 <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-                  <span style={{fontSize:28,lineHeight:1}}>🔔</span>
+                  <Bell size={28} color="#5B21B6"/>
                   <div>
                     <div style={{fontWeight:800,fontSize:16,color:"#5B21B6"}}>Je pars récupérer {toConfirm.length} colis</div>
                     <div style={{fontSize:11,color:"#7C3AED",fontWeight:600,marginTop:2}}>Nouveaux colis assignés — confirmez le départ</div>
@@ -4757,7 +4768,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toConfirm.length,5)-1?"0.5px solid #EDE9FE":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#7C3AED",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11}/> {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4788,7 +4799,7 @@ function AppInner() {
                       <div key={o.id} style={{display:"flex",alignItems:"center",gap:6,padding:"5px 0",borderBottom:i<Math.min(toPickup.length,5)-1?"0.5px solid #BAE6FD":"none"}}>
                         {ref&&<span style={{fontSize:10,color:"#0284C7",fontWeight:700,flexShrink:0,minWidth:44}}>{ref}</span>}
                         <span style={{fontSize:13,fontWeight:700,color:"#111",flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client}</span>
-                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0}}>📍 {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
+                        <span style={{fontSize:11,color:"#6B7280",flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><MapPin size={11}/> {o.city||o.deliveryZoneName||o.unmatched_city||"—"}{o.address?` · ${o.address}`:""}</span>
                       </div>
                     );
                   })}
@@ -4838,19 +4849,19 @@ function AppInner() {
 
             {/* Stats */}
             <div style={{display:"flex",gap:8}}>
-              <SC icon="📦" label="Assignées" value={myLiv.length}/>
-              <SC icon="✅" label="Livrées" value={myLiv.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/>
+              <SC icon={<Package size={18}/>} label="Assignées" value={myLiv.length}/>
+              <SC icon={<Check size={18}/>} label="Livrées" value={myLiv.filter(o=>o.status==="entregado").length} color={G.green} bg={G.greenLight}/>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <SC icon="🏍️" label="En route" value={myLiv.filter(o=>["en_camino","chez_client"].includes(o.status)).length} color={G.blue} bg="#EFF6FF"/>
-              <SC icon="❌" label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/>
+              <SC icon={<Bike size={18}/>} label="En route" value={myLiv.filter(o=>["en_camino","chez_client"].includes(o.status)).length} color={G.blue} bg="#EFF6FF"/>
+              <SC icon={<X size={18}/>} label="Rejetées" value={myLiv.filter(o=>o.status==="rechazado").length} color={G.red} bg="#FEE2E2"/>
             </div>
             <div style={{background:G.greenLight,borderRadius:14,padding:18,textAlign:"center"}}>
               <div style={{fontSize:11,color:G.gray,fontWeight:700,letterSpacing:1}}>CASH COLLECTÉ</div>
               <div style={{fontSize:28,fontWeight:700,color:G.green,marginTop:4}}>{fmt(myLiv.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0))} CFA</div>
             </div>
             <div style={{background:G.white,borderRadius:14,padding:14}}>
-              <ST>📋 MES LIVRAISONS</ST>
+              <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><ClipboardList size={13}/> MES LIVRAISONS</span></ST>
               <Tbl headers={["Client","Produit","Prix","Statut"]} align={["left","left","right","left"]}
                 rows={[...myLiv].sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0)).map(o=>{const st=STATUS[o.status]||STATUS.pendiente;return [<span style={{fontWeight:600}}>{o.client}</span>,o.product,<span style={{fontWeight:700,color:G.green}}>{fmt(o.price)}</span>,<span style={{background:st.bg,color:st.color,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>{st.label}</span>];})}
               />
@@ -4886,7 +4897,7 @@ function AppInner() {
             {(tab==="commandes"||(tab==="livraisons"&&role==="livreur"))&&(
               <div style={{background:G.white,borderRadius:14,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.07)"}}>
                 {/* Date */}
-                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3}}>📅 DATE</div>
+                <div style={{fontSize:11,color:"#374151",fontWeight:800,marginBottom:8,letterSpacing:0.3,display:"flex",alignItems:"center",gap:5}}><Calendar size={12}/> DATE</div>
                 <div style={{display:"flex",gap:5,marginBottom:12,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
                   {(()=>{
                     const _fd = new Date();
@@ -4916,7 +4927,7 @@ function AppInner() {
                 {role!=="livreur"?(
                   <>
                     {/* Groupe 1 : Statut de livraison */}
-                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🚚 STATUT DE LIVRAISON</div>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Truck size={11}/> STATUT DE LIVRAISON</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
                       {[
                         {k:"all",        l:"Tout",                    c:"#374151", bg:"#E5E7EB"},
@@ -4937,7 +4948,7 @@ function AppInner() {
                       })}
                     </div>
                     {/* Groupe 2 : Résultat */}
-                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🏁 RÉSULTAT</div>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Check size={11}/> RÉSULTAT</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
                       {[
                         {k:"entregado",  l:"Encaissé ✅",  c:STATUS.entregado.color,  bg:STATUS.entregado.color+"22"},
@@ -4956,7 +4967,7 @@ function AppInner() {
                   </>
                 ):(
                   <>
-                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🚚 MA TOURNÉE</div>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Truck size={11}/> MA TOURNÉE</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
                       {[
                         {k:"all",              l:"Tout",                 c:"#374151", bg:"#E5E7EB"},
@@ -4974,7 +4985,7 @@ function AppInner() {
                         );
                       })}
                     </div>
-                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5}}>🏁 RÉSULTAT</div>
+                    <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Check size={11}/> RÉSULTAT</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
                       {[
                         {k:"entregado",  l:"Livré ✅",     c:STATUS.entregado.color,   bg:STATUS.entregado.color+"22"},
@@ -5011,7 +5022,7 @@ function AppInner() {
             )}
             {filteredOrders.length===0&&(
               <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
-                <div style={{fontSize:32,marginBottom:8}}>🔍</div>
+                <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Search size={32} color={G.gray}/></div>
                 <div style={{fontSize:14,fontWeight:600}}>Aucun résultat</div>
                 <div style={{fontSize:12,marginTop:4}}>Modifie ta recherche ou tes filtres</div>
               </div>
@@ -5040,7 +5051,7 @@ function AppInner() {
                     {pinnedLiv&&(
                       <div style={{marginBottom:8}}>
                         <div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
-                          <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.5}}>📌 LIVRAISON EN COURS</span>
+                          <span style={{fontSize:11,fontWeight:700,color:G.green,letterSpacing:0.5,display:"inline-flex",alignItems:"center",gap:4}}><Pin size={12}/> LIVRAISON EN COURS</span>
                           <div style={{flex:1,height:1,background:`${G.green}33`}}/>
                         </div>
                         <div style={{position:"relative",borderLeft:`4px solid ${G.green}`,borderRadius:14,boxShadow:"0 4px 12px rgba(26,92,56,0.15)"}}>
@@ -5139,7 +5150,7 @@ function AppInner() {
             {/* Carte Leaflet — prioritaire */}
             <div style={{background:G.white,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.08)"}}>
               <div style={{padding:"12px 14px",borderBottom:`1px solid ${G.grayLight}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontWeight:700,fontSize:13,color:G.green}}>📍 Positions en temps réel</div>
+                <div style={{fontWeight:700,fontSize:13,color:G.green,display:"flex",alignItems:"center",gap:5}}><MapPin size={14}/> Positions en temps réel</div>
                 <div style={{fontSize:11,color:G.green,background:G.greenLight,borderRadius:6,padding:"2px 8px",fontWeight:600}}>
                   {Object.keys(livreurPositions).filter(k=>livreurPositions[k]?.lat).length} actif(s)
                 </div>

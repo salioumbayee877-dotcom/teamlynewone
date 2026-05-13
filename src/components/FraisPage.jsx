@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { useAppContext } from "../context/AppContext";
 import { CityAutocomplete } from "./CityComboBox";
 import { _normCity, _parseCity, SENEGAL_CITIES, detectDeliveryZone } from "../lib/senegal";
+import {
+  Truck, Globe, Settings as IcoSettings, BarChart3, FlaskConical, Check,
+  Bike, Pencil, Coins, AlertTriangle, Bus, Search, FileText, Circle,
+  Building2,
+} from "lucide-react";
 
 export const FraisPage = () => {
   const {
@@ -85,11 +90,11 @@ export const FraisPage = () => {
       {/* Page header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
-          <div style={{fontWeight:800,fontSize:16,color:G.dark}}>🚚 Zones de livraison</div>
+          <div style={{fontWeight:800,fontSize:16,color:G.dark,display:"flex",alignItems:"center",gap:6}}><Truck size={17}/> Zones de livraison</div>
           <div style={{fontSize:11,color:G.gray,marginTop:2}}>Frais appliqués automatiquement selon la ville du client</div>
         </div>
         <button onClick={seedData} style={{background:"linear-gradient(135deg,#F59E0B,#D97706)",color:"#fff",border:"none",borderRadius:12,padding:"10px 18px",fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",gap:8,boxShadow:"0 3px 10px rgba(217,119,6,0.4)"}}>
-          <span style={{fontSize:22,lineHeight:1}}>🌍</span>
+          <Globe size={22}/>
           <div style={{textAlign:"left"}}>
             <div style={{fontSize:13}}>Pré-remplir Sénégal</div>
             <div style={{fontSize:10,fontWeight:500,opacity:0.9,marginTop:1}}>120+ villes configurées automatiquement</div>
@@ -99,8 +104,8 @@ export const FraisPage = () => {
 
       {/* Sub-tabs */}
       <div style={{display:"flex",gap:0,background:"#F3F4F6",borderRadius:12,padding:3}}>
-        {[["config","⚙️ Config"],["tableau","📊 Tableau"],["test","🧪 Test"]].map(([k,l])=>(
-          <button key={k} onClick={()=>setFraisConfigTab(k)} style={{flex:1,background:fraisConfigTab===k?"#fff":"transparent",border:"none",borderRadius:10,padding:"8px 0",fontSize:12,fontWeight:700,color:fraisConfigTab===k?G.dark:G.gray,cursor:"pointer",transition:"background 0.15s"}}>{l}</button>
+        {[["config","Config",IcoSettings],["tableau","Tableau",BarChart3],["test","Test",FlaskConical]].map(([k,l,Ico])=>(
+          <button key={k} onClick={()=>setFraisConfigTab(k)} style={{flex:1,background:fraisConfigTab===k?"#fff":"transparent",border:"none",borderRadius:10,padding:"8px 0",fontSize:12,fontWeight:700,color:fraisConfigTab===k?G.dark:G.gray,cursor:"pointer",transition:"background 0.15s",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}><Ico size={13}/> {l}</button>
         ))}
       </div>
 
@@ -122,17 +127,17 @@ export const FraisPage = () => {
                       if(mainRegion?.id){ await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{name}).catch(()=>{}); setMainRegion(r=>({...r,name})); }
                       else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name,price:1500,cities:[]}).catch(()=>null); const s=Array.isArray(res)?res[0]:res; if(s)setMainRegion(s); }
                       setFraisMainNameEdit(null);
-                    }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontWeight:700,cursor:"pointer",fontSize:13}}>✓ OK</button>
+                    }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontWeight:700,cursor:"pointer",fontSize:13,display:"inline-flex",alignItems:"center",gap:5}}><Check size={13}/> OK</button>
                     <button onClick={()=>setFraisMainNameEdit(null)} style={{background:"#F3F4F6",border:"1px solid #D1D5DB",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:13,color:G.gray}}>Annuler</button>
                   </div>
                 : <>
                     <div>
-                      <div style={{fontSize:12,color:"#166534",fontWeight:600}}>🏍️ Zone principale · Livraison Locale (Moto)</div>
+                      <div style={{fontSize:12,color:"#166534",fontWeight:600,display:"flex",alignItems:"center",gap:5}}><Bike size={13}/> Zone principale · Livraison Locale (Moto)</div>
                       <div style={{fontSize:16,fontWeight:800,color:"#14532D"}}>{mainRegion?.name||"Non configurée"}</div>
                     </div>
                     <button onClick={()=>setFraisMainNameEdit(mainRegion?.name||"")}
                       style={{background:"#fff",color:"#166534",border:"1.5px solid #86EFAC",borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                      ✏️ Renommer
+<Pencil size={11} style={{display:"inline",verticalAlign:"-1px"}}/> Renommer
                     </button>
                   </>
               }
@@ -140,7 +145,7 @@ export const FraisPage = () => {
             <div style={{padding:"12px 16px"}}>
               {/* Dakar global rate — single source of truth for the region */}
               <div style={{background:"#fff",borderRadius:10,padding:"12px 14px",marginBottom:12,border:"1.5px solid #BBF7D0"}}>
-                <div style={{fontSize:14,fontWeight:600,color:"#14532D"}}>💰 Frais de livraison locale (Dakar)</div>
+                <div style={{fontSize:14,fontWeight:600,color:"#14532D",display:"flex",alignItems:"center",gap:6}}><Coins size={14}/> Frais de livraison locale (Dakar)</div>
                 <div style={{fontSize:12,color:G.gray,marginBottom:8}}>Appliqué à toutes les villes de la région de Dakar (sauf si surchargé par ville)</div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <input type="number" min="0"
@@ -187,7 +192,7 @@ export const FraisPage = () => {
                           }
                         })}
                         style={{width:"100%",height:48,background:disabled?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:10,fontWeight:600,fontSize:15,cursor:disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                        ✅ Appliquer à toutes les villes de Dakar
+<Check size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Appliquer à toutes les villes de Dakar
                       </button>
                       <div style={{fontSize:11,color:G.gray,textAlign:"center",marginTop:6}}>{helper}</div>
                     </div>
@@ -208,18 +213,18 @@ export const FraisPage = () => {
                             const raw=upd.map(x=>`${x.name}|${x.price}`);
                             await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{cities:raw}).catch(()=>{});
                             setMainRegion(r=>({...r,cities:raw})); setFraisEditCity(null);
-                          }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"6px 12px",fontWeight:700,cursor:"pointer",fontSize:12}}>✓ Sauver</button>
+                          }} style={{background:G.green,color:"#fff",border:"none",borderRadius:8,padding:"6px 12px",fontWeight:700,cursor:"pointer",fontSize:12,display:"inline-flex",alignItems:"center",gap:5}}><Check size={12}/> Sauver</button>
                           <button onClick={()=>setFraisEditCity(null)} style={{background:"#F3F4F6",border:"1px solid #D1D5DB",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontSize:12,color:G.gray}}>Annuler</button>
                         </div>
                       : <>
                           <div>
                             <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{c.name}</div>
-                            <div style={{fontSize:11,color:G.green,fontWeight:600}}>🏍️ Livraison Locale: {fmt(c.price)} CFA</div>
+                            <div style={{fontSize:11,color:G.green,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><Bike size={12}/> Livraison Locale: {fmt(c.price)} CFA</div>
                           </div>
                           <div style={{display:"flex",gap:6}}>
                             <button onClick={()=>setFraisEditCity({isMain:true,idx:i,name:c.name,price:String(c.price)})}
                               style={{background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                              ✏️ Modifier
+<Pencil size={11} style={{display:"inline",verticalAlign:"-1px"}}/> Modifier
                             </button>
                             <button onClick={async()=>{
                               const raw=mainCities.filter((_,j)=>j!==i).map(x=>`${x.name}|${x.price}`);
@@ -256,16 +261,16 @@ export const FraisPage = () => {
           {/* Section separator */}
           <div style={{display:"flex",alignItems:"center",gap:10,margin:"2px 0"}}>
             <div style={{height:1,flex:1,background:"#E5E7EB"}}/>
-            <div style={{fontSize:10,color:"#6B7280",fontWeight:700,letterSpacing:"0.06em",padding:"3px 10px",background:"#F3F4F6",borderRadius:20,border:"1px solid #E5E7EB"}}>🚐 LIVRAISON RÉGIONALE</div>
+            <div style={{fontSize:10,color:"#6B7280",fontWeight:700,letterSpacing:"0.06em",padding:"3px 10px",background:"#F3F4F6",borderRadius:20,border:"1px solid #E5E7EB",display:"inline-flex",alignItems:"center",gap:5}}><Truck size={11}/> LIVRAISON RÉGIONALE</div>
             <div style={{height:1,flex:1,background:"#E5E7EB"}}/>
           </div>
 
           {/* Card B — Autres régions */}
           <div style={{background:"#EFF6FF",borderRadius:16,border:"1.5px solid #BFDBFE",overflow:"hidden",boxShadow:"0 2px 8px rgba(191,219,254,0.3)"}}>
             <div style={{background:"#DBEAFE",padding:"12px 16px"}}>
-              <div style={{fontSize:12,color:"#1E40AF",fontWeight:600}}>🚐 Autres régions · Livraison Régionale (Voiture)</div>
+              <div style={{fontSize:12,color:"#1E40AF",fontWeight:600,display:"flex",alignItems:"center",gap:5}}><Truck size={13}/> Autres régions · Livraison Régionale (Voiture)</div>
               <div style={{fontSize:12,color:"#3B82F6",marginTop:4,lineHeight:1.5}}>
-                Total = <strong>🏍️ Locale</strong> (livreur dans la ville du client) + <strong>🚐 Régionale</strong> (transport interurbain). Le colis transite via transporteur privé.
+                Total = <strong style={{display:"inline-flex",alignItems:"center",gap:3}}><Bike size={12}/> Locale</strong> (livreur dans la ville du client) + <strong style={{display:"inline-flex",alignItems:"center",gap:3}}><Truck size={12}/> Régionale</strong> (transport interurbain). Le colis transite via transporteur privé.
               </div>
             </div>
             <div style={{padding:"12px 16px"}}>
@@ -286,10 +291,10 @@ export const FraisPage = () => {
                 };
                 return (
                   <div style={{background:"#fff",borderRadius:10,padding:"14px",marginBottom:12,border:"1.5px solid #93C5FD"}}>
-                    <div style={{fontSize:14,fontWeight:600,color:"#14213D",marginBottom:2}}>🚐 Tarifs globaux régionaux</div>
+                    <div style={{fontSize:14,fontWeight:600,color:"#14213D",marginBottom:2,display:"flex",alignItems:"center",gap:6}}><Truck size={14}/> Tarifs globaux régionaux</div>
                     <div style={{fontSize:12,color:G.gray,marginBottom:12}}>Appliqués pour toute commande hors Dakar (modifiable par région ci-dessous)</div>
                     <div style={{marginBottom:10}}>
-                      <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2}}>🏍️ Frais locaux destination</div>
+                      <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Bike size={13}/> Frais locaux destination</div>
                       <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Livreur dans la ville du client</div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <input type="number" min="0" value={regLocalFee}
@@ -303,7 +308,7 @@ export const FraisPage = () => {
                       </div>
                     </div>
                     <div style={{marginBottom:10}}>
-                      <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2}}>🚐 Frais transport interurbain</div>
+                      <div style={{fontSize:13,fontWeight:600,color:G.dark,marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Truck size={13}/> Frais transport interurbain</div>
                       <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Transport via transporteur privé</div>
                       <div style={{display:"flex",alignItems:"center",gap:8}}>
                         <input type="number" min="0" value={regTransportFee}
@@ -319,7 +324,7 @@ export const FraisPage = () => {
                     <div style={{height:1,background:"#E5E7EB",margin:"12px 0"}}/>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:G.grayLight,borderRadius:10,padding:"12px 14px"}}>
                       <div>
-                        <div style={{fontSize:12,fontWeight:600,color:G.gray}}>💰 Total régional (calculé)</div>
+                        <div style={{fontSize:12,fontWeight:600,color:G.gray,display:"flex",alignItems:"center",gap:5}}><Coins size={12}/> Total régional (calculé)</div>
                         <div style={{fontSize:10,color:G.gray,marginTop:2}}>Locaux + Transport interurbain</div>
                       </div>
                       <div style={{fontSize:16,fontWeight:700,color:total>0?G.green:G.gray}}>{fmt(total)} CFA</div>
@@ -349,7 +354,7 @@ export const FraisPage = () => {
                               }
                             })}
                             style={{width:"100%",height:48,background:disabled?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:10,fontWeight:600,fontSize:15,cursor:disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                            ✅ Appliquer à toutes les régions hors Dakar
+<Check size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Appliquer à toutes les régions hors Dakar
                           </button>
                           <div style={{fontSize:11,color:G.gray,textAlign:"center",marginTop:6}}>{helper}</div>
                         </div>
@@ -367,12 +372,12 @@ export const FraisPage = () => {
                             placeholder="Ville" style={{border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none"}}/>
                           <div style={{display:"flex",gap:6}}>
                             <div style={{flex:1}}>
-                              <div style={{fontSize:10,color:G.gray,marginBottom:3}}>🏍️ Livraison Locale (Moto)</div>
+                              <div style={{fontSize:10,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Bike size={11}/> Livraison Locale (Moto)</div>
                               <input type="number" min="0" value={fraisEditCity.price} onChange={e=>setFraisEditCity(p=>({...p,price:e.target.value}))}
                                 placeholder="2000" style={{width:"100%",border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                             </div>
                             <div style={{flex:1}}>
-                              <div style={{fontSize:10,color:G.gray,marginBottom:3}}>🚐 Livraison Régionale (Voiture)</div>
+                              <div style={{fontSize:10,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Truck size={11}/> Livraison Régionale (Voiture)</div>
                               <input type="number" min="0" value={fraisEditCity.interurbain||""} onChange={e=>setFraisEditCity(p=>({...p,interurbain:e.target.value}))}
                                 placeholder="1000" style={{width:"100%",border:"1.5px solid #93C5FD",borderRadius:8,padding:"7px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                             </div>
@@ -383,7 +388,7 @@ export const FraisPage = () => {
                               if(!name){setFraisEditCity(null);return;}
                               await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"PATCH",{name,price,interurbain_price:itb,cities:[name]}).catch(()=>{});
                               setOtherRegions(prev=>prev.map(x=>x.id===r.id?{...x,name,price,interurbain_price:itb}:x)); setFraisEditCity(null);
-                            }} style={{flex:1,background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,cursor:"pointer",fontSize:13}}>✓ Enregistrer</button>
+                            }} style={{flex:1,background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"7px 0",fontWeight:700,cursor:"pointer",fontSize:13,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}><Check size={13}/> Enregistrer</button>
                             <button onClick={()=>setFraisEditCity(null)} style={{background:"#F3F4F6",border:"1px solid #D1D5DB",borderRadius:8,padding:"7px 14px",cursor:"pointer",fontSize:13,color:G.gray}}>Annuler</button>
                           </div>
                         </div>
@@ -391,15 +396,15 @@ export const FraisPage = () => {
                           <div>
                             <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{r.name}</div>
                             <div style={{fontSize:11,color:"#1E40AF",marginTop:2}}>
-                              <span>🏍️ Locale: {fmt(r.price||0)} CFA</span>
-                              {(r.interurbain_price||0)>0&&<span style={{marginLeft:6}}>+ 🚐 Régionale: {fmt(r.interurbain_price)} CFA</span>}
-                              <span style={{marginLeft:6,fontWeight:800}}>= 💰 Total: {fmt((r.price||0)+(r.interurbain_price||0))} CFA</span>
+                              <span style={{display:"inline-flex",alignItems:"center",gap:3}}><Bike size={11}/> Locale: {fmt(r.price||0)} CFA</span>
+                              {(r.interurbain_price||0)>0&&<span style={{marginLeft:6,display:"inline-flex",alignItems:"center",gap:3}}>+ <Truck size={11}/> Régionale: {fmt(r.interurbain_price)} CFA</span>}
+                              <span style={{marginLeft:6,fontWeight:800,display:"inline-flex",alignItems:"center",gap:3}}>= <Coins size={11}/> Total: {fmt((r.price||0)+(r.interurbain_price||0))} CFA</span>
                             </div>
                           </div>
                           <div style={{display:"flex",gap:6}}>
                             <button onClick={()=>setFraisEditCity({id:r.id,name:r.name,price:String(r.price||0),interurbain:String(r.interurbain_price||0)})}
                               style={{background:"#EFF6FF",color:"#2563EB",border:"1px solid #BFDBFE",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                              ✏️ Modifier
+<Pencil size={11} style={{display:"inline",verticalAlign:"-1px"}}/> Modifier
                             </button>
                             <button onClick={()=>setConfirmModal({msg:`Supprimer "${r.name}" ?`,danger:true,onConfirm:async()=>{
                               await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"DELETE").catch(()=>{});
@@ -421,12 +426,12 @@ export const FraisPage = () => {
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
                   <CityAutocomplete value={fraisNewOther.city} onChange={v=>setFraisNewOther(p=>({...p,city:v}))} placeholder="Ville (ex: Thiès)"/>
                   <div style={{flex:"1 1 80px"}}>
-                    <div style={{fontSize:9,color:G.gray,marginBottom:2}}>🏍️ Locale (Moto)</div>
+                    <div style={{fontSize:9,color:G.gray,marginBottom:2,display:"flex",alignItems:"center",gap:3}}><Bike size={10}/> Locale (Moto)</div>
                     <input type="number" min="0" value={fraisNewOther.price} onChange={e=>setFraisNewOther(p=>({...p,price:e.target.value}))} placeholder="2000"
                       style={{width:"100%",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                   </div>
                   <div style={{flex:"1 1 80px"}}>
-                    <div style={{fontSize:9,color:G.gray,marginBottom:2}}>🚐 Régionale (Voiture)</div>
+                    <div style={{fontSize:9,color:G.gray,marginBottom:2,display:"flex",alignItems:"center",gap:3}}><Truck size={10}/> Régionale (Voiture)</div>
                     <input type="number" min="0" value={fraisNewOther.interurbain||""} onChange={e=>setFraisNewOther(p=>({...p,interurbain:e.target.value}))} placeholder="1000"
                       style={{width:"100%",border:"1.5px solid #7DD3FC",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                   </div>
@@ -477,7 +482,7 @@ export const FraisPage = () => {
             {/* Controls */}
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
               <input type="text" value={fraisTableauSearch} onChange={e=>setFraisTableauSearch(e.target.value)}
-                placeholder="🔍 Rechercher une ville..."
+                placeholder="Rechercher une ville..."
                 style={{flex:"1 1 150px",border:"1.5px solid #E2E8F0",borderRadius:8,padding:"8px 12px",fontSize:13,outline:"none"}}/>
               <select value={fraisTableauFilter} onChange={e=>setFraisTableauFilter(e.target.value)}
                 style={{border:"1.5px solid #E2E8F0",borderRadius:8,padding:"8px 10px",fontSize:12,background:"#fff",color:G.dark,outline:"none"}}>
@@ -485,19 +490,19 @@ export const FraisPage = () => {
                 <option value="main">Région principale</option>
                 <option value="other">Autres régions</option>
               </select>
-              <button onClick={exportCSV} style={{background:"#F0FDF4",color:"#166534",border:"1.5px solid #86EFAC",borderRadius:8,padding:"8px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                📄 CSV
+              <button onClick={exportCSV} style={{background:"#F0FDF4",color:"#166534",border:"1.5px solid #86EFAC",borderRadius:8,padding:"8px 12px",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                <FileText size={13}/> CSV
               </button>
-              <button onClick={exportExcel} style={{background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:8,padding:"8px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                📊 Excel
+              <button onClick={exportExcel} style={{background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:8,padding:"8px 12px",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                <BarChart3 size={13}/> Excel
               </button>
             </div>
             <div style={{fontSize:11,color:G.gray}}>{filtered.length} ville{filtered.length!==1?"s":""} · {rows.length} au total</div>
             {/* Table */}
             <div style={{background:"#fff",borderRadius:12,border:"1.5px solid #E2E8F0",overflow:"hidden"}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto auto auto",gap:0,background:"#F8FAFC",borderBottom:"1px solid #E2E8F0",padding:"8px 14px"}}>
-                {["Ville","Zone","🏍️ Locale","🚐 Régionale","💰 Total"].map(h=>(
-                  <div key={h} style={{fontSize:10,fontWeight:800,color:G.gray,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:h==="Ville"||h==="Zone"?"left":"right"}}>{h}</div>
+                {[["Ville",null],["Zone",null],["Locale",Bike],["Régionale",Truck],["Total",Coins]].map(([h,Ico])=>(
+                  <div key={h} style={{fontSize:10,fontWeight:800,color:G.gray,textTransform:"uppercase",letterSpacing:"0.05em",textAlign:h==="Ville"||h==="Zone"?"left":"right",display:"flex",alignItems:"center",gap:3,justifyContent:h==="Ville"||h==="Zone"?"flex-start":"flex-end"}}>{Ico&&<Ico size={11}/>}{h}</div>
                 ))}
               </div>
               {filtered.length===0&&<div style={{padding:"24px",textAlign:"center",fontSize:13,color:G.gray,fontStyle:"italic"}}>Aucun résultat</div>}
@@ -521,7 +526,7 @@ export const FraisPage = () => {
         const z=detectDeliveryZone(fraisTestCity,mainRegion,otherRegions,defaultPrice);
         return (
           <div style={{background:G.white,borderRadius:14,padding:16,border:"1.5px solid #E2E8F0"}}>
-            <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>🏙️ Tester une ville</div>
+            <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10,display:"flex",alignItems:"center",gap:6}}><Building2 size={14}/> Tester une ville</div>
             <input list="frais-test-cities" type="text" value={fraisTestCity} onChange={e=>setFraisTestCity(e.target.value)}
               placeholder="ex: Plateau, Thiès, Saint-Louis..."
               style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:9,padding:"10px 12px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
@@ -530,11 +535,11 @@ export const FraisPage = () => {
               <div style={{padding:"14px 16px",borderRadius:12,border:"1.5px solid",
                 background:z.type==="main"?"#DCFCE7":z.type==="other"?"#DBEAFE":z.type==="senegal"?"#F3F4F6":"#FEF3C7",
                 borderColor:z.type==="main"?"#86EFAC":z.type==="other"?"#93C5FD":z.type==="senegal"?"#D1D5DB":"#FCD34D"}}>
-                <div style={{fontSize:13,fontWeight:800,color:z.type==="main"?"#166534":z.type==="other"?"#1E40AF":z.type==="senegal"?"#374151":"#92400E",marginBottom:6}}>
-                  {z.type==="main"?"🟢 Région principale":z.type==="other"?"🔵 Autre région configurée":z.type==="senegal"?"⚪ Ville reconnue — Sénégal":"⚠️ Ville non reconnue"}
+                <div style={{fontSize:13,fontWeight:800,color:z.type==="main"?"#166534":z.type==="other"?"#1E40AF":z.type==="senegal"?"#374151":"#92400E",marginBottom:6,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  {z.type==="main"?<><Circle size={12} fill="#16a34a" stroke="#16a34a"/> Région principale</>:z.type==="other"?<><Circle size={12} fill="#2563eb" stroke="#2563eb"/> Autre région configurée</>:z.type==="senegal"?<><Circle size={12} stroke="#9CA3AF"/> Ville reconnue — Sénégal</>:<><AlertTriangle size={12}/> Ville non reconnue</>}
                   {z.type!=="unknown"&&` — ${z.cityName||z.name}`}
                 </div>
-                <div style={{fontSize:22,fontWeight:800,color:G.dark,marginBottom:4}}>🚚 {fmt(z.price)} FCFA</div>
+                <div style={{fontSize:22,fontWeight:800,color:G.dark,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Truck size={20}/> {fmt(z.price)} FCFA</div>
                 {z.type==="other"&&z.interurbain>0&&(
                   <div style={{fontSize:11,color:"#1E40AF",marginTop:4}}>
                     Frais locale: {fmt(z.fraisLocale||0)} F + Transport interurbain: {fmt(z.interurbain||0)} F

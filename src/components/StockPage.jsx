@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
+import { Package, AlertTriangle, TrendingUp, Coins, Pencil, Gift, Plus, Check, ClipboardList } from "lucide-react";
 
 export const StockPage = () => {
   const {
@@ -14,7 +15,7 @@ export const StockPage = () => {
       {/* Header */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div>
-          <div style={{fontWeight:700,fontSize:15,color:G.dark}}>📦 Gestion des produits</div>
+          <div style={{fontWeight:700,fontSize:15,color:G.dark,display:"flex",alignItems:"center",gap:6}}><Package size={16}/> Gestion des produits</div>
           <div style={{fontSize:11,color:G.gray,marginTop:2}}>Stock = initial − commandes livrées (automatique)</div>
         </div>
         {(role==="admin"||role==="closer")&&<button onClick={()=>setShowAddProd(true)} style={{background:G.gold,border:"none",borderRadius:9,padding:"8px 12px",fontSize:12,fontWeight:700,color:G.dark,cursor:"pointer"}}>+ Produit</button>}
@@ -23,7 +24,7 @@ export const StockPage = () => {
       {/* Alerte stock bas */}
       {products.filter(p=>p.stock<5).length>0&&(
         <div style={{background:"#FEF2F2",borderRadius:12,padding:"10px 14px",border:`1px solid #FCA5A5`}}>
-          <div style={{fontSize:12,color:G.red,fontWeight:700}}>⚠️ Stock bas !</div>
+          <div style={{fontSize:12,color:G.red,fontWeight:700,display:"flex",alignItems:"center",gap:5}}><AlertTriangle size={13}/> Stock bas !</div>
           {products.filter(p=>p.stock<5).map(p=><div key={p.id} style={{fontSize:11,color:G.red}}>· {p.name} : {p.stock} restants</div>)}
         </div>
       )}
@@ -53,21 +54,21 @@ export const StockPage = () => {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:15,color:G.dark,marginBottom:4}}>{prod.name}</div>
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                  <span style={{background:stockReel<5?"#FEE2E2":stockReel<15?"#FFF8E7":G.greenLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:stockColor,fontWeight:600}}>
-                    📦 {stockReel} restants
+                  <span style={{background:stockReel<5?"#FEE2E2":stockReel<15?"#FFF8E7":G.greenLight,borderRadius:6,padding:"2px 7px",fontSize:10,color:stockColor,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}>
+                    <Package size={11}/> {stockReel} restants
                   </span>
-                  <span style={{background:"#EFF6FF",color:G.blue,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>
-                    📈 {tauxLiv}% livraison
+                  <span style={{background:"#EFF6FF",color:G.blue,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}>
+                    <TrendingUp size={11}/> {tauxLiv}% livraison
                   </span>
-                  <span style={{background:G.greenLight,color:G.green,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600}}>
-                    💰 {fmt(caTotal)} F CA
+                  <span style={{background:G.greenLight,color:G.green,borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}>
+                    <Coins size={11}/> {fmt(caTotal)} F CA
                   </span>
                 </div>
               </div>
               <div style={{display:"flex",gap:5,marginLeft:8,flexShrink:0,alignItems:"center"}}>
                 <button onClick={e=>{e.stopPropagation();setEditProd({...prod,nLiv,stockReel});}}
-                  style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                  ✏️
+                  style={{background:"#EFF6FF",color:G.blue,border:"none",borderRadius:7,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center"}}>
+                  <Pencil size={13}/>
                 </button>
                 <span style={{color:G.gray,fontSize:14}}>{isExpanded?"▲":"▼"}</span>
               </div>
@@ -91,7 +92,7 @@ export const StockPage = () => {
 
                 {/* Finances */}
                 <div>
-                  <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8}}>💰 FINANCES</div>
+                  <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8,display:"flex",alignItems:"center",gap:5}}><Coins size={12}/> FINANCES</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
                     {[
                       {l:"Prix de vente",   v:`${fmt(prod.price)} F`,         c:G.dark},
@@ -115,7 +116,7 @@ export const StockPage = () => {
 
                 {/* Performance */}
                 <div>
-                  <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8}}>📈 PERFORMANCE RÉELLE</div>
+                  <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8,display:"flex",alignItems:"center",gap:5}}><TrendingUp size={12}/> PERFORMANCE RÉELLE</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:6}}>
                     {[
                       {l:"Total",    v:nTot,  c:G.dark},
@@ -136,16 +137,16 @@ export const StockPage = () => {
                 {/* Bundles */}
                 {(prod.bundles||[]).length>0&&(
                   <div>
-                    <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:6}}>🎁 BUNDLES</div>
+                    <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Gift size={12}/> BUNDLES</div>
                     <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-                      {prod.bundles.map(b=><span key={b.id} style={{background:"#FFF8E7",color:G.gold,borderRadius:7,padding:"3px 9px",fontSize:11,fontWeight:600}}>🎁 {b.label} — {fmt(b.prixVente)} CFA</span>)}
+                      {prod.bundles.map(b=><span key={b.id} style={{background:"#FFF8E7",color:G.gold,borderRadius:7,padding:"3px 9px",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:4}}><Gift size={11}/> {b.label} — {fmt(b.prixVente)} CFA</span>)}
                     </div>
                   </div>
                 )}
 
                 {/* Ajouter stock */}
                 <div style={{background:G.greenLight,borderRadius:9,padding:"10px 12px"}}>
-                  <div style={{fontSize:11,color:G.green,fontWeight:700,marginBottom:6}}>➕ Ajouter du stock</div>
+                  <div style={{fontSize:11,color:G.green,fontWeight:700,marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Plus size={12}/> Ajouter du stock</div>
                   <div style={{display:"flex",gap:7,alignItems:"center"}}>
                     <input type="number" min="1" value={qty}
                       onChange={e=>setStockAjout(p=>({...p,[prod.id]:e.target.value}))}
@@ -156,8 +157,8 @@ export const StockPage = () => {
                       setProducts(p=>p.map(x=>x.id===prod.id?{...x,stockInitial:(x.stockInitial||x.stock+nLiv)+q,stock:x.stock+q}:x));
                       if(!String(prod.id).startsWith("tmp_")) sbFetch(`products?id=eq.${prod.id}`,"PATCH",{stock:prod.stock+q,stock_initial:(prod.stockInitial||prod.stock+nLiv)+q});
                       setStockAjout(p=>({...p,[prod.id]:""}));
-                    }} style={{background:G.green,color:G.white,border:"none",borderRadius:7,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap"}}>
-                      ✅ OK
+                    }} style={{background:G.green,color:G.white,border:"none",borderRadius:7,padding:"8px 14px",fontWeight:700,fontSize:13,cursor:"pointer",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:5}}>
+                      <Check size={14}/> OK
                     </button>
                   </div>
                   {qty&&parseInt(qty)>0&&<div style={{fontSize:10,color:G.green,marginTop:4}}>→ Nouveau total: <strong>{stockReel+parseInt(qty)}</strong> unités</div>}
@@ -170,7 +171,7 @@ export const StockPage = () => {
 
       {/* Tableau récap */}
       <div style={{background:G.white,borderRadius:14,padding:14}}>
-        <ST>📋 RÉCAP STOCK GLOBAL</ST>
+        <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><ClipboardList size={13}/> RÉCAP STOCK GLOBAL</span></ST>
         <Tbl headers={["Produit","Restants","Livrés","Coût","Vente","Marge"]} align={["left","right","right","right","right","right"]}
           rows={products.map(p=>{
             const nL=orders.filter(o=>o.product?.startsWith(p.name)&&o.status==="entregado").length;

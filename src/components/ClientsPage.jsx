@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
+import { Calendar, User, Smartphone, MapPin, Phone } from "lucide-react";
 
 export const ClientsPage = () => {
   const {
@@ -82,7 +83,7 @@ export const ClientsPage = () => {
 
       {/* Filtre date */}
       <div style={{background:G.white,borderRadius:12,padding:'10px 12px'}}>
-        <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5}}>📅 FILTRER PAR DATE</div>
+        <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:8,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Calendar size={11}/> FILTRER PAR DATE</div>
         <div style={{display:'flex',gap:6}}>
           {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>(
             <button key={d.k} onClick={()=>changeFilter(null,null,undefined,d.k)}
@@ -124,7 +125,7 @@ export const ClientsPage = () => {
       {/* Liste */}
       {!clientLoading&&clients.length===0&&(
         <div style={{background:G.white,borderRadius:14,padding:40,textAlign:'center',color:G.gray}}>
-          <div style={{fontSize:40,marginBottom:10}}>👤</div>
+          <div style={{marginBottom:10,display:"flex",justifyContent:"center"}}><User size={40} color={G.gray}/></div>
           <div style={{fontWeight:700,fontSize:14}}>Aucun client dans cette catégorie</div>
         </div>
       )}
@@ -138,8 +139,8 @@ export const ClientsPage = () => {
                   style={{width:'100%',background:'none',border:'none',padding:'12px 14px',cursor:'pointer',textAlign:'left',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                   <div>
                     <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{c.name}</div>
-                    <div style={{fontSize:11,color:G.gray,marginTop:3}}>📱 {c.phone}</div>
-                    {c.address&&<div style={{fontSize:11,color:G.gray}}>📍 {c.address}</div>}
+                    <div style={{fontSize:11,color:G.gray,marginTop:3,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {c.phone}</div>
+                    {c.address&&<div style={{fontSize:11,color:G.gray,display:"flex",alignItems:"center",gap:4}}><MapPin size={11}/> {c.address}</div>}
                   </div>
                   <div style={{textAlign:'right',flexShrink:0}}>
                     <div style={{background:cat.bg,color:cat.color,borderRadius:20,padding:'3px 10px',fontSize:11,fontWeight:700,marginBottom:4}}>
@@ -157,7 +158,7 @@ export const ClientsPage = () => {
                         <div key={o.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${G.grayLight}`}}>
                           <div>
                             <div style={{fontSize:12,fontWeight:600,color:G.dark}}>{o.product}</div>
-                            {d&&<div style={{fontSize:10,color:G.gray}}>📅 {d}</div>}
+                            {d&&<div style={{fontSize:10,color:G.gray,display:"flex",alignItems:"center",gap:3}}><Calendar size={10}/> {d}</div>}
                           </div>
                           <div style={{textAlign:'right'}}>
                             <div style={{fontSize:13,fontWeight:800,color:G.green}}>{fmt(o.price)} CFA</div>
@@ -166,7 +167,7 @@ export const ClientsPage = () => {
                         </div>
                       );
                     })}
-                    <a href={`tel:${c.phone}`} style={{display:'block',marginTop:10,background:G.greenLight,color:G.green,borderRadius:9,padding:'9px 0',fontSize:12,fontWeight:700,textAlign:'center',textDecoration:'none'}}>📞 Appeler {c.name}</a>
+                    <a href={`tel:${c.phone}`} style={{marginTop:10,background:G.greenLight,color:G.green,borderRadius:9,padding:'9px 0',fontSize:12,fontWeight:700,textAlign:'center',textDecoration:'none',display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><Phone size={13}/> Appeler {c.name}</a>
                   </div>
                 )}
               </div>

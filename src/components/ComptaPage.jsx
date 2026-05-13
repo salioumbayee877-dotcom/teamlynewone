@@ -1,6 +1,15 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
 import { _parseCity } from "../lib/senegal";
+import {
+  X, Check, Bike, Truck, PhoneOff, RotateCcw, MapPin, AlertTriangle,
+  Pencil, Coins, Package, Megaphone, Ban, Banknote, FileText, BarChart3,
+  Download, Circle,
+} from "lucide-react";
+
+const _IcoWrap = ({ children, gap = 4 }) => (
+  <span style={{ display: "inline-flex", alignItems: "center", gap, verticalAlign: "middle" }}>{children}</span>
+);
 
 export const ComptaPage = () => {
   const {
@@ -55,7 +64,7 @@ export const ComptaPage = () => {
                       {products.map(p=>{
                         const active=cf.produits.includes(p.name);
                         return <button key={p.id} onClick={()=>setComptaFilters(f=>({...f,produits:active?f.produits.filter(x=>x!==p.name):[...f.produits,p.name]}))}
-                          style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>{p.name}{active?" ✕":""}</button>;
+                          style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400,display:"inline-flex",alignItems:"center",gap:4}}>{p.name}{active&&<X size={12}/>}</button>;
                       })}
                     </div>
                   </div>
@@ -65,9 +74,9 @@ export const ComptaPage = () => {
                 <div>
                   <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>TYPE DE LIVRAISON</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                    {[["all","Tous"],["locale_moto","🏍️ Locale Moto"],["regionale_voiture","🚐 Régionale Voiture"]].map(([k,l])=>(
+                    {[["all","Tous",null],["locale_moto","Locale Moto",Bike],["regionale_voiture","Régionale Voiture",Truck]].map(([k,l,Ico])=>(
                       <button key={k} onClick={()=>setComptaFilters(f=>({...f,livraisonType:k}))}
-                        style={{background:cf.livraisonType===k?"#111827":"#F3F4F6",color:cf.livraisonType===k?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:cf.livraisonType===k?500:400}}>{l}</button>
+                        style={{background:cf.livraisonType===k?"#111827":"#F3F4F6",color:cf.livraisonType===k?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:cf.livraisonType===k?500:400,display:"inline-flex",alignItems:"center",gap:5}}>{Ico&&<Ico size={13}/>}{l}</button>
                     ))}
                   </div>
                 </div>
@@ -76,10 +85,10 @@ export const ComptaPage = () => {
                 <div>
                   <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>STATUT COMMANDE</div>
                   <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                    {[["entregado","✅ Livré"],["rechazado","❌ Rejeté"],["no_contesta","📵 Échec"],["reprogramar","🔄 Retourné"]].map(([k,l])=>{
+                    {[["entregado","Livré",Check],["rechazado","Rejeté",X],["no_contesta","Échec",PhoneOff],["reprogramar","Retourné",RotateCcw]].map(([k,l,Ico])=>{
                       const active=cf.statuts.includes(k);
                       return <button key={k} onClick={()=>setComptaFilters(f=>({...f,statuts:active?f.statuts.filter(x=>x!==k):[...f.statuts,k]}))}
-                        style={{background:active?"#111827":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>{l}</button>;
+                        style={{background:active?"#111827":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400,display:"inline-flex",alignItems:"center",gap:5}}><Ico size={13}/>{l}</button>;
                     })}
                   </div>
                 </div>
@@ -103,7 +112,7 @@ export const ComptaPage = () => {
                       {livTeam.map(m=>{
                         const active=cf.livreurs.includes(m.nom);
                         return <button key={m.id} onClick={()=>setComptaFilters(f=>({...f,livreurs:active?f.livreurs.filter(x=>x!==m.nom):[...f.livreurs,m.nom]}))}
-                          style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400}}>🏍️ {m.nom}{active?" ✕":""}</button>;
+                          style={{background:active?"#1E40AF":"#F3F4F6",color:active?"#fff":"#374151",border:"none",borderRadius:8,padding:"5px 10px",fontSize:12,cursor:"pointer",fontWeight:active?500:400,display:"inline-flex",alignItems:"center",gap:5}}><Bike size={13}/>{m.nom}{active&&<X size={12}/>}</button>;
                       })}
                     </div>
                   </div>
@@ -116,8 +125,8 @@ export const ComptaPage = () => {
                     <select value={cf.region} onChange={e=>setComptaFilters(f=>({...f,region:e.target.value,ville:""}))}
                       style={{flex:"1 1 140px",border:"0.5px solid #E5E7EB",borderRadius:8,padding:"7px 8px",fontSize:12,outline:"none",background:"#FAFAFA"}}>
                       <option value="">Toutes les régions</option>
-                      {mainRegion?.name&&<option value={mainRegion.name}>🟢 {mainRegion.name} (principale)</option>}
-                      {otherRegions.map(r=><option key={r.id} value={r.name}>🔵 {r.name}</option>)}
+                      {mainRegion?.name&&<option value={mainRegion.name}>{mainRegion.name} (principale)</option>}
+                      {otherRegions.map(r=><option key={r.id} value={r.name}>{r.name}</option>)}
                     </select>
                     {cf.region&&(
                       <select value={cf.ville} onChange={e=>setComptaFilters(f=>({...f,ville:e.target.value}))}
@@ -138,19 +147,19 @@ export const ComptaPage = () => {
             {activeCount>0&&(
               <div style={{padding:"8px 14px",borderTop:"0.5px solid #F3F4F6",display:"flex",gap:5,flexWrap:"wrap"}}>
                 {cf.produits.map(p=><span key={p} onClick={()=>setComptaFilters(f=>({...f,produits:f.produits.filter(x=>x!==p)}))}
-                  style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{p} ✕</span>)}
+                  style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}>{p} <X size={11}/></span>)}
                 {cf.livraisonType!=="all"&&<span onClick={()=>setComptaFilters(f=>({...f,livraisonType:"all"}))}
-                  style={{background:"#F0FDF4",color:"#16a34a",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{cf.livraisonType==="locale_moto"?"🏍️ Locale":"🚐 Régionale"} ✕</span>}
+                  style={{background:"#F0FDF4",color:"#16a34a",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}>{cf.livraisonType==="locale_moto"?<><Bike size={12}/> Locale</>:<><Truck size={12}/> Régionale</>} <X size={11}/></span>}
                 {cf.source!=="all"&&<span onClick={()=>setComptaFilters(f=>({...f,source:"all"}))}
-                  style={{background:"#FEF3C7",color:"#92400E",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>{cf.source==="shopify"?"Shopify":"Manuel"} ✕</span>}
+                  style={{background:"#FEF3C7",color:"#92400E",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}>{cf.source==="shopify"?"Shopify":"Manuel"} <X size={11}/></span>}
                 {cf.livreurs.map(l=><span key={l} onClick={()=>setComptaFilters(f=>({...f,livreurs:f.livreurs.filter(x=>x!==l)}))}
-                  style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>🏍️ {l} ✕</span>)}
+                  style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}><Bike size={12}/> {l} <X size={11}/></span>)}
                 {cf.ville&&<span onClick={()=>setComptaFilters(f=>({...f,ville:"",region:""}))}
-                  style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>📍 {cf.ville} ✕</span>}
+                  style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}><MapPin size={12}/> {cf.ville} <X size={11}/></span>}
                 {!cf.ville&&cf.region&&<span onClick={()=>setComptaFilters(f=>({...f,region:""}))}
-                  style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>📍 {cf.region} ✕</span>}
+                  style={{background:"#FEF9C3",color:"#713F12",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}><MapPin size={12}/> {cf.region} <X size={11}/></span>}
                 {!(cf.statuts.length===1&&cf.statuts[0]==="entregado")&&<span onClick={()=>setComptaFilters(f=>({...f,statuts:["entregado"]}))}
-                  style={{background:"#F3F4F6",color:"#374151",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer"}}>Statuts ✕</span>}
+                  style={{background:"#F3F4F6",color:"#374151",borderRadius:10,padding:"2px 9px",fontSize:11,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}>Statuts <X size={11}/></span>}
               </div>
             )}
           </div>
@@ -265,14 +274,14 @@ export const ComptaPage = () => {
                     const isSaving  = costEdit.saving === true;
                     return (
                     <div style={{background:"#FFFBEB",borderRadius:10,padding:"14px",border:"0.5px solid #FCD34D",marginBottom:4}}>
-                      <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2}}>{notConfigured?"⚠️ Coûts non configurés":"✏️ Modifier les coûts"}</div>
+                      <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2,display:"flex",alignItems:"center",gap:6}}>{notConfigured?<><AlertTriangle size={14}/> Coûts non configurés</>:<><Pencil size={14}/> Modifier les coûts</>}</div>
                       <div style={{fontSize:11,color:"#A16207",marginBottom:12}}>{prod.name}</div>
                       <div style={{display:"flex",flexDirection:"column",gap:10}}>
                         {/* Field 1 — Coût total */}
                         <div>
-                          <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>💰 Coût total du produit</div>
+                          <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Coins size={12}/> Coût total du produit</div>
                           <div style={{fontSize:10,color:"#A16207",marginBottom:2}}>Inclure: prix d'achat + import + douane + transport + emballage</div>
-                          <div style={{fontSize:10,color:"#A16207",marginBottom:4,fontStyle:"italic"}}>Synchronisé avec 📦 Gestion de produit</div>
+                          <div style={{fontSize:10,color:"#A16207",marginBottom:4,fontStyle:"italic",display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Synchronisé avec <Package size={11}/> Gestion de produit</div>
                           <div style={{position:"relative"}}>
                             <input type="number" min="0" placeholder="Ex: 7000"
                               value={costEdit.cost??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,cost:e.target.value}}))}
@@ -282,8 +291,8 @@ export const ComptaPage = () => {
                         </div>
                         {/* Field 2 — Frais de livraison */}
                         <div>
-                          <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2}}>🚚 Frais de livraison</div>
-                          <div style={{fontSize:10,color:"#A16207",marginBottom:4}}>Synchronisé avec 🚚 Zones de livraison</div>
+                          <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Truck size={12}/> Frais de livraison</div>
+                          <div style={{fontSize:10,color:"#A16207",marginBottom:4,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>Synchronisé avec <Truck size={11}/> Zones de livraison</div>
                           <div style={{position:"relative"}}>
                             <input type="number" min="0" placeholder="Ex: 1500"
                               value={costEdit.fraisLiv??""} onChange={e=>setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,fraisLiv:e.target.value}}))}
@@ -294,7 +303,7 @@ export const ComptaPage = () => {
                         {/* Read-only — Marge calculée */}
                         <div style={{background:"#F3F4F6",borderRadius:8,padding:"10px 12px",border:"0.5px solid #E5E7EB"}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <span style={{fontSize:11,color:"#6B7280",fontWeight:600}}>💰 Marge par unité (calculée)</span>
+                            <span style={{fontSize:11,color:"#6B7280",fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}}><Coins size={12}/> Marge par unité (calculée)</span>
                             <span style={{fontSize:15,fontWeight:800,color:liveMarge>=0?G.green:"#DC2626"}}>{fmt(liveMarge)} CFA</span>
                           </div>
                           <div style={{fontSize:10,color:"#9CA3AF",marginTop:3}}>Prix de vente − CAMV − Livraison</div>
@@ -315,8 +324,8 @@ export const ComptaPage = () => {
                               setComptaCostEdit(p=>({...p,[prod.id]:{...costEdit,saving:false}}));
                               addToast("❌ Erreur — réessayer","❌",G.red);
                             }
-                          }} style={{flex:1,background:isSaving?"#9CA3AF":"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"10px 0",fontWeight:600,fontSize:13,cursor:isSaving?"not-allowed":"pointer"}}>
-                            {isSaving?"Enregistrement…":"✅ Enregistrer"}
+                          }} style={{flex:1,background:isSaving?"#9CA3AF":"#16a34a",color:"#fff",border:"none",borderRadius:8,padding:"10px 0",fontWeight:600,fontSize:13,cursor:isSaving?"not-allowed":"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                            {isSaving?"Enregistrement…":<><Check size={14}/> Enregistrer</>}
                           </button>
                           {!notConfigured&&<button disabled={isSaving} onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:undefined}))}
                             style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Annuler</button>}
@@ -362,8 +371,8 @@ export const ComptaPage = () => {
                   )}
                   {!notConfigured&&!comptaCostEdit[prod.id]&&(
                     <button onClick={()=>setComptaCostEdit(p=>({...p,[prod.id]:{cost:prod.cost||"",fraisLiv:prod.fraisLiv||""}}))}
-                      style={{alignSelf:"flex-start",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500,cursor:"pointer",marginTop:2}}>
-                      ✏️ Modifier coûts
+                      style={{alignSelf:"flex-start",background:"#F3F4F6",color:"#374151",border:"none",borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:500,cursor:"pointer",marginTop:2,display:"inline-flex",alignItems:"center",gap:5}}>
+                      <Pencil size={12}/> Modifier coûts
                     </button>
                   )}
                 </div>
@@ -388,7 +397,7 @@ export const ComptaPage = () => {
                   {/* Product section header (warning state if no cost) */}
                   {notConfigured ? (
                     <div style={{padding:"10px 14px",background:"#FFFBEB",borderBottom:"0.5px solid #FCD34D",display:"flex",alignItems:"center",gap:10}}>
-                      <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+                      <AlertTriangle size={16} color="#92400E" style={{flexShrink:0}}/>
                       <div style={{flex:1,minWidth:0}}>
                         <div style={{fontSize:11,fontWeight:700,color:"#92400E"}}>Coûts non configurés</div>
                         <div style={{fontSize:12,color:"#92400E",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
@@ -404,14 +413,14 @@ export const ComptaPage = () => {
                         <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
                       </div>
                       <div style={{display:"flex",gap:6,flexShrink:0}}>
-                        <span style={{background:"#F0FDF4",color:"#166534",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600}}>✅ {nLiv}</span>
-                        <span style={{background:"#FEF2F2",color:"#991B1B",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600}}>❌ {nRej}</span>
+                        <span style={{background:"#F0FDF4",color:"#166534",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}><Check size={12}/> {nLiv}</span>
+                        <span style={{background:"#FEF2F2",color:"#991B1B",borderRadius:12,padding:"2px 8px",fontSize:11,fontWeight:600,display:"inline-flex",alignItems:"center",gap:3}}><X size={12}/> {nRej}</span>
                       </div>
                     </div>
                   )}
                   {/* Pub input */}
                   <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:15,flexShrink:0}}>📣</span>
+                    <Megaphone size={15} color="#4B5563" style={{flexShrink:0}}/>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Pub</div>
                       <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Meta · TikTok · Google Ads · Influencer · SMS/WhatsApp</div>
@@ -427,7 +436,7 @@ export const ComptaPage = () => {
                   </div>
                   {/* Frais échecs input */}
                   <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10,borderTop:"0.5px solid #F3F4F6"}}>
-                    <span style={{fontSize:15,flexShrink:0}}>🚫</span>
+                    <Ban size={15} color="#4B5563" style={{flexShrink:0}}/>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:12,fontWeight:500,color:"#4B5563"}}>Frais extra</div>
                       <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Échec livraison · Produit endommagé · Frais transfert (Wave/Orange Money)</div>
@@ -445,13 +454,13 @@ export const ComptaPage = () => {
                 );
               })}
               <div style={{padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:10}}>
-                <span style={{fontSize:15,flexShrink:0,marginTop:2}}>💵</span>
+                <Banknote size={15} color="#4B5563" style={{flexShrink:0,marginTop:2}}/>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:500,color:"#111827"}}>Cash livreurs</div>
                   <div style={{fontSize:11,color:"#9CA3AF",marginTop:1}}>Total reçu en main propre</div>
                   {cashRemis&&(
                     <div style={{fontSize:11,marginTop:4,color:diff>0?"#dc2626":diff<0?"#d97706":"#16a34a"}}>
-                      Diff. CA: {diff===0?"✓ En ordre":`${diff>0?"−":"+"}${fmt(Math.abs(diff))} F`}
+                      Diff. CA: {diff===0?<><Check size={11} style={{display:"inline",verticalAlign:"-2px"}}/> En ordre</>:`${diff>0?"−":"+"}${fmt(Math.abs(diff))} F`}
                     </div>
                   )}
                 </div>
@@ -504,14 +513,14 @@ export const ComptaPage = () => {
           <div style={{position:"relative",paddingBottom:4}}>
             <button onClick={()=>setComptaExportOpen(o=>!o)}
               style={{width:"100%",background:"#fff",color:"#374151",border:"0.5px solid #E5E7EB",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:500,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              ⬇️ Exporter le rapport
+              <Download size={14}/> Exporter le rapport
             </button>
             {comptaExportOpen&&(
               <div style={{position:"absolute",bottom:"calc(100% + 6px)",left:0,right:0,background:"#fff",border:"0.5px solid #E5E7EB",borderRadius:12,boxShadow:"0 4px 16px rgba(0,0,0,0.10)",overflow:"hidden",zIndex:300}}>
-                {[["csv","📄 CSV (.csv)"],["xls","📊 Excel (.xls)"]].map(([t,l])=>(
+                {[["csv","CSV (.csv)",FileText],["xls","Excel (.xls)",BarChart3]].map(([t,l,Ico])=>(
                   <button key={t} onClick={()=>doExport(t)}
-                    style={{width:"100%",background:"transparent",border:"none",borderBottom:t==="csv"?"0.5px solid #F3F4F6":"none",padding:"12px 16px",fontSize:13,color:"#374151",cursor:"pointer",textAlign:"left",display:"block"}}>
-                    {l}
+                    style={{width:"100%",background:"transparent",border:"none",borderBottom:t==="csv"?"0.5px solid #F3F4F6":"none",padding:"12px 16px",fontSize:13,color:"#374151",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:8}}>
+                    <Ico size={14}/> {l}
                   </button>
                 ))}
               </div>

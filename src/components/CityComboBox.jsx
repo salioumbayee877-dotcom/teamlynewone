@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { _normCity, _parseCity, SENEGAL_CITIES } from "../lib/senegal";
+import { Circle, HelpCircle, Settings } from "lucide-react";
 
 export function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, G, fmt}) {
   const [open, setOpen] = useState(false);
@@ -64,10 +65,10 @@ export function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=
   };
 
   const getBadgeStyle = type => {
-    if(type==="main")    return {color:"#166534",icon:"🟢"};
-    if(type==="other")   return {color:"#1E40AF",icon:"🔵"};
-    if(type==="senegal") return {color:"#6B7280",icon:"⚪"};
-    return {color:G.gray,icon:"❓"};
+    if(type==="main")    return {color:"#166534",Ico:Circle,fillIco:"#16a34a"};
+    if(type==="other")   return {color:"#1E40AF",Ico:Circle,fillIco:"#2563eb"};
+    if(type==="senegal") return {color:"#6B7280",Ico:Circle,fillIco:"#9CA3AF"};
+    return {color:G.gray,Ico:HelpCircle,fillIco:"none"};
   };
 
   return (
@@ -77,7 +78,7 @@ export function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=
           placeholder="Dakar, Thiès, Saint-Louis..."
           style={{flex:1,border:"none",padding:"9px 12px",fontSize:13,outline:"none",background:"transparent"}}/>
         {onConfig&&<button type="button" onClick={onConfig} title="Configurer les frais de livraison"
-          style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 10px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center"}}>⚙️</button>}
+          style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 10px",cursor:"pointer",fontSize:13,display:"flex",alignItems:"center"}}><Settings size={14}/></button>}
         <button type="button" onClick={()=>setOpen(o=>!o)}
           style={{background:"#F9FAFB",border:"none",borderLeft:`1px solid ${G.grayLight}`,padding:"0 11px",cursor:"pointer",color:G.gray,fontSize:13,display:"flex",alignItems:"center"}}>
           {open?"▲":"▾"}
@@ -96,7 +97,7 @@ export function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=
             </div>
           )}
           {filtered.map((opt,i)=>{
-            const {color,icon}=getBadgeStyle(opt.type);
+            const {color,Ico,fillIco}=getBadgeStyle(opt.type);
             return (
               <div key={i}
                 onMouseDown={e=>{e.preventDefault();select(opt);}}
@@ -106,8 +107,8 @@ export function CityComboBox({value="", onCityChange, onConfig=null, mainRegion=
                   background:hoverIdx===i?"#F0F9FF":"#fff"}}>
                 <div>
                   <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{opt.name}</div>
-                  <div style={{fontSize:10,fontWeight:600,marginTop:1,color}}>
-                    {icon} {opt.region}{opt.department&&opt.type==="senegal"?` · ${opt.department}`:""}
+                  <div style={{fontSize:10,fontWeight:600,marginTop:1,color,display:"flex",alignItems:"center",gap:4}}>
+                    <Ico size={9} fill={fillIco} stroke={fillIco==="none"?color:fillIco}/> {opt.region}{opt.department&&opt.type==="senegal"?` · ${opt.department}`:""}
                   </div>
                 </div>
                 <div style={{fontSize:12,fontWeight:800,color,whiteSpace:"nowrap",marginLeft:8}}>
