@@ -229,21 +229,6 @@ export const ComptaPage = () => {
         );
       })()}
 
-      {/* ── Section 3: Alerts for products with missing cost config ── */}
-      {comptaCalcProd.filter(x=>!x.prod.cost||x.prod.cost===0).map(({prod})=>(
-        <div key={prod.id} style={{background:"#FFFBEB",border:"0.5px solid #FCD34D",borderRadius:12,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:500,color:"#92400E",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
-            <div style={{fontSize:11,color:"#A16207"}}>Coûts non configurés</div>
-          </div>
-          <button onClick={()=>{setComptaExpandedProd(prod.id);setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]||{cost:prod.cost||"",fraisLiv:prod.fraisLiv||""}}));}}
-            style={{background:"#FEF3C7",color:"#92400E",border:"0.5px solid #FCD34D",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
-            Config
-          </button>
-        </div>
-      ))}
-
       {/* ── Section 4: Product rows (compact, expandable) ── */}
       <div>
         <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>PRODUITS</div>
@@ -396,12 +381,28 @@ export const ComptaPage = () => {
           <div>
             <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>SAISIES DU JOUR</div>
             <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"hidden"}}>
-              {comptaCalcProd.map(({prod},idx)=>(
+              {comptaCalcProd.map(({prod},idx)=>{
+                const notConfigured = !prod.cost||prod.cost===0;
+                return (
                 <div key={prod.id} style={{borderBottom:idx<comptaCalcProd.length-1?"1px solid #E5E7EB":"none"}}>
-                  {/* Product section header */}
-                  <div style={{padding:"9px 14px 6px",background:"#F9FAFB",borderBottom:"0.5px solid #F3F4F6"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
-                  </div>
+                  {/* Product section header (warning state if no cost) */}
+                  {notConfigured ? (
+                    <div style={{padding:"10px 14px",background:"#FFFBEB",borderBottom:"0.5px solid #FCD34D",display:"flex",alignItems:"center",gap:10}}>
+                      <span style={{fontSize:16,flexShrink:0}}>⚠️</span>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#92400E"}}>Coûts non configurés</div>
+                        <div style={{fontSize:12,color:"#92400E",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                      </div>
+                      <button onClick={()=>{setComptaExpandedProd(prod.id);setComptaCostEdit(p=>({...p,[prod.id]:p[prod.id]||{cost:prod.cost||"",fraisLiv:prod.fraisLiv||""}}));}}
+                        style={{background:"#FEF3C7",color:"#92400E",border:"0.5px solid #FCD34D",borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                        Config
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{padding:"9px 14px 6px",background:"#F9FAFB",borderBottom:"0.5px solid #F3F4F6"}}>
+                      <div style={{fontSize:12,fontWeight:700,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
+                    </div>
+                  )}
                   {/* Pub input */}
                   <div style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
                     <span style={{fontSize:15,flexShrink:0}}>📣</span>
@@ -435,7 +436,8 @@ export const ComptaPage = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div style={{padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:10}}>
                 <span style={{fontSize:15,flexShrink:0,marginTop:2}}>💵</span>
                 <div style={{flex:1,minWidth:0}}>
