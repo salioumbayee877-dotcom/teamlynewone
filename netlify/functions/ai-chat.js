@@ -1,5 +1,5 @@
 const { requireUser } = require("./_auth");
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 const SYSTEM = `Tu es l'assistant IA intégré dans Teamly — une application de gestion de commandes COD (Cash On Delivery) pour le e-commerce en Afrique de l'Ouest (Sénégal, Côte d'Ivoire, Mali, Burkina Faso, etc.).
 
@@ -165,7 +165,7 @@ exports.handler = async (event) => {
   const user = await requireUser(event);
   if (!user) return { statusCode: 401, headers, body: JSON.stringify({ error: "Authentification requise" }) };
 
-  if (!ANTHROPIC_API_KEY)
+  if (!DEEPSEEK_API_KEY)
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Clé API non configurée" }) };
 
   try {
@@ -173,29 +173,30 @@ exports.handler = async (event) => {
     if (!messages || !Array.isArray(messages))
       return { statusCode: 400, headers, body: JSON.stringify({ error: "Messages invalides" }) };
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
+    const res = await fetch("https://api.deepseek.com/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${DEEPSEEK_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "deepseek-chat",
         max_tokens: 1024,
-        system: SYSTEM,
-        messages: messages.slice(-10),
+        messages: [
+          { role: "system", content: SYSTEM },
+          ...messages.slice(-10),
+        ],
       }),
     });
 
     if (!res.ok) {
       const err = await res.text();
-      console.error("Anthropic error:", err);
+      console.error("DeepSeek error:", err);
       return { statusCode: 500, headers, body: JSON.stringify({ error: "Erreur IA" }) };
     }
 
     const data = await res.json();
-    const reply = data.content?.[0]?.text || "";
+    const reply = data.choices?.[0]?.message?.content || "";
     return { statusCode: 200, headers, body: JSON.stringify({ reply }) };
   } catch (e) {
     console.error("AI chat error:", e.message);
