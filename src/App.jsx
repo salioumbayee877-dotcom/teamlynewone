@@ -6986,20 +6986,31 @@ function AppInner() {
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Pencil size={17}/> Modifier la commande #{editOrder.id}</div>
 
-            {[
-              {key:"client",   Ico:User,       label:"Nom client",        ph:"Moussa Diallo",   type:"text"},
-              {key:"phone",    Ico:Smartphone, label:"Téléphone",          ph:"77 123 45 67",    type:"text"},
-              {key:"address",  Ico:MapPin,     label:"Adresse du client",  ph:"Médina, Dakar",   type:"text"},
-              {key:"product",  Ico:Package,    label:"Produit",            ph:"Chaussures Nike", type:"text"},
-              {key:"price",    Ico:Coins,      label:"Prix COD (CFA)",     ph:"25000",           type:"number"},
-              {key:"fraisLiv", Ico:Truck,      label:"Frais livraison (CFA)", ph:"1500",        type:"number"},
-            ].map(f=>(
-              <div key={f.key} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
-                <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
-                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-              </div>
-            ))}
+            {(()=>{
+              const zEdit = editOrder.city
+                ? detectDeliveryZone(editOrder.city, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500)
+                : null;
+              const fraisIsPredefined = zEdit && (zEdit.type==="senegal" || zEdit.type==="unknown");
+              return [
+                {key:"client",   Ico:User,       label:"Nom client",        ph:"Moussa Diallo",   type:"text"},
+                {key:"phone",    Ico:Smartphone, label:"Téléphone",          ph:"77 123 45 67",    type:"text"},
+                {key:"address",  Ico:MapPin,     label:"Adresse du client",  ph:"Médina, Dakar",   type:"text"},
+                {key:"product",  Ico:Package,    label:"Produit",            ph:"Chaussures Nike", type:"text"},
+                {key:"price",    Ico:Coins,      label:"Prix COD (CFA)",     ph:"25000",           type:"number"},
+                {key:"fraisLiv", Ico:Truck,      label:"Frais livraison (CFA)", ph:"1500",        type:"number", hint: fraisIsPredefined ? "Prix prédéterminé à configurer" : null},
+              ].map(f=>(
+                <div key={f.key} style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
+                  <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                    style={{width:"100%",border:`1.5px solid ${f.hint?"#F59E0B":G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  {f.hint&&(
+                    <div style={{marginTop:4,fontSize:11,color:"#92400E",display:"flex",alignItems:"center",gap:4}}>
+                      <AlertTriangle size={11}/> {f.hint}
+                    </div>
+                  )}
+                </div>
+              ));
+            })()}
 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Building2 size={12}/> Ville du client</div>
@@ -7009,6 +7020,7 @@ function AppInner() {
                   const autoFee = zoneInfo.type!=="unknown" ? String(zoneInfo.price) : (editOrder.fraisLiv||"");
                   setEditOrder(p=>({...p, city:cityName, fraisLiv:autoFee, deliveryZoneType:zoneInfo.type, deliveryZoneName:zoneInfo.name||""}));
                 }}
+                onConfig={()=>{ setEditOrder(null); setTab("frais"); }}
                 mainRegion={mainRegion} otherRegions={otherRegions}
                 defaultDeliveryPrice={settings.defaultDeliveryPrice||3500} G={G} fmt={fmt}
               />
@@ -7018,8 +7030,8 @@ function AppInner() {
                   <div style={{marginTop:5}}>
                     {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#16a34a" stroke="#16a34a"/> {z.name||mainRegion?.name} · {fmt(z.price)} CFA</span>}
                     {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#2563eb" stroke="#2563eb"/> {z.name} · {fmt(z.price)} CFA</span>}
-                    {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} stroke="#9CA3AF"/> {z.name} · tarif par défaut</span>}
-                    {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/> Ville inconnue</span>}
+                    {z.type==="senegal"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/> Ville non configurée — {z.name}</span>}
+                    {z.type==="unknown"&&<span style={{background:"#FEE2E2",color:"#991B1B",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/> Ville non reconnue</span>}
                   </div>
                 );
               })()}

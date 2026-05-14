@@ -1,5 +1,6 @@
 const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
 const { deriveSyncStatus }  = require('./lib/syncStatus');
+const { extractCityFromAddress } = require('./lib/senegalCities');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -49,8 +50,11 @@ exports.handler = async (event) => {
     const clientName = `${firstName} ${lastName}`.trim() || order.billing?.email || "Client WooCommerce";
     const phone      = fmtPhone(order.billing?.phone || order.shipping?.phone || "");
     const addr       = order.shipping || order.billing;
-    const city       = addr?.city || "";
     const address    = addr ? [addr.address_1, addr.city, addr.state, addr.country].filter(Boolean).join(", ") : "";
+    const extracted  = extractCityFromAddress(address) || extractCityFromAddress(addr?.city);
+    const city       = extracted?.city || addr?.city || "";
+    const cityIsDakar = extracted?.isDakar === true;
+    const provinceForMeta = extracted?.region || addr?.state || null;
 
     const lineItems    = order.line_items || [];
     const rawProduct   = lineItems.map(i=>`${i.name} x${i.quantity||1}`).join(" + ") || "Produit WooCommerce";
@@ -110,7 +114,7 @@ exports.handler = async (event) => {
 
     // ── Delivery zone matching ──────────────────────────────────────────
     let fraisAmount = 0, matchType = "fallback", matchedZone = null;
-    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: addr?.state || null };
+    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
       const [mainRes, othRes, setRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
@@ -124,7 +128,7 @@ exports.handler = async (event) => {
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
-      syncMeta       = deriveSyncStatus(result, main, others, city, addr?.state, settings);
+      syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
     } catch(e) { console.error("Zone matching error:", e.message); }
     const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
     const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;

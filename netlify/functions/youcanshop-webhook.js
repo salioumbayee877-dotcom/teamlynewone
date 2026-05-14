@@ -1,5 +1,6 @@
 const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
 const { deriveSyncStatus }  = require('./lib/syncStatus');
+const { extractCityFromAddress } = require('./lib/senegalCities');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -57,13 +58,16 @@ exports.handler = async (event) => {
     );
 
     const addrObj = order.shippingAddress || order.shipping_address || order.address || {};
-    const city    = addrObj.city || "";
     const address = [
       addrObj.address || addrObj.address_1 || addrObj.street,
       addrObj.city,
       addrObj.province || addrObj.state || addrObj.region,
       addrObj.country_code || addrObj.country
     ].filter(Boolean).join(", ");
+    const extracted = extractCityFromAddress(address) || extractCityFromAddress(addrObj.city);
+    const city      = extracted?.city || addrObj.city || "";
+    const cityIsDakar = extracted?.isDakar === true;
+    const provinceForMeta = extracted?.region || addrObj.province || addrObj.state || addrObj.region || null;
 
     const items      = order.products || order.items || order.line_items || [];
     const rawProduct = items.map(i => {
@@ -130,9 +134,8 @@ exports.handler = async (event) => {
 
     // ── Delivery zone matching ──────────────────────────────────────────
     let fraisAmount = 0, matchType = "fallback", matchedZone = null;
-    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: null };
+    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
-      const region = addrObj.province || addrObj.state || addrObj.region || null;
       const [mainRes, othRes, setRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
         fetch(`${SB_URL}/rest/v1/delivery_other_regions?org_id=eq.${orgId}&select=id,name,price,interurbain_price,cities,aliases`, { headers: sbHeaders }),
@@ -145,7 +148,7 @@ exports.handler = async (event) => {
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
-      syncMeta       = deriveSyncStatus(result, main, others, city, region, settings);
+      syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
     } catch(e) { console.error("Zone matching error:", e.message); }
     const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
     const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;

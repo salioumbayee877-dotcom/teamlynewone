@@ -1,5 +1,6 @@
 const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
 const { deriveSyncStatus }  = require('./lib/syncStatus');
+const { extractCityFromAddress } = require('./lib/senegalCities');
 const { corsOrigin } = require('./lib/cors');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -49,9 +50,14 @@ exports.handler = async (event) => {
 
     // ── Address & city ────────────────────────────────────────────────────
     const addr    = order.shipping_address || order.billing_address;
-    const city    = addr?.city || "";
     const addressParts = addr ? [addr.address1, addr.address2, addr.city, addr.province].filter(Boolean) : [];
     const address = addressParts.join(", ") || "";
+    // Resolve the actual Sénégal city from the full address (handles cases
+    // where Shopify's `city` field is "-", empty, or just a quartier).
+    const extracted = extractCityFromAddress(address) || extractCityFromAddress(addr?.city);
+    const city     = extracted?.city || addr?.city || "";
+    const cityIsDakar = extracted?.isDakar === true;
+    const provinceForMeta = extracted?.region || addr?.province || null;
 
     // ── Products ──────────────────────────────────────────────────────────
     const lineItems      = order.line_items || [];
@@ -86,7 +92,7 @@ exports.handler = async (event) => {
 
     // ── Delivery zone matching ────────────────────────────────────────────
     let fraisAmount = 0, matchType = "fallback", matchedZone = null;
-    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: addr?.province || null };
+    let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
       const [mainRes, othRes, setRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/delivery_main_region?org_id=eq.${orgId}&select=id,name,price,cities,aliases&limit=1`, { headers: sbHeaders }),
@@ -100,7 +106,7 @@ exports.handler = async (event) => {
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
-      syncMeta       = deriveSyncStatus(result, main, others, city, addr?.province, settings);
+      syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
     } catch(e) { console.error("Zone matching error:", e.message); }
 
     const fraisBlocked = matchType === "fallback";
