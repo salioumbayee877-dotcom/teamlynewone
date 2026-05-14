@@ -1,5 +1,6 @@
 const { randomUUID } = require("crypto");
 const { requireUser } = require("./_auth");
+const { isOriginAllowed, corsOrigin } = require("./lib/cors");
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL      = process.env.SUPABASE_URL;
@@ -11,12 +12,10 @@ const sbHeaders = {
   "Prefer": "return=representation,resolution=merge-duplicates",
 };
 
-const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app","http://localhost:5173"];
-
 exports.handler = async (event) => {
   const origin = event.headers?.origin || event.headers?.Origin || "";
   const headers = {
-    "Access-Control-Allow-Origin": ALLOWED.includes(origin) ? origin : ALLOWED[0],
+    "Access-Control-Allow-Origin": corsOrigin(origin),
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -25,7 +24,7 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   if (event.httpMethod !== "POST")    return { statusCode: 405, headers, body: "Method not allowed" };
-  if (origin && !ALLOWED.includes(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
+  if (origin && !isOriginAllowed(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
 
   const user = await requireUser(event);
   if (!user) return { statusCode: 401, headers, body: JSON.stringify({ error: "Authentification requise" }) };

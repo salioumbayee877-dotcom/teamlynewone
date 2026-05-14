@@ -8,7 +8,8 @@ import {
   Megaphone, Building2, Camera, Mic, Trash2, Image as IcoImage, Paperclip,
   Bookmark, ArrowRight, Globe, Clock, Sparkles, Hourglass, Save, ChevronDown,
   ChevronUp, Plus, Minus, Star, ShieldCheck, Cake, MailCheck, ListChecks,
-  Wifi, Briefcase, Maximize2,
+  Wifi, Briefcase, Maximize2, StickyNote, Circle, Gift, HelpCircle, Ban,
+  Banknote, Pin as Pushpin, Percent, Hash, Download, FlaskConical,
 } from "lucide-react";
 import ProductAnalysisPopup from "./ProductAnalysisPopup";
 import { CityComboBox, CityAutocomplete } from "./components/CityComboBox";

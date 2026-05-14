@@ -1,3 +1,5 @@
+const { corsOrigin } = require("./lib/cors");
+
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL      = process.env.SUPABASE_URL;
 const OWNER_EMAIL = process.env.SUPER_ADMIN_EMAIL || "salioumbayee877@gmail.com";
@@ -8,12 +10,10 @@ const sbHeaders = {
   "Authorization": `Bearer ${SERVICE_KEY}`,
 };
 
-const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
-
 exports.handler = async (event) => {
   const origin = event.headers?.origin || event.headers?.Origin || "";
   const headers = {
-    "Access-Control-Allow-Origin": ALLOWED.includes(origin) ? origin : ALLOWED[0],
+    "Access-Control-Allow-Origin": corsOrigin(origin),
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
     "Vary": "Origin",

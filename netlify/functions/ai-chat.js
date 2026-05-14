@@ -1,4 +1,5 @@
 const { requireUser } = require("./_auth");
+const { isOriginAllowed, corsOrigin } = require("./lib/cors");
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 
 const SYSTEM = `Tu es l'assistant IA intégré dans Teamly — une application de gestion de commandes COD (Cash On Delivery) pour le e-commerce en Afrique de l'Ouest (Sénégal, Côte d'Ivoire, Mali, Burkina Faso, etc.).
@@ -141,15 +142,10 @@ R: Comptabilité > bénéfice = (prix vente - coût - frais liv) × nombre livra
 
 Si tu ne sais pas répondre à quelque chose de précis sur Teamly, dis-le honnêtement.`;
 
-const ALLOWED = ["https://www.teamlyecom.com","https://teamlyecom.com","https://teamly.life","https://www.teamly.life","https://admirable-gingersnap-0038d8.netlify.app"];
-const getAllowedOrigin = (event) => {
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  return ALLOWED.includes(origin) ? origin : ALLOWED[0];
-};
-
 exports.handler = async (event) => {
+  const origin = event.headers?.origin || event.headers?.Origin || "";
   const headers = {
-    "Access-Control-Allow-Origin": getAllowedOrigin(event),
+    "Access-Control-Allow-Origin": corsOrigin(origin),
     "Access-Control-Allow-Headers": "Content-Type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
@@ -158,8 +154,7 @@ exports.handler = async (event) => {
 
   if (event.httpMethod === "OPTIONS") return { statusCode: 200, headers, body: "" };
   if (event.httpMethod !== "POST") return { statusCode: 405, headers, body: "Method not allowed" };
-  const origin = event.headers?.origin || event.headers?.Origin || "";
-  if (origin && !ALLOWED.includes(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
+  if (origin && !isOriginAllowed(origin)) return { statusCode: 403, headers, body: JSON.stringify({ error: "Forbidden" }) };
 
   // Auth required to prevent unauthenticated billing abuse
   const user = await requireUser(event);
