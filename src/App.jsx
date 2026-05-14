@@ -1094,9 +1094,9 @@ function AppInner() {
   };
 
   const upSt = (id,s) => {
-    const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄"};
-    const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅"};
-    const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED"};
+    const LABELS={pendiente:"En attente",confirmado:"Client confirmé ✅",livreur_en_route:"Livreur en route 🏍️",colis_pris:"Colis en main 📦",en_camino:"En route vers le client 🚀",chez_client:"Livreur chez le client 📍",entregado:"Livré ✅",rechazado:"Rejeté ❌",no_contesta:"Absent 📵",reprogramar:"Reporter 🔄",en_attente_paiement:"En attente de paiement ⏳",paiement_confirme:"Paiement confirmé ✅",colis_en_main:"Colis en main 📦",en_route:"Aller vers le transporteur 🏍️",remis_transporteur:"Remis au transporteur 🚌"};
+    const ICONS={entregado:"✅",rechazado:"❌",en_camino:"🚀",chez_client:"📍",colis_pris:"📦",livreur_en_route:"🏍️",no_contesta:"📵",reprogramar:"🔄",confirmado:"✅",en_attente_paiement:"⏳",paiement_confirme:"✅",colis_en_main:"📦",en_route:"🏍️",remis_transporteur:"🚌"};
+    const COLORS={entregado:G.green,rechazado:G.red,en_camino:"#0284C7",chez_client:"#D97706",colis_pris:G.blue,livreur_en_route:"#7C3AED",no_contesta:G.gray,reprogramar:"#7C3AED",en_attente_paiement:"#F0A500",paiement_confirme:G.green,colis_en_main:G.blue,en_route:"#7C3AED",remis_transporteur:"#0891B2"};
     const prevOrders = orders;
     // Auto-pin interurbain quand le livreur passe en "livreur_en_route" (départ pour récupérer le colis)
     const target = orders.find(x=>x.id===id);
@@ -5041,7 +5041,7 @@ function AppInner() {
 
               // ── Livreur: pin en_camino/chez_client at top (from baseOrders — never filtered out) ──
               if(role==="livreur") {
-                const LIV_PIN_STATUSES = new Set(["en_camino","chez_client"]);
+                const LIV_PIN_STATUSES = new Set(["en_camino","chez_client","colis_en_main","en_route"]);
                 // Always find pin from baseOrders so active delivery is never hidden by filters
                 const pinnedLiv  = baseOrders.find(o=>LIV_PIN_STATUSES.has(o.status)&&String(o.livreur_id)===String(currentUser.id));
                 const activeOrds = filteredOrders.filter(o=>LIV_ACTIVE.has(o.status)&&o.id!==(pinnedLiv?.id)).sort(sortFn);
@@ -7635,7 +7635,14 @@ function AppInner() {
       {assignLivreurModal&&(()=>{
         const o = assignLivreurModal;
         const livreurs = teamMembers.filter(m=>m.role==="livreur");
-        const STATUS_OPTS = [
+        const isInterurbain = o.region_type === "other";
+        const STATUS_OPTS = isInterurbain ? [
+          {v:"paiement_confirme", Ico:Bell,    label:"Aller récupérer le colis",      sub:"Le livreur n'a pas encore le colis"},
+          {v:"livreur_en_route",  Ico:Bike,    label:"En route pour récupérer",        sub:"Se dirige vers le dépôt"},
+          {v:"colis_en_main",     Ico:Package, label:"Colis en main",                  sub:"Livreur a récupéré le colis"},
+          {v:"en_route",          Ico:Bike,    label:"Aller vers le transporteur",     sub:"En route vers le transporteur"},
+          {v:"remis_transporteur",Ico:Truck,   label:"Remis au transporteur",          sub:"Colis confié au transporteur"},
+        ] : [
           {v:"confirmado",       Ico:Bell,    label:"Aller récupérer le colis",       sub:"Le livreur n'a pas encore le colis"},
           {v:"livreur_en_route", Ico:Bike,    label:"En route pour récupérer",         sub:"Le livreur part chercher le colis"},
           {v:"colis_pris",       Ico:Package, label:"Colis en main — Prêt à livrer",   sub:"Le livreur a déjà le colis sur lui"},
@@ -7667,7 +7674,7 @@ function AppInner() {
               ):(
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   {livreurs.map(m=>{
-                    const active = orders.filter(x=>x.livreur_id===m.id&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(x.status));
+                    const active = orders.filter(x=>x.livreur_id===m.id&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client","paiement_confirme","colis_en_main","en_route"].includes(x.status));
                     const isSelected = assignSelLiv?.id===m.id;
                     const load = active.length;
                     const loadColor = load===0?"#10B981":load<=2?"#F59E0B":"#EF4444";
@@ -7721,11 +7728,16 @@ function AppInner() {
                 // Notify the freshly assigned livreur
                 if(orgId && o.livreur !== assignSelLiv.nom) {
                   const NOTIF_MSG = {
-                    confirmado:       "🔔 Nouveau colis — Aller récupérer chez l'Admin",
-                    livreur_en_route: "🏍️ Tu es en route pour récupérer le colis",
-                    colis_pris:       "📦 Colis en main — Partir vers le client",
-                    en_camino:        "🚀 Livraison directe — En route vers le client",
-                    chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
+                    confirmado:        "🔔 Nouveau colis — Aller récupérer chez l'Admin",
+                    livreur_en_route:  "🏍️ Tu es en route pour récupérer le colis",
+                    colis_pris:        "📦 Colis en main — Partir vers le client",
+                    en_camino:         "🚀 Livraison directe — En route vers le client",
+                    chez_client:       "📍 Déjà chez le client — Finaliser la livraison",
+                    // Flux interurbain (autres régions)
+                    paiement_confirme: "🔔 Nouveau colis interurbain — Aller récupérer",
+                    colis_en_main:     "📦 Colis en main — Direction transporteur",
+                    en_route:          "🏍️ En route vers le transporteur",
+                    remis_transporteur:"🚌 Colis remis au transporteur",
                   };
                   sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",
                     title:NOTIF_MSG[assignDelStatus]||"🔔 Nouveau colis",
