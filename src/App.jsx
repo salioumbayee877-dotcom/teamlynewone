@@ -4200,17 +4200,17 @@ function AppInner() {
                 return (
                 <div style={{background:G.white,borderRadius:14,padding:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                    <div style={{fontWeight:700,fontSize:13,color:G.dark}}>🔗 Connecter ta boutique</div>
+                    <div style={{fontWeight:700,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Send size={14}/> Connecter ta boutique</div>
                     <div style={{fontSize:11,color:G.gray,fontWeight:600}}>{connectedSet.size}/{isFinite(storeLimit)?storeLimit:"∞"} boutiques</div>
                   </div>
                   {storeLimit===0&&(
                     <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
-                      ⚠️ Plan {curPlanObj.name} : connexion boutique non incluse — passe au plan Basic ou supérieur
+        <AlertTriangle size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Plan {curPlanObj.name} : connexion boutique non incluse — passe au plan Basic ou supérieur
                     </div>
                   )}
                   {storeLimit>0&&connectedSet.size>=storeLimit&&(
                     <div style={{background:"#FEF3C7",borderRadius:8,padding:"7px 10px",marginBottom:10,fontSize:11,color:"#92400E"}}>
-                      ⚠️ Limite {curPlanObj.name} : {storeLimit} boutique{storeLimit>1?"s":""} max — passe au plan supérieur
+        <AlertTriangle size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Limite {curPlanObj.name} : {storeLimit} boutique{storeLimit>1?"s":""} max — passe au plan supérieur
                     </div>
                   )}
                   {platformsList.map(p=>{
@@ -4220,7 +4220,7 @@ function AppInner() {
                     <div key={p.label} style={{borderRadius:10,border:"1px solid #E5E7EB",overflow:"hidden",marginBottom:10,opacity:blocked?0.6:1}}>
                       <div style={{background:"#F9FAFB",padding:"8px 12px",fontWeight:700,fontSize:12,color:G.dark,display:"flex",alignItems:"center",justifyContent:"space-between",gap:6}}>
                         <div style={{display:"flex",alignItems:"center",gap:6}}>{p.icon} {p.label}</div>
-                        {already&&<div style={{fontSize:10,color:G.green,fontWeight:700}}>✓ connectée</div>}
+                        {already&&<div style={{fontSize:10,color:G.green,fontWeight:700,display:"flex",alignItems:"center",gap:3}}><Check size={11}/> connectée</div>}
                       </div>
                       <div style={{padding:"10px 12px"}}>
                         <div style={{fontSize:11,color:G.gray,lineHeight:1.8,marginBottom:8}}>
@@ -4236,7 +4236,7 @@ function AppInner() {
                           navigator.clipboard?.writeText(p.url).then(()=>addToast(`URL ${p.label} copiée ✅`,"✅",G.green));
                         }}
                           style={{width:"100%",background:blocked?"#D1D5DB":G.green,color:blocked?"#6B7280":"#fff",border:"none",borderRadius:7,padding:"8px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                          {blocked?`🔒 Limite atteinte`:`📋 Copier l'URL ${p.label}`}
+        {blocked?<><Lock size={13}/> Limite atteinte</>:<><ClipboardList size={13}/> Copier l'URL {p.label}</>}
                         </button>
                       </div>
                     </div>
@@ -4258,7 +4258,7 @@ function AppInner() {
                 <circle cx="28" cy="28" r="24" fill="none" stroke={G.green} strokeWidth="4"
                   strokeDasharray="38 113" strokeLinecap="round"/>
               </svg>
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>📦</div>
+<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}><Package size={20} color={G.gray}/></div>
             </div>
             <div style={{textAlign:"center"}}>
               <div style={{fontWeight:700,fontSize:15,color:G.dark}}>Chargement en cours…</div>
@@ -4823,7 +4823,7 @@ function AppInner() {
               if(!showBanner) return null;
               return (
               <div style={{background:"#FFF8E7",borderRadius:16,border:"2px solid #FDE68A",padding:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)",animation:"livFadeIn 220ms ease"}}>
-                <div style={{fontWeight:800,fontSize:14,color:"#92400E",marginBottom:10}}>🚀 {inProgress.length} livraison{inProgress.length>1?"s":""} en cours</div>
+                <div style={{fontWeight:800,fontSize:14,color:"#92400E",marginBottom:10,display:"flex",alignItems:"center",gap:6}}><Rocket size={15}/> {inProgress.length} livraison{inProgress.length>1?"s":""} en cours</div>
                 {inProgress.slice(0,3).map((o,i)=>{
                   const st=STATUS[o.status]||STATUS.pendiente;
                   return (
@@ -4932,11 +4932,11 @@ function AppInner() {
                       {[
                         {k:"all",        l:"Tout",                    c:"#374151", bg:"#E5E7EB"},
                         {k:"pendiente",  l:"En attente",              c:STATUS.pendiente.color,  bg:STATUS.pendiente.color+"22"},
-                        {k:"confirmado", l:"Confirmé 🔔",             c:STATUS.confirmado.color, bg:STATUS.confirmado.color+"22"},
-                        {k:"livreur_en_route", l:"Livreur en route 🏍️", c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
-                        {k:"colis_pris", l:"Colis en main 📦",        c:STATUS.colis_pris.color, bg:STATUS.colis_pris.color+"22"},
-                        {k:"en_camino",  l:"Vers le client 🚀",       c:STATUS.en_camino.color,  bg:STATUS.en_camino.color+"22"},
-                        {k:"chez_client",l:"Chez le client 📍",       c:STATUS.chez_client.color,bg:STATUS.chez_client.color+"22"},
+                        {k:"confirmado", l:"Confirmé",             c:STATUS.confirmado.color, bg:STATUS.confirmado.color+"22"},
+                        {k:"livreur_en_route", l:"Livreur en route", c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
+                        {k:"colis_pris", l:"Colis en main",        c:STATUS.colis_pris.color, bg:STATUS.colis_pris.color+"22"},
+                        {k:"en_camino",  l:"Vers le client",       c:STATUS.en_camino.color,  bg:STATUS.en_camino.color+"22"},
+                        {k:"chez_client",l:"Chez le client",       c:STATUS.chez_client.color,bg:STATUS.chez_client.color+"22"},
                       ].map(({k,l,c,bg})=>{
                         const active = filterStatus===k;
                         return (
@@ -4951,9 +4951,9 @@ function AppInner() {
                     <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Check size={11}/> RÉSULTAT</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
                       {[
-                        {k:"entregado",  l:"Encaissé ✅",  c:STATUS.entregado.color,  bg:STATUS.entregado.color+"22"},
-                        {k:"rechazado",  l:"Rejeté ❌",    c:STATUS.rechazado.color,  bg:STATUS.rechazado.color+"22"},
-                        {k:"no_contesta",l:"Absent 📵",    c:STATUS.no_contesta.color,bg:STATUS.no_contesta.color+"22"},
+                        {k:"entregado",  l:"Encaissé",  c:STATUS.entregado.color,  bg:STATUS.entregado.color+"22"},
+                        {k:"rechazado",  l:"Rejeté",    c:STATUS.rechazado.color,  bg:STATUS.rechazado.color+"22"},
+                        {k:"no_contesta",l:"Absent",    c:STATUS.no_contesta.color,bg:STATUS.no_contesta.color+"22"},
                       ].map(({k,l,c,bg})=>{
                         const active = filterStatus===k;
                         return (
@@ -4971,10 +4971,10 @@ function AppInner() {
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:4,marginBottom:10,WebkitOverflowScrolling:"touch"}}>
                       {[
                         {k:"all",              l:"Tout",                 c:"#374151", bg:"#E5E7EB"},
-                        {k:"livreur_en_route", l:"En route 🏍️",          c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
-                        {k:"colis_pris",       l:"Colis en main 📦",     c:STATUS.colis_pris.color,       bg:STATUS.colis_pris.color+"22"},
-                        {k:"en_camino",        l:"Vers client 🚀",       c:STATUS.en_camino.color,        bg:STATUS.en_camino.color+"22"},
-                        {k:"chez_client",      l:"Chez client 📍",       c:STATUS.chez_client.color,      bg:STATUS.chez_client.color+"22"},
+                        {k:"livreur_en_route", l:"En route",          c:STATUS.livreur_en_route.color, bg:STATUS.livreur_en_route.color+"22"},
+                        {k:"colis_pris",       l:"Colis en main",     c:STATUS.colis_pris.color,       bg:STATUS.colis_pris.color+"22"},
+                        {k:"en_camino",        l:"Vers client",       c:STATUS.en_camino.color,        bg:STATUS.en_camino.color+"22"},
+                        {k:"chez_client",      l:"Chez client",       c:STATUS.chez_client.color,      bg:STATUS.chez_client.color+"22"},
                       ].map(({k,l,c,bg})=>{
                         const active = filterStatus===k;
                         return (
@@ -4988,9 +4988,9 @@ function AppInner() {
                     <div style={{fontSize:10,color:"#6B7280",fontWeight:700,marginBottom:6,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><Check size={11}/> RÉSULTAT</div>
                     <div style={{display:"flex",gap:5,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
                       {[
-                        {k:"entregado",  l:"Livré ✅",     c:STATUS.entregado.color,   bg:STATUS.entregado.color+"22"},
-                        {k:"rechazado",  l:"Refusé ❌",    c:STATUS.rechazado.color,   bg:STATUS.rechazado.color+"22"},
-                        {k:"no_contesta",l:"Absent 📵",    c:STATUS.no_contesta.color, bg:STATUS.no_contesta.color+"22"},
+                        {k:"entregado",  l:"Livré",     c:STATUS.entregado.color,   bg:STATUS.entregado.color+"22"},
+                        {k:"rechazado",  l:"Refusé",    c:STATUS.rechazado.color,   bg:STATUS.rechazado.color+"22"},
+                        {k:"no_contesta",l:"Absent",    c:STATUS.no_contesta.color, bg:STATUS.no_contesta.color+"22"},
                         {k:"reprogramar",l:"Reporté ⏰",   c:STATUS.reprogramar.color, bg:STATUS.reprogramar.color+"22"},
                       ].map(({k,l,c,bg})=>{
                         const active = livResultFilter.includes(k);
@@ -5069,7 +5069,7 @@ function AppInner() {
                           <div style={{flex:1,height:1,background:"#6B728033"}}/>
                         </div>}
                         {!pinnedLiv&&<div style={{display:"flex",alignItems:"center",gap:8,margin:"4px 0 8px",paddingLeft:2}}>
-                          <span style={{fontSize:13}}>🔥</span>
+<Flame size={14} color={G.gold}/>
                           <span style={{fontSize:11,fontWeight:700,color:"#D97706",letterSpacing:0.3}}>TOURNÉE EN COURS</span>
                           <span style={{fontSize:11,color:G.gray}}>({activeOrds.length})</span>
                           <div style={{flex:1,height:1,background:"#D9770633"}}/>
@@ -5079,7 +5079,7 @@ function AppInner() {
                     )}
                     {!pinnedLiv&&activeOrds.length===0&&(
                       <div style={{textAlign:"center",padding:"30px 16px",background:G.white,borderRadius:14,marginBottom:8}}>
-                        <div style={{fontSize:28,marginBottom:6}}>✅</div>
+<div style={{marginBottom:6,display:"flex",justifyContent:"center"}}><Check size={28} color={G.green}/></div>
                         <div style={{fontSize:13,fontWeight:700,color:G.dark}}>Aucune livraison active</div>
                         <div style={{fontSize:11,color:G.gray,marginTop:3}}>Toutes les livraisons du jour sont terminées</div>
                       </div>
@@ -7938,7 +7938,7 @@ function AppInner() {
               onClick={()=>sendAiMessage(aiInput)}
               disabled={!aiInput.trim()||aiLoading}
               style={{width:40,height:40,borderRadius:12,border:"none",background:aiInput.trim()&&!aiLoading?"linear-gradient(135deg,#1A5C38,#0D9488)":"#E5E7EB",color:"#FFF",cursor:aiInput.trim()&&!aiLoading?"pointer":"not-allowed",fontSize:16,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              ➤
+<Send size={14}/>
             </button>
           </div>
         </div>
@@ -7952,7 +7952,7 @@ function AppInner() {
           onClick={e=>{if(e.target===e.currentTarget)setConflictDelivery(null);}}>
           <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"28px 20px 36px",width:"100%",maxWidth:480,boxShadow:"0 -8px 32px rgba(0,0,0,0.18)"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
-              <div style={{fontSize:40,marginBottom:8}}>⚠️</div>
+<div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><AlertTriangle size={40} color={G.gold}/></div>
               <div style={{fontSize:18,fontWeight:800,color:"#D97706",marginBottom:8}}>Livraison en cours</div>
               <div style={{fontSize:13,color:"#6B7280",marginBottom:8}}>Vous êtes déjà en route pour :</div>
               <div style={{fontSize:16,fontWeight:700,color:"#111"}}>{conflictDelivery.client}</div>
@@ -7979,7 +7979,7 @@ function AppInner() {
             {livFinalConfirm.type==="livre" ? (
               <>
                 <div style={{textAlign:"center",marginBottom:16}}>
-                  <div style={{fontSize:40,marginBottom:8}}>✅</div>
+    <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Check size={40} color={G.green}/></div>
                   <div style={{fontSize:18,fontWeight:800,color:"#1A5C38",marginBottom:4}}>Confirmer la livraison</div>
                   <div style={{fontSize:13,color:"#6B7280"}}>{livFinalConfirm.client} · {fmt(livFinalConfirm.price)} CFA encaissé</div>
                 </div>
@@ -8026,7 +8026,7 @@ function AppInner() {
             ) : (
               <>
                 <div style={{textAlign:"center",marginBottom:16}}>
-                  <div style={{fontSize:40,marginBottom:8}}>❌</div>
+    <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><X size={40} color={G.red}/></div>
                   <div style={{fontSize:18,fontWeight:800,color:"#DC2626",marginBottom:4}}>Échec de livraison</div>
                   <div style={{fontSize:13,color:"#6B7280"}}>{livFinalConfirm.client} · {fmt(livFinalConfirm.price)} CFA</div>
                 </div>
