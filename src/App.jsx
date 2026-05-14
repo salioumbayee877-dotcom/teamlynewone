@@ -3431,7 +3431,7 @@ function AppInner() {
       {sessionExpired&&(
         <div style={{position:"fixed",inset:0,background:"rgba(15,25,35,0.96)",zIndex:5500,display:"flex",alignItems:"center",justifyContent:"center",padding:24,fontFamily:"sans-serif"}}>
           <div style={{maxWidth:380,width:"100%",textAlign:"center"}}>
-            <div style={{fontSize:54,marginBottom:14}}>🚪</div>
+            <div style={{marginBottom:14,display:"flex",justifyContent:"center"}}><LogOut size={54} color="#fff"/></div>
             <div style={{fontWeight:800,fontSize:22,color:"#fff",marginBottom:10}}>Session terminée</div>
             <div style={{fontSize:13,color:"rgba(255,255,255,0.65)",lineHeight:1.6,marginBottom:24}}>Vous vous êtes connecté sur un autre appareil.<br/>Une seule session active est autorisée à la fois.</div>
             <button onClick={()=>{ setSessionExpired(false); setAuthStep("login"); }}
@@ -3540,7 +3540,7 @@ function AppInner() {
                 <span style={{color:"#fff",fontWeight:800,fontSize:22,letterSpacing:-0.5}}>Teamly</span>
               </div>
               <div style={{width:64,height:64,borderRadius:"50%",background:"rgba(240,165,0,0.15)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px"}}>
-                <span style={{fontSize:32}}>✉️</span>
+<Mail size={32} color="#fff"/>
               </div>
               <div style={{color:"#fff",fontWeight:800,fontSize:20,marginBottom:8}}>Vérifiez votre email</div>
               <div style={{color:"rgba(255,255,255,0.6)",fontSize:13,lineHeight:1.6}}>
@@ -3846,7 +3846,7 @@ function AppInner() {
       {currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed && (
         <div style={{background:"#FFF4D6",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0,borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
           <div style={{fontSize:12,color:G.green,fontWeight:500,flex:1}}>
-            📧 Vérifie ton email pour sécuriser ton compte
+<Mail size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Vérifie ton email pour sécuriser ton compte
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
             <button onClick={async()=>{
@@ -3966,11 +3966,11 @@ function AppInner() {
         <div style={{padding:"10px 12px",borderTop:"1px solid rgba(255,255,255,0.1)",display:"flex",flexDirection:"column",gap:6}}>
           {!trialExpired&&canUseAI&&(
             <button onClick={()=>{setAiOpen(true);setSidebarOpen(false);}} style={{background:"linear-gradient(135deg,rgba(26,92,56,0.6),rgba(13,148,136,0.6))",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8,fontWeight:600}}>
-              🧑‍💼 <span>Support Teamly</span>
+<Sparkles size={14}/> <span>Support Teamly</span>
             </button>
           )}
           <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
-            ⚙️ <span>Paramètres</span>
+<IcoSettings size={14}/> <span>Paramètres</span>
           </button>
           <button onClick={()=>{
             try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_email");localStorage.removeItem("teamly_org");localStorage.removeItem("teamly_role");localStorage.removeItem("teamly_userId");localStorage.removeItem("teamly_nom");}catch(e){}
@@ -3982,7 +3982,7 @@ function AppInner() {
               if(url.searchParams.has("signup")){ url.searchParams.delete("signup"); window.history.replaceState({}, "", url.pathname + (url.search?url.search:"") + url.hash); }
             }catch(e){}
           }} style={{background:"rgba(220,38,38,0.15)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:"#FCA5A5",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
-            🚪 <span>Déconnexion</span>
+<LogOut size={14}/> <span>Déconnexion</span>
           </button>
         </div>
       </div>
@@ -4034,7 +4034,7 @@ function AppInner() {
       {showNotifPanel&&(
         <div style={{position:"fixed",top:56,right:12,width:310,background:"#fff",borderRadius:16,boxShadow:"0 8px 32px rgba(0,0,0,0.18)",zIndex:9999,overflow:"hidden",border:"1px solid #E5E7EB"}}>
           <div style={{padding:"12px 16px",borderBottom:"1px solid #F3F4F6",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontWeight:700,fontSize:14,color:G.dark}}>🔔 Notifications</span>
+            <span style={{fontWeight:700,fontSize:14,color:G.dark,display:"inline-flex",alignItems:"center",gap:5}}><Bell size={14}/> Notifications</span>
             <button onClick={()=>setShowNotifPanel(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:18,color:G.gray}}>✕</button>
           </div>
           <div style={{maxHeight:360,overflowY:"auto"}}>
@@ -4042,7 +4042,7 @@ function AppInner() {
               <div style={{padding:28,textAlign:"center",color:G.gray,fontSize:13}}>Aucune notification</div>
             ):dbNotifs.map(n=>(
               <div key={n.id} style={{padding:"12px 16px",borderBottom:"1px solid #F9FAFB",display:"flex",gap:10,alignItems:"flex-start"}}>
-                <span style={{fontSize:22,flexShrink:0}}>{n.type==="delivered"?"✅":n.type==="rejected"?"❌":n.type==="nouveau_colis"?"🔔":n.type==="status_update"?"📦":"🔔"}</span>
+                <span style={{flexShrink:0,display:"inline-flex"}}>{n.type==="delivered"?<Check size={22} color={G.green}/>:n.type==="rejected"?<X size={22} color={G.red}/>:n.type==="nouveau_colis"?<Bell size={22}/>:n.type==="status_update"?<Package size={22}/>:<Bell size={22}/>}</span>
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:13,color:G.dark}}>{n.title}</div>
                   {n.body&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>{n.body}</div>}
@@ -4060,7 +4060,7 @@ function AppInner() {
       {/* Search bar */}
       {showSearch&&(
         <div style={{background:G.white,padding:"10px 14px",borderBottom:`1px solid ${G.grayLight}`,display:"flex",flexDirection:"column",gap:8}}>
-          <input autoFocus value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔍 Rechercher client, téléphone, produit..."
+          <input autoFocus value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="Rechercher client, téléphone, produit..."
             style={{width:"100%",border:`1.5px solid ${G.green}`,borderRadius:10,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
 
           {(searchQuery||filterStatus!=="all"||filterLivreur!=="all")&&(
@@ -4084,7 +4084,7 @@ function AppInner() {
               <div style={{background:"linear-gradient(135deg,#FDE68A,#FCD34D)",borderRadius:16,padding:"16px 18px",color:G.green}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <span style={{fontSize:26}}>🛒</span>
+                    <ShoppingCart size={26}/>
                     <div>
                       <div style={{fontWeight:800,fontSize:16,color:G.green}}>Commandes Boutique</div>
                       <div style={{fontSize:11,color:G.greenMid,fontWeight:600}}>Commandes à confirmer</div>
@@ -4099,7 +4099,7 @@ function AppInner() {
               {/* Liste commandes */}
               {leads.length===0?(
                 <div style={{textAlign:"center",padding:40,color:G.gray,background:G.white,borderRadius:14}}>
-                  <div style={{fontSize:48,marginBottom:12}}>📭</div>
+                  <div style={{marginBottom:12,display:"flex",justifyContent:"center"}}><Mail size={48} color={G.gray}/></div>
                   <div style={{fontWeight:700,fontSize:15,color:G.dark}}>Sans commande pour l'instant</div>
                   <div style={{fontSize:12,marginTop:6,color:G.gray}}>Les commandes de ta boutique apparaîtront ici</div>
                 </div>
@@ -4120,7 +4120,7 @@ function AppInner() {
                             <div style={{display:"flex",alignItems:"center",gap:6}}>
                               <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{o.client}</div>
                               {o.created_at&&<span style={{fontSize:10,color:G.gray,background:G.grayLight,borderRadius:5,padding:"1px 6px"}}>
-                                🕐 {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
+                                <Clock size={11} style={{display:"inline",verticalAlign:"-2px"}}/> {new Date(o.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})}
                               </span>}
                             </div>
                             {(()=>{
@@ -4130,27 +4130,27 @@ function AppInner() {
                               return (
                                 <div style={{marginTop:3}}>
                                   {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
-                                    📦 BUNDLE · {tot} article{tot>1?"s":""}</div>}
+                                    <Package size={11}/> BUNDLE · {tot} article{tot>1?"s":""}</div>}
                                   <div style={{display:"flex",flexDirection:"column",gap:2}}>
                                     {items.map((p,pi)=>(
                                       <div key={pi} style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                                        <span style={{fontSize:12,color:G.gray}}>📦 {p.name}</span>
+                                        <span style={{fontSize:12,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Package size={12}/> {p.name}</span>
                                         <span style={{background:p.qty>1?"#FEF3C7":"#F3F4F6",color:p.qty>1?"#92400E":G.gray,borderRadius:5,padding:"1px 7px",fontSize:11,fontWeight:800,flexShrink:0}}>×{p.qty}</span>
                                         {pi===0&&(isMatched||catalogMatch
-                                          ?<span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>✓ Reconnu</span>
+                                          ?<span style={{background:"#D1FAE5",color:"#065F46",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><Check size={10}/> Reconnu</span>
                                           :isAutoCreated
-                                            ?<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>★ Ajouté</span>
-                                            :<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0}}>⚠ Inconnu</span>
+                                            ?<span style={{background:"#EDE9FE",color:"#5B21B6",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><Star size={10}/> Ajouté</span>
+                                            :<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,flexShrink:0,display:"inline-flex",alignItems:"center",gap:3}}><AlertTriangle size={10}/> Inconnu</span>
                                         )}
                                       </div>
                                     ))}
                                   </div>
                                   <div style={{display:"flex",gap:6,marginTop:4,flexWrap:"wrap",alignItems:"center"}}>
-                                    <span style={{fontSize:11,color:G.gray}}>📍 {fullAddr(o)}</span>
-                                    {(()=>{const f=fraisDisplay(o);return(<><span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>{z.flag} {z.label} · {f.label}{f.warning&&<span style={{marginLeft:4,color:G.gold}}>⚠️</span>}</span>{f.warning&&<button onClick={e=>{e.stopPropagation();openFraisAndDismiss();}} title="Configurer les zones" style={{background:G.gold,color:"#fff",border:"none",borderRadius:5,padding:"2px 6px",fontSize:10,fontWeight:700,cursor:"pointer",lineHeight:1}}>⚙️</button>}</>);})()}
-                                    {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700}}>⚠️ Prépayé</span>}
+                                    <span style={{fontSize:11,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><MapPin size={11}/> {fullAddr(o)}</span>
+                                    {(()=>{const f=fraisDisplay(o);return(<><span style={{background:z.color+"18",color:z.color,borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}>{z.flag} {z.label} · {f.label}{f.warning&&<AlertTriangle size={10} color={G.gold} style={{marginLeft:2}}/>}</span>{f.warning&&<button onClick={e=>{e.stopPropagation();openFraisAndDismiss();}} title="Configurer les zones" style={{background:G.gold,color:"#fff",border:"none",borderRadius:5,padding:"2px 6px",fontSize:10,fontWeight:700,cursor:"pointer",lineHeight:1,display:"inline-flex",alignItems:"center"}}><IcoSettings size={11}/></button>}</>);})()}
+                                    {z.prepaid&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:5,padding:"1px 6px",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}><AlertTriangle size={10}/> Prépayé</span>}
                                   </div>
-                                  <div style={{fontSize:11,color:G.gray,marginTop:2}}>📱 {o.phone||"—"}</div>
+                                  <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}><Smartphone size={11}/> {o.phone||"—"}</div>
                                   {o.note&&!o.note.startsWith("Commande Shopify")&&!o.note.startsWith("Commande WooCommerce")&&<div style={{fontSize:10,color:"#92400E",background:"#FEF3C7",borderRadius:5,padding:"2px 6px",marginTop:3,display:"inline-block"}}>{o.note.replace(/ [✓★]/g,"")}</div>}
                                 </div>
                               );
@@ -4159,7 +4159,7 @@ function AppInner() {
                           <div style={{textAlign:"right",flexShrink:0}}>
                             <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
                             <div style={{fontSize:10,color:G.gray}}>CFA</div>
-                            <div style={{fontSize:10,color:G.gray,marginTop:4,background:"#FEF3C7",borderRadius:5,padding:"2px 6px"}}>👁 Voir détails</div>
+                            <div style={{fontSize:10,color:G.gray,marginTop:4,background:"#FEF3C7",borderRadius:5,padding:"2px 6px",display:"inline-flex",alignItems:"center",gap:4}}><Eye size={11}/> Voir détails</div>
                           </div>
                         </div>
                       </div>
@@ -4171,8 +4171,8 @@ function AppInner() {
                           Appeler
                         </a>
                         <button onClick={()=>{ upSt(o.id,"rechazado"); addToast(`Commande annulée ❌`,"❌",G.red); }}
-                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer"}}>
-                          ❌
+                          style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"10px 10px",fontWeight:700,fontSize:12,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+                          <X size={16}/>
                         </button>
                         <button onClick={()=>handleTraiterOrder(o)}
                           style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
@@ -5728,7 +5728,7 @@ function AppInner() {
             {/* Header groupe style WhatsApp */}
             <div style={{background:G.green,padding:"12px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
               <button onClick={()=>setTab("dashboard")} style={{background:"rgba(255,255,255,0.15)",border:"none",borderRadius:"50%",width:36,height:36,color:G.white,cursor:"pointer",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>←</button>
-              <div style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>👥</div>
+              <div style={{width:42,height:42,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Users size={22} color="#fff"/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontWeight:700,fontSize:14,color:G.white,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Chat de mon équipe · {settings.boutique}</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:1}}>
@@ -5758,12 +5758,12 @@ function AppInner() {
               )}
               {!chatLoading&&chat.length===0&&(
                 <div style={{textAlign:"center",padding:40,color:"#8a9a8a",display:"flex",flexDirection:"column",alignItems:"center",gap:10}}>
-                  <div style={{fontSize:36}}>💬</div>
+                  <MessageCircle size={36} color={G.gray}/>
                   <div style={{fontSize:13,fontWeight:600,color:"#555"}}>Aucun message</div>
                   <div style={{fontSize:11}}>Soyez le premier à écrire !</div>
                   <button onClick={()=>{ setChatLoading(true); loadChatRef.current?.(true); }}
                     style={{marginTop:8,background:G.green,color:"#fff",border:"none",borderRadius:20,padding:"8px 20px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                    🔄 Actualiser
+      <RotateCcw size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Actualiser
                   </button>
                 </div>
               )}
@@ -5799,7 +5799,7 @@ function AppInner() {
                             <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
                           </div>}
                           {msg.uploadFailed&&<div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,background:"rgba(0,0,0,0.6)",borderRadius:8}}>
-                            <span style={{fontSize:22}}>⚠️</span>
+          <AlertTriangle size={22} color="#F59E0B"/>
                             <span style={{color:"#fff",fontSize:12,fontWeight:700}}>Échec envoi</span>
                             {pendingUploadsRef.current.has(msg.id)&&<button onClick={e=>{e.stopPropagation();retryUpload(msg);}} style={{background:"#25D366",border:"none",borderRadius:20,padding:"6px 14px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>↺ Réessayer</button>}
                           </div>}
@@ -5840,7 +5840,7 @@ function AppInner() {
                             </div>
                             <div style={{fontSize:10,color:G.gray}}>{msg.duration||"0:00"}</div>
                           </div>
-                          <span style={{fontSize:16,opacity:playingMsgId===msg.id?1:0.5}}>🎤</span>
+<Mic size={16} style={{opacity:playingMsgId===msg.id?1:0.5}}/>
                           <style>{`
                             @keyframes wave0{from{height:3px}to{height:12px}}
                             @keyframes wave1{from{height:4px}to{height:18px}}
@@ -5894,7 +5894,7 @@ function AppInner() {
                     {isSelected&&msg.id&&(
                       <button onClick={()=>deleteMsg(msg.id)}
                         style={{marginTop:4,background:"#EF4444",color:"#FFF",border:"none",borderRadius:8,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                        🗑️ Supprimer
+      <Trash2 size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Supprimer
                       </button>
                     )}
                   </div>
@@ -5943,7 +5943,7 @@ function AppInner() {
                       onMouseDown={startRecord} onMouseUp={stopRecord}
                       onTouchStart={e=>{e.preventDefault();startRecord();}} onTouchEnd={stopRecord}
                       style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
-                      🎤
+                      <Mic size={18}/>
                     </button>
                   )}
                 </div>
@@ -6056,12 +6056,12 @@ function AppInner() {
         return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:300,display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
           <div style={{background:G.white,borderRadius:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:17,color:G.green,marginBottom:4}}>🗺️ Zones de livraison</div>
+            <div style={{fontWeight:700,fontSize:17,color:G.green,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><IcoMap size={18}/> Zones de livraison</div>
             <div style={{fontSize:12,color:G.gray,marginBottom:18}}>Configurez vos zones pour que les frais soient appliqués automatiquement à la création d'une commande.</div>
 
             {/* ── Région principale ── */}
             <div style={{background:"#F0FDF4",borderRadius:14,padding:14,marginBottom:14,border:"1.5px solid #86EFAC"}}>
-              <div style={{fontSize:13,fontWeight:700,color:"#166534",marginBottom:10}}>🏍️ Région principale de vente</div>
+              <div style={{fontSize:13,fontWeight:700,color:"#166534",marginBottom:10,display:"flex",alignItems:"center",gap:5}}><Bike size={14}/> Région principale de vente</div>
               {zoneMainEdit ? (
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
                   <div style={{display:"flex",gap:6}}>
@@ -6073,7 +6073,7 @@ function AppInner() {
                   </div>
                   <TagInput edit={zoneMainEdit} setEdit={setZoneMainEdit} isMain={true}/>
                   <div style={{display:"flex",gap:8,marginTop:4}}>
-                    <button onClick={saveMainRegion} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:10,fontWeight:700,fontSize:13,cursor:"pointer"}}>✅ Enregistrer</button>
+                    <button onClick={saveMainRegion} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:10,padding:10,fontWeight:700,fontSize:13,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}><Check size={14}/> Enregistrer</button>
                     <button onClick={()=>setZoneMainEdit(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:"10px 14px",fontSize:13,cursor:"pointer"}}>Annuler</button>
                   </div>
                 </div>
@@ -6566,12 +6566,12 @@ function AppInner() {
 
             {/* Permission Closer — uniquement comptabilité */}
             <div style={{marginBottom:18}}>
-              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5}}>🔐 PERMISSION CLOSER</div>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><KeyRound size={13}/> PERMISSION CLOSER</div>
               <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Le Closer voit déjà : dashboard, commandes, boutique, tracking, clients, produits, chat, équipe</div>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:G.grayLight,borderRadius:12,opacity:isGratuit?0.6:1}}>
                 <div>
-                  <div style={{fontSize:13,fontWeight:700,color:G.dark}}>📊 Accès à la comptabilité</div>
-                  <div style={{fontSize:11,color:G.gray,marginTop:1}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, statistiques"}</div>
+                  <div style={{fontSize:13,fontWeight:700,color:G.dark,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Accès à la comptabilité</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:1,display:"flex",alignItems:"center",gap:4}}>{isGratuit?<><Lock size={11}/> Plan Basic requis</>:"Revenus, bénéfices, statistiques"}</div>
                 </div>
                 <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                   style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
@@ -6595,11 +6595,11 @@ function AppInner() {
               doLogout();
             }})}
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
-              🗑️ Supprimer mon compte
+<Trash2 size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Supprimer mon compte
             </button>
             <button onClick={()=>{setShowSettings(false);setTab("frais");}}
               style={{width:"100%",background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
-              🚚 Frais de livraison
+<Truck size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Frais de livraison
             </button>
             <button onClick={async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
@@ -6617,19 +6617,19 @@ function AppInner() {
               addToast("Paramètres sauvegardés ✅","✅",G.green);
               setShowSettings(false);
             }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              ✅ Enregistrer
+<Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
             </button>
             </>) : (<>
             {/* Profil simplifié pour closer / livreur */}
             <div style={{marginBottom:18}}>
               <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:10,letterSpacing:0.5}}>MON PROFIL</div>
               {[
-                {key:"nom",      label:"👤 Ton nom",          ph:"Ton nom"},
-                {key:"phone",    label:"📱 Téléphone",         ph:"221 77 123 45 67"},
-                {key:"birthday", label:"🎂 Date de naissance", ph:"JJ/MM/AAAA", type:"date"},
+                {key:"nom",      Ico:User,       label:"Ton nom",          ph:"Ton nom"},
+                {key:"phone",    Ico:Smartphone, label:"Téléphone",         ph:"221 77 123 45 67"},
+                {key:"birthday", Ico:Cake,       label:"Date de naissance", ph:"JJ/MM/AAAA", type:"date"},
               ].map(f=>(
                 <div key={f.key} style={{marginBottom:10}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
                   <input type={f.type||"text"} value={profileEdit[f.key]||""} onChange={e=>setProfileEdit(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
                     style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                 </div>
@@ -6647,7 +6647,7 @@ function AppInner() {
               addToast("Profil mis à jour ✅","✅",G.green);
               setShowSettings(false);
             }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:10}}>
-              ✅ Enregistrer
+<Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
             </button>
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Tu perdras l'accès à Teamly définitivement.",danger:true,onConfirm:async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE");}catch(e){}
@@ -6655,7 +6655,7 @@ function AppInner() {
               _authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);
             }})}
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              🗑️ Supprimer mon compte
+<Trash2 size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Supprimer mon compte
             </button>
             </>)}
 
@@ -6671,7 +6671,7 @@ function AppInner() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
               <div>
                 <div style={{fontWeight:800,fontSize:16,color:G.dark}}>{memberModal.nom}</div>
-                <div style={{fontSize:11,color:G.gray,marginTop:2}}>{memberModal.role==="closer"?"📞 Closer":"🏍️ Livreur"} · {memberModal.email}</div>
+                <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}>{memberModal.role==="closer"?<><Phone size={11}/> Closer</>:<><Bike size={11}/> Livreur</>} · {memberModal.email}</div>
               </div>
               <button onClick={()=>setMemberModal(null)} style={{background:G.grayLight,border:"none",borderRadius:8,padding:"6px 10px",cursor:"pointer",fontWeight:700}}>✕</button>
             </div>
@@ -7118,7 +7118,7 @@ function AppInner() {
                   }
                 }
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                ✅ Enregistrer
+  <Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
               </button>
               <button onClick={()=>setConfirmModal({
                   msg:"Supprimer cette commande définitivement ?",
@@ -7222,7 +7222,7 @@ function AppInner() {
                   }).catch(e=>console.error("editProd save:",e.message));
                 setEditProd(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                ✅ Enregistrer
+  <Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
               </button>
               <button onClick={()=>{
                 setConfirmModal({
@@ -7458,7 +7458,7 @@ function AppInner() {
                     }
                   }})}}
                     style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>
-                    🗑️ Supprimer la commande
+  <Trash2 size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Supprimer la commande
                   </button>
                 )}
                 <button onClick={()=>setOrderDetail(null)}
@@ -8050,7 +8050,7 @@ function AppInner() {
                     }
                     setLivFinalConfirm(null);setLivFinalNote("");
                   }}
-                    style={{flex:2,background:"#DC2626",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer"}}>❌ Confirmer — Non livré</button>
+                    style={{flex:2,background:"#DC2626",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}><X size={18}/> Confirmer — Non livré</button>
                 </div>
               </>
             )}
