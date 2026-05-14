@@ -3683,7 +3683,7 @@ function AppInner() {
 
   // ── Filtered orders ──
   const allOrders = showArchived ? orders.filter(o=>o.archived) : orders.filter(o=>!o.archived);
-  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id&&o.status!=="confirmado") : allOrders;
+  const baseOrders = role==="livreur" ? allOrders.filter(o=>o.livreur_id===currentUser.id) : allOrders;
   const _now       = new Date();
   const _pad       = n => String(n).padStart(2,"0");
   const TODAY_STR  = `${_now.getFullYear()}-${_pad(_now.getMonth()+1)}-${_pad(_now.getDate())}`;
@@ -7059,7 +7059,11 @@ function AppInner() {
 
             <div style={{marginBottom:12}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Bike size={12}/> Livreur</div>
-              <select value={editOrder.livreur||""} onChange={e=>setEditOrder(p=>({...p,livreur:e.target.value||null}))}
+              <select value={editOrder.livreur||""} onChange={e=>{
+                  const nom=e.target.value||null;
+                  const m=nom?teamMembers.find(x=>x.role==="livreur"&&x.nom===nom):null;
+                  setEditOrder(p=>({...p,livreur:nom,livreur_id:m?.id||null}));
+                }}
                 style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
                 <option value="">Sans livreur</option>
                 {teamMembers.filter(m=>m.role==="livreur").map(m=><option key={m.id} value={m.nom}>{m.nom}</option>)}
@@ -7087,7 +7091,7 @@ function AppInner() {
                       client:updated.client,phone:updated.phone,address:updated.address,
                       city:updated.city||null,delivery_zone_name:updated.deliveryZoneName||null,delivery_zone_type:updated.deliveryZoneType||null,
                       product:updated.product,price:updated.price,frais_liv:_fl||null,
-                      status:updated.status,livreur:updated.livreur||null,note:updated.note||""
+                      status:updated.status,livreur:updated.livreur||null,livreur_id:updated.livreur_id||null,note:updated.note||""
                     });
                     addToast("Commande mise à jour ✓","✅",G.green);
                     // Notify livreur if newly assigned or changed
