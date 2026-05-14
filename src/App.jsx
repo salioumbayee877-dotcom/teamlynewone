@@ -7637,11 +7637,13 @@ function AppInner() {
         const livreurs = teamMembers.filter(m=>m.role==="livreur");
         const isInterurbain = o.region_type === "other";
         const STATUS_OPTS = isInterurbain ? [
-          {v:"paiement_confirme", Ico:Bell,    label:"Aller récupérer le colis",      sub:"Le livreur n'a pas encore le colis"},
-          {v:"livreur_en_route",  Ico:Bike,    label:"En route pour récupérer",        sub:"Se dirige vers le dépôt"},
+          {v:"en_attente_paiement",Ico:Hourglass,label:"En attente de paiement",       sub:"En attente du virement client"},
+          {v:"paiement_confirme", Ico:Check,   label:"Paiement confirmé",              sub:"Virement reçu"},
+          {v:"livreur_en_route",  Ico:Bike,    label:"Livreur en route",               sub:"Se dirige vers le dépôt"},
           {v:"colis_en_main",     Ico:Package, label:"Colis en main",                  sub:"Livreur a récupéré le colis"},
           {v:"en_route",          Ico:Bike,    label:"Aller vers le transporteur",     sub:"En route vers le transporteur"},
           {v:"remis_transporteur",Ico:Truck,   label:"Remis au transporteur",          sub:"Colis confié au transporteur"},
+          {v:"entregado",         Ico:Check,   label:"Livré",                          sub:"Client a reçu le colis ✓"},
         ] : [
           {v:"confirmado",       Ico:Bell,    label:"Aller récupérer le colis",       sub:"Le livreur n'a pas encore le colis"},
           {v:"livreur_en_route", Ico:Bike,    label:"En route pour récupérer",         sub:"Le livreur part chercher le colis"},
