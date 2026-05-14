@@ -159,7 +159,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:regionType==="other"?"en_attente_paiement":"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType }),
     });
 
     if (!res.ok) {

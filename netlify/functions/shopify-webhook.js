@@ -146,7 +146,7 @@ exports.handler = async (event) => {
         delivery_zone_name: matchedZone?.name || null,
         delivery_zone_type: regionType,
         product: finalProduct, price,
-        status: regionType === "other" ? "en_attente_paiement" : "boutique",
+        status: "boutique",
         note, archived: false,
         is_bundle: totalQty > 1 || lineItems.length > 1,
         frais_liv: syncMeta.frais_liv,

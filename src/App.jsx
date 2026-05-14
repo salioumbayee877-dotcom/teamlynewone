@@ -7090,6 +7090,23 @@ function AppInner() {
                       status:updated.status,livreur:updated.livreur||null,note:updated.note||""
                     });
                     addToast("Commande mise à jour ✓","✅",G.green);
+                    // Notify livreur if newly assigned or changed
+                    const prevOrder = prevOrders.find(x=>x.id===id);
+                    const prevLiv   = prevOrder?.livreur || null;
+                    if(updated.livreur && updated.livreur!==prevLiv) {
+                      const NOTIF_MSG = {
+                        confirmado:       "🔔 Nouveau colis — Aller récupérer chez l'Admin",
+                        livreur_en_route: "🏍️ Tu es en route pour récupérer le colis",
+                        colis_pris:       "📦 Colis en main — Partir vers le client",
+                        en_camino:        "🚀 Livraison directe — En route vers le client",
+                        chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
+                      };
+                      sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",
+                        title:NOTIF_MSG[updated.status]||"🔔 Nouveau colis",
+                        body:`${updated.client} — ${updated.product} · ${Number(updated.price||0).toLocaleString("fr-FR")} CFA`,
+                        role_target:"livreur",livreur_name:updated.livreur,read:false,data:{order_id:id}
+                      }).catch(()=>{});
+                    }
                   } catch(e){
                     console.error("edit save:",e);
                     setOrders(prevOrders);
@@ -7701,6 +7718,21 @@ function AppInner() {
                 // Single PATCH ensures DB stays consistent (no race between two separate calls)
                 if(!String(o.id).startsWith("tmp_"))
                   sbFetch(`orders?id=eq.${o.id}`,"PATCH",{status:assignDelStatus,livreur:assignSelLiv.nom,livreur_id:assignSelLiv.id}).catch(()=>{});
+                // Notify the freshly assigned livreur
+                if(orgId && o.livreur !== assignSelLiv.nom) {
+                  const NOTIF_MSG = {
+                    confirmado:       "🔔 Nouveau colis — Aller récupérer chez l'Admin",
+                    livreur_en_route: "🏍️ Tu es en route pour récupérer le colis",
+                    colis_pris:       "📦 Colis en main — Partir vers le client",
+                    en_camino:        "🚀 Livraison directe — En route vers le client",
+                    chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
+                  };
+                  sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",
+                    title:NOTIF_MSG[assignDelStatus]||"🔔 Nouveau colis",
+                    body:`${o.client} — ${o.product} · ${Number(o.price||0).toLocaleString("fr-FR")} CFA`,
+                    role_target:"livreur",livreur_name:assignSelLiv.nom,read:false,data:{order_id:o.id}
+                  }).catch(()=>{});
+                }
                 addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
                 setAssignLivreurModal(null);
               };

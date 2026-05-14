@@ -71,8 +71,8 @@ exports.handler = async (event) => {
           region_type:  regionType,
           payment_type: paymentType,
         };
-        // Boutique-imported other-region orders should enter the prepaid flow once matched
-        if (regionType === "other" && o.status === "boutique") patch.status = "en_attente_paiement";
+        // Boutique-imported orders stay in "boutique" until the closer confirms by phone;
+        // the region-specific transition (en_attente_paiement vs pendiente) happens at confirmation.
         await fetch(`${SB_URL}/rest/v1/orders?id=eq.${o.id}`, {
           method: "PATCH",
           headers: { ...sbHeaders, Prefer: "return=minimal" },
