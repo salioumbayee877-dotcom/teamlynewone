@@ -5575,8 +5575,8 @@ function AppInner() {
                   </button>
                 )}
                 <button onClick={()=>setShowNotifSettings(v=>!v)}
-                  style={{background:showNotifSettings?G.green:G.grayLight,color:showNotifSettings?G.white:G.gray,border:"none",borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:16}}>
-                  ⚙️
+                  style={{background:showNotifSettings?G.green:G.grayLight,color:showNotifSettings?G.white:G.gray,border:"none",borderRadius:10,width:36,height:36,cursor:"pointer",fontSize:16,display:"inline-flex",alignItems:"center",justifyContent:"center"}}>
+                  <IcoSettings size={16}/>
                 </button>
               </div>
             </div>
@@ -5586,20 +5586,20 @@ function AppInner() {
               <div style={{background:G.white,borderRadius:14,padding:14,marginBottom:14,border:`1px solid ${G.grayLight}`}}>
                 <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10}}>Paramètres notifications</div>
                 {(role==="livreur"?[
-                  {key:"notifLivre",   label:"✅ Livraison confirmée"},
-                  {key:"notifRejet",   label:"❌ Commande rejetée"},
-                  {key:"notifRetour",  label:"🔄 À retenter"},
-                  {key:"notifChat",    label:"💬 Nouveau message"},
+                  {key:"notifLivre",   Ico:Check,        label:"Livraison confirmée"},
+                  {key:"notifRejet",   Ico:X,            label:"Commande rejetée"},
+                  {key:"notifRetour",  Ico:RotateCcw,    label:"À retenter"},
+                  {key:"notifChat",    Ico:MessageCircle,label:"Nouveau message"},
                 ]:[
-                  {key:"notifSansLivreur", label:"🏍️ Sans livreur"},
-                  {key:"notifRejet",       label:"❌ Commande rejetée"},
-                  {key:"notifLivre",       label:"✅ Commande encaissée"},
-                  {key:"notifRetour",      label:"🔄 À retenter"},
-                  {key:"notifChat",        label:"💬 Nouveau message"},
-                  {key:"notifStock",       label:"📦 Stock bas"},
+                  {key:"notifSansLivreur", Ico:Bike,         label:"Sans livreur"},
+                  {key:"notifRejet",       Ico:X,            label:"Commande rejetée"},
+                  {key:"notifLivre",       Ico:Check,        label:"Commande encaissée"},
+                  {key:"notifRetour",      Ico:RotateCcw,    label:"À retenter"},
+                  {key:"notifChat",        Ico:MessageCircle,label:"Nouveau message"},
+                  {key:"notifStock",       Ico:Package,      label:"Stock bas"},
                 ]).map(n=>(
                   <div key={n.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
-                    <span style={{fontSize:13,color:G.dark}}>{n.label}</span>
+                    <span style={{fontSize:13,color:G.dark,display:"inline-flex",alignItems:"center",gap:6}}><n.Ico size={14}/> {n.label}</span>
                     <button onClick={()=>setSettings(s=>({...s,[n.key]:!s[n.key]}))}
                       style={{background:settings[n.key]?G.green:G.grayLight,border:"none",borderRadius:20,width:40,height:22,cursor:"pointer",position:"relative",flexShrink:0}}>
                       <div style={{position:"absolute",top:2,left:settings[n.key]?20:2,width:18,height:18,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
@@ -5612,9 +5612,9 @@ function AppInner() {
             {/* Liste notifications */}
             {visible.length===0?(
               <div style={{textAlign:"center",padding:"40px 0",color:G.gray}}>
-                <div style={{fontSize:44,marginBottom:10}}>🔔</div>
+<div style={{marginBottom:10,display:"flex",justifyContent:"center"}}><Bell size={44} color={G.gray}/></div>
                 <div style={{fontSize:15,fontWeight:700,color:G.dark}}>Aucune notification</div>
-                <div style={{fontSize:12,marginTop:4}}>Tout est à jour ✅</div>
+                <div style={{fontSize:12,marginTop:4,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>Tout est à jour <Check size={13} color={G.green}/></div>
               </div>
             ):(
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -6085,7 +6085,7 @@ function AppInner() {
                       <span style={{fontSize:13,color:G.green,fontWeight:700,marginLeft:10}}>{fmt(mainRegion.price)} CFA</span>
                     </div>
                     <button onClick={()=>setZoneMainEdit({...mainRegion,cityInput:""})}
-                      style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Modifier</button>
+                      style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:8,padding:"5px 12px",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}><Pencil size={12}/> Modifier</button>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                     {mainRegion.cities?.map((c,i)=><span key={i} style={{background:"#DCFCE7",color:"#166534",borderRadius:20,padding:"3px 10px",fontSize:11,fontWeight:600}}>{c}</span>)}
@@ -6103,7 +6103,7 @@ function AppInner() {
             {/* ── Autres régions ── */}
             <div style={{background:"#EFF6FF",borderRadius:14,padding:14,marginBottom:14,border:"1.5px solid #BFDBFE"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div style={{fontSize:13,fontWeight:700,color:"#1E40AF"}}>🌍 Autres régions</div>
+                <div style={{fontSize:13,fontWeight:700,color:"#1E40AF",display:"flex",alignItems:"center",gap:6}}><Globe size={14}/> Autres régions</div>
                 {!zoneOtherEdit&&<button onClick={()=>setZoneOtherEdit({name:"",price:"",cities:[],cityInput:""})}
                   style={{background:"#1E40AF",color:"#fff",border:"none",borderRadius:8,padding:"6px 14px",fontWeight:700,fontSize:12,cursor:"pointer"}}>+ Ajouter</button>}
               </div>
@@ -6111,7 +6111,7 @@ function AppInner() {
               {/* Formulaire ajout/édition */}
               {zoneOtherEdit&&(
                 <div style={{background:"#DBEAFE",borderRadius:12,padding:"12px 14px",marginBottom:12,border:"1px solid #93C5FD"}}>
-                  <div style={{fontWeight:700,fontSize:12,color:"#1E40AF",marginBottom:8}}>{zoneOtherEdit.id?"✏️ Modifier":"➕ Nouvelle région"}</div>
+                  <div style={{fontWeight:700,fontSize:12,color:"#1E40AF",marginBottom:8,display:"flex",alignItems:"center",gap:5}}>{zoneOtherEdit.id?<><Pencil size={12}/> Modifier</>:<><Plus size={13}/> Nouvelle région</>}</div>
                   <div style={{display:"flex",gap:6,marginBottom:8}}>
                     <input type="text" value={zoneOtherEdit.name} onChange={e=>setZoneOtherEdit(p=>({...p,name:e.target.value}))} placeholder="ex: Thiès"
                       style={{flex:1,border:"1.5px solid #93C5FD",borderRadius:8,padding:"9px 10px",fontSize:13,outline:"none",boxSizing:"border-box",background:"#fff"}}/>
@@ -6138,13 +6138,13 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:5}}>
                       <button onClick={()=>setZoneOtherEdit({...r,cityInput:""})}
-                        style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️</button>
+                        style={{background:"#EFF6FF",color:"#1E40AF",border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center"}}><Pencil size={12}/></button>
                       <button onClick={()=>setConfirmModal({msg:`Supprimer la région "${r.name}" ?`,sub:"Les commandes existantes ne sont pas affectées.",danger:true,onConfirm:async()=>{
                         await sbFetch(`delivery_other_regions?id=eq.${r.id}`,"DELETE").catch(()=>{});
                         setOtherRegions(prev=>prev.filter(x=>x.id!==r.id));
                         addToast(`${r.name} supprimée`,"🗑️",G.gray);
                       }})}
-                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>🗑️</button>
+                        style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:7,padding:"4px 10px",fontSize:11,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center"}}><Trash2 size={12}/></button>
                     </div>
                   </div>
                   <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
@@ -6156,7 +6156,7 @@ function AppInner() {
 
             <button onClick={()=>setShowZoneConfig(false)}
               style={{width:"100%",background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              ✕ Fermer
+<X size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Fermer
             </button>
           </div>
         </div>
@@ -6167,16 +6167,16 @@ function AppInner() {
       {showAddProd&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14}}>📦 Nouveau produit</div>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:14,display:"flex",alignItems:"center",gap:6}}><Package size={17}/> Nouveau produit</div>
 
             <div style={{background:"#EFF6FF",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:11,color:G.blue,fontWeight:600}}>
-              ✅ Champs obligatoires pour le tracking automatique
+<Check size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Champs obligatoires pour le tracking automatique
             </div>
 
             {/* Error summary */}
             {Object.keys(prodErrors).length>0&&(
               <div style={{background:"#FEE2E2",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",gap:8,alignItems:"center"}}>
-                <span style={{fontSize:18}}>🔴</span>
+<Circle size={14} fill="#dc2626" stroke="#dc2626"/>
                 <div>
                   <div style={{fontSize:12,color:G.red,fontWeight:700}}>Champs manquants</div>
                   <div style={{fontSize:11,color:G.red}}>Remplis les champs en rouge pour continuer</div>
@@ -6185,15 +6185,15 @@ function AppInner() {
             )}
 
             {[
-              {key:"name",  label:"📦 Nom du produit *",          ph:"Chaussures Nike", type:"text",   req:true},
-              {key:"cost",  label:"💰 Prix de revient (CFA) *",  ph:"7000",            type:"number", req:true},
-              {key:"price", label:"💰 Prix de vente (CFA) *",    ph:"25000",           type:"number", req:true},
-              {key:"stock", label:"📦 Stock initial *",            ph:"50",              type:"number", req:true},
+              {key:"name",  Ico:Package, label:"Nom du produit *",          ph:"Chaussures Nike", type:"text",   req:true},
+              {key:"cost",  Ico:Coins,   label:"Prix de revient (CFA) *",  ph:"7000",            type:"number", req:true},
+              {key:"price", Ico:Coins,   label:"Prix de vente (CFA) *",    ph:"25000",           type:"number", req:true},
+              {key:"stock", Ico:Package, label:"Stock initial *",            ph:"50",              type:"number", req:true},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:9,position:"relative"}}>
                 <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
                   {prodErrors[f.key]&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block",flexShrink:0}}/>}
-                  <div style={{fontSize:11,color:prodErrors[f.key]?G.red:G.dark,fontWeight:600}}>{f.label}</div>
+                  <div style={{fontSize:11,color:prodErrors[f.key]?G.red:G.dark,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
                 </div>
                 <input type={f.type} value={newProd[f.key]||""}
                   onChange={e=>{setNewProd({...newProd,[f.key]:e.target.value});if(prodErrors[f.key])setProdErrors(p=>({...p,[f.key]:false}));}}
@@ -6206,7 +6206,7 @@ function AppInner() {
             <div style={{marginBottom:12}}>
               <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
                 {prodErrors.niche&&<span style={{width:8,height:8,borderRadius:"50%",background:G.red,display:"inline-block"}}/>}
-                <div style={{fontSize:11,color:prodErrors.niche?G.red:G.dark,fontWeight:600}}>🎯 Niche de produit *</div>
+                <div style={{fontSize:11,color:prodErrors.niche?G.red:G.dark,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><Sparkles size={12}/> Niche de produit *</div>
               </div>
               <input type="text" value={newProd.niche||""}
                 onChange={e=>{setNewProd({...newProd,niche:e.target.value});if(prodErrors.niche)setProdErrors(p=>({...p,niche:false}));}}
@@ -6234,7 +6234,7 @@ function AppInner() {
 
             {/* ── SECTION BUNDLES ── */}
             <div style={{borderTop:`2px dashed ${G.grayLight}`,paddingTop:16,marginTop:4}}>
-              <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4}}>🎁 Bundles de ce produit</div>
+              <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Gift size={15}/> Bundles de ce produit</div>
               <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Optionnel — à ajouter si vous proposez des offres groupées pour ce produit.</div>
 
               {/* Bundles déjà ajoutés */}
@@ -6252,7 +6252,7 @@ function AppInner() {
                           <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{b.label} <span style={{fontSize:10,color:G.gray,fontWeight:400}}>({TN[b.type]||b.type})</span></div>
                           <div style={{fontSize:11,color:G.gray,marginTop:2}}>
                             {b.qte}u{b.type==="bxgyf"?` + ${b.qteOfferte} offert`:""} · {fmt(b.prixVente)} CFA
-                            {b.livraisonOfferte?" · 🚚 offerte":""}
+  {b.livraisonOfferte?<> · <Truck size={11} style={{display:"inline",verticalAlign:"-1px"}}/> offerte</>:""}
                           </div>
                           <div style={{fontSize:11,fontWeight:600,color:m>=0?G.green:G.red,marginTop:2}}>Marge: {fmt(m)} CFA</div>
                         </div>
@@ -6284,10 +6284,10 @@ function AppInner() {
                 <div style={{marginBottom:8}}>
                   <div style={{fontSize:11,color:G.gray,marginBottom:6}}>Type</div>
                   <div style={{display:"flex",gap:5}}>
-                    {[{k:"quantite",l:"📦 Pack Qté"},{k:"bxgyf",l:"🎁 Buy X Get Y"}].map(t=>(
+                    {[{k:"quantite",l:"Pack Qté",Ico:Package},{k:"bxgyf",l:"Buy X Get Y",Ico:Gift}].map(t=>(
                       <button key={t.k} onClick={()=>setNewBundleForm(p=>({...p,type:t.k}))}
-                        style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${newBundleForm.type===t.k?G.gold:"#FDE68A"}`,cursor:"pointer",background:newBundleForm.type===t.k?"#FEF3C7":"#FFF8E7",fontWeight:600,fontSize:11,color:newBundleForm.type===t.k?G.gold:G.gray}}>
-                        {t.l}
+                        style={{flex:1,padding:"7px 4px",borderRadius:8,border:`2px solid ${newBundleForm.type===t.k?G.gold:"#FDE68A"}`,cursor:"pointer",background:newBundleForm.type===t.k?"#FEF3C7":"#FFF8E7",fontWeight:600,fontSize:11,color:newBundleForm.type===t.k?G.gold:G.gray,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:4}}>
+                        <t.Ico size={12}/> {t.l}
                       </button>
                     ))}
                   </div>
