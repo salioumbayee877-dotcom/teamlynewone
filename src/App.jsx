@@ -2240,7 +2240,10 @@ function AppInner() {
       price = 0; productLabel = "";
     }
     const tempId = "tmp_" + Date.now();
-    const closerLivId = newOrder.livreur ? (teamMembers.find(m=>m.nom===newOrder.livreur)?.id||null) : null;
+    // Auto-asignación: si no se eligió livreur y solo hay uno en el equipo, asignarlo
+    const _livreurs = teamMembers.filter(m=>m.role==="livreur");
+    const _autoLivreurNom = (!newOrder.livreur && _livreurs.length===1) ? _livreurs[0].nom : newOrder.livreur;
+    const closerLivId = _autoLivreurNom ? (teamMembers.find(m=>m.nom===_autoLivreurNom)?.id||null) : null;
     const deliveryStatus = newOrder.deliveryStatus;
     // Zone de livraison : depuis la détection dynamique ou fallback WA_ZONES
     const _dynZone = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions, settings.defaultDeliveryPrice||3500);
@@ -2250,7 +2253,7 @@ function AppInner() {
     const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
     const _regionType  = _zoneType === "other" ? "other" : _zoneType === "main" ? "main" : null;
     const _paymentType = _regionType === "other" ? "prepaid" : _regionType === "main" ? "cod" : null;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:newOrder.livreur||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,region_type:_regionType,payment_type:_paymentType,created_at:new Date().toISOString()};
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:_autoLivreurNom||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,region_type:_regionType,payment_type:_paymentType,created_at:new Date().toISOString()};
     setOrders(o=>[...o,order]);
     pendingOrderUpdates.current[tempId] = Date.now();
     // Auto-save unknown city with manually-entered fee for future autocomplete
@@ -2282,7 +2285,7 @@ function AppInner() {
             addToast("Commande non enregistrée — RLS/contrainte DB (res vide)","❌",G.red,12000);
           }
           // Envoyer notification au livreur selon le statut choisi
-          if(newOrder.livreur && orgId) {
+          if(_autoLivreurNom && orgId) {
             const NOTIF_MSG = {
               confirmado:       "🔔 Nouveau colis — Aller récupérer chez l'Admin",
               livreur_en_route: "🏍️ Tu es en route pour récupérer le colis",
@@ -2290,7 +2293,7 @@ function AppInner() {
               en_camino:        "🚀 Livraison directe — En route vers le client",
               chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
             };
-            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:newOrder.livreur,read:false,data:{}}).catch(()=>{});
+            sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:_autoLivreurNom,read:false,data:{}}).catch(()=>{});
           }
         })
         .catch(e=>{
@@ -2313,7 +2316,7 @@ function AppInner() {
         .replace(/{prix}/g, Number(price).toLocaleString("fr-FR"))
         .replace(/{adresse}/g, newOrder.address||"")
         .replace(/{boutique}/g, settings.boutique||"Teamly")
-        .replace(/{livreur}/g, newOrder.livreur||"notre livreur");
+        .replace(/{livreur}/g, _autoLivreurNom||"notre livreur");
       const url = `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
       setWaUrl(url);
       setShowWA(true);

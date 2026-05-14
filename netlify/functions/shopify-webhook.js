@@ -114,7 +114,10 @@ exports.handler = async (event) => {
     const paymentType  = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
 
     // ── Product catalog matching ──────────────────────────────────────────
-    let finalProduct = shopifyProduct, matched = false, autoCreated = false;
+    // Si no hay match automático (score ≥ 0.5), dejar producto vacío para
+    // que el admin lo seleccione manualmente. No auto-crear productos.
+    let finalProduct = null, matched = false;
+    const rawProductName = shopifyProduct;
     try {
       const catalog = await (await fetch(`${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name,price`, { headers: sbHeaders })).json();
       if (Array.isArray(catalog) && catalog.length > 0) {
@@ -122,19 +125,20 @@ exports.handler = async (event) => {
         for (const p of catalog) { const s = matchScore(p.name, shopifyProduct); if (s > best) { best = s; bestName = p.name; } }
         if (best >= 0.5) { finalProduct = bestName; matched = true; }
       }
-      if (!matched) {
-        const cleanName = (lineItems[0]?.title || shopifyProduct).split(" - ")[0].trim();
-        const existProd = Array.isArray(catalog) ? catalog.find(p => norm(p.name) === norm(cleanName)) : null;
-        if (!existProd) {
-          await fetch(`${SB_URL}/rest/v1/products`, { method:"POST", headers:{...sbHeaders,Prefer:"return=minimal"}, body:JSON.stringify({org_id:orgId,name:cleanName,price:unitPrice,cost:0,stock:0,stock_initial:0,frais_liv:1500,archived:false}) });
-          autoCreated = true; finalProduct = cleanName;
-        } else { finalProduct = existProd.name; matched = true; }
-      }
     } catch(e) { console.error("Catalog error:", e.message); }
 
-    const prodFlag = matched ? " ✓" : autoCreated ? " ★" : "";
+    const prodFlag = matched ? " ✓" : ` ❓${rawProductName}`;
     const zoneFlag = fraisBlocked ? ` ⚠️🏙️${city}` : matchType === "fuzzy" ? ` ~🏙️${city}` : ` 🏙️${city}`;
     const note     = `Commande Shopify ${shopifyRef}${prodFlag}${zoneFlag}`;
+
+    // ── Auto-asignación de livreur si solo hay uno en la org ─────────────
+    let autoLivreurId = null, autoLivreurNom = null;
+    try {
+      const livs = await (await fetch(`${SB_URL}/rest/v1/profiles?org_id=eq.${orgId}&role=eq.livreur&select=id,nom`, { headers: sbHeaders })).json();
+      if (Array.isArray(livs) && livs.length === 1) {
+        autoLivreurId = livs[0].id; autoLivreurNom = livs[0].nom;
+      }
+    } catch(e) { console.error("Livreur auto-assign error:", e.message); }
 
     // ── Insert order ──────────────────────────────────────────────────────
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
@@ -150,7 +154,7 @@ exports.handler = async (event) => {
         note, archived: false,
         is_bundle: totalQty > 1 || lineItems.length > 1,
         frais_liv: syncMeta.frais_liv,
-        livreur: null, livreur_id: null, closer: null, closer_id: null,
+        livreur: autoLivreurNom, livreur_id: autoLivreurId, closer: null, closer_id: null,
         sync_status: syncMeta.sync_status,
         unmatched_city:   syncMeta.unmatched_city,
         unmatched_region: syncMeta.unmatched_region,
@@ -171,7 +175,7 @@ exports.handler = async (event) => {
     if (fraisBlocked) console.log(`  WARN: city "${city}" not found in zones — admin review needed`);
 
     return { statusCode: 200, headers, body: JSON.stringify({
-      success: true, ref: shopifyRef, matched, autoCreated, finalProduct,
+      success: true, ref: shopifyRef, matched, finalProduct,
       zone: { matchType, name: zoneName, frais: fraisAmount, blocked: fraisBlocked },
     })};
   } catch (e) {

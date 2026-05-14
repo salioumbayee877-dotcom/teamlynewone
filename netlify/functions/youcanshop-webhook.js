@@ -106,8 +106,10 @@ exports.handler = async (event) => {
     if (existing?.length > 0)
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref, skipped: true }) };
 
-    // Product matching
-    let finalProduct = rawProduct, matched = false, autoCreated = false;
+    // Product matching — si no hay match automático, dejar vacío para que
+    // el admin lo seleccione manualmente. No auto-crear desde webhook.
+    let finalProduct = null, matched = false;
+    const rawProductName = rawProduct;
     try {
       const catalog = await (await fetch(`${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name,price`, { headers: sbHeaders })).json();
       if (Array.isArray(catalog) && catalog.length > 0) {
@@ -117,18 +119,6 @@ exports.handler = async (event) => {
           if (score > best) { best = score; bestName = p.name; }
         }
         if (best >= 0.5) { finalProduct = bestName; matched = true; }
-      }
-      if (!matched) {
-        const cleanName = (items[0]?.name || items[0]?.title || rawProduct).split(" - ")[0].trim();
-        const existProd = Array.isArray(catalog) ? catalog.find(p => norm(p.name) === norm(cleanName)) : null;
-        if (!existProd) {
-          await fetch(`${SB_URL}/rest/v1/products`, {
-            method: "POST",
-            headers: { ...sbHeaders, Prefer: "return=minimal" },
-            body: JSON.stringify({ org_id:orgId, name:cleanName, price:unitPrice, cost:0, stock:0, stock_initial:0, frais_liv:1500, archived:false }),
-          });
-          autoCreated = true; finalProduct = cleanName;
-        } else { finalProduct = existProd.name; matched = true; }
       }
     } catch(e) { console.error("Catalog error:", e.message); }
 
@@ -152,14 +142,21 @@ exports.handler = async (event) => {
     } catch(e) { console.error("Zone matching error:", e.message); }
     const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
     const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
-    const prodFlag = matched ? " ✓" : autoCreated ? " ★" : "";
+    const prodFlag = matched ? " ✓" : ` ❓${rawProductName}`;
     const zoneFlag = matchType === "fallback" ? ` ⚠️🏙️${city}` : matchType === "fuzzy" ? ` ~🏙️${city}` : ` 🏙️${city}`;
     const note     = `Commande YouCan ${ref}${prodFlag}${zoneFlag}`;
+
+    // Auto-asignación de livreur si solo hay uno en la org
+    let autoLivreurId = null, autoLivreurNom = null;
+    try {
+      const livs = await (await fetch(`${SB_URL}/rest/v1/profiles?org_id=eq.${orgId}&role=eq.livreur&select=id,nom`, { headers: sbHeaders })).json();
+      if (Array.isArray(livs) && livs.length === 1) { autoLivreurId = livs[0].id; autoLivreurNom = livs[0].nom; }
+    } catch(e) { console.error("Livreur auto-assign error:", e.message); }
 
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:null, livreur_id:null, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType }),
     });
 
     if (!res.ok) {
@@ -168,7 +165,7 @@ exports.handler = async (event) => {
     }
 
     console.log(`[TEAMLY] YouCan ${ref} — city="${city}" matchType=${matchType} frais=${fraisAmount} CFA`);
-    return { statusCode: 200, headers, body: JSON.stringify({ success:true, ref, matched, autoCreated, finalProduct, zone:{matchType,frais:fraisAmount} }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success:true, ref, matched, finalProduct, zone:{matchType,frais:fraisAmount} }) };
   } catch (e) {
     console.error("YouCan Shop webhook error:", e.message);
     return { statusCode: 500, headers, body: `Error: ${e.message}` };

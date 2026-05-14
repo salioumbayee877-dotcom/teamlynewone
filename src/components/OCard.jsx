@@ -297,7 +297,7 @@ export const OCard = ({ o, showPrendre = false }) => {
           <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
             target="_blank" rel="noreferrer"
             onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
-            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:waSent?"#16A34A":"#25D366",color:"#fff",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6}}>
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:"#fff",color:"#111",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6,border:"1.5px solid #111"}}>
             {waSent?<><Check size={13}/> Renvoyer confirmation WA</>:<><Send size={13}/> Confirmer par WhatsApp</>}
           </a>
         );

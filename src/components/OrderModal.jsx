@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CityComboBox } from "./CityComboBox";
 import { detectDeliveryZone, WA_ZONES } from "../lib/senegal";
 import {
@@ -9,6 +9,12 @@ import {
 
 export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, onClose, G, fmt, FRAIS_LIV, livreurs=[], waTemplate="", setWaTemplate, boutique="Teamly", mainRegion=null, otherRegions=[], defaultDeliveryPrice=3500, onOpenFraisConfig=null}) {
   const [showWAPreview, setShowWAPreview] = useState(false);
+  // Auto-asignación: si solo hay un livreur, seleccionarlo automáticamente
+  useEffect(()=>{
+    if(livreurs.length===1 && !newOrder.livreur){
+      setNewOrder({...newOrder, livreur: livreurs[0]});
+    }
+  },[livreurs.length]);
   const prod = products.find(p=>p.name===newOrder.product);
   const qty  = parseInt(newOrder.qty||1);
   const disc = parseFloat(newOrder.discount||0);
@@ -210,21 +216,25 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
           {!newOrder.deliveryStatus&&<div style={{fontSize:10,color:"#EF4444",marginTop:4,display:"flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/> Champ obligatoire — sans ça, impossible d'enregistrer</div>}
         </div>
 
-        {/* Assigner livreur */}
-        {livreurs.length>0&&(
+        {/* Assigner livreur — auto si un seul, manuel si plusieurs */}
+        {livreurs.length>1&&(
           <div style={{marginBottom:12}}>
             <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><Bike size={11}/> Livreur</div>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              <button onClick={()=>setNewOrder({...newOrder,livreur:""})}
-                style={{background:!newOrder.livreur?G.grayLight:G.white,color:G.gray,border:`1.5px solid ${!newOrder.livreur?"#9CA3AF":"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:!newOrder.livreur?700:400,cursor:"pointer"}}>
-                Pas encore
-              </button>
               {livreurs.map(l=>(
                 <button key={l} onClick={()=>setNewOrder({...newOrder,livreur:l})}
                   style={{background:newOrder.livreur===l?G.greenLight:"#F9FAFB",color:newOrder.livreur===l?G.green:G.gray,border:`1.5px solid ${newOrder.livreur===l?G.green:"#E5E7EB"}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:newOrder.livreur===l?700:400,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:4}}>
                   <Bike size={12}/> {l}
                 </button>
               ))}
+            </div>
+          </div>
+        )}
+        {livreurs.length===1&&newOrder.livreur&&(
+          <div style={{marginBottom:12}}>
+            <div style={{fontSize:11,color:G.gray,marginBottom:5,fontWeight:600,display:"flex",alignItems:"center",gap:4}}><Bike size={11}/> Livreur</div>
+            <div style={{display:"inline-flex",alignItems:"center",gap:4,background:G.greenLight,color:G.green,border:`1.5px solid ${G.green}`,borderRadius:8,padding:"6px 11px",fontSize:12,fontWeight:700}}>
+              <Bike size={12}/> {newOrder.livreur} <Check size={12}/>
             </div>
           </div>
         )}
