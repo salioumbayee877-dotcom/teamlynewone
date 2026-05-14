@@ -3039,13 +3039,13 @@ function AppInner() {
                 <div style={{flex:1,height:1,background:"rgba(255,255,255,0.15)"}}/>
               </div>
               {[
-                {key:"boutique",  label:"🏪 Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
-                {key:"email",     label:"📧 Email *",                ph:"vous@boutique.sn",   type:"email",    ac:"email"},
-                {key:"phone",     label:"📱 Téléphone *",            ph:"77 123 45 67",       type:"tel",      ac:"tel"},
-                {key:"password",  label:"🔒 Mot de passe *",         ph:"8 car. min · 1 lettre + 1 chiffre",   type:"password", ac:"new-password"},
+                {key:"boutique",  Ico:Building2,  label:"Nom de ta boutique *",  ph:"Ma Boutique Dakar",  type:"text",     ac:"organization"},
+                {key:"email",     Ico:Mail,       label:"Email *",                ph:"vous@boutique.sn",   type:"email",    ac:"email"},
+                {key:"phone",     Ico:Smartphone, label:"Téléphone *",            ph:"77 123 45 67",       type:"tel",      ac:"tel"},
+                {key:"password",  Ico:Lock,       label:"Mot de passe *",         ph:"8 car. min · 1 lettre + 1 chiffre",   type:"password", ac:"new-password"},
               ].map(f=>(
                 <div key={f.key}>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><f.Ico size={12}/> {f.label}</div>
                   <input 
                     type={f.type}
                     autoComplete={f.ac}
@@ -3070,18 +3070,18 @@ function AppInner() {
       {authStep==="google-onboard"&&(
         <div style={{width:"100%",maxWidth:380}}>
           <div style={{textAlign:"center",marginBottom:22}}>
-            <div style={{fontSize:36,marginBottom:8}}>🎉</div>
+<div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Sparkles size={36} color="#fff"/></div>
             <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Bienvenue {googleOnboard?.fullName||""} !</div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Quelques infos pour finaliser ton compte</div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>🏪 Nom de ta boutique *</div>
+<div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><Building2 size={12}/> Nom de ta boutique *</div>
               <input type="text" value={authForm.boutique||""} onChange={e=>setAuthForm(p=>({...p,boutique:e.target.value}))} placeholder="Ma Boutique Dakar"
                 style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
             </div>
             <div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>📱 Téléphone *</div>
+<div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><Smartphone size={12}/> Téléphone *</div>
               <input type="tel" value={authForm.phone||""} onChange={e=>setAuthForm(p=>({...p,phone:e.target.value}))} placeholder="77 123 45 67"
                 style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
             </div>
@@ -3129,7 +3129,7 @@ function AppInner() {
       {authStep==="gestion"&&(
         <div style={{width:"100%",maxWidth:380}}>
           <div style={{textAlign:"center",marginBottom:28}}>
-            <div style={{fontSize:32,marginBottom:8}}>📞</div>
+<div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Phone size={32} color="#fff"/></div>
             <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Qui confirme les commandes ?</div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Le Closer appelle les clients, confirme les commandes et assigne les livreurs</div>
           </div>
@@ -3141,7 +3141,7 @@ function AppInner() {
               onMouseEnter={e=>e.currentTarget.style.background="rgba(240,165,0,0.15)"}
               onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                <span style={{fontSize:28}}>⚡</span>
+<Zap size={28} color="#fff"/>
                 <div>
                   <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>Gestion autonome</div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Je gère moi-même les confirmations</div>
@@ -3160,7 +3160,7 @@ function AppInner() {
               onMouseEnter={e=>e.currentTarget.style.background="rgba(59,130,246,0.1)"}
               onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
               <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                <span style={{fontSize:28}}>👥</span>
+<Users size={28} color="#fff"/>
                 <div>
                   <div style={{fontWeight:700,fontSize:16,color:"#93C5FD",fontFamily:"sans-serif"}}>Déléguer à un Closer</div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif"}}>Un membre de l'équipe gère les confirmations</div>
@@ -3184,7 +3184,7 @@ function AppInner() {
       {authStep==="invite"&&(
         <div style={{width:"100%",maxWidth:380}}>
           <div style={{textAlign:"center",marginBottom:24}}>
-            <div style={{fontSize:40,marginBottom:8}}>🎉</div>
+<div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Sparkles size={40} color="#fff"/></div>
             <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Compte créé !</div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>
               {gestionMode==="solo" ? "Invite ton livreur pour commencer" : "Invite ton équipe en envoyant ces liens par WhatsApp"}
@@ -3193,7 +3193,7 @@ function AppInner() {
 
           {/* Badge mode choisi */}
           <div style={{background:gestionMode==="solo"?"rgba(240,165,0,0.15)":"rgba(59,130,246,0.15)",borderRadius:10,padding:"8px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:8,border:`1px solid ${gestionMode==="solo"?"rgba(240,165,0,0.3)":"rgba(59,130,246,0.3)"}`}}>
-            <span style={{fontSize:16}}>{gestionMode==="solo"?"⚡":"👥"}</span>
+{gestionMode==="solo"?<Zap size={16} color="#fff"/>:<Users size={16} color="#fff"/>}
             <div style={{fontSize:12,color:gestionMode==="solo"?G.gold:"#93C5FD",fontWeight:600,fontFamily:"sans-serif"}}>
               {gestionMode==="solo" ? "Mode Gestion autonome — tu es Admin + Closer" : "Mode Délégué — tu invites un Closer dédié"}
             </div>
@@ -3205,7 +3205,7 @@ function AppInner() {
               <div style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 16px",border:"1px solid rgba(59,130,246,0.3)"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                   <div>
-                    <div style={{fontWeight:700,fontSize:15,color:"#93C5FD",fontFamily:"sans-serif"}}>📞 Closer</div>
+      <div style={{fontWeight:700,fontSize:15,color:"#93C5FD",fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:6}}><Phone size={15}/> Closer</div>
                     <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2,fontFamily:"sans-serif"}}>Confirme les commandes et assigne les livreurs</div>
                   </div>
                 </div>
@@ -3213,23 +3213,23 @@ function AppInner() {
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
                   <button onClick={()=>navigator.clipboard?.writeText(inviteLink.closer).then(()=>alert("Lien copié !"))}
                     style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
-                    📋 Copier
+  <ClipboardList size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Copier
                   </button>
                   <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Closer.\n\nClique ici:\n${inviteLink.closer}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
                     style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
-                    📲 WhatsApp
+  <Send size={13} style={{display:"inline",verticalAlign:"-2px"}}/> WhatsApp
                   </button>
                 </div>
 
                 {/* Accès comptabilité pour le Closer */}
                 <div style={{borderTop:"1px solid rgba(255,255,255,0.1)",paddingTop:12}}>
                   <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:600,fontFamily:"sans-serif",marginBottom:10}}>
-                    🔐 Accès du Closer
+  <KeyRound size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Accès du Closer
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",opacity:isGratuit?0.5:1}}>
                     <div>
-                      <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600}}>📊 Voir la Comptabilité</div>
-                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, bénéfices, CA par produit"}</div>
+                      <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Voir la Comptabilité</div>
+                      <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2,display:"flex",alignItems:"center",gap:4}}>{isGratuit?<><Lock size={10}/> Plan Basic requis</>:"Revenus, bénéfices, CA par produit"}</div>
                     </div>
                     <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                       style={{background:isGratuit?"rgba(255,255,255,0.1)":settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
@@ -3238,12 +3238,12 @@ function AppInner() {
                   </div>
                   {!isGratuit&&settings.closerCompta&&(
                     <div style={{background:"rgba(34,197,94,0.15)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(34,197,94,0.3)"}}>
-                      <div style={{fontSize:11,color:"#86EFAC",fontFamily:"sans-serif"}}>✅ Le Closer verra un onglet Compta dans son dashboard</div>
+    <div style={{fontSize:11,color:"#86EFAC",fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><Check size={12}/> Le Closer verra un onglet Compta dans son dashboard</div>
                     </div>
                   )}
                   {isGratuit&&(
                     <div style={{background:"rgba(240,165,0,0.1)",borderRadius:8,padding:"6px 10px",marginTop:6,border:"1px solid rgba(240,165,0,0.25)"}}>
-                      <div style={{fontSize:11,color:"#FCD34D",fontFamily:"sans-serif"}}>🔒 Passez au plan Basic pour activer cette option</div>
+    <div style={{fontSize:11,color:"#FCD34D",fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><Lock size={12}/> Passez au plan Basic pour activer cette option</div>
                     </div>
                   )}
                 </div>
@@ -3254,7 +3254,7 @@ function AppInner() {
             <div style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 16px",border:`1px solid ${G.greenMid}50`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
                 <div>
-                  <div style={{fontWeight:700,fontSize:15,color:"#6EE7B7",fontFamily:"sans-serif"}}>🏍️ Livreur</div>
+    <div style={{fontWeight:700,fontSize:15,color:"#6EE7B7",fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:6}}><Bike size={15}/> Livreur</div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2,fontFamily:"sans-serif"}}>Effectue les livraisons et met à jour les statuts</div>
                 </div>
               </div>
@@ -3262,11 +3262,11 @@ function AppInner() {
               <div style={{display:"flex",gap:6}}>
                 <button onClick={()=>navigator.clipboard?.writeText(inviteLink.livreur).then(()=>alert("Lien copié !"))}
                   style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
-                  📋 Copier
+<ClipboardList size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Copier
                 </button>
                 <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Livreur.\n\nClique ici:\n${inviteLink.livreur}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
                   style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
-                  📲 WhatsApp
+<Send size={13} style={{display:"inline",verticalAlign:"-2px"}}/> WhatsApp
                 </button>
               </div>
             </div>
@@ -3274,11 +3274,11 @@ function AppInner() {
             {/* Option gestion autonome (si mode délégué, rappeler l'option) */}
             {gestionMode==="delegue"&&(
               <div style={{background:"rgba(240,165,0,0.1)",borderRadius:14,padding:"12px 16px",border:"1px solid rgba(240,165,0,0.3)"}}>
-                <div style={{fontWeight:700,fontSize:13,color:G.gold,fontFamily:"sans-serif",marginBottom:4}}>⚡ Gestion autonome</div>
+                <div style={{fontWeight:700,fontSize:13,color:G.gold,fontFamily:"sans-serif",marginBottom:4,display:"flex",alignItems:"center",gap:5}}><Zap size={14}/> Gestion autonome</div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:10,fontFamily:"sans-serif"}}>Tu peux aussi gérer les confirmations toi-même en attendant ton Closer.</div>
                 <button onClick={()=>{setGestionMode("solo");}}
                   style={{width:"100%",background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
-                  ✅ Je gère moi-même les confirmations
+    <Check size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Je gère moi-même les confirmations
                 </button>
               </div>
             )}
@@ -3305,7 +3305,7 @@ function AppInner() {
 
             {/* Lien d'invitation */}
             <div style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6}}>🔗 Lien d'invitation</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Send size={12}/> Lien d'invitation</div>
               <input type="text" placeholder="teamly.app/join?org=ABC&role=closer..." value={authForm.inviteUrl||""}
                 onChange={e=>setAuthForm(p=>({...p,inviteUrl:e.target.value}))}
                 style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"9px 12px",fontSize:11,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
@@ -3313,9 +3313,9 @@ function AppInner() {
               {(authForm.inviteRole||authForm.inviteUrl)&&(
                 <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:12,fontFamily:"sans-serif"}}>
                   {(authForm.inviteRole==="closer"||authForm.inviteUrl?.includes("role=closer"))
-                    ?<span style={{color:"#93C5FD",fontWeight:700}}>📞 Tu rejoins en tant que <strong>Closer</strong></span>
+    ?<span style={{color:"#93C5FD",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Phone size={13}/> Tu rejoins en tant que <strong>Closer</strong></span>
                     :(authForm.inviteRole==="livreur"||authForm.inviteUrl?.includes("role=livreur"))
-                    ?<span style={{color:"#6EE7B7",fontWeight:700}}>🏍️ Tu rejoins en tant que <strong>Livreur</strong></span>
+    ?<span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Bike size={13}/> Tu rejoins en tant que <strong>Livreur</strong></span>
                     :<span style={{color:"rgba(255,255,255,0.5)"}}>Lien d'invitation détecté</span>
                   }
                 </div>
@@ -3327,14 +3327,14 @@ function AppInner() {
 
             {/* Champs profil complets */}
             {[
-              {key:"nom",      label:"👤 Prénom & Nom *",       ph:"Ibou Diallo",          type:"text",     ac:"name"},
-              {key:"phone",    label:"📱 Numéro de téléphone *", ph:"77 123 45 67",         type:"tel",      ac:"tel"},
-              {key:"email",    label:"📧 Email *",               ph:"ibou@exemple.com",     type:"email",    ac:"email"},
-              {key:"adresse",  label:"📍 Quartier / Zone *",     ph:"Médina, Dakar",        type:"text",     ac:"street-address"},
-              {key:"password", label:"🔒 Mot de passe *",        ph:"6 caractères minimum", type:"password", ac:"new-password"},
+              {key:"nom",      Ico:User,       label:"Prénom & Nom *",       ph:"Ibou Diallo",          type:"text",     ac:"name"},
+              {key:"phone",    Ico:Smartphone, label:"Numéro de téléphone *", ph:"77 123 45 67",         type:"tel",      ac:"tel"},
+              {key:"email",    Ico:Mail,       label:"Email *",               ph:"ibou@exemple.com",     type:"email",    ac:"email"},
+              {key:"adresse",  Ico:MapPin,     label:"Quartier / Zone *",     ph:"Médina, Dakar",        type:"text",     ac:"street-address"},
+              {key:"password", Ico:Lock,       label:"Mot de passe *",        ph:"6 caractères minimum", type:"password", ac:"new-password"},
             ].map(f=>(
               <div key={f.key}>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>{f.label}</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><f.Ico size={12}/> {f.label}</div>
                 <input
                   type={f.type}
                   name={f.key}
@@ -6983,25 +6983,25 @@ function AppInner() {
       {editOrder&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16}}>✏️ Modifier la commande #{editOrder.id}</div>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Pencil size={17}/> Modifier la commande #{editOrder.id}</div>
 
             {[
-              {key:"client",   label:"👤 Nom client",        ph:"Moussa Diallo",   type:"text"},
-              {key:"phone",    label:"📱 Téléphone",          ph:"77 123 45 67",    type:"text"},
-              {key:"address",  label:"📍 Adresse du client",  ph:"Médina, Dakar",   type:"text"},
-              {key:"product",  label:"📦 Produit",            ph:"Chaussures Nike", type:"text"},
-              {key:"price",    label:"💰 Prix COD (CFA)",     ph:"25000",           type:"number"},
-              {key:"fraisLiv", label:"🚚 Frais livraison (CFA)", ph:"1500",        type:"number"},
+              {key:"client",   Ico:User,       label:"Nom client",        ph:"Moussa Diallo",   type:"text"},
+              {key:"phone",    Ico:Smartphone, label:"Téléphone",          ph:"77 123 45 67",    type:"text"},
+              {key:"address",  Ico:MapPin,     label:"Adresse du client",  ph:"Médina, Dakar",   type:"text"},
+              {key:"product",  Ico:Package,    label:"Produit",            ph:"Chaussures Nike", type:"text"},
+              {key:"price",    Ico:Coins,      label:"Prix COD (CFA)",     ph:"25000",           type:"number"},
+              {key:"fraisLiv", Ico:Truck,      label:"Frais livraison (CFA)", ph:"1500",        type:"number"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:G.gray,marginBottom:3}}>{f.label}</div>
+                <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
                 <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               </div>
             ))}
 
             <div style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏙️ Ville du client</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Building2 size={12}/> Ville du client</div>
               <CityComboBox
                 value={editOrder.city||""}
                 onCityChange={(cityName, zoneInfo)=>{
@@ -7015,17 +7015,17 @@ function AppInner() {
                 const z=detectDeliveryZone(editOrder.city,mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
                 return (
                   <div style={{marginTop:5}}>
-                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🟢 {z.name||mainRegion?.name} · {fmt(z.price)} CFA</span>}
-                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>🔵 {z.name} · {fmt(z.price)} CFA</span>}
-                    {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚪ {z.name} · tarif par défaut</span>}
-                    {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700}}>⚠️ Ville inconnue</span>}
+                    {z.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#16a34a" stroke="#16a34a"/> {z.name||mainRegion?.name} · {fmt(z.price)} CFA</span>}
+                    {z.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#2563eb" stroke="#2563eb"/> {z.name} · {fmt(z.price)} CFA</span>}
+                    {z.type==="senegal"&&<span style={{background:"#F3F4F6",color:"#374151",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} stroke="#9CA3AF"/> {z.name} · tarif par défaut</span>}
+                    {z.type==="unknown"&&<span style={{background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><AlertTriangle size={11}/> Ville inconnue</span>}
                   </div>
                 );
               })()}
             </div>
 
             <div style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📊 Statut</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><BarChart3 size={12}/> Statut</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                 {(()=>{
                   const OTHER_KEYS = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"];
@@ -7045,7 +7045,7 @@ function AppInner() {
             </div>
 
             <div style={{marginBottom:12}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🏍️ Livreur</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Bike size={12}/> Livreur</div>
               <select value={editOrder.livreur||""} onChange={e=>setEditOrder(p=>({...p,livreur:e.target.value||null}))}
                 style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,background:G.white,boxSizing:"border-box"}}>
                 <option value="">Sans livreur</option>
@@ -7054,7 +7054,7 @@ function AppInner() {
             </div>
 
             <div style={{marginBottom:16}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📝 Note</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><StickyNote size={12}/> Note</div>
               <textarea value={editOrder.note||""} onChange={e=>setEditOrder(p=>({...p,note:e.target.value}))} placeholder="Note optionnelle..."
                 style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:10,fontSize:13,outline:"none",minHeight:60,resize:"none",boxSizing:"border-box"}}/>
             </div>
@@ -7137,7 +7137,7 @@ function AppInner() {
                     }
                   }
                 })} style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:"12px 16px",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                🗑️
+                <Trash2 size={16}/>
               </button>
               <button onClick={()=>setEditOrder(null)} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
             </div>
@@ -7149,16 +7149,16 @@ function AppInner() {
       {editProd&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"92vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:4}}>✏️ Modifier le produit</div>
+            <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Pencil size={17}/> Modifier le produit</div>
             <div style={{fontSize:11,color:G.gray,marginBottom:16}}>{editProd.name}</div>
 
             {[
-              {key:"name",  label:"📦 Nom du produit *",               type:"text",   ph:"Chaussures Nike"},
-              {key:"cost",  label:"💰 Coût total du produit (CFA) *", type:"number", ph:"7000", sub:"Prix d'achat + import + douane + transport + emballage"},
-              {key:"price", label:"💰 Prix de vente (CFA) *",          type:"number", ph:"25000"},
+              {key:"name",  Ico:Package, label:"Nom du produit *",               type:"text",   ph:"Chaussures Nike"},
+              {key:"cost",  Ico:Coins,   label:"Coût total du produit (CFA) *", type:"number", ph:"7000", sub:"Prix d'achat + import + douane + transport + emballage"},
+              {key:"price", Ico:Coins,   label:"Prix de vente (CFA) *",          type:"number", ph:"25000"},
             ].map(f=>(
               <div key={f.key} style={{marginBottom:10}}>
-                <div style={{fontSize:11,color:G.gray,marginBottom:f.sub?1:3}}>{f.label}</div>
+                <div style={{fontSize:11,color:G.gray,marginBottom:f.sub?1:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
                 {f.sub&&<div style={{fontSize:10,color:"#9CA3AF",marginBottom:4}}>{f.sub}</div>}
                 <input type={f.type} value={editProd[f.key]||""} onChange={e=>setEditProd(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
@@ -7167,7 +7167,7 @@ function AppInner() {
 
             {/* Niche */}
             <div style={{marginBottom:10}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>🎯 Niche de produit *</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Sparkles size={12}/> Niche de produit *</div>
               <input type="text" value={editProd.niche||""} onChange={e=>setEditProd(p=>({...p,niche:e.target.value}))} placeholder="Mode, Beauté..."
                 style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
               <div style={{display:"flex",flexWrap:"wrap",gap:5,marginTop:6}}>
@@ -7182,7 +7182,7 @@ function AppInner() {
 
             {/* Stock direct */}
             <div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:G.gray,marginBottom:3}}>📦 Ajuster stock actuel</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Package size={12}/> Ajuster stock actuel</div>
               <div style={{display:"flex",gap:8,alignItems:"center"}}>
                 <input type="number" min="0" value={editProd.stock||0} onChange={e=>setEditProd(p=>({...p,stock:e.target.value,stockInitial:e.target.value}))}
                   style={{flex:1,border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
@@ -7287,7 +7287,7 @@ function AppInner() {
               {/* Progress Tracker — vertical stepper */}
               {!isRejected&&(
                 <div style={{marginBottom:20,padding:"16px",background:"#F8FAFC",borderRadius:16,border:"1px solid #E2E8F0"}}>
-                  <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:14,textTransform:"uppercase",letterSpacing:0.5}}>📊 Suivi de commande</div>
+                  <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:14,textTransform:"uppercase",letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Suivi de commande</div>
                   {(()=>{
                     // When the order reaches a final step (entregado, or remis_transporteur for interurbain),
                     // freeze the tracker: mark everything up to activeIdx as done, stop the pulsing "EN COURS".
@@ -7340,7 +7340,7 @@ function AppInner() {
               <div style={{marginBottom:14}}>
                 <div style={{fontWeight:800,fontSize:20,color:G.dark,marginBottom:8}}>{o.client}</div>
                 <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,textDecoration:"none"}}>
-                  <span style={{fontSize:16}}>📱</span><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
+                  <Smartphone size={16}/><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
                 </a>
               </div>
               {(()=>{
@@ -7353,7 +7353,7 @@ function AppInner() {
                     <div style={{background:"#F0FDF4",borderRadius:12,padding:"14px 16px",marginBottom:12,border:"1px solid #BBF7D0"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                         <div style={{fontSize:12,fontWeight:700,color:"#166534"}}>
-                          {isMulti?"📦 Récapitulatif colis":"📦 Produit"}
+        <><Package size={13} style={{display:"inline",verticalAlign:"-2px"}}/> {isMulti?"Récapitulatif colis":"Produit"}</>
                           {isMulti&&<span style={{marginLeft:6,background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"1px 8px",fontSize:10,fontWeight:800}}>BUNDLE · {tot} articles</span>}
                         </div>
                         <div style={{textAlign:"right"}}>
@@ -7374,7 +7374,7 @@ function AppInner() {
                     </div>
                     {/* Zone + delivery cost + payment */}
                     <div style={{background:z.prepaid?"#FFF7ED":"#F8FAFC",borderRadius:12,padding:"12px 14px",marginBottom:14,border:`1px solid ${z.prepaid?"#FED7AA":"#E2E8F0"}`}}>
-                      <div style={{fontSize:11,fontWeight:700,color:z.prepaid?"#92400E":G.gray,marginBottom:8,textTransform:"uppercase",letterSpacing:0.4}}>🗺️ Zone & Livraison</div>
+                      <div style={{fontSize:11,fontWeight:700,color:z.prepaid?"#92400E":G.gray,marginBottom:8,textTransform:"uppercase",letterSpacing:0.4,display:"flex",alignItems:"center",gap:5}}><IcoMap size={12}/> Zone & Livraison</div>
                       {(()=>{
                         const cityShown=(o.city||o.deliveryZoneName||o.unmatched_city||"").trim();
                         if(!cityShown&&!o.address) return null;
@@ -7382,13 +7382,13 @@ function AppInner() {
                           <div style={{background:G.white,border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"10px 12px",marginBottom:10}}>
                             {cityShown&&(
                               <div style={{display:"flex",alignItems:"baseline",gap:6,marginBottom:o.address?4:0}}>
-                                <span style={{fontSize:11,color:G.gray,minWidth:96}}>🏙️ Ville du client</span>
+                                <span style={{fontSize:11,color:G.gray,minWidth:96,display:"inline-flex",alignItems:"center",gap:4}}><Building2 size={11}/> Ville du client</span>
                                 <span style={{fontSize:14,color:G.dark,fontWeight:600}}>{cityShown}</span>
                               </div>
                             )}
                             {o.address&&(
                               <div style={{display:"flex",alignItems:"baseline",gap:6}}>
-                                <span style={{fontSize:11,color:G.gray,minWidth:96}}>📍 Adresse du client</span>
+                                <span style={{fontSize:11,color:G.gray,minWidth:96,display:"inline-flex",alignItems:"center",gap:4}}><MapPin size={11}/> Adresse du client</span>
                                 <span style={{fontSize:14,color:G.dark}}>{o.address}</span>
                               </div>
                             )}
@@ -7416,7 +7416,7 @@ function AppInner() {
                         <span style={{display:"flex",alignItems:"center",gap:6}}>
                           <span style={{fontWeight:600,color:z.color}}>{f.label}</span>
                           {f.warning&&<>
-                            <span style={{color:G.gold,fontSize:11}}>⚠️ à config.</span>
+            <span style={{color:G.gold,fontSize:11,display:"inline-flex",alignItems:"center",gap:3}}><AlertTriangle size={11}/> à config.</span>
                             <button onClick={()=>openFraisAndDismiss()} title="Configurer les zones" style={{background:G.gold,color:"#fff",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>⚙️</button>
                           </>}
                         </span>
@@ -7433,16 +7433,16 @@ function AppInner() {
                 {o.closer&&<div style={{flex:1,background:"#EFF6FF",borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Closer</div><div style={{fontSize:13,fontWeight:700,color:G.blue}}>📞 {o.closer}</div></div>}
                 {o.livreur&&<div style={{flex:1,background:G.greenLight,borderRadius:10,padding:"8px 12px",textAlign:"center"}}><div style={{fontSize:10,color:G.gray}}>Livreur</div><div style={{fontSize:13,fontWeight:700,color:G.green}}>🏍️ {o.livreur}</div></div>}
               </div>
-              {o.note&&<div style={{background:"#FFF8E7",borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:13,color:G.dark}}>📝 {o.note}</div>}
+              {o.note&&<div style={{background:"#FFF8E7",borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:6}}><StickyNote size={14}/> {o.note}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
                   style={{background:G.green,color:G.white,borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
-                  📞 Appeler le client
+  <Phone size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Appeler le client
                 </a>
                 {(role==="admin"||role==="closer")&&(
                   <button onClick={()=>{setOrderDetail(null);setEditOrder({...o});}}
                     style={{width:"100%",background:"#EFF6FF",color:G.blue,border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>
-                    ✏️ Modifier la commande
+    <Pencil size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Modifier la commande
                   </button>
                 )}
                 {role==="admin"&&(
@@ -7475,7 +7475,7 @@ function AppInner() {
       {confirmModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
           <div style={{background:G.white,borderRadius:20,padding:28,maxWidth:320,width:"100%",textAlign:"center"}}>
-            <div style={{fontSize:44,marginBottom:12}}>{confirmModal.danger?"🗑️":"❓"}</div>
+            <div style={{marginBottom:12,display:"flex",justifyContent:"center"}}>{confirmModal.danger?<Trash2 size={44} color={G.red}/>:<AlertTriangle size={44} color={G.gold}/>}</div>
             <div style={{fontWeight:800,fontSize:16,color:G.dark,marginBottom:6}}>{confirmModal.msg}</div>
             {confirmModal.sub&&<div style={{fontSize:12,color:G.gray,marginBottom:20,whiteSpace:"pre-line",textAlign:"left"}}>{confirmModal.sub}</div>}
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -7496,7 +7496,7 @@ function AppInner() {
       {noteModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:200,display:"flex",alignItems:isDesktop?"center":"flex-end"}}>
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto"}}>
-            <div style={{fontWeight:700,fontSize:15,color:G.green,marginBottom:10}}>📝 Note commande</div>
+            <div style={{fontWeight:700,fontSize:15,color:G.green,marginBottom:10,display:"flex",alignItems:"center",gap:5}}><StickyNote size={16}/> Note commande</div>
             <textarea value={noteText} onChange={e=>setNoteText(e.target.value)} placeholder="Ex: Client demande livraison avant 14h..."
               style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:12,fontSize:13,outline:"none",minHeight:80,resize:"none",boxSizing:"border-box"}}/>
             <div style={{display:"flex",gap:8,marginTop:10}}>
@@ -7606,11 +7606,11 @@ function AppInner() {
         const o = assignLivreurModal;
         const livreurs = teamMembers.filter(m=>m.role==="livreur");
         const STATUS_OPTS = [
-          {v:"confirmado",       label:"🔔 Aller récupérer le colis",       sub:"Le livreur n'a pas encore le colis"},
-          {v:"livreur_en_route", label:"🏍️ En route pour récupérer",         sub:"Le livreur part chercher le colis"},
-          {v:"colis_pris",       label:"📦 Colis en main — Prêt à livrer",   sub:"Le livreur a déjà le colis sur lui"},
-          {v:"en_camino",        label:"🚀 En route vers le client",          sub:"Le livreur est en chemin pour livrer"},
-          {v:"chez_client",      label:"📍 Déjà chez le client",              sub:"Livraison en cours maintenant"},
+          {v:"confirmado",       Ico:Bell,    label:"Aller récupérer le colis",       sub:"Le livreur n'a pas encore le colis"},
+          {v:"livreur_en_route", Ico:Bike,    label:"En route pour récupérer",         sub:"Le livreur part chercher le colis"},
+          {v:"colis_pris",       Ico:Package, label:"Colis en main — Prêt à livrer",   sub:"Le livreur a déjà le colis sur lui"},
+          {v:"en_camino",        Ico:Rocket,  label:"En route vers le client",          sub:"Le livreur est en chemin pour livrer"},
+          {v:"chez_client",      Ico:MapPin,  label:"Déjà chez le client",              sub:"Livraison en cours maintenant"},
         ];
         const canConfirm = !!assignSelLiv && pricingChecked.has(o.id);
         return (
@@ -7622,8 +7622,8 @@ function AppInner() {
             {/* Header commande */}
             <div style={{background:"#FFF8E7",borderRadius:12,padding:"12px 14px",marginBottom:16,borderLeft:"4px solid #F59E0B"}}>
               <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{o.client}</div>
-              <div style={{fontSize:12,color:G.gray,marginTop:2}}>📦 {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} CFA</b></div>
-              {(o.address||o.city)&&<div style={{fontSize:11,color:G.gray,marginTop:2}}>📍 {fullAddr(o)}</div>}
+              <div style={{fontSize:12,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}><Package size={12}/> {o.product} · <b style={{color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")} CFA</b></div>
+              {(o.address||o.city)&&<div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}><MapPin size={11}/> {fullAddr(o)}</div>}
             </div>
 
             {/* Étape 1 — Sélectionner livreur (obligatoire) */}
@@ -7670,10 +7670,10 @@ function AppInner() {
                   <button key={s.v} onClick={()=>setAssignDelStatus(s.v)}
                     style={{background:assignDelStatus===s.v?G.greenLight:"#F9FAFB",border:`2px solid ${assignDelStatus===s.v?G.green:"#E5E7EB"}`,borderRadius:10,padding:"10px 14px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:10,transition:"all .15s"}}>
                     <div style={{flex:1}}>
-                      <div style={{fontWeight:600,fontSize:13,color:G.dark}}>{s.label}</div>
+                      <div style={{fontWeight:600,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:5}}><s.Ico size={14}/> {s.label}</div>
                       <div style={{fontSize:11,color:G.gray,marginTop:1}}>{s.sub}</div>
                     </div>
-                    {assignDelStatus===s.v&&<span style={{color:G.green,fontSize:16,flexShrink:0}}>✓</span>}
+                    {assignDelStatus===s.v&&<Check size={16} color={G.green} style={{flexShrink:0}}/>}
                   </button>
                 ))}
               </div>
@@ -7718,13 +7718,13 @@ function AppInner() {
                   {/* Confirmer + WhatsApp (principal) */}
                   <button disabled={!canConfirm} onClick={()=>{ doConfirm(); sendWA(); }}
                     style={{width:"100%",background:canConfirm?"#25D366":"#D1D5DB",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:700,fontSize:15,cursor:canConfirm?"pointer":"not-allowed",display:"flex",alignItems:"center",justifyContent:"center",gap:8,transition:"background .2s"}}>
-                    {canConfirm?<>💬 Confirmer + WhatsApp client</>:"Sélectionne un livreur pour continuer"}
+                    {canConfirm?<><MessageCircle size={14}/> Confirmer + WhatsApp client</>:"Sélectionne un livreur pour continuer"}
                   </button>
                   {/* Confirmer sans WhatsApp */}
                   {canConfirm&&(
                     <button onClick={doConfirm}
                       style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"12px 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
-                      ✅ Confirmer sans WhatsApp
+    <Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Confirmer sans WhatsApp
                     </button>
                   )}
                   {/* Sans livreur */}
@@ -7801,7 +7801,7 @@ function AppInner() {
                   ) : (
                     <>
                       {t.badge>0&&<span style={{position:"absolute",top:3,right:"calc(50% - 20px)",background:t.badgeColor,color:t.badgeTxt,borderRadius:9,minWidth:18,height:18,padding:"0 4px",fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center",zIndex:1,boxSizing:"border-box"}}>{t.badge>9?"9+":t.badge}</span>}
-                      {t.locked&&<span style={{position:"absolute",top:3,right:"calc(50% - 20px)",fontSize:10,lineHeight:1}}>🔒</span>}
+                      {t.locked&&<Lock size={10} style={{position:"absolute",top:3,right:"calc(50% - 20px)"}}/>}
                       {t.icon(t.locked?"#C4B5A0":active?G.green:"#9CA3AF")}
                       <span style={{fontSize:9,fontWeight:active?700:400,color:t.locked?"#C4B5A0":active?G.green:"#9CA3AF",marginTop:3,letterSpacing:0.2}}>{t.label}</span>
                       {active&&<div style={{position:"absolute",bottom:0,width:24,height:2.5,background:G.green,borderRadius:2}}/>}
@@ -7830,7 +7830,7 @@ function AppInner() {
         }}>
           {/* Header */}
           <div style={{background:"linear-gradient(135deg,#1A5C38,#0D9488)",padding:"14px 16px",display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,flexShrink:0}}>🧑‍💼</div>
+            <div style={{width:38,height:38,borderRadius:"50%",background:"rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><Sparkles size={22} color="#fff"/></div>
             <div style={{flex:1}}>
               <div style={{fontWeight:800,fontSize:15,color:"#FFF"}}>Support Teamly</div>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.7)"}}>Assistant virtuel • répond en secondes</div>
@@ -7882,11 +7882,11 @@ function AppInner() {
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
                     {ctx.questions.map(q=>(
                       <button key={q} onClick={()=>sendAiMessage(q)} style={{background:"#FFF",border:"1px solid #E5E7EB",borderRadius:10,padding:"8px 12px",fontSize:12,color:"#374151",cursor:"pointer",textAlign:"left",fontWeight:500}}>
-                        💬 {q}
+      <MessageCircle size={13} style={{display:"inline",verticalAlign:"-2px"}}/> {q}
                       </button>
                     ))}
                     <div style={{marginTop:6,padding:"10px 12px",background:"#F0FDF4",borderRadius:10,border:"1px solid #BBF7D0",textAlign:"left"}}>
-                      <div style={{fontSize:12,color:"#166534",fontWeight:700,marginBottom:4}}>💬 Besoin d'aide ?</div>
+                      <div style={{fontSize:12,color:"#166534",fontWeight:700,marginBottom:4,display:"flex",alignItems:"center",gap:5}}><MessageCircle size={13}/> Besoin d'aide ?</div>
                       <div style={{fontSize:11,color:"#166534",marginBottom:8}}>Contactez-nous sur WhatsApp</div>
                       <a href="https://wa.me/34673318387?text=Bonjour%2C%20j%27ai%20besoin%20d%27aide%20avec%20Teamly" target="_blank" rel="noreferrer"
                         style={{display:"flex",alignItems:"center",gap:8,background:"#25D366",color:"#FFF",borderRadius:10,padding:"10px 14px",fontSize:13,fontWeight:700,textDecoration:"none",justifyContent:"center"}}>
