@@ -2,6 +2,7 @@ const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
 const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
 const { parsePackQuantity } = require('./lib/parsePack');
+const { ensureProduct } = require('./lib/ensureProduct');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -128,7 +129,10 @@ exports.handler = async (event) => {
       const lineDisc  = parseFloat(it.discount || it.discount_amount || 0);
       totalDiscount  += lineDisc;
       const matchTarget = [rawName, variant].filter(Boolean).join(" ");
-      const matchedP    = matchLine(matchTarget);
+      let matchedP = matchLine(matchTarget);
+      if (!matchedP) {
+        matchedP = await ensureProduct({ orgId, rawName, unitPrice, sbHeaders, SB_URL, catalog });
+      }
       if (matchedP) {
         anyMatched = true;
         if (!firstMatchedName) firstMatchedName = matchedP.name;

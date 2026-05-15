@@ -3,6 +3,7 @@ const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
 const { corsOrigin } = require('./lib/cors');
 const { parsePackQuantity } = require('./lib/parsePack');
+const { ensureProduct } = require('./lib/ensureProduct');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -145,7 +146,11 @@ exports.handler = async (event) => {
         : 0;
       totalDiscount += lineDisc;
       const matchTarget = [rawName, variant].filter(Boolean).join(" ");
-      const matchedP    = matchLine(matchTarget);
+      let matchedP = matchLine(matchTarget);
+      if (!matchedP) {
+        // Auto-crear producto en catálogo (cost=0, a configurar por admin)
+        matchedP = await ensureProduct({ orgId, rawName, unitPrice, sbHeaders, SB_URL, catalog });
+      }
       if (matchedP) {
         anyMatched = true;
         if (!firstMatchedName) firstMatchedName = matchedP.name;
