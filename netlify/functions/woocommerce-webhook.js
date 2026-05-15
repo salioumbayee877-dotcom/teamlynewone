@@ -1,6 +1,7 @@
 const { matchDeliveryZone } = require('./lib/matchDeliveryZone');
 const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
+const { parsePackQuantity } = require('./lib/parsePack');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -59,7 +60,6 @@ exports.handler = async (event) => {
     const lineItems    = order.line_items || [];
     const rawProduct   = lineItems.map(i=>`${i.name} x${i.quantity||1}`).join(" + ") || "Produit WooCommerce";
     const totalQty     = lineItems.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
-    const unitPrice    = lineItems.length > 0 ? parseFloat(lineItems[0].price || lineItems[0].total || 0) : parseFloat(order.total || 0);
     const price        = parseFloat(order.total || 0);
     const ref          = `#${order.number || order.id}`;
 
@@ -86,21 +86,62 @@ exports.handler = async (event) => {
     if (existing?.length > 0)
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref, skipped: true }) };
 
-    // Product matching — si no hay match automático, dejar vacío para que
-    // el admin lo seleccione manualmente. No auto-crear desde webhook.
-    let finalProduct = null, matched = false;
-    const rawProductName = rawProduct;
+    // Product matching por línea — si no hay match (score ≥ 0.5), dejar vacío.
+    let catalog = [];
     try {
-      const catalog = await (await fetch(`${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name,price`, { headers: sbHeaders })).json();
-      if (Array.isArray(catalog) && catalog.length > 0) {
-        let best = 0, bestName = null;
-        for (const p of catalog) {
-          const score = matchScore(p.name, rawProduct);
-          if (score > best) { best = score; bestName = p.name; }
-        }
-        if (best >= 0.5) { finalProduct = bestName; matched = true; }
-      }
+      catalog = await (await fetch(`${SB_URL}/rest/v1/products?org_id=eq.${orgId}&archived=eq.false&select=id,name,price`, { headers: sbHeaders })).json();
+      if (!Array.isArray(catalog)) catalog = [];
     } catch(e) { console.error("Catalog error:", e.message); }
+    const matchLine = (text) => {
+      let best = 0, bestP = null;
+      for (const p of catalog) { const s = matchScore(p.name, text); if (s > best) { best = s; bestP = p; } }
+      return best >= 0.5 ? bestP : null;
+    };
+
+    // Construir order_items (1 por línea Woo)
+    const itemsForDb = [];
+    let totalDiscount = 0;
+    let firstMatchedName = null;
+    let anyMatched = false;
+    for (const it of lineItems) {
+      const rawName    = it.name || "Produit";
+      // Woo no tiene variant_title estándar; las variaciones suelen ir en el nombre o en meta_data
+      const variant    = (it.meta_data || []).map(m => m.display_value || m.value).filter(Boolean).join(" ") || null;
+      const qty        = parseInt(it.quantity) || 1;
+      const subtotal   = parseFloat(it.subtotal != null ? it.subtotal : (it.price || 0) * qty);
+      const lineTotal  = parseFloat(it.total != null ? it.total : subtotal);
+      const unitPrice  = qty > 0 ? subtotal / qty : parseFloat(it.price || 0);
+      const lineDisc   = Math.max(0, subtotal - lineTotal);
+      totalDiscount += lineDisc;
+      const matchTarget = [rawName, variant].filter(Boolean).join(" ");
+      const matchedP    = matchLine(matchTarget);
+      if (matchedP) {
+        anyMatched = true;
+        if (!firstMatchedName) firstMatchedName = matchedP.name;
+      }
+      const { packQuantity } = parsePackQuantity(variant, rawName);
+      itemsForDb.push({
+        product_id:        matchedP?.id || null,
+        product_name:      matchedP?.name || rawName,
+        quantity:          qty,
+        pack_quantity:     packQuantity,
+        unit_price:        unitPrice,
+        line_total:        subtotal,
+        discount_amount:   lineDisc,
+        raw_variant_title: variant,
+        raw_product_name:  rawName,
+      });
+    }
+    if (totalDiscount === 0) {
+      const orderDisc = parseFloat(order.discount_total || 0);
+      if (orderDisc > 0 && itemsForDb.length > 0) {
+        itemsForDb[0].discount_amount = orderDisc;
+        totalDiscount = orderDisc;
+      }
+    }
+    const finalProduct = firstMatchedName;
+    const matched      = anyMatched;
+    const rawProductName = rawProduct;
 
     // ── Delivery zone matching ──────────────────────────────────────────
     let fraisAmount = 0, matchType = "fallback", matchedZone = null;
@@ -136,12 +177,29 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce", region_type:regionType, payment_type:paymentType }),
+      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city:city||null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce", region_type:regionType, payment_type:paymentType, total_discount:totalDiscount, items_count:itemsForDb.length||1 }),
     });
 
     if (!res.ok) {
       const err = await res.text();
       return { statusCode: 500, headers, body: `Supabase error: ${err}` };
+    }
+
+    // ── Insert order_items ───────────────────────────────────────────────
+    let insertedOrderId = null;
+    try {
+      const created = await res.json();
+      insertedOrderId = Array.isArray(created) ? created[0]?.id : created?.id;
+    } catch(e) { console.error("Order parse error:", e.message); }
+    if (insertedOrderId && itemsForDb.length > 0) {
+      try {
+        const itemsRes = await fetch(`${SB_URL}/rest/v1/order_items`, {
+          method: "POST",
+          headers: { ...sbHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify(itemsForDb.map(it => ({ ...it, order_id: insertedOrderId, org_id: orgId }))),
+        });
+        if (!itemsRes.ok) console.error("order_items insert error:", await itemsRes.text());
+      } catch(e) { console.error("order_items insert error:", e.message); }
     }
 
     console.log(`[TEAMLY] WooCommerce ${ref} — city="${city}" matchType=${matchType} frais=${fraisAmount} CFA`);

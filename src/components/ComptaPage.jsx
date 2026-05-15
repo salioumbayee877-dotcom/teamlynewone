@@ -242,7 +242,7 @@ export const ComptaPage = () => {
       {/* ── Section 4: Product rows (compact, expandable) ── */}
       <div>
         <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>PRODUITS</div>
-        {comptaCalcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown})=>{
+        {comptaCalcProd.map(({prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown,totalUnits})=>{
           const isExpanded    = comptaExpandedProd===prod.id;
           const hasSales      = nLiv>0;
           const isNegative    = hasSales&&ben<0;
@@ -256,7 +256,11 @@ export const ComptaPage = () => {
                 style={{padding:"12px 14px",cursor:"pointer",display:"flex",alignItems:"center",gap:10,userSelect:"none"}}>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:500,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{prod.name}</div>
-                  <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>{nLiv} livré{nLiv!==1?"s":""} · {fmt(ca)} CFA</div>
+                  <div style={{fontSize:12,color:"#6B7280",marginTop:2}}>
+                    {nLiv} livré{nLiv!==1?"s":""}
+                    {totalUnits>nLiv && <> · <span style={{color:"#92400E",fontWeight:600}}>{totalUnits} unité{totalUnits!==1?"s":""}</span></>}
+                    {" · "}{fmt(ca)} CFA
+                  </div>
                 </div>
                 <div style={{textAlign:"right",flexShrink:0,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
                   <span style={{background:badgeBg,color:badgeColor,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:500,display:"inline-block"}}>

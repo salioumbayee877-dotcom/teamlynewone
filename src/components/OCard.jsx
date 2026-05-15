@@ -12,7 +12,7 @@ const StepIcon = ({ Ico, size = 11, color = "#fff" }) => <Ico size={size} color=
 export const OCard = ({ o, showPrendre = false }) => {
   const {
     G, fmt, STATUS, parseProd,
-    role, currentUser, settings, orders,
+    role, currentUser, settings, orders, orderItems,
     openModifId, pinnedOrderIds, waSentIds,
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
@@ -25,9 +25,17 @@ export const OCard = ({ o, showPrendre = false }) => {
   const st = STATUS[o.status] || STATUS.pendiente;
 
   const isPinned = pinnedOrderIds.includes(o.id);
-  const items = parseProd(o.product);
-  const totalQty = items.reduce((s, p) => s + p.qty, 0);
-  const prodLine = items.map(p => `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`).join(" + ");
+  // Préférer les order_items (qty + pack réels) si disponibles, sinon parseProd legacy
+  const myItems = (orderItems||[]).filter(it=>it.order_id===o.id);
+  const items = myItems.length
+    ? myItems.map(it=>({ name: it.product_name||"Produit", qty: it.quantity||1, packQty: it.pack_quantity||1 }))
+    : parseProd(o.product);
+  const totalQty = items.reduce((s, p) => s + (p.qty * (p.packQty||1)), 0);
+  const prodLine = items.map(p => {
+    const pq = p.packQty||1;
+    if (pq > 1) return `${p.name} ×${p.qty} (Pack ×${pq})`;
+    return `${p.name}${p.qty > 1 ? ` ×${p.qty}` : ""}`;
+  }).join(" + ");
 
   // ── Flux régions hors zone principale (prépayé) ─────────────────────────
   const isOtherFlow = o.region_type === "other";

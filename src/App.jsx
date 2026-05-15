@@ -794,6 +794,7 @@ function AppInner() {
   // Allow tryRefreshToken (module-level) to update React token state
   useEffect(()=>{ _setSbTokenFn = (tok)=>{ setSbToken(tok); }; }, []);
   const [orders,setOrders]   = useState([]);
+  const [orderItems,setOrderItems] = useState([]);
   const [products,setProducts] = useState([]);
   const [bundles,setBundles] = useState(INIT_BUNDLES);
   const [chat,setChat]       = useState([]);
@@ -1122,16 +1123,39 @@ function AppInner() {
     const target = orders.find(x=>x.id===id);
     const autoPin = s==="livreur_en_route" && target?.region_type==="other" && !target?.pinned;
     const autoPinAt = autoPin ? new Date().toISOString() : null;
+    // Stock movements: une ligne par order_item (units = quantity × pack_quantity).
+    // Fallback (pedido sin items): se mueve 1 unidad sobre el producto del pedido por nombre.
+    const applyStockDelta = (order, sign /* -1 entregado, +1 rollback */) => {
+      const items = orderItems.filter(it=>it.order_id===order.id);
+      if (items.length) {
+        const moves = items.map(it=>{
+          const units = it.units_total ?? ((it.quantity||1)*(it.pack_quantity||1));
+          return { product_id: it.product_id||null, product_name: it.product_name, delta: sign*units };
+        });
+        setProducts(p=>p.map(pr=>{
+          const m = moves.find(mv=> (mv.product_id && mv.product_id===pr.id) || (!mv.product_id && (mv.product_name||"").toLowerCase()===(pr.name||"").toLowerCase()));
+          if (!m) return pr;
+          return {...pr, stock: Math.max(0, (pr.stock||0) + m.delta)};
+        }));
+        for (const mv of moves) {
+          if (!mv.product_id) continue; // skip stock_movements sans product_id (UUID requis)
+          sbFetch("stock_movements","POST",{
+            org_id:orgId, product_id:mv.product_id, user_id:currentUser?.id,
+            source: sign<0?"entregado":"rechazado", delta:mv.delta,
+            reason: sign<0?"Livraison confirmée":"Retour stock — livraison annulée",
+            order_id:order.id,
+          }).catch(()=>{});
+        }
+      } else {
+        // Legacy fallback: 1 unidad sobre product (string)
+        setProducts(p=>p.map(pr=>pr.name===order.product?{...pr,stock:Math.max(0,(pr.stock||0)+sign)}:pr));
+      }
+    };
+
     setOrders(o=>o.map(x=>{
       if(x.id!==id) return x;
-      if(s==="entregado"&&x.status!=="entregado") {
-        setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:Math.max(0,pr.stock-1)}:pr));
-        sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"entregado",delta:-1,reason:"Livraison confirmée",order_id:x.id}).catch(()=>{});
-      }
-      if(s==="rechazado"&&x.status==="entregado") {
-        setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:pr.stock+1}:pr));
-        sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"rechazado",delta:+1,reason:"Retour stock — livraison annulée",order_id:x.id}).catch(()=>{});
-      }
+      if(s==="entregado"&&x.status!=="entregado") applyStockDelta(x, -1);
+      if(s==="rechazado"&&x.status==="entregado") applyStockDelta(x, +1);
       return {...x,status:s, ...(autoPin?{pinned:true,pinned_at:autoPinAt}:{})};
     }));
     pendingOrderUpdates.current[id] = Date.now();
@@ -1769,19 +1793,21 @@ function AppInner() {
       console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] START token="+(_authToken?_authToken.slice(0,20)+"...":"NULL")+" orgId="+orgId+" dateFilter="+dateKey);
       try {
         console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] QUERY orders?org_id=eq."+orgId+"&archived=not.is.true"+dateQuery+"&order=created_at.desc");
-        const [ords, prods, mems, zMain, zOthers, zPricing] = await Promise.all([
+        const [ords, prods, mems, zMain, zOthers, zPricing, oItems] = await Promise.all([
           sbFetch(`orders?org_id=eq.${orgId}&archived=not.is.true${dateQuery}&order=created_at.desc`),
           sbFetch(`products?org_id=eq.${orgId}&archived=not.is.true`),
           sbFetch(`profiles?org_id=eq.${orgId}&role=in.(closer,livreur)&select=id,nom,phone,email,role,lat,lng,city`),
           sbFetch(`delivery_main_region?org_id=eq.${orgId}&limit=1`).catch(()=>null),
           sbFetch(`delivery_other_regions?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
           sbFetch(`product_pricing_rules?org_id=eq.${orgId}&order=created_at.asc`).catch(()=>null),
+          sbFetch(`order_items?org_id=eq.${orgId}&select=id,order_id,product_id,product_name,quantity,pack_quantity,unit_price,line_total,discount_amount,units_total`).catch(()=>null),
         ]);
         console.log("[TEAMLY] Orders returned:", ords?.length, "| filter:", dateKey, "| ms:", Date.now()-_t0);
         console.log("[TEAMLY DEBUG][loadMain #"+reqId+"] RESPONSE ords="+(ords===null?"null":Array.isArray(ords)?"array("+ords.length+")":typeof ords)+" ms="+(Date.now()-_t0)+(Array.isArray(ords)&&ords.length===0?" ⚠️ EMPTY ARRAY":Array.isArray(ords)&&ords.length>0?" sample_id="+ords[0]?.id:""));
         if (zMain?.[0]) setMainRegion(zMain[0]);
         if (Array.isArray(zOthers)) setOtherRegions(zOthers);
         if (Array.isArray(zPricing)) setPricingRules(zPricing);
+        if (Array.isArray(oItems)) setOrderItems(oItems);
         if(reqId !== mainReqId) return; // discard stale parallel response
         clearTimeout(readyFallback);
         const mappedOrds  = ords  ? mapOrders(ords)  : null;
@@ -2626,18 +2652,59 @@ function AppInner() {
       return true;
     });
   })();
+  // Index order_items by order_id para lookup rápido
+  const _orderItemsByOrder = (()=>{
+    const m = new Map();
+    for (const it of orderItems) {
+      if (!m.has(it.order_id)) m.set(it.order_id, []);
+      m.get(it.order_id).push(it);
+    }
+    return m;
+  })();
+  // Comptabilidad por producto: usa order_items (pack_quantity, descuentos, precio real)
+  // con fallback al pedido legacy (1 unidad, precio catálogo) si no hay items.
   const comptaCalcProd = products.map(prod=>{
-    const op     = comptaOrders.filter(o=>o.product?.startsWith(prod.name));
-    const nLiv   = op.filter(o=>o.status==="entregado").length;
-    const nRej   = op.filter(o=>o.status==="rechazado").length;
-    const camv   = nLiv*prod.cost;
-    const livOps = op.filter(o=>o.status==="entregado");
-    const frais  = livOps.reduce((s,o)=>{
+    const prodNameLower = (prod.name||"").toLowerCase();
+    const matchItem = it => (it.product_id && it.product_id===prod.id)
+      || (!it.product_id && (it.product_name||"").toLowerCase()===prodNameLower);
+
+    // Pedidos que contienen este producto (via order_items)
+    const ordersWithProd = comptaOrders.filter(o=>{
+      const items = _orderItemsByOrder.get(o.id);
+      if (items && items.length) return items.some(matchItem);
+      // Fallback legacy: pedido sin order_items (no debería pasar tras backfill)
+      return o.product?.startsWith(prod.name);
+    });
+    const nLiv = ordersWithProd.filter(o=>o.status==="entregado").length;
+    const nRej = ordersWithProd.filter(o=>o.status==="rechazado").length;
+    const livOps = ordersWithProd.filter(o=>o.status==="entregado");
+
+    // Suma de unidades reales y revenue real (con descuento) para pedidos livrés
+    let totalUnits = 0, revenue = 0;
+    for (const o of livOps) {
+      const items = _orderItemsByOrder.get(o.id) || [];
+      const prodItems = items.filter(matchItem);
+      if (prodItems.length) {
+        for (const it of prodItems) {
+          const units = it.units_total ?? ((it.quantity||1)*(it.pack_quantity||1));
+          totalUnits += units;
+          revenue   += (parseFloat(it.line_total)||0) - (parseFloat(it.discount_amount)||0);
+        }
+      } else {
+        // Fallback legacy sin items: 1 unidad al precio del pedido
+        totalUnits += 1;
+        revenue   += parseFloat(o.price||prod.price||0);
+      }
+    }
+
+    const camv  = totalUnits * (prod.cost||0);
+    const frais = livOps.reduce((s,o)=>{
       if(o.fraisLiv) return s+o.fraisLiv;
       return s+detectZone(o.address).price;
     },0)||nLiv*(prod.fraisLiv||FRAIS_LIV);
-    // CA net : le prix produit inclut déjà la livraison, donc on retire les frais
-    const ca     = nLiv*prod.price - frais;
+    // CA net : on retire les frais de livraison (revenue inclut souvent la livraison
+    // pour les pedidos manuels où le user a tapé le prix tout-compris)
+    const ca = revenue - frais;
     const zoneBreakdown = WA_ZONES.map(z=>({
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
@@ -2646,7 +2713,7 @@ function AppInner() {
     const pub      = parseFloat(adSpend[prod.id]||0);
     const ben      = ca-camv-echouees-pub;
     const marge    = ca>0?ben/ca:0;
-    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown};
+    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown,totalUnits};
   });
   const comptaCA    = comptaCalcProd.reduce((a,x)=>a+x.ca,0);
   const comptaBen   = comptaCalcProd.reduce((a,x)=>a+x.ben,0);
@@ -3748,7 +3815,7 @@ function AppInner() {
     localDateStr,
     _COMPTA_FILTERS_DEFAULT,
     // state
-    role, currentUser, settings, orders, products, teamMembers, orgId,
+    role, currentUser, settings, orders, orderItems, products, teamMembers, orgId,
     canUseExport,
     clientCat, clientDate, clientLoading, showClientDetail,
     mainRegion, otherRegions,
