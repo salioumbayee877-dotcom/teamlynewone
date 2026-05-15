@@ -7746,7 +7746,7 @@ function AppInner() {
           {v:"en_camino",        Ico:Rocket,  label:"En route vers le client",          sub:"Le livreur est en chemin pour livrer"},
           {v:"chez_client",      Ico:MapPin,  label:"Déjà chez le client",              sub:"Livraison en cours maintenant"},
         ];
-        const canConfirm = !!assignSelLiv && pricingChecked.has(o.id);
+        const canConfirm = !!assignSelLiv && (pricingChecked.has(o.id) || !o.product);
         return (
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}
           onClick={()=>setAssignLivreurModal(null)}>
