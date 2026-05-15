@@ -51,11 +51,14 @@ function buildCandidates(normStr) {
   return [...cands];
 }
 
-// Threshold relativo: palabras cortas tolerancia 1-2, palabras largas hasta ~30%
+// Threshold relativo basado en similitud: si la ciudad existe en el sistema
+// y la similitud ≥ 60%, hacemos match. Palabras cortas tienen mínimo absoluto.
+const MIN_SIMILARITY = 0.6; // 60% — pedido del usuario: 60-70% debe matchear
 function fuzzyThreshold(nameLen) {
-  if (nameLen <= 4) return 1;
-  if (nameLen <= 7) return 2;
-  return Math.floor(nameLen * 0.3); // 8 → 2, 10 → 3, 13 → 3
+  if (nameLen <= 3) return 1;
+  if (nameLen <= 5) return 2;
+  // Para palabras largas, hasta 40% de la longitud puede diferir → 60% similitud mínima
+  return Math.ceil(nameLen * 0.4); // 6 → 3, 8 → 4, 10 → 4, 13 → 6
 }
 
 /**
@@ -126,21 +129,24 @@ function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
     return { zone: subBest.zone, matchType: "substring", confidence: 0.95, fee: subBest.fee };
   }
 
-  // ── 3. Fuzzy: cada candidato vs cada zona, threshold relativo ───────────
+  // ── 3. Fuzzy: cada candidato vs cada zona, similitud mínima 60% ─────────
   let best = null;
   for (const cand of candidates) {
     if (cand.length < 3) continue;
     for (const e of entries) {
       const n = norm(e.name);
       if (n.length < 3) continue;
-      // Heurística anti-falso-positivo: misma primera letra (salvo si diferencia muy pequeña)
-      if (n[0] !== cand[0] && Math.abs(n.length - cand.length) > 1) continue;
 
       const d = levenshtein(cand, n);
       const threshold = fuzzyThreshold(n.length);
       if (d > threshold) continue;
 
       const ratio = 1 - d / Math.max(n.length, cand.length);
+      if (ratio < MIN_SIMILARITY) continue; // 60% mínimo
+
+      // Anti-falso-positivo suave: si primera letra distinta, exigir mayor similitud
+      if (n[0] !== cand[0] && ratio < 0.75) continue;
+
       if (!best || ratio > best.ratio) {
         best = { zone: e.zone, fee: e.fee, ratio, dist: d };
       }
