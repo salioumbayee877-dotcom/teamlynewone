@@ -281,19 +281,35 @@ export const ComptaPage = () => {
                       </button>
                     </div>
                   )}
-                  {[
-                    {l:"CAMV (coûts produits)", v:`${fmt(camv)} F`},
-                    {l:"Frais livraison",        v:`${fmt(frais)} F`},
-                    {l:"Marge par unité",        v:`${fmt(prod.price-(prod.cost||0)-(prod.fraisLiv||FRAIS_LIV))} F`},
-                  ].map(({l,v},i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"0.5px solid #F3F4F6"}}>
-                      <span style={{fontSize:12,color:"#6B7280"}}>{l}</span>
-                      <span style={{fontSize:13,fontWeight:500,color:"#111827"}}>{v}</span>
-                    </div>
-                  ))}
+                  {(()=>{
+                    const benBrut = ca - camv;
+                    const margeU = (prod.price||0) - (prod.cost||0);
+                    return (<>
+                      {[
+                        {l:"Chiffre d'affaires", v:`${fmt(ca)} F`,        c:"#111827"},
+                        {l:"Coût produits (CAMV)",v:`− ${fmt(camv)} F`,   c:"#DC2626"},
+                      ].map(({l,v,c},i)=>(
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0",borderBottom:"0.5px solid #F3F4F6"}}>
+                          <span style={{fontSize:12,color:"#6B7280"}}>{l}</span>
+                          <span style={{fontSize:13,fontWeight:500,color:c}}>{v}</span>
+                        </div>
+                      ))}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:benBrut>=0?"#F0FDF4":"#FEF2F2",borderRadius:8,marginTop:4}}>
+                        <span style={{fontSize:12,fontWeight:700,color:benBrut>=0?"#166534":"#991B1B"}}>Bénéfice brut</span>
+                        <span style={{fontSize:14,fontWeight:800,color:benBrut>=0?"#166534":"#991B1B"}}>{fmt(benBrut)} F</span>
+                      </div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"5px 0"}}>
+                        <span style={{fontSize:12,color:"#6B7280"}}>Marge par unité</span>
+                        <span style={{fontSize:13,fontWeight:500,color:margeU>=0?"#166534":"#991B1B"}}>{fmt(margeU)} F</span>
+                      </div>
+                    </>);
+                  })()}
                   {zoneBreakdown.length>0&&(
                     <div style={{background:"#F8FAFC",borderRadius:8,padding:"8px 10px",border:"0.5px solid #E2E8F0",marginTop:2}}>
-                      <div style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em",marginBottom:6}}>RÉPARTITION PAR ZONE</div>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                        <span style={{fontSize:10,color:"#9CA3AF",letterSpacing:"0.06em"}}>LIVRAISON (info)</span>
+                        <span style={{fontSize:9,color:"#9CA3AF",fontStyle:"italic"}}>n'affecte pas le bénéfice</span>
+                      </div>
                       {zoneBreakdown.map(({zone:z,count})=>(
                         <div key={z.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
                           <div style={{display:"flex",alignItems:"center",gap:5}}>
@@ -305,9 +321,10 @@ export const ComptaPage = () => {
                         </div>
                       ))}
                       <div style={{display:"flex",justifyContent:"space-between",paddingTop:5,marginTop:4,borderTop:"0.5px solid #E2E8F0"}}>
-                        <span style={{fontSize:12,color:"#374151"}}>Total livraison</span>
-                        <span style={{fontSize:12,fontWeight:500,color:"#111827"}}>{fmt(frais)} CFA</span>
+                        <span style={{fontSize:11,color:"#6B7280"}}>Livraison encaissée</span>
+                        <span style={{fontSize:12,fontWeight:600,color:"#6B7280"}}>{fmt(frais)} CFA</span>
                       </div>
+                      <div style={{fontSize:10,color:"#9CA3AF",marginTop:4,fontStyle:"italic"}}>Payé par le client, reversé au livreur</div>
                     </div>
                   )}
                   {nRej>0&&(
