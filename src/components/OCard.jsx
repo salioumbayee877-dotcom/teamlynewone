@@ -4,8 +4,10 @@ import { fullAddr } from "../lib/senegal";
 import {
   Pin, Gift, Smartphone, MapPin, Bike, Check, Package, Bus, Rocket,
   Phone, Pencil, StickyNote, MessageCircle, Send, X, RotateCcw, PhoneOff,
-  Lock, AlertTriangle, Coins,
+  Lock, AlertTriangle, Coins, Clock, ChevronUp,
 } from "lucide-react";
+
+const StepIcon = ({ Ico, size = 11, color = "#fff" }) => <Ico size={size} color={color} strokeWidth={2.5}/>;
 
 export const OCard = ({ o, showPrendre = false }) => {
   const {
@@ -81,13 +83,13 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* ── Flux régions hors zone principale (prépayé) ── */}
       {inOtherFlow&&(()=>{
         const OFLOW_FULL = [
-          {icon:"⏳", label:"Paiement",     keys:["en_attente_paiement"], color:"#F0A500"},
-          {icon:"✅", label:"Confirmé",     keys:["paiement_confirme"],   color:"#2E8B57"},
-          {icon:"🏍️", label:"Livreur",      keys:["livreur_en_route"],    color:"#7C3AED"},
-          {icon:"📦", label:"Colis",        keys:["colis_en_main"],       color:"#2563EB"},
-          {icon:"🏍️", label:"Transport",    keys:["en_route"],            color:"#7C3AED"},
-          {icon:"🚌", label:"Remis",        keys:["remis_transporteur"],  color:"#0891B2"},
-          {icon:"✅", label:"Livré",        keys:["entregado"],           color:G.green},
+          {Ico:Clock,   label:"Paiement",     keys:["en_attente_paiement"], color:"#F0A500"},
+          {Ico:Check,   label:"Confirmé",     keys:["paiement_confirme"],   color:"#2E8B57"},
+          {Ico:Bike,    label:"Livreur",      keys:["livreur_en_route"],    color:"#7C3AED"},
+          {Ico:Package, label:"Colis",        keys:["colis_en_main"],       color:"#2563EB"},
+          {Ico:Bike,    label:"Transport",    keys:["en_route"],            color:"#7C3AED"},
+          {Ico:Bus,     label:"Remis",        keys:["remis_transporteur"],  color:"#0891B2"},
+          {Ico:Check,   label:"Livré",        keys:["entregado"],           color:G.green},
         ];
         // Stepper unifié pour tous les rôles : 5 pas actionnables (paiement_confirme → remis_transporteur)
         const OFLOW = OFLOW_FULL.filter(s=>!s.keys.includes("en_attente_paiement")&&!s.keys.includes("entregado"));
@@ -106,8 +108,8 @@ export const OCard = ({ o, showPrendre = false }) => {
                   const col = done||active ? step.color : "#E5E7EB";
                   return (
                     <div key={i} style={{display:"flex",alignItems:"center",flex:i<OFLOW.length-1?1:0}}>
-                      <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`}}>
-                        {done?"✓":step.icon}
+                      <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`}}>
+                        {done?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
                       </div>
                       {i<OFLOW.length-1&&<div style={{flex:1,height:2,background:stepOrd<curOrd?step.color:"#E5E7EB"}}/>}
                     </div>
@@ -136,8 +138,8 @@ export const OCard = ({ o, showPrendre = false }) => {
               </button>
             )}
             {isAdminOrCloser && o.status==="paiement_confirme" && (
-              <div style={{background:"#E8F5EE",borderRadius:10,padding:"9px 12px",fontSize:11,color:"#1A5C38",fontWeight:600,marginTop:6}}>
-                ⏱️ En attente que le livreur prenne le colis en main
+              <div style={{background:"#E8F5EE",borderRadius:10,padding:"9px 12px",fontSize:11,color:"#1A5C38",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>
+                <Clock size={13}/> En attente que le livreur prenne le colis en main
               </div>
             )}
             {role==="livreur" && o.status==="paiement_confirme" && (
@@ -190,7 +192,7 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{marginTop:8}}>
                 <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
                   style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-                  <span style={{display:"inline-flex",alignItems:"center"}}>{showModif?"▲":<Pencil size={13}/>}</span>
+                  <span style={{display:"inline-flex",alignItems:"center"}}>{showModif?<ChevronUp size={13}/>:<Pencil size={13}/>}</span>
                   <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
                 </button>
                 {showModif&&(
@@ -198,15 +200,15 @@ export const OCard = ({ o, showPrendre = false }) => {
                     <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
                     <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                       {[
-                        {s:"paiement_confirme",  ico:"✅", l:"Paiement confirmé"},
-                        {s:"livreur_en_route",   ico:"🏍️", l:"Livreur en route"},
-                        {s:"colis_en_main",      ico:"📦", l:"Colis en main"},
-                        {s:"en_route",           ico:"🏍️", l:"Aller vers le transporteur"},
-                        {s:"remis_transporteur", ico:"🚌", l:"Remis au transporteur"},
-                      ].map(({s,ico,l})=>(
+                        {s:"paiement_confirme",  Ico:Check,   l:"Paiement confirmé"},
+                        {s:"livreur_en_route",   Ico:Bike,    l:"Livreur en route"},
+                        {s:"colis_en_main",      Ico:Package, l:"Colis en main"},
+                        {s:"en_route",           Ico:Bike,    l:"Aller vers le transporteur"},
+                        {s:"remis_transporteur", Ico:Bus,     l:"Remis au transporteur"},
+                      ].map(({s,Ico,l})=>(
                         <button key={s} onClick={()=>{ upSt(o.id,s); setOpenModifId(null); }}
                           style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                          <span>{ico}</span><span>{l}</span>
+                          <Ico size={12}/><span>{l}</span>
                         </button>
                       ))}
                     </div>
@@ -239,11 +241,11 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* ── Stepper COD complet (admin / closer) ── */}
       {!inOtherFlow&&role!=="livreur"&&(()=>{
         const FLOW = [
-          {icon:"✅",label:"Confirmé",keys:["confirmado"],            color:"#2E8B57"},
-          {icon:"🏍️",label:"Livreur", keys:["livreur_en_route","colis_pris"], color:"#7C3AED"},
-          {icon:"🚀",label:"En route",keys:["en_camino"],             color:"#0284C7"},
-          {icon:"📍",label:"Client",  keys:["chez_client"],           color:"#D97706"},
-          {icon:"💰",label:"Encaissé",keys:["entregado"],             color:G.green},
+          {Ico:Check,  label:"Confirmé",keys:["confirmado"],            color:"#2E8B57"},
+          {Ico:Bike,   label:"Livreur", keys:["livreur_en_route","colis_pris"], color:"#7C3AED"},
+          {Ico:Rocket, label:"En route",keys:["en_camino"],             color:"#0284C7"},
+          {Ico:MapPin, label:"Client",  keys:["chez_client"],           color:"#D97706"},
+          {Ico:Coins,  label:"Encaissé",keys:["entregado"],             color:G.green},
         ];
         const ORDER = ["boutique","pendiente","confirmado","livreur_en_route","colis_pris","en_camino","chez_client","entregado"];
         const curOrd = ORDER.indexOf(o.status);
@@ -264,8 +266,8 @@ export const OCard = ({ o, showPrendre = false }) => {
               const col = done||active ? step.color : "#E5E7EB";
               return (
                 <div key={i} style={{display:"flex",alignItems:"center",flex:i<FLOW.length-1?1:0}}>
-                  <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,flexShrink:0,border:`2px solid ${col}`,boxShadow:"none",transition:"all .2s"}}>
-                    {done?"✓":step.icon}
+                  <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`,boxShadow:"none",transition:"all .2s"}}>
+                    {done?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
                   </div>
                   {i<FLOW.length-1&&<div style={{flex:1,height:2,background:stepMaxOrd<curOrd?step.color:"#E5E7EB",transition:"background .2s"}}/>}
                 </div>
@@ -328,7 +330,7 @@ export const OCard = ({ o, showPrendre = false }) => {
             const cur=steps.indexOf(o.status);
             return (
               <div style={{display:"flex",alignItems:"center",gap:0,marginBottom:4}}>
-                {["✅","🏍️","📦","🚀","📍","✓"].map((ico,i)=>{
+                {[Check, Bike, Package, Rocket, MapPin, Check].map((Ico,i)=>{
                   const isEntregado=o.status==="entregado";
                   const done = isEntregado || i<cur;
                   const active = !isEntregado && i===cur;
@@ -336,8 +338,8 @@ export const OCard = ({ o, showPrendre = false }) => {
                   const tc = done || active ? G.white : "#9CA3AF";
                   return (
                     <div key={i} style={{display:"flex",alignItems:"center",flex:i<5?1:0}}>
-                      <div className={active?"step-active":undefined} style={{"--sc":"rgba(240,165,0,0.7)",width:26,height:26,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:i===5?13:10,color:tc,flexShrink:0,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`,fontWeight:800,boxShadow:active?"0 0 0 3px rgba(240,165,0,0.25)":done?"0 0 0 2px rgba(26,92,56,0.15)":"none"}}>
-                        {i===5?"✓":ico}
+                      <div className={active?"step-active":undefined} style={{"--sc":"rgba(240,165,0,0.7)",width:26,height:26,borderRadius:"50%",background:bg,display:"flex",alignItems:"center",justifyContent:"center",color:tc,flexShrink:0,border:`2px solid ${done?"#6EE7B7":active?"#F0A500":"#E5E7EB"}`,fontWeight:800,boxShadow:active?"0 0 0 3px rgba(240,165,0,0.25)":done?"0 0 0 2px rgba(26,92,56,0.15)":"none"}}>
+                        <Ico size={13} color={tc} strokeWidth={i===5?3:2.5}/>
                       </div>
                       {i<5&&<div style={{flex:1,height:3,background:done?G.green:G.grayLight,borderRadius:2}}/>}
                     </div>
@@ -462,7 +464,7 @@ export const OCard = ({ o, showPrendre = false }) => {
         <div style={{marginTop:8}}>
           <button onClick={()=>setOpenModifId(prev=>prev===o.id?null:o.id)}
             style={{width:"100%",background:showModif?"#1E3A5F":"#F1F5F9",color:showModif?"#fff":"#374151",border:"none",borderRadius:10,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            <span>{showModif?"▲":"✏️"}</span>
+            <span style={{display:"inline-flex",alignItems:"center"}}>{showModif?<ChevronUp size={13}/>:<Pencil size={13}/>}</span>
             <span>{showModif?"Fermer la correction":"Corriger le statut"}</span>
           </button>
           {showModif&&(
@@ -470,28 +472,28 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{fontSize:10,color:G.gray,fontWeight:700,letterSpacing:0.5,marginBottom:7}}>CHANGER STATUT</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
                 {[
-                  {s:"confirmado",     ico:"✅", l:"Confirmé"},
-                  {s:"livreur_en_route",ico:"🏍️",l:"En route"},
-                  {s:"colis_pris",     ico:"📦", l:"Colis pris"},
-                  {s:"en_camino",      ico:"🚀", l:"Vers client"},
-                  {s:"chez_client",    ico:"📍", l:"Chez client"},
-                  {s:"entregado",      ico:"✅", l:"Livré"},
-                  {s:"rechazado",      ico:"❌", l:"Rejeté"},
-                  {s:"no_contesta",    ico:"📵", l:"Absent"},
-                  {s:"reprogramar",    ico:"🔄", l:"Reporter"},
-                ].map(({s,ico,l})=>(
+                  {s:"confirmado",      Ico:Check,    l:"Confirmé"},
+                  {s:"livreur_en_route",Ico:Bike,     l:"En route"},
+                  {s:"colis_pris",      Ico:Package,  l:"Colis pris"},
+                  {s:"en_camino",       Ico:Rocket,   l:"Vers client"},
+                  {s:"chez_client",     Ico:MapPin,   l:"Chez client"},
+                  {s:"entregado",       Ico:Check,    l:"Livré"},
+                  {s:"rechazado",       Ico:X,        l:"Rejeté"},
+                  {s:"no_contesta",     Ico:PhoneOff, l:"Absent"},
+                  {s:"reprogramar",     Ico:RotateCcw,l:"Reporter"},
+                ].map(({s,Ico,l})=>(
                   <button key={s} onClick={()=>{
                     if(s==="entregado"){setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"livre",client:o.client,price:o.price});setOpenModifId(null);return;}
                     if(s==="rechazado"){setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"rejete",client:o.client,price:o.price});setOpenModifId(null);return;}
                     if(s==="en_camino"){
                       const active=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&x.status==="en_camino"&&x.id!==o.id);
-                      if(active){addToast(`⚠️ Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
+                      if(active){addToast(`Termine la livraison de ${active.client} d'abord !`,"⚠️","#F0A500");return;}
                     }
                     upSt(o.id,s);
                     setOpenModifId(null);
                   }}
                     style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
-                    <span>{ico}</span><span>{l}</span>
+                    <Ico size={12}/><span>{l}</span>
                   </button>
                 ))}
               </div>
@@ -505,16 +507,16 @@ export const OCard = ({ o, showPrendre = false }) => {
       <div style={{display:"flex",gap:5,marginTop:6}}>
         <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
           style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
-          📞 Appeler
+          <Phone size={12}/> Appeler
         </a>
         <button onClick={()=>{setNoteModal(o.id);setNoteText(o.note||"");}}
-          style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-          📝 {o.note?"Note ●":"+ Note"}
+          style={{flex:1,background:o.note?"#FFFBEB":"#F9FAFB",color:o.note?"#92400E":"#6B7280",border:`1px solid ${o.note?"#FDE68A":"#E5E7EB"}`,borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}>
+          <StickyNote size={12}/> {o.note?"Note ●":"+ Note"}
         </button>
         {(role==="admin"||role==="closer")&&(
           <button onClick={()=>setEditOrder({...o})}
-            style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer"}}>
-            ✏️ Modifier
+            style={{flex:1,background:"#F9FAFB",color:"#374151",border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}>
+            <Pencil size={12}/> Modifier
           </button>
         )}
       </div>
