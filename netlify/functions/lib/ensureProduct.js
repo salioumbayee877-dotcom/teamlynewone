@@ -29,7 +29,28 @@ async function ensureProduct({ orgId, rawName, unitPrice, sbHeaders, SB_URL, cat
     }
     const created = await res.json();
     const p = Array.isArray(created) ? created[0] : created;
-    if (p) catalog.push(p);
+    if (p) {
+      catalog.push(p);
+      // Crear regla de pricing por defecto (unit) para que el pop-up
+      // "Comment vendez-vous ce produit ?" no se dispare en pedidos siguientes.
+      try {
+        await fetch(`${SB_URL}/rest/v1/product_pricing_rules`, {
+          method: "POST",
+          headers: { ...sbHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({
+            org_id:                 orgId,
+            product_name:           p.name,
+            type:                   "unit",
+            bundle_quantity:        null,
+            reference_price_unit:   parseFloat(unitPrice) || 0,
+            reference_price_bundle: null,
+            discount_percentage:    null,
+            discount_type:          null,
+            updated_at:             new Date().toISOString(),
+          }),
+        });
+      } catch (e2) { console.error("ensureProduct pricing rule error:", e2.message); }
+    }
     return p || null;
   } catch (e) {
     console.error("ensureProduct exception:", e.message);

@@ -1233,7 +1233,13 @@ function AppInner() {
 
   const handleTraiterOrder = (order) => {
     setAssignSelLiv(null); setAssignDelStatus("confirmado");
-    if(pricingChecked.has(order.id)||!order.product) { setAssignLivreurModal(order); return; }
+    // Pedidos webhook con order_items: ya tienen pack_quantity/unit_price del payload,
+    // el pop-up es redundante. Saltar directo al modal livreur.
+    const hasItems = orderItems.some(it=>it.order_id===order.id);
+    if(pricingChecked.has(order.id)||!order.product||hasItems) {
+      setPricingChecked(prev=>new Set([...prev, order.id]));
+      setAssignLivreurModal(order); return;
+    }
     const issues = detectPricingIssues(order);
     if(issues.length===0) { setPricingChecked(prev=>new Set([...prev, order.id])); setAssignLivreurModal(order); }
     else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
