@@ -3755,6 +3755,7 @@ function AppInner() {
     setClientCat, setClientDate, setClientLoading, setShowClientDetail, setShowPlanModal,
     setFraisConfigTab, setFraisMainNameEdit, setFraisEditCity, setFraisNewMain, setFraisNewOther,
     setFraisTableauSearch, setFraisTableauFilter, setFraisTestCity,
+    setTab,
     upSt, addToast, togglePin,
   };
 

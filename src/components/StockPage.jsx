@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAppContext } from "../context/AppContext";
-import { Package, AlertTriangle, TrendingUp, Coins, Pencil, Gift, Plus, Check, ClipboardList } from "lucide-react";
+import { Package, AlertTriangle, TrendingUp, Coins, Pencil, Gift, Plus, Check, ClipboardList, Truck, Info } from "lucide-react";
 
 export const StockPage = () => {
   const {
@@ -8,7 +8,9 @@ export const StockPage = () => {
     role, products, orders,
     expandedProd, stockAjout,
     setEditProd, setExpandedProd, setStockAjout, setShowAddProd, setProducts,
+    setTab, addToast,
   } = useAppContext();
+  const [costEdit, setCostEdit] = useState({});
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
@@ -26,6 +28,20 @@ export const StockPage = () => {
         <div style={{background:"#FEF2F2",borderRadius:12,padding:"10px 14px",border:`1px solid #FCA5A5`}}>
           <div style={{fontSize:12,color:G.red,fontWeight:700,display:"flex",alignItems:"center",gap:5}}><AlertTriangle size={13}/> Stock bas !</div>
           {products.filter(p=>p.stock<5).map(p=><div key={p.id} style={{fontSize:11,color:G.red}}>· {p.name} : {p.stock} restants</div>)}
+        </div>
+      )}
+
+      {/* Alerte coûts non configurés */}
+      {products.filter(p=>!p.cost||p.cost===0).length>0&&(
+        <div style={{background:"#FFFBEB",borderRadius:12,padding:"12px 14px",border:"1px solid #FCD34D"}}>
+          <div style={{fontSize:12,color:"#92400E",fontWeight:700,display:"flex",alignItems:"center",gap:5,marginBottom:6}}><AlertTriangle size={13}/> Coûts non configurés</div>
+          <div style={{fontSize:11,color:"#A16207",marginBottom:8}}>Sans coût, la comptabilité ne peut pas calculer ton bénéfice.</div>
+          {products.filter(p=>!p.cost||p.cost===0).map(p=>(
+            <button key={p.id} onClick={()=>{setExpandedProd(p.id);setCostEdit(s=>({...s,[p.id]:s[p.id]||{cost:""}}));}}
+              style={{display:"block",width:"100%",textAlign:"left",background:"#fff",border:"0.5px solid #FCD34D",borderRadius:8,padding:"6px 10px",fontSize:11,color:"#92400E",fontWeight:600,cursor:"pointer",marginTop:4}}>
+              · {p.name} → Configurer
+            </button>
+          ))}
         </div>
       )}
 
@@ -89,6 +105,85 @@ export const StockPage = () => {
             {/* ── Vue 360° — visible si expanded ── */}
             {isExpanded&&(
               <div style={{borderTop:`1px solid ${G.grayLight}`,padding:"14px 15px",display:"flex",flexDirection:"column",gap:14}}>
+
+                {/* Modifier les coûts (form inline) */}
+                {(()=>{
+                  const notConfigured = !prod.cost||prod.cost===0;
+                  const edit = costEdit[prod.id];
+                  const open = notConfigured || !!edit;
+                  if(!open) return (
+                    <button onClick={()=>setCostEdit(s=>({...s,[prod.id]:{cost:prod.cost||""}}))}
+                      style={{alignSelf:"flex-start",background:"#FFFBEB",color:"#92400E",border:"0.5px solid #FCD34D",borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:600,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+                      <Pencil size={12}/> Modifier le coût
+                    </button>
+                  );
+                  const liveCost = parseFloat(String(edit?.cost??"").replace(",","."))||0;
+                  const liveMarge = (prod.price||0) - liveCost;
+                  const isSaving = edit?.saving===true;
+                  return (
+                    <div style={{background:"#FFFBEB",borderRadius:10,padding:14,border:"0.5px solid #FCD34D"}}>
+                      <div style={{fontSize:13,color:"#92400E",fontWeight:700,marginBottom:2,display:"flex",alignItems:"center",gap:6}}>
+                        {notConfigured?<><AlertTriangle size={14}/> Coûts non configurés</>:<><Pencil size={14}/> Modifier les coûts</>}
+                      </div>
+                      <div style={{fontSize:11,color:"#A16207",marginBottom:12}}>{prod.name}</div>
+
+                      {/* Field — Coût total */}
+                      <div style={{marginBottom:12}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Coins size={12}/> Coût total du produit</div>
+                        <div style={{fontSize:10,color:"#A16207",marginBottom:6}}>Prix d'achat + import + douane + transport + emballage</div>
+                        <div style={{position:"relative"}}>
+                          <input type="number" min="0" placeholder="Ex: 7000"
+                            value={edit?.cost??""} onChange={e=>setCostEdit(s=>({...s,[prod.id]:{...edit,cost:e.target.value}}))}
+                            style={{width:"100%",border:"0.5px solid #FCD34D",borderRadius:8,padding:"9px 28px 9px 10px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                          <span style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",fontSize:12,color:"#A16207",fontWeight:600,pointerEvents:"none"}}>F</span>
+                        </div>
+                      </div>
+
+                      {/* Section — Frais de livraison (lien zones, sin input) */}
+                      <div style={{marginBottom:12,background:"#FFF",borderRadius:8,padding:"10px 12px",border:"0.5px solid #FDE68A"}}>
+                        <div style={{fontSize:11,fontWeight:700,color:"#92400E",marginBottom:2,display:"flex",alignItems:"center",gap:5}}><Truck size={12}/> Frais de livraison</div>
+                        <div style={{fontSize:10,color:"#A16207",marginBottom:8,display:"flex",alignItems:"flex-start",gap:4}}>
+                          <Info size={11} style={{marginTop:1,flexShrink:0}}/>
+                          <span>Les frais de livraison sont <strong>payés par le client</strong> et <strong>ne sont pas inclus dans ton bénéfice</strong>. Ils se gèrent par zone.</span>
+                        </div>
+                        <button onClick={()=>setTab("frais")}
+                          style={{width:"100%",background:"#EFF6FF",color:"#1E40AF",border:"1px solid #BFDBFE",borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                          <Truck size={13}/> Configurer les zones de livraison →
+                        </button>
+                      </div>
+
+                      {/* Marge calculée */}
+                      <div style={{background:"#F3F4F6",borderRadius:8,padding:"10px 12px",border:"0.5px solid #E5E7EB",marginBottom:12}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{fontSize:11,color:"#6B7280",fontWeight:600,display:"inline-flex",alignItems:"center",gap:5}}><Coins size={12}/> Marge par unité (calculée)</span>
+                          <span style={{fontSize:15,fontWeight:800,color:liveMarge>=0?G.green:"#DC2626"}}>{fmt(liveMarge)} CFA</span>
+                        </div>
+                        <div style={{fontSize:10,color:"#9CA3AF",marginTop:3}}>Prix de vente − Coût produit (livraison non incluse)</div>
+                      </div>
+
+                      <div style={{display:"flex",gap:6}}>
+                        <button disabled={isSaving} onClick={async()=>{
+                          const newCost = parseFloat(String(edit?.cost||"").replace(",","."));
+                          if(!newCost||newCost<=0){addToast&&addToast("Entre le coût du produit","⚠️","#F59E0B");return;}
+                          setCostEdit(s=>({...s,[prod.id]:{...edit,saving:true}}));
+                          try {
+                            await sbFetch(`products?id=eq.${prod.id}`,"PATCH",{cost:newCost});
+                            setProducts(prev=>prev.map(x=>x.id===prod.id?{...x,cost:newCost}:x));
+                            setCostEdit(s=>({...s,[prod.id]:undefined}));
+                            addToast&&addToast("Coût mis à jour","✅",G.green);
+                          } catch(e) {
+                            setCostEdit(s=>({...s,[prod.id]:{...edit,saving:false}}));
+                            addToast&&addToast("Erreur — réessayer","❌",G.red);
+                          }
+                        }} style={{flex:1,background:isSaving?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:8,padding:"10px 0",fontWeight:700,fontSize:13,cursor:isSaving?"not-allowed":"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:6}}>
+                          {isSaving?"Enregistrement…":<><Check size={14}/> Enregistrer</>}
+                        </button>
+                        {!notConfigured&&<button disabled={isSaving} onClick={()=>setCostEdit(s=>({...s,[prod.id]:undefined}))}
+                          style={{background:"#F3F4F6",border:"none",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#6B7280",cursor:"pointer"}}>Annuler</button>}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Finances */}
                 <div>
