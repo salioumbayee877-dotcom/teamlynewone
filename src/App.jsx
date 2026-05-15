@@ -805,6 +805,26 @@ function AppInner() {
       return localStorage.getItem("teamly_tab")||"dashboard";
     } catch(e){ return "dashboard"; }
   });
+  // Sync tab ↔ navigator history (back/forward buttons restore previous tab)
+  const _skipNextHistoryPush = React.useRef(false);
+  React.useEffect(()=>{
+    if(!window.history) return;
+    if(window.history.state?.teamlyTab !== tab){
+      window.history.replaceState({...window.history.state,teamlyTab:tab},"");
+    }
+    const onPop = (e)=>{
+      const t = e.state?.teamlyTab;
+      if(t && t!==tab){ _skipNextHistoryPush.current = true; setTab(t); }
+    };
+    window.addEventListener("popstate",onPop);
+    return ()=>window.removeEventListener("popstate",onPop);
+  },[]); // eslint-disable-line react-hooks/exhaustive-deps
+  React.useEffect(()=>{
+    if(!window.history) return;
+    if(_skipNextHistoryPush.current){ _skipNextHistoryPush.current = false; return; }
+    if(window.history.state?.teamlyTab === tab) return;
+    window.history.pushState({...window.history.state,teamlyTab:tab},"");
+  },[tab]);
   const [comptaView,setComptaView] = useState("produits");
   const [showAdd,setShowAdd] = useState(false);
   const [showWA,setShowWA]   = useState(false);
