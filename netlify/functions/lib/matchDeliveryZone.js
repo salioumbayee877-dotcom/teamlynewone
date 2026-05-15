@@ -30,79 +30,127 @@ function parseCity(s) {
     : { name: s.slice(0, idx), price: parseInt(s.slice(idx + 1)) || null };
 }
 
+// Stopwords típicas en direcciones COD Senegal — se ignoran al tokenizar
+const STOPWORDS = new Set([
+  "rue","avenue","av","bd","boulevard","quartier","cite","cité","villa",
+  "appartement","appt","apt","immeuble","residence","résidence","near",
+  "pres","près","derriere","derrière","devant","face","a","à","au","aux",
+  "le","la","les","de","du","des","et","ou","en","chez","vers","sur",
+  "senegal","sénégal","sn","dakar","region","région"
+]);
+
+// Tokeniza + genera ventanas de 1 y 2 palabras (útil para "grand yoff", "guediawaye nord")
+function buildCandidates(normStr) {
+  const tokens = normStr.split(" ").filter(t => t.length >= 2 && !STOPWORDS.has(t));
+  const cands = new Set();
+  cands.add(normStr); // cadena completa
+  for (let i = 0; i < tokens.length; i++) {
+    cands.add(tokens[i]);
+    if (i + 1 < tokens.length) cands.add(tokens[i] + " " + tokens[i+1]);
+  }
+  return [...cands];
+}
+
+// Threshold relativo: palabras cortas tolerancia 1-2, palabras largas hasta ~30%
+function fuzzyThreshold(nameLen) {
+  if (nameLen <= 4) return 1;
+  if (nameLen <= 7) return 2;
+  return Math.floor(nameLen * 0.3); // 8 → 2, 10 → 3, 13 → 3
+}
+
 /**
  * Match a raw city string to a delivery zone.
- * Order: exact → alias → fuzzy (Levenshtein ≤ 2) → fallback.
+ * Order: exact → alias → substring → fuzzy (tokens + ventanas, threshold relativo) → fallback.
  *
  * @param {string}      rawCity      City as received from Shopify/Woo/YouCan
  * @param {object|null} mainRegion   delivery_main_region row (may include .aliases TEXT[])
  * @param {Array}       otherRegions delivery_other_regions rows
- * @returns {{ zone: object|null, matchType: 'exact'|'alias'|'fuzzy'|'fallback', confidence: number, fee: number }}
+ * @returns {{ zone: object|null, matchType: 'exact'|'alias'|'substring'|'fuzzy'|'fallback', confidence: number, fee: number }}
  */
 function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
   const t = norm(rawCity);
   if (!t) return { zone: null, matchType: "fallback", confidence: 0, fee: 0 };
 
-  // ── 1. Exact match ──────────────────────────────────────────────────────
-  if (mainRegion) {
-    if (norm(mainRegion.name) === t)
-      return { zone: { ...mainRegion, _type: "main" }, matchType: "exact", confidence: 1, fee: mainRegion.price ?? 0 };
-    for (const cs of (mainRegion.cities || [])) {
-      const { name, price } = parseCity(cs);
-      if (norm(name) === t)
-        return { zone: { ...mainRegion, _type: "main" }, matchType: "exact", confidence: 1, fee: price ?? mainRegion.price ?? 0 };
-    }
-    for (const alias of (mainRegion.aliases || [])) {
-      if (norm(alias) === t)
-        return { zone: { ...mainRegion, _type: "main" }, matchType: "alias", confidence: 1, fee: mainRegion.price ?? 0 };
-    }
-  }
-
-  for (const r of (otherRegions || [])) {
-    const itb = r.interurbain_price || 0;
-    if (norm(r.name) === t)
-      return { zone: { ...r, _type: "other" }, matchType: "exact", confidence: 1, fee: (r.price ?? 0) + itb };
-    for (const cs of (r.cities || [])) {
-      const { name, price } = parseCity(cs);
-      if (norm(name) === t)
-        return { zone: { ...r, _type: "other" }, matchType: "exact", confidence: 1, fee: (price ?? r.price ?? 0) + itb };
-    }
-    for (const alias of (r.aliases || [])) {
-      if (norm(alias) === t)
-        return { zone: { ...r, _type: "other" }, matchType: "alias", confidence: 1, fee: (r.price ?? 0) + itb };
-    }
-  }
-
-  // ── 2. Fuzzy match (Levenshtein ≤ 2) ───────────────────────────────────
-  let bestDist = Infinity, bestZone = null, bestFee = 0;
-
-  const tryFuzzy = (name, zone, fee) => {
-    const n = norm(name);
-    if (!n || n.length < 2) return;
-    const d = levenshtein(t, n);
-    if (d <= 2 && d < bestDist) { bestDist = d; bestZone = zone; bestFee = fee; }
-  };
-
+  // Lista plana [{name, zone, fee, isAlias}] para iterar una sola vez por estrategia
+  const entries = [];
   if (mainRegion) {
     const base = { ...mainRegion, _type: "main" };
-    tryFuzzy(mainRegion.name, base, mainRegion.price ?? 0);
-    for (const cs of (mainRegion.cities || [])) { const { name, price } = parseCity(cs); tryFuzzy(name, base, price ?? mainRegion.price ?? 0); }
-    for (const alias of (mainRegion.aliases || [])) tryFuzzy(alias, base, mainRegion.price ?? 0);
+    entries.push({ name: mainRegion.name, zone: base, fee: mainRegion.price ?? 0, isAlias: false });
+    for (const cs of (mainRegion.cities || [])) {
+      const { name, price } = parseCity(cs);
+      entries.push({ name, zone: base, fee: price ?? mainRegion.price ?? 0, isAlias: false });
+    }
+    for (const alias of (mainRegion.aliases || [])) {
+      entries.push({ name: alias, zone: base, fee: mainRegion.price ?? 0, isAlias: true });
+    }
   }
   for (const r of (otherRegions || [])) {
     const itb = r.interurbain_price || 0;
     const base = { ...r, _type: "other" };
-    tryFuzzy(r.name, base, (r.price ?? 0) + itb);
-    for (const cs of (r.cities || [])) { const { name, price } = parseCity(cs); tryFuzzy(name, base, (price ?? r.price ?? 0) + itb); }
-    for (const alias of (r.aliases || [])) tryFuzzy(alias, base, (r.price ?? 0) + itb);
+    entries.push({ name: r.name, zone: base, fee: (r.price ?? 0) + itb, isAlias: false });
+    for (const cs of (r.cities || [])) {
+      const { name, price } = parseCity(cs);
+      entries.push({ name, zone: base, fee: (price ?? r.price ?? 0) + itb, isAlias: false });
+    }
+    for (const alias of (r.aliases || [])) {
+      entries.push({ name: alias, zone: base, fee: (r.price ?? 0) + itb, isAlias: true });
+    }
   }
 
-  if (bestZone) {
-    const confidence = +(1 - bestDist / Math.max(t.length, 1)).toFixed(2);
-    return { zone: bestZone, matchType: "fuzzy", confidence, fee: bestFee };
+  const candidates = buildCandidates(t); // tokens + ventanas + cadena completa
+
+  // ── 1. Exact / Alias contra cualquier candidato ─────────────────────────
+  for (const cand of candidates) {
+    for (const e of entries) {
+      if (norm(e.name) === cand) {
+        return { zone: e.zone, matchType: e.isAlias ? "alias" : "exact", confidence: 1, fee: e.fee };
+      }
+    }
   }
 
-  // ── 3. Fallback ─────────────────────────────────────────────────────────
+  // ── 2. Substring: nombre de zona contenido en rawCity completo ──────────
+  // Útil cuando el cliente escribe la dirección entera ("pikine rue 10")
+  let subBest = null;
+  for (const e of entries) {
+    const n = norm(e.name);
+    if (n.length < 4) continue; // evita falsos positivos cortos ("yo", "ng")
+    // Match por palabra completa (no en medio de otra palabra)
+    const re = new RegExp(`(^|\\s)${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
+    if (re.test(t)) {
+      if (!subBest || n.length > subBest.nameLen) {
+        subBest = { zone: e.zone, fee: e.fee, nameLen: n.length };
+      }
+    }
+  }
+  if (subBest) {
+    return { zone: subBest.zone, matchType: "substring", confidence: 0.95, fee: subBest.fee };
+  }
+
+  // ── 3. Fuzzy: cada candidato vs cada zona, threshold relativo ───────────
+  let best = null;
+  for (const cand of candidates) {
+    if (cand.length < 3) continue;
+    for (const e of entries) {
+      const n = norm(e.name);
+      if (n.length < 3) continue;
+      // Heurística anti-falso-positivo: misma primera letra (salvo si diferencia muy pequeña)
+      if (n[0] !== cand[0] && Math.abs(n.length - cand.length) > 1) continue;
+
+      const d = levenshtein(cand, n);
+      const threshold = fuzzyThreshold(n.length);
+      if (d > threshold) continue;
+
+      const ratio = 1 - d / Math.max(n.length, cand.length);
+      if (!best || ratio > best.ratio) {
+        best = { zone: e.zone, fee: e.fee, ratio, dist: d };
+      }
+    }
+  }
+  if (best) {
+    return { zone: best.zone, matchType: "fuzzy", confidence: +best.ratio.toFixed(2), fee: best.fee };
+  }
+
+  // ── 4. Fallback ─────────────────────────────────────────────────────────
   return { zone: null, matchType: "fallback", confidence: 0, fee: 0 };
 }
 
