@@ -1233,10 +1233,7 @@ function AppInner() {
 
   const handleTraiterOrder = (order) => {
     setAssignSelLiv(null); setAssignDelStatus("confirmado");
-    // Pedidos webhook con order_items: ya tienen pack_quantity/unit_price del payload,
-    // el pop-up es redundante. Saltar directo al modal livreur.
-    const hasItems = orderItems.some(it=>it.order_id===order.id);
-    if(pricingChecked.has(order.id)||!order.product||hasItems) {
+    if(pricingChecked.has(order.id)||!order.product) {
       setPricingChecked(prev=>new Set([...prev, order.id]));
       setAssignLivreurModal(order); return;
     }
