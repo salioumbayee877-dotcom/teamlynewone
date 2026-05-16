@@ -54,7 +54,9 @@ exports.handler = async (event) => {
     const addr       = order.shipping || order.billing;
     const address    = addr ? [addr.address_1, addr.city, addr.state, addr.country].filter(Boolean).join(", ") : "";
     const extracted  = extractCityFromAddress(address) || extractCityFromAddress(addr?.city);
-    const city       = extracted?.city || addr?.city || "";
+    const isJunkCity = (s) => { const t = (s||"").trim(); return !t || t === "-" || t === "—" || t.length < 2; };
+    const city       = extracted?.city || (isJunkCity(addr?.city) ? "" : addr?.city) || "";
+    const citySearch = city || address || addr?.address_1 || "";
     const cityIsDakar = extracted?.isDakar === true;
     const provinceForMeta = extracted?.region || addr?.state || null;
 
@@ -159,12 +161,12 @@ exports.handler = async (event) => {
       const main     = (await mainRes.json())[0] || null;
       const others   = (await othRes.json()) || [];
       const settings = (await setRes.json())?.[0]?.settings || {};
-      const result   = matchDeliveryZone(city, main, others);
+      const result   = matchDeliveryZone(citySearch, main, others);
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
       matchedCity    = result.matchedCity || null;
-      syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
+      syncMeta       = deriveSyncStatus(result, main, others, citySearch, provinceForMeta, settings, { isDakar: cityIsDakar || matchedZone?._type === "main" });
     } catch(e) { console.error("Zone matching error:", e.message); }
     const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
     const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;

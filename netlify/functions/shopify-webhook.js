@@ -57,7 +57,12 @@ exports.handler = async (event) => {
     // Resolve the actual Sénégal city from the full address (handles cases
     // where Shopify's `city` field is "-", empty, or just a quartier).
     const extracted = extractCityFromAddress(address) || extractCityFromAddress(addr?.city);
-    const city     = extracted?.city || addr?.city || "";
+    const isJunkCity = (s) => { const t = (s||"").trim(); return !t || t === "-" || t === "—" || t.length < 2; };
+    // city: lo mejor que tengamos para mostrar / guardar como hint
+    const city     = extracted?.city || (isJunkCity(addr?.city) ? "" : addr?.city) || "";
+    // citySearch: lo que pasamos al matcher. Si city es junk, usa la dirección
+    // completa para que matchDeliveryZone tokenice y aplique fuzzy.
+    const citySearch = city || address || addr?.address1 || "";
     const cityIsDakar = extracted?.isDakar === true;
     const provinceForMeta = extracted?.region || addr?.province || null;
 
@@ -103,12 +108,12 @@ exports.handler = async (event) => {
       const main     = (await mainRes.json())[0] || null;
       const others   = (await othRes.json()) || [];
       const settings = (await setRes.json())?.[0]?.settings || {};
-      const result   = matchDeliveryZone(city, main, others);
+      const result   = matchDeliveryZone(citySearch, main, others);
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
       matchedCity    = result.matchedCity || null;
-      syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
+      syncMeta       = deriveSyncStatus(result, main, others, citySearch, provinceForMeta, settings, { isDakar: cityIsDakar || matchedZone?._type === "main" });
     } catch(e) { console.error("Zone matching error:", e.message); }
 
     const fraisBlocked = matchType === "fallback";
