@@ -92,7 +92,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, skipped: true }) };
 
     // ── Delivery zone matching ────────────────────────────────────────────
-    let fraisAmount = 0, matchType = "fallback", matchedZone = null;
+    let fraisAmount = 0, matchType = "fallback", matchedZone = null, matchedCity = null;
     let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
       const [mainRes, othRes, setRes] = await Promise.all([
@@ -107,6 +107,7 @@ exports.handler = async (event) => {
       fraisAmount    = result.fee;
       matchType      = result.matchType;
       matchedZone    = result.zone;
+      matchedCity    = result.matchedCity || null;
       syncMeta       = deriveSyncStatus(result, main, others, city, provinceForMeta, settings, { isDakar: cityIsDakar });
     } catch(e) { console.error("Zone matching error:", e.message); }
 
@@ -201,7 +202,7 @@ exports.handler = async (event) => {
       headers: { ...sbHeaders, Prefer: "return=representation" },
       body: JSON.stringify({
         org_id: orgId, client: clientName, phone, address,
-        city: city || null,
+        city: matchedCity || (matchedZone?.name) || city || null,
         delivery_zone_name: matchedZone?.name || null,
         delivery_zone_type: regionType,
         product: finalProduct, price,

@@ -75,30 +75,32 @@ function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
   if (!t) return { zone: null, matchType: "fallback", confidence: 0, fee: 0 };
 
   // Lista plana [{name, zone, fee, isAlias}] para iterar una sola vez por estrategia
+  // kind: 'city' (fila concreta de cities, devuelve nombre exacto), 'zone' (nombre de la región), 'alias'
   const entries = [];
   if (mainRegion) {
     const base = { ...mainRegion, _type: "main" };
-    entries.push({ name: mainRegion.name, zone: base, fee: mainRegion.price ?? 0, isAlias: false });
+    entries.push({ name: mainRegion.name, zone: base, fee: mainRegion.price ?? 0, kind: "zone" });
     for (const cs of (mainRegion.cities || [])) {
       const { name, price } = parseCity(cs);
-      entries.push({ name, zone: base, fee: price ?? mainRegion.price ?? 0, isAlias: false });
+      entries.push({ name, zone: base, fee: price ?? mainRegion.price ?? 0, kind: "city" });
     }
     for (const alias of (mainRegion.aliases || [])) {
-      entries.push({ name: alias, zone: base, fee: mainRegion.price ?? 0, isAlias: true });
+      entries.push({ name: alias, zone: base, fee: mainRegion.price ?? 0, kind: "alias" });
     }
   }
   for (const r of (otherRegions || [])) {
     const itb = r.interurbain_price || 0;
     const base = { ...r, _type: "other" };
-    entries.push({ name: r.name, zone: base, fee: (r.price ?? 0) + itb, isAlias: false });
+    entries.push({ name: r.name, zone: base, fee: (r.price ?? 0) + itb, kind: "zone" });
     for (const cs of (r.cities || [])) {
       const { name, price } = parseCity(cs);
-      entries.push({ name, zone: base, fee: (price ?? r.price ?? 0) + itb, isAlias: false });
+      entries.push({ name, zone: base, fee: (price ?? r.price ?? 0) + itb, kind: "city" });
     }
     for (const alias of (r.aliases || [])) {
-      entries.push({ name: alias, zone: base, fee: (r.price ?? 0) + itb, isAlias: true });
+      entries.push({ name: alias, zone: base, fee: (r.price ?? 0) + itb, kind: "alias" });
     }
   }
+  const cityOf = (e) => e.kind === "city" ? e.name : null;
 
   const candidates = buildCandidates(t); // tokens + ventanas + cadena completa
 
@@ -106,7 +108,13 @@ function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
   for (const cand of candidates) {
     for (const e of entries) {
       if (norm(e.name) === cand) {
-        return { zone: e.zone, matchType: e.isAlias ? "alias" : "exact", confidence: 1, fee: e.fee };
+        return {
+          zone: e.zone,
+          matchType: e.kind === "alias" ? "alias" : "exact",
+          confidence: 1,
+          fee: e.fee,
+          matchedCity: cityOf(e),
+        };
       }
     }
   }
@@ -121,12 +129,12 @@ function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
     const re = new RegExp(`(^|\\s)${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\s|$)`);
     if (re.test(t)) {
       if (!subBest || n.length > subBest.nameLen) {
-        subBest = { zone: e.zone, fee: e.fee, nameLen: n.length };
+        subBest = { zone: e.zone, fee: e.fee, nameLen: n.length, matchedCity: cityOf(e) };
       }
     }
   }
   if (subBest) {
-    return { zone: subBest.zone, matchType: "substring", confidence: 0.95, fee: subBest.fee };
+    return { zone: subBest.zone, matchType: "substring", confidence: 0.95, fee: subBest.fee, matchedCity: subBest.matchedCity };
   }
 
   // ── 3. Fuzzy: cada candidato vs cada zona, similitud mínima 60% ─────────
@@ -148,16 +156,16 @@ function matchDeliveryZone(rawCity, mainRegion, otherRegions) {
       if (n[0] !== cand[0] && ratio < 0.75) continue;
 
       if (!best || ratio > best.ratio) {
-        best = { zone: e.zone, fee: e.fee, ratio, dist: d };
+        best = { zone: e.zone, fee: e.fee, ratio, dist: d, matchedCity: cityOf(e) };
       }
     }
   }
   if (best) {
-    return { zone: best.zone, matchType: "fuzzy", confidence: +best.ratio.toFixed(2), fee: best.fee };
+    return { zone: best.zone, matchType: "fuzzy", confidence: +best.ratio.toFixed(2), fee: best.fee, matchedCity: best.matchedCity };
   }
 
   // ── 4. Fallback ─────────────────────────────────────────────────────────
-  return { zone: null, matchType: "fallback", confidence: 0, fee: 0 };
+  return { zone: null, matchType: "fallback", confidence: 0, fee: 0, matchedCity: null };
 }
 
 module.exports = { matchDeliveryZone };
