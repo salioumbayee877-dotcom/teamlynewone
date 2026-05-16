@@ -13,7 +13,7 @@ const C = {
   border:     "#E5E7EB",
 };
 
-const fmtF = n => Number(n||0).toLocaleString("fr-FR") + " F";
+const fmtF = n => Number(n||0).toLocaleString("fr-FR") + " CFA";
 
 const BUNDLE_OPTS = [
   { qty: 1, label: "Pack x1", emoji: "1️⃣📦" },

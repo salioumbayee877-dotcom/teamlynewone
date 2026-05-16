@@ -7699,11 +7699,9 @@ function AppInner() {
               const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.price;
               const refBund  = isBundle ? item.price : null;
               const payload  = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
-              console.log("[pricing_rules POST] payload:", JSON.stringify(payload), "orgId state:", orgId);
-              const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ console.error("[pricing_rules POST]",e); addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
+              const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
               const saved = Array.isArray(res)?res[0]:res;
               if (saved) setPricingRules(prev=>[...prev,saved]);
-              else console.warn("[pricing_rules POST] respuesta vacía", res, payload);
             } else if (item.case === 2 && resp.type === "bundle" && resp.bundleQty) {
               const bq      = resp.bundleQty;
               const refBund = item.price;
