@@ -1209,13 +1209,31 @@ function AppInner() {
   };
 
   // ── Détection intelligente des prix produits ──────────────────────────────
+  // Normalización agresiva para matchear nombres con variantes ("– Sans piles • …")
+  const _normProd = s => _normCity(s||"")
+    .replace(/[^a-z0-9\s]/g," ")   // quita guiones, bullets, etc.
+    .replace(/\s+/g," ").trim();
+  const findPricingRule = (rawName) => {
+    const target = _normProd(rawName);
+    if (!target) return null;
+    // 1. Exact normalizado
+    let rule = pricingRules.find(r => _normProd(r.product_name) === target);
+    if (rule) return rule;
+    // 2. Bidireccional contains (nombre catálogo dentro de variante webhook o viceversa)
+    rule = pricingRules.find(r => {
+      const rn = _normProd(r.product_name);
+      if (rn.length < 5 || target.length < 5) return false;
+      return target.includes(rn) || rn.includes(target);
+    });
+    return rule || null;
+  };
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
     const totalQty = items.reduce((s,p)=>s+p.qty, 0);
     const orderPrice = parseInt(order.price)||0;
     const issues = [];
     for(const item of items) {
-      const rule = pricingRules.find(r=>_normCity(r.product_name)===_normCity(item.name));
+      const rule = findPricingRule(item.name);
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
       if(!rule) {
@@ -7651,7 +7669,7 @@ function AppInner() {
           // All resolved — persist to product_pricing_rules then advance to assignLivreurModal
           for (let i = 0; i < pItems.length; i++) {
             const item = pItems[i]; const resp = newResponses[i];
-            const existing = pricingRules.find(r => _normCity(r.product_name) === _normCity(item.name));
+            const existing = findPricingRule(item.name);
             if (item.case === 1) {
               const isBundle = resp.type === "bundle" && resp.bundleQty;
               const bq       = isBundle ? resp.bundleQty : null;
