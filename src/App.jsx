@@ -7706,15 +7706,16 @@ function AppInner() {
               const bq      = resp.bundleQty;
               const refBund = item.price;
               const refUnit = Math.round(item.price / Math.max(1, bq));
-              const patch = {type:"bundle", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, updated_at:new Date().toISOString()};
-              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{}); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+              const patch = {type:"bundle", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             } else if (item.case === 2 && resp.type === "acknowledged") {
-              const patch = {reference_price_unit:item.pricePerUnit, updated_at:new Date().toISOString()};
-              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{}); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+              // "Toujours prix unitaire": resetea a unit, limpia campos de bundle/discount
+              const patch = {type:"unit", reference_price_unit:item.pricePerUnit, bundle_quantity:null, reference_price_bundle:null, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             } else if (item.case === 3 && resp.type === "discount") {
               const pct = item.expectedPrice > 0 ? Math.max(1, Math.round((1 - item.price / item.expectedPrice) * 100)) : 0;
               const patch = {type:"discount", discount_percentage:pct, discount_type:resp.discountType||"ponctuel", reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit), updated_at:new Date().toISOString()};
-              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(()=>{}); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             }
           }
           setPricingChecked(prev => new Set([...prev, orderId]));
