@@ -1239,6 +1239,9 @@ function AppInner() {
       if(!rule) {
         issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
       } else {
+        // Si el precio ya fue reconocido antes (en cualquier popup previo), no preguntar
+        const ackPrices = Array.isArray(rule.acknowledged_prices) ? rule.acknowledged_prices : [];
+        if(ackPrices.some(p => Math.abs(Number(p) - itemPrice) <= Math.max(50, itemPrice * 0.02))) continue;
         let expectedPrice = (rule.reference_price_unit||0) * item.qty;
         if(rule.type==="bundle" && rule.reference_price_bundle && item.qty===rule.bundle_quantity) expectedPrice = rule.reference_price_bundle;
         // Si hay una promoción ponctuelle guardada, descontamos del precio esperado
@@ -7690,6 +7693,11 @@ function AppInner() {
             return;
           }
           // All resolved — persist to product_pricing_rules then advance to assignLivreurModal
+          // Helper: merge un precio nuevo al array acknowledged_prices (sin duplicados)
+          const mergeAck = (existingArr, newPrice) => {
+            const arr = Array.isArray(existingArr) ? existingArr.map(Number) : [];
+            return arr.includes(Number(newPrice)) ? arr : [...arr, Number(newPrice)];
+          };
           for (let i = 0; i < pItems.length; i++) {
             const item = pItems[i]; const resp = newResponses[i];
             const existing = findPricingRule(item.name);
@@ -7698,7 +7706,7 @@ function AppInner() {
               const bq       = isBundle ? resp.bundleQty : null;
               const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.price;
               const refBund  = isBundle ? item.price : null;
-              const payload  = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              const payload  = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, acknowledged_prices:[Number(item.price)], updated_at:new Date().toISOString()};
               const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
               const saved = Array.isArray(res)?res[0]:res;
               if (saved) setPricingRules(prev=>[...prev,saved]);
@@ -7706,15 +7714,18 @@ function AppInner() {
               const bq      = resp.bundleQty;
               const refBund = item.price;
               const refUnit = Math.round(item.price / Math.max(1, bq));
-              const patch = {type:"bundle", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              const ack = mergeAck(existing?.acknowledged_prices, item.price);
+              const patch = {type:"bundle", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, acknowledged_prices:ack, updated_at:new Date().toISOString()};
               if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             } else if (item.case === 2 && resp.type === "acknowledged") {
               // "Toujours prix unitaire": resetea a unit, limpia campos de bundle/discount
-              const patch = {type:"unit", reference_price_unit:item.pricePerUnit, bundle_quantity:null, reference_price_bundle:null, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+              const ack = mergeAck(existing?.acknowledged_prices, item.price);
+              const patch = {type:"unit", reference_price_unit:item.pricePerUnit, bundle_quantity:null, reference_price_bundle:null, discount_percentage:null, discount_type:null, acknowledged_prices:ack, updated_at:new Date().toISOString()};
               if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             } else if (item.case === 3 && resp.type === "discount") {
               const pct = item.expectedPrice > 0 ? Math.max(1, Math.round((1 - item.price / item.expectedPrice) * 100)) : 0;
-              const patch = {type:"discount", discount_percentage:pct, discount_type:resp.discountType||"ponctuel", reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit), updated_at:new Date().toISOString()};
+              const ack = mergeAck(existing?.acknowledged_prices, item.price);
+              const patch = {type:"discount", discount_percentage:pct, discount_type:resp.discountType||"ponctuel", reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit), acknowledged_prices:ack, updated_at:new Date().toISOString()};
               if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             }
           }
