@@ -1241,6 +1241,11 @@ function AppInner() {
       } else {
         let expectedPrice = (rule.reference_price_unit||0) * item.qty;
         if(rule.type==="bundle" && rule.reference_price_bundle && item.qty===rule.bundle_quantity) expectedPrice = rule.reference_price_bundle;
+        // Si hay una promoción ponctuelle guardada, descontamos del precio esperado
+        // para que el mismo precio promocional no vuelva a disparar el popup.
+        if(rule.type==="discount" && rule.discount_percentage>0) {
+          expectedPrice = Math.round(expectedPrice * (1 - rule.discount_percentage/100));
+        }
         const tol = Math.max(50, expectedPrice * 0.02);
         if(expectedPrice>0 && itemPrice > expectedPrice + tol) issues.push({case:2, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
         else if(expectedPrice>0 && itemPrice < expectedPrice - tol && itemPrice > 0) issues.push({case:3, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
@@ -7694,8 +7699,11 @@ function AppInner() {
               const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.price;
               const refBund  = isBundle ? item.price : null;
               const payload  = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
-              const res = await sbFetch("product_pricing_rules","POST",payload).catch(()=>null);
-              const saved = Array.isArray(res)?res[0]:res; if (saved) setPricingRules(prev=>[...prev,saved]);
+              console.log("[pricing_rules POST] payload:", JSON.stringify(payload), "orgId state:", orgId);
+              const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ console.error("[pricing_rules POST]",e); addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
+              const saved = Array.isArray(res)?res[0]:res;
+              if (saved) setPricingRules(prev=>[...prev,saved]);
+              else console.warn("[pricing_rules POST] respuesta vacía", res, payload);
             } else if (item.case === 2 && resp.type === "bundle" && resp.bundleQty) {
               const bq      = resp.bundleQty;
               const refBund = item.price;
@@ -7761,7 +7769,7 @@ function AppInner() {
                 Produit {currentIdx + 1} / {pItems.length}
               </div>
             )}
-            <ProductAnalysisPopup alert={alert} onDone={onDone} onSkip={onSkip}/>
+            <ProductAnalysisPopup alert={alert} onDone={onDone} onSkip={onSkip} onClose={()=>setPricingPopup(null)}/>
           </>
         );
 

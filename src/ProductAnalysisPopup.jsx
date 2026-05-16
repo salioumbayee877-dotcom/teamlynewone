@@ -22,7 +22,7 @@ const BUNDLE_OPTS = [
   { qty: 5, label: "Pack x5", emoji: "5️⃣📦📦📦📦📦" },
 ];
 
-export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
+export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose }) {
   const [step, setStep]               = useState("main"); // main | bundle | success
   const [mainChoice, setMainChoice]   = useState(null);
   const [bundleQty, setBundleQty]     = useState(null);
@@ -176,7 +176,7 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip }) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div onClick={step === "success" ? undefined : onSkip}
+    <div onClick={step === "success" ? undefined : (onClose || onSkip)}
       style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:3000,
               display:"flex",alignItems:"flex-end",justifyContent:"center",
               animation:"papFade 180ms ease"}}>
