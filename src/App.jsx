@@ -3756,6 +3756,24 @@ function AppInner() {
   //   - zones_configured === true (admin actually saved zones)
   //   - fraisWarningDismissed === true (persisted on first ⚙️ click)
   //   - zoneBannersDismissed (session-level fallback)
+  // Zona para mostrar en la card del pedido. Prefiere los datos guardados por
+  // el webhook nuevo (city / delivery_zone_name); si no, cae al detectZone
+  // legacy basado en palabras clave de la dirección.
+  const displayZone = (o) => {
+    const legacy = detectZone(o.address || "");
+    const cityName = (o.city||"").trim() || (o.deliveryZoneName||o.delivery_zone_name||"").trim();
+    if (cityName) {
+      const isOther = o.region_type === "other" || o.delivery_zone_type === "other";
+      return {
+        flag: "🇸🇳",
+        label: cityName,
+        color: isOther ? "#F59E0B" : "#22C55E",
+        prepaid: o.payment_type === "prepaid" || isOther,
+        key: isOther ? "sn_other" : "sn_main",
+      };
+    }
+    return legacy;
+  };
   const fraisDisplay = (o) => {
     const treatAsConfigured = settings?.zones_configured === true
       || settings?.fraisWarningDismissed === true
@@ -4241,7 +4259,7 @@ function AppInner() {
                             {(()=>{
                               const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
                               const isMulti=tot>1||items.length>1;
-                              const z=detectZone(o.address);
+                              const z=displayZone(o);
                               return (
                                 <div style={{marginTop:3}}>
                                   {isMulti&&<div style={{display:"inline-flex",alignItems:"center",gap:4,background:"#FEF3C7",borderRadius:6,padding:"2px 7px",fontSize:10,fontWeight:800,color:"#92400E",marginBottom:4}}>
@@ -7494,7 +7512,7 @@ function AppInner() {
               {(()=>{
                 const items=parseProd(o.product); const tot=items.reduce((s,p)=>s+p.qty,0);
                 const isMulti=tot>1||items.length>1;
-                const z=detectZone(o.address);
+                const z=displayZone(o);
                 return (
                   <>
                     {/* Packing summary */}
