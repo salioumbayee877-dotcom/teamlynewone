@@ -1220,11 +1220,16 @@ function AppInner() {
     // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
     return pricingRules.find(r => _normProd(r.product_name) === target) || null;
   };
-  // Producto en catálogo (products) = ya identificado por el usuario → nunca popup
-  const isInCatalog = (rawName) => {
+  // Producto "conocido": ya apareció en algún pedido anterior (excluyendo el actual).
+  // Fuentes consideradas: catálogo manual `products` + historial de pedidos `orders`.
+  // Así Teamly aprende automáticamente sin configuración manual.
+  const isKnownProduct = (rawName, currentOrderId) => {
     const target = _normProd(rawName);
     if (!target) return false;
-    return products.some(p => !p.archived && _normProd(p.name) === target);
+    // 1. Catálogo manual
+    if(products.some(p => !p.archived && _normProd(p.name) === target)) return true;
+    // 2. Historial de pedidos (cualquier pedido anterior con el mismo nombre)
+    return orders.some(o => o.id !== currentOrderId && o.product && parseProd(o.product).some(it => _normProd(it.name) === target));
   };
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
@@ -1232,8 +1237,8 @@ function AppInner() {
     const orderPrice = parseInt(order.price)||0;
     const issues = [];
     for(const item of items) {
-      // Si el producto YA está en el catálogo, ningún popup (sin importar precio)
-      if(isInCatalog(item.name)) continue;
+      // Si el producto ya es conocido (catálogo o pedidos previos) → sin popup
+      if(isKnownProduct(item.name, order.id)) continue;
       const rule = findPricingRule(item.name);
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
