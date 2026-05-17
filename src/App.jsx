@@ -1220,12 +1220,20 @@ function AppInner() {
     // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
     return pricingRules.find(r => _normProd(r.product_name) === target) || null;
   };
+  // Producto en catálogo (products) = ya identificado por el usuario → nunca popup
+  const isInCatalog = (rawName) => {
+    const target = _normProd(rawName);
+    if (!target) return false;
+    return products.some(p => !p.archived && _normProd(p.name) === target);
+  };
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
     const totalQty = items.reduce((s,p)=>s+p.qty, 0);
     const orderPrice = parseInt(order.price)||0;
     const issues = [];
     for(const item of items) {
+      // Si el producto YA está en el catálogo, ningún popup (sin importar precio)
+      if(isInCatalog(item.name)) continue;
       const rule = findPricingRule(item.name);
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
