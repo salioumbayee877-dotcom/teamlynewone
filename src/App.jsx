@@ -1252,13 +1252,16 @@ function AppInner() {
 
   const handleTraiterOrder = (order) => {
     setAssignSelLiv(null); setAssignDelStatus("confirmado");
+    console.log("[traiter] order:", order.id, "product:", order.product, "price:", order.price, "checked?", pricingChecked.has(order.id), "rules count:", pricingRules.length);
     if(pricingChecked.has(order.id)||!order.product) {
+      console.log("[traiter] → skip popup (checked o sin producto)");
       setPricingChecked(prev=>new Set([...prev, order.id]));
       setAssignLivreurModal(order); return;
     }
     const issues = detectPricingIssues(order);
-    if(issues.length===0) { setPricingChecked(prev=>new Set([...prev, order.id])); setAssignLivreurModal(order); }
-    else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
+    console.log("[traiter] issues detectados:", issues.map(i=>({case:i.case, name:i.name, price:i.price, hasRule:!!i.rule})));
+    if(issues.length===0) { console.log("[traiter] → sin issues, abrir livreur"); setPricingChecked(prev=>new Set([...prev, order.id])); setAssignLivreurModal(order); }
+    else { console.log("[traiter] → abrir popup pricing"); setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))}); }
   };
 
   const startWavePayment = async (amount=8000, planKey="basic") => {
