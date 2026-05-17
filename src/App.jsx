@@ -1231,34 +1231,20 @@ function AppInner() {
     // 2. Historial de pedidos (cualquier pedido anterior con el mismo nombre)
     return orders.some(o => o.id !== currentOrderId && o.product && parseProd(o.product).some(it => _normProd(it.name) === target));
   };
+  // Regla simple: si el producto ya apareció antes (catálogo, pedidos previos
+  // o regla guardada) → no popup, sea cual sea el precio. Solo se pregunta
+  // cuando el nombre del producto es desconocido para el sistema.
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
     const totalQty = items.reduce((s,p)=>s+p.qty, 0);
     const orderPrice = parseInt(order.price)||0;
     const issues = [];
     for(const item of items) {
-      // Si el producto ya es conocido (catálogo o pedidos previos) → sin popup
       if(isKnownProduct(item.name, order.id)) continue;
-      const rule = findPricingRule(item.name);
+      if(findPricingRule(item.name)) continue;
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
-      if(!rule) {
-        issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
-      } else {
-        // Si el precio ya fue reconocido antes (en cualquier popup previo), no preguntar
-        const ackPrices = Array.isArray(rule.acknowledged_prices) ? rule.acknowledged_prices : [];
-        if(ackPrices.some(p => Math.abs(Number(p) - itemPrice) <= Math.max(50, itemPrice * 0.02))) continue;
-        let expectedPrice = (rule.reference_price_unit||0) * item.qty;
-        if(rule.type==="bundle" && rule.reference_price_bundle && item.qty===rule.bundle_quantity) expectedPrice = rule.reference_price_bundle;
-        // Si hay una promoción ponctuelle guardada, descontamos del precio esperado
-        // para que el mismo precio promocional no vuelva a disparar el popup.
-        if(rule.type==="discount" && rule.discount_percentage>0) {
-          expectedPrice = Math.round(expectedPrice * (1 - rule.discount_percentage/100));
-        }
-        const tol = Math.max(50, expectedPrice * 0.02);
-        if(expectedPrice>0 && itemPrice > expectedPrice + tol) issues.push({case:2, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
-        else if(expectedPrice>0 && itemPrice < expectedPrice - tol && itemPrice > 0) issues.push({case:3, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
-      }
+      issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
     }
     return issues;
   };
@@ -6747,6 +6733,24 @@ function AppInner() {
             <button onClick={()=>{setShowSettings(false);setTab("frais");}}
               style={{width:"100%",background:"#EFF6FF",color:"#1E40AF",border:"1.5px solid #BFDBFE",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
 <Truck size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Frais de livraison
+            </button>
+            <button onClick={()=>setConfirmModal({
+              msg:"Réinitialiser les règles de prix ?",
+              sub:"Cela supprime toutes les règles enregistrées pour tes produits.\nLe pop-up de prix réapparaîtra pour les prochaines commandes.",
+              danger:true,
+              onConfirm:async()=>{
+                try{
+                  await sbFetch(`product_pricing_rules?org_id=eq.${orgId}`,"DELETE");
+                  setPricingRules([]);
+                  setPricingChecked(new Set());
+                  addToast("Règles de prix réinitialisées ✅","✅",G.green);
+                }catch(e){
+                  addToast("Erreur — réessaie","❌","#DC2626");
+                }
+              }
+            })}
+              style={{width:"100%",background:"#FEF3C7",color:"#92400E",border:"1.5px solid #FCD34D",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
+<AlertTriangle size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Réinitialiser règles de prix
             </button>
             <button onClick={async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
