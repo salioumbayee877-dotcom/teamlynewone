@@ -1220,12 +1220,6 @@ function AppInner() {
     // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
     return pricingRules.find(r => _normProd(r.product_name) === target) || null;
   };
-  // Busca el producto en el catálogo `products` por nombre normalizado
-  const findCatalogProduct = (rawName) => {
-    const target = _normProd(rawName);
-    if (!target) return null;
-    return products.find(p => !p.archived && _normProd(p.name) === target) || null;
-  };
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
     const totalQty = items.reduce((s,p)=>s+p.qty, 0);
@@ -1236,14 +1230,6 @@ function AppInner() {
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
       if(!rule) {
-        // Si el producto está en el catálogo con un precio similar, no preguntar.
-        // El catálogo es la fuente de verdad: ya fue creado por el usuario.
-        const cat = findCatalogProduct(item.name);
-        if(cat) {
-          const catPrice = Number(cat.price)||0;
-          const catTol = Math.max(50, catPrice * 0.02);
-          if(catPrice>0 && Math.abs(catPrice - pricePerUnit) <= catTol) continue;
-        }
         issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
       } else {
         // Si el precio ya fue reconocido antes (en cualquier popup previo), no preguntar
