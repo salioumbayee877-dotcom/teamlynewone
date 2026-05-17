@@ -1220,16 +1220,22 @@ function AppInner() {
     // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
     return pricingRules.find(r => _normProd(r.product_name) === target) || null;
   };
-  // Producto "conocido": ya apareció en algún pedido anterior (excluyendo el actual).
-  // Fuentes consideradas: catálogo manual `products` + historial de pedidos `orders`.
-  // Así Teamly aprende automáticamente sin configuración manual.
+  // Producto "conocido": ya apareció antes en el sistema.
+  // - Catálogo manual `products`.
+  // - Pedidos YA CONFIRMADOS (status ≠ "boutique"). Los pedidos en estado
+  //   "boutique" siguen pendientes de confirmar → no cuentan como histórico,
+  //   si no el popup nunca saldría cuando entran varios pedidos del mismo
+  //   producto a la vez por webhook.
   const isKnownProduct = (rawName, currentOrderId) => {
     const target = _normProd(rawName);
     if (!target) return false;
-    // 1. Catálogo manual
     if(products.some(p => !p.archived && _normProd(p.name) === target)) return true;
-    // 2. Historial de pedidos (cualquier pedido anterior con el mismo nombre)
-    return orders.some(o => o.id !== currentOrderId && o.product && parseProd(o.product).some(it => _normProd(it.name) === target));
+    return orders.some(o =>
+      o.id !== currentOrderId
+      && o.status && o.status !== "boutique"
+      && o.product
+      && parseProd(o.product).some(it => _normProd(it.name) === target)
+    );
   };
   // Regla simple: si el producto ya apareció antes (catálogo, pedidos previos
   // o regla guardada) → no popup, sea cual sea el precio. Solo se pregunta
