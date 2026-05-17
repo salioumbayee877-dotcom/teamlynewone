@@ -1216,16 +1216,9 @@ function AppInner() {
   const findPricingRule = (rawName) => {
     const target = _normProd(rawName);
     if (!target) return null;
-    // 1. Exact normalizado
-    let rule = pricingRules.find(r => _normProd(r.product_name) === target);
-    if (rule) return rule;
-    // 2. Bidireccional contains (nombre catálogo dentro de variante webhook o viceversa)
-    rule = pricingRules.find(r => {
-      const rn = _normProd(r.product_name);
-      if (rn.length < 5 || target.length < 5) return false;
-      return target.includes(rn) || rn.includes(target);
-    });
-    return rule || null;
+    // Match estricto: solo nombres exactamente iguales (normalizados).
+    // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
+    return pricingRules.find(r => _normProd(r.product_name) === target) || null;
   };
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
