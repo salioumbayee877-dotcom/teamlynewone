@@ -1229,21 +1229,13 @@ function AppInner() {
     if (!_normProd(rawName)) return null;
     return pricingRules.find(r => _fuzzyProdMatch(r.product_name, rawName)) || null;
   };
-  // Producto "conocido": ya apareció antes en el sistema.
-  // - Catálogo manual `products`.
-  // - Pedidos YA CONFIRMADOS (status ≠ "boutique"). Los pedidos en estado
-  //   "boutique" siguen pendientes de confirmar → no cuentan como histórico,
-  //   si no el popup nunca saldría cuando entran varios pedidos del mismo
-  //   producto a la vez por webhook.
-  const isKnownProduct = (rawName, currentOrderId) => {
+  // Producto "conocido" = está en el catálogo manual `products`.
+  // Los pedidos pasados (incluso confirmados) NO cuentan como histórico:
+  // el usuario quiere que borrar pedidos haga reaparecer el popup
+  // automáticamente. Solo añadir el producto al catálogo silencia el popup.
+  const isKnownProduct = (rawName, _currentOrderId) => {
     if (!_normProd(rawName)) return false;
-    if(products.some(p => !p.archived && _fuzzyProdMatch(p.name, rawName))) return true;
-    return orders.some(o =>
-      o.id !== currentOrderId
-      && o.status && o.status !== "boutique"
-      && o.product
-      && parseProd(o.product).some(it => _fuzzyProdMatch(it.name, rawName))
-    );
+    return products.some(p => !p.archived && _fuzzyProdMatch(p.name, rawName));
   };
   // Limpia reglas huérfanas tras borrar un pedido. Para cada producto del
   // pedido borrado, si no queda ningún otro pedido (no archivado) ni está en
