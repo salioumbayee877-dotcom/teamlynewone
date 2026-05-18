@@ -1284,11 +1284,21 @@ function AppInner() {
 
   const handleTraiterOrder = (order) => {
     setAssignSelLiv(null); setAssignDelStatus("confirmado");
+    console.log("[POPUP-DEBUG] handleTraiterOrder", { orderId: order.id, product: order.product, alreadyChecked: pricingChecked.has(order.id) });
     if(pricingChecked.has(order.id)||!order.product) {
+      console.log("[POPUP-DEBUG] Skip popup → alreadyChecked or no product");
       setPricingChecked(prev=>new Set([...prev, order.id]));
       setAssignLivreurModal(order); return;
     }
+    const items = parseProd(order.product);
+    console.log("[POPUP-DEBUG] Parsed items:", items);
+    for (const item of items) {
+      const known = isKnownProduct(item.name, order.id);
+      const rule  = findPricingRule(item.name);
+      console.log("[POPUP-DEBUG] item check:", { name: item.name, isKnown: known, hasRule: !!rule, ruleData: rule });
+    }
     const issues = detectPricingIssues(order);
+    console.log("[POPUP-DEBUG] Issues detected:", issues.length, issues);
     if(issues.length===0) { setPricingChecked(prev=>new Set([...prev, order.id])); setAssignLivreurModal(order); }
     else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
   };
