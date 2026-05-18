@@ -1213,17 +1213,17 @@ function AppInner() {
   const _normProd = s => _normCity(s||"")
     .replace(/[^a-z0-9\s]/g," ")   // quita guiones, bullets, etc.
     .replace(/\s+/g," ").trim();
-  // Match difuso alineado con el webhook (matchScore en shopify-webhook.js):
-  // cuenta palabras > 2 chars del nombre catálogo que aparecen en el nombre del pedido.
-  // ≥ 0.5 = mismo producto. Así "Interrupteur Senzaa" matchea con
-  // "Interrupteur Senzaa – Sans piles • Sans câbles • Sans Wi-Fi".
+  // Match producto: TODAS las palabras > 2 chars del nombre catálogo deben
+  // aparecer en el nombre del pedido. Así "Interrupteur Senzaa" matchea con
+  // "Interrupteur Senzaa – Sans piles • Sans câbles • Sans Wi-Fi", pero NO
+  // matchea con "Senzaa Premium V2" (le falta "interrupteur"). Evita falsos
+  // positivos cuando los productos comparten alguna palabra suelta.
   const _fuzzyProdMatch = (catalogName, orderName) => {
     const words = _normProd(catalogName).split(" ").filter(w => w.length > 2);
     if (!words.length) return false;
     const target = _normProd(orderName);
     if (!target) return false;
-    const hits = words.filter(w => target.includes(w)).length;
-    return hits / words.length >= 0.5;
+    return words.every(w => target.includes(w));
   };
   const findPricingRule = (rawName) => {
     if (!_normProd(rawName)) return null;
