@@ -1213,12 +1213,21 @@ function AppInner() {
   const _normProd = s => _normCity(s||"")
     .replace(/[^a-z0-9\s]/g," ")   // quita guiones, bullets, etc.
     .replace(/\s+/g," ").trim();
+  // Match difuso alineado con el webhook (matchScore en shopify-webhook.js):
+  // cuenta palabras > 2 chars del nombre catálogo que aparecen en el nombre del pedido.
+  // ≥ 0.5 = mismo producto. Así "Interrupteur Senzaa" matchea con
+  // "Interrupteur Senzaa – Sans piles • Sans câbles • Sans Wi-Fi".
+  const _fuzzyProdMatch = (catalogName, orderName) => {
+    const words = _normProd(catalogName).split(" ").filter(w => w.length > 2);
+    if (!words.length) return false;
+    const target = _normProd(orderName);
+    if (!target) return false;
+    const hits = words.filter(w => target.includes(w)).length;
+    return hits / words.length >= 0.5;
+  };
   const findPricingRule = (rawName) => {
-    const target = _normProd(rawName);
-    if (!target) return null;
-    // Match estricto: solo nombres exactamente iguales (normalizados).
-    // Cualquier diferencia en el nombre = producto distinto = caso 1 (nouveau produit).
-    return pricingRules.find(r => _normProd(r.product_name) === target) || null;
+    if (!_normProd(rawName)) return null;
+    return pricingRules.find(r => _fuzzyProdMatch(r.product_name, rawName)) || null;
   };
   // Producto "conocido": ya apareció antes en el sistema.
   // - Catálogo manual `products`.
@@ -1227,14 +1236,13 @@ function AppInner() {
   //   si no el popup nunca saldría cuando entran varios pedidos del mismo
   //   producto a la vez por webhook.
   const isKnownProduct = (rawName, currentOrderId) => {
-    const target = _normProd(rawName);
-    if (!target) return false;
-    if(products.some(p => !p.archived && _normProd(p.name) === target)) return true;
+    if (!_normProd(rawName)) return false;
+    if(products.some(p => !p.archived && _fuzzyProdMatch(p.name, rawName))) return true;
     return orders.some(o =>
       o.id !== currentOrderId
       && o.status && o.status !== "boutique"
       && o.product
-      && parseProd(o.product).some(it => _normProd(it.name) === target)
+      && parseProd(o.product).some(it => _fuzzyProdMatch(it.name, rawName))
     );
   };
   // Regla simple: si el producto ya apareció antes (catálogo, pedidos previos
