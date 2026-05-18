@@ -1245,6 +1245,25 @@ function AppInner() {
       && parseProd(o.product).some(it => _fuzzyProdMatch(it.name, rawName))
     );
   };
+  // Limpia reglas huérfanas tras borrar un pedido. Para cada producto del
+  // pedido borrado, si no queda ningún otro pedido (no archivado) ni está en
+  // catálogo, eliminamos su regla en product_pricing_rules → el próximo
+  // pedido del mismo producto vuelve a disparar el popup desde cero.
+  const cleanupOrphanRules = async (deletedOrder) => {
+    if (!deletedOrder?.product || !orgId) return;
+    const items = parseProd(deletedOrder.product);
+    for (const item of items) {
+      if (!item.name) continue;
+      if (isKnownProduct(item.name, deletedOrder.id)) continue;
+      const rule = findPricingRule(item.name);
+      if (!rule) continue;
+      try {
+        await sbFetch(`product_pricing_rules?id=eq.${rule.id}`,"DELETE");
+        setPricingRules(prev => prev.filter(r => r.id !== rule.id));
+        console.log("Cleanup rule for orphan product:", item.name);
+      } catch(e) { console.error("Cleanup rule failed:", e.message); }
+    }
+  };
   // Regla simple: si el producto ya apareció antes (catálogo, pedidos previos
   // o regla guardada) → no popup, sea cual sea el precio. Solo se pregunta
   // cuando el nombre del producto es desconocido para el sistema.
@@ -7324,11 +7343,13 @@ function AppInner() {
                   danger:true,
                   onConfirm:async()=>{
                     const id = editOrder.id;
+                    const deleted = editOrder;
                     setEditOrder(null);
                     try {
                       await sbFetch(`orders?id=eq.${id}`,"PATCH",{archived:true});
                       setOrders(o=>o.filter(x=>x.id!==id));
                       console.log("DELETE order:", id, "→ archived:true ✓");
+                      await cleanupOrphanRules(deleted);
                     } catch(e) {
                       console.error("DELETE order failed:", id, e.message);
                       addToast("Erreur suppression: "+e.message.slice(0,80),"❌",G.red,8000);
@@ -7644,12 +7665,13 @@ function AppInner() {
                   </button>
                 )}
                 {role==="admin"&&(
-                  <button onClick={()=>{setOrderDetail(null);setConfirmModal({msg:`Supprimer la commande de ${o.client} ?`,sub:"Action irréversible.",danger:true,onConfirm:async()=>{
+                  <button onClick={()=>{const deleted=o;setOrderDetail(null);setConfirmModal({msg:`Supprimer la commande de ${o.client} ?`,sub:"Action irréversible.",danger:true,onConfirm:async()=>{
                     const id = o.id;
                     try {
                       await sbFetch(`orders?id=eq.${id}`,"PATCH",{archived:true});
                       setOrders(p=>p.filter(x=>x.id!==id));
                       console.log("DELETE order:", id, "→ archived:true ✓");
+                      await cleanupOrphanRules(deleted);
                     } catch(e) {
                       console.error("DELETE order failed:", id, e.message);
                       addToast("Erreur suppression: "+e.message.slice(0,80),"❌",G.red,8000);
