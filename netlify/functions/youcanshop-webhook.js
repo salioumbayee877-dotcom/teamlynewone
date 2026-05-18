@@ -3,6 +3,7 @@ const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
 const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
+const { expandBundles } = require('./lib/bundleParser');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -73,7 +74,10 @@ exports.handler = async (event) => {
     const cityIsDakar = extracted?.isDakar === true;
     const provinceForMeta = extracted?.region || addrObj.province || addrObj.state || addrObj.region || null;
 
-    const items      = order.products || order.items || order.line_items || [];
+    const rawItems   = order.products || order.items || order.line_items || [];
+    const bundleResult = expandBundles(rawItems, "youcan");
+    const items      = bundleResult.items;
+    if (bundleResult.source) console.log(`[TEAMLY] YouCan bundle detected: ${bundleResult.source} → ${items.length} children`);
     const rawProduct = items.map(i => {
       const name = i.name || i.title || i.product_name || "Produit";
       const qty  = parseInt(i.quantity || i.qty || 1);

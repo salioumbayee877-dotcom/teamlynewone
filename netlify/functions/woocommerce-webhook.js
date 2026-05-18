@@ -3,6 +3,7 @@ const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
 const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
+const { expandBundles } = require('./lib/bundleParser');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -60,7 +61,10 @@ exports.handler = async (event) => {
     const cityIsDakar = extracted?.isDakar === true;
     const provinceForMeta = extracted?.region || addr?.state || null;
 
-    const lineItems    = order.line_items || [];
+    const rawLineItems = order.line_items || [];
+    const bundleResult = expandBundles(rawLineItems, "woocommerce");
+    const lineItems    = bundleResult.items;
+    if (bundleResult.source) console.log(`[TEAMLY] WooCommerce bundle detected: ${bundleResult.source} → ${lineItems.length} children`);
     const rawProduct   = lineItems.map(i=>`${i.name} x${i.quantity||1}`).join(" + ") || "Produit WooCommerce";
     const totalQty     = lineItems.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
     const price        = parseFloat(order.total || 0);

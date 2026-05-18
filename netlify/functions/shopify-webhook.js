@@ -4,6 +4,7 @@ const { extractCityFromAddress } = require('./lib/senegalCities');
 const { corsOrigin } = require('./lib/cors');
 const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
+const { expandBundles } = require('./lib/bundleParser');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -67,7 +68,10 @@ exports.handler = async (event) => {
     const provinceForMeta = extracted?.region || addr?.province || null;
 
     // ── Products ──────────────────────────────────────────────────────────
-    const lineItems      = order.line_items || [];
+    const rawLineItems   = order.line_items || [];
+    const bundleResult   = expandBundles(rawLineItems, "shopify");
+    const lineItems      = bundleResult.items;
+    if (bundleResult.source) console.log(`[TEAMLY] Shopify bundle detected: ${bundleResult.source} → ${lineItems.length} children`);
     const shopifyProduct = lineItems.map(i=>`${i.title||i.name} x${i.quantity||1}`).join(" + ") || "Produit Shopify";
     const totalQty       = lineItems.reduce((s,i)=>s+(parseInt(i.quantity)||1),0);
     const price          = parseFloat(order.total_price || 0);
