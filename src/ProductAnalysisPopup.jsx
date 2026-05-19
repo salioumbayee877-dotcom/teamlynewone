@@ -67,15 +67,16 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
       { id: "permanent", emoji: "📉", label: "Baisse définitive",     sub: "Nouveau prix de référence" },
     ]
     : /* isRise */ [
-      { id: "unit",   emoji: "📦", label: "Toujours prix unitaire", sub: "Vendu à l'unité" },
-      { id: "bundle", emoji: "🎁", label: "Devenu bundle",          sub: "Vendu par lot maintenant" },
+      { id: "bundle",  emoji: "🎁", label: "Devenu bundle",          sub: "Vendu par lot maintenant" },
+      { id: "variant", emoji: "📏", label: "Différente taille",      sub: "Variante du même produit (taille / couleur)" },
+      { id: "unit",    emoji: "📦", label: "Toujours prix unitaire", sub: "Nouveau prix de référence" },
     ];
 
   const question = isNew
     ? "Comment vendez-vous ce produit ?"
     : isDrop
     ? "Quelle est la nature de cette baisse de prix ?"
-    : "Toujours prix unitaire ou est-ce devenu un bundle ?";
+    : "Quelle est la nature de cette hausse de prix ?";
 
   // ── Submit handlers ──────────────────────────────────────────────────────
   const handleMainCTA = () => {
@@ -88,6 +89,8 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
     // new_product or price_rise
     if (mainChoice === "unit") {
       finish({ pricingType: "unit" }, "Prix unitaire enregistré");
+    } else if (mainChoice === "variant") {
+      finish({ pricingType: "variant" }, "Variante enregistrée");
     } else {
       setStep("bundle");
     }

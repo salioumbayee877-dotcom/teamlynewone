@@ -7822,6 +7822,8 @@ function AppInner() {
             if (result?.pricingType === "bundle") {
               upd.type = "bundle";
               upd.bundleQty = result?.bundleQuantity || null;
+            } else if (result?.pricingType === "variant") {
+              upd.type = "variant";
             } else {
               upd.type = "acknowledged";
             }
