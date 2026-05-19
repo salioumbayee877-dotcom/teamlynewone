@@ -6852,17 +6852,33 @@ function AppInner() {
               if(profileSaving) return;
               setProfileError("");
               setProfileSaving(true);
-              const patchBody = {nom:profileEdit.nom||"",phone:profileEdit.phone||"",birthday:profileEdit.birthday||null};
-              console.log("[TEAMLY profile] PATCH start", {id:currentUser.id, body:patchBody});
+              const fullBody = {nom:profileEdit.nom||"",phone:profileEdit.phone||"",birthday:profileEdit.birthday||null};
+              console.log("[TEAMLY profile] PATCH start", {id:currentUser.id, body:fullBody});
+              const doPatch = async(body) => sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",body);
               try {
-                const updated = await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",patchBody);
+                let updated, savedBody = fullBody;
+                try {
+                  updated = await doPatch(fullBody);
+                } catch(err) {
+                  // Retry without birthday if the column doesn't exist in Supabase yet.
+                  // Admin needs to run supabase-profile-birthday.sql to add it.
+                  if(/birthday/i.test(err?.message||"") && /(PGRST204|schema cache|column)/i.test(err?.message||"")) {
+                    console.warn("[TEAMLY profile] birthday column missing — retrying without it");
+                    const {birthday, ...slim} = fullBody;
+                    savedBody = slim;
+                    updated = await doPatch(slim);
+                    addToast("⚠️ Date de naissance non sauvegardée (DB)","⚠️","#F59E0B",6000);
+                  } else {
+                    throw err;
+                  }
+                }
                 console.log("[TEAMLY profile] PATCH response", updated);
                 const newRow = Array.isArray(updated) ? updated[0] : updated;
                 if (newRow) setCurrentUser(u=>({...u,...newRow}));
-                else setCurrentUser(u=>({...u,nom:patchBody.nom,phone:patchBody.phone,birthday:patchBody.birthday}));
-                try{localStorage.setItem("teamly_nom",patchBody.nom);}catch(e){}
-                try{localStorage.setItem("teamly_phone",patchBody.phone);}catch(e){}
-                try{localStorage.setItem("teamly_birthday",patchBody.birthday||"");}catch(e){}
+                else setCurrentUser(u=>({...u,nom:savedBody.nom,phone:savedBody.phone,birthday:savedBody.birthday}));
+                try{localStorage.setItem("teamly_nom",savedBody.nom);}catch(e){}
+                try{localStorage.setItem("teamly_phone",savedBody.phone);}catch(e){}
+                if("birthday" in savedBody){ try{localStorage.setItem("teamly_birthday",savedBody.birthday||"");}catch(e){} }
                 if (loadMainRef.current) loadMainRef.current();
                 addToast("Profil mis à jour ✅","✅",G.green);
                 setProfileSaving(false);
