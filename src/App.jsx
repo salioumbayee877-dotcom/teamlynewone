@@ -964,6 +964,8 @@ function AppInner() {
   const [recordSecs,setRecordSecs]         = useState(0);
   const [chatUnread,setChatUnread]         = useState(0);
   const [profileEdit,setProfileEdit]       = useState({nom:"",phone:"",birthday:""});
+  const [profileSaving,setProfileSaving]   = useState(false);
+  const [profileError, setProfileError]    = useState("");
   const [orgMemberCount,setOrgMemberCount] = useState(null);
   const [clientCat,setClientCat]           = useState("confirme");
   const [clientDate,setClientDate]         = useState("all");
@@ -4157,7 +4159,7 @@ function AppInner() {
 <Sparkles size={14}/> <span>Support Teamly</span>
             </button>
           )}
-          <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setProfileError("");setProfileSaving(false);setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
 <IcoSettings size={14}/> <span>Paramètres</span>
           </button>
           <button onClick={()=>{
@@ -6845,23 +6847,34 @@ function AppInner() {
                 </div>
               ))}
             </div>
-            <button onClick={async()=>{
+            {profileError&&<div style={{background:"#FEE2E2",border:"1px solid #FCA5A5",borderRadius:10,padding:"10px 12px",marginBottom:10,fontSize:12,color:"#991B1B",fontWeight:600,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>⚠️ {profileError}</div>}
+            <button disabled={profileSaving} onClick={async()=>{
+              if(profileSaving) return;
+              setProfileError("");
+              setProfileSaving(true);
+              const patchBody = {nom:profileEdit.nom||"",phone:profileEdit.phone||"",birthday:profileEdit.birthday||null};
+              console.log("[TEAMLY profile] PATCH start", {id:currentUser.id, body:patchBody});
               try {
-                const updated = await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null});
+                const updated = await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",patchBody);
+                console.log("[TEAMLY profile] PATCH response", updated);
                 const newRow = Array.isArray(updated) ? updated[0] : updated;
                 if (newRow) setCurrentUser(u=>({...u,...newRow}));
-                else setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
-                try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
-                try{localStorage.setItem("teamly_phone",profileEdit.phone||"");}catch(e){}
-                try{localStorage.setItem("teamly_birthday",profileEdit.birthday||"");}catch(e){}
-                if (loadMainRef.current) loadMainRef.current(); // refresh teamMembers so équipe tab updates
+                else setCurrentUser(u=>({...u,nom:patchBody.nom,phone:patchBody.phone,birthday:patchBody.birthday}));
+                try{localStorage.setItem("teamly_nom",patchBody.nom);}catch(e){}
+                try{localStorage.setItem("teamly_phone",patchBody.phone);}catch(e){}
+                try{localStorage.setItem("teamly_birthday",patchBody.birthday||"");}catch(e){}
+                if (loadMainRef.current) loadMainRef.current();
                 addToast("Profil mis à jour ✅","✅",G.green);
+                setProfileSaving(false);
                 setShowSettings(false);
               } catch(e) {
-                addToast(`Erreur: ${(e.message||"sauvegarde impossible").slice(0,80)}`,"❌",G.red,8000);
+                console.error("[TEAMLY profile] PATCH failed", e);
+                const msg = (e?.message||"sauvegarde impossible").slice(0,300);
+                setProfileError(msg);
+                setProfileSaving(false);
               }
-            }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:10}}>
-<Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
+            }} style={{width:"100%",background:profileSaving?"#9CA3AF":G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:profileSaving?"wait":"pointer",marginBottom:10}}>
+              {profileSaving?<>⏳ Sauvegarde…</>:<><Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer</>}
             </button>
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Tu perdras l'accès à Teamly définitivement.",danger:true,onConfirm:async()=>{
               try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE");}catch(e){}
