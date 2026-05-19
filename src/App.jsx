@@ -4757,63 +4757,54 @@ function AppInner() {
 
         {/* ── CLOSER DASHBOARD ── */}
         {dataReady&&tab==="dashboard"&&role==="closer"&&(()=>{
-          const todayStr  = new Date().toISOString().slice(0,10);
-          const todayOrds = myClo.filter(o=>(o.created_at||"").startsWith(todayStr));
-          const confirmed = myClo.filter(o=>o.status==="confirmado");
-          const pending   = myClo.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status));
-          const revenue   = myClo.filter(o=>o.status==="entregado").reduce((s,o)=>s+(parseFloat(o.price)||0),0);
-          const trendCfg = {
-            "7j":  {label:"7 jours",  buckets:7,  unit:"day",  fmt:d=>d.toLocaleDateString("fr",{weekday:"short"}).slice(0,3)},
-            "30j": {label:"30 jours", buckets:30, unit:"day",  fmt:d=>String(d.getDate())},
-            "90j": {label:"90 jours", buckets:13, unit:"week", fmt:d=>"S"+Math.ceil(d.getDate()/7)+"/"+(d.getMonth()+1)},
-            "12m": {label:"12 mois",  buckets:12, unit:"month",fmt:d=>d.toLocaleDateString("fr",{month:"short"}).slice(0,3)},
-          };
-          const tcfg = trendCfg[trendPeriod] || trendCfg["7j"];
-          const trendData = Array.from({length:tcfg.buckets},(_,i)=>{
-            const d=new Date(); d.setHours(0,0,0,0);
-            let start, end;
-            if(tcfg.unit==="day"){ d.setDate(d.getDate()-(tcfg.buckets-1)+i); start=d.toISOString().slice(0,10); end=start; }
-            else if(tcfg.unit==="week"){ d.setDate(d.getDate()-7*(tcfg.buckets-1-i)); const e=new Date(d); e.setDate(e.getDate()+6); start=d.toISOString().slice(0,10); end=e.toISOString().slice(0,10); }
-            else { d.setDate(1); d.setMonth(d.getMonth()-(tcfg.buckets-1)+i); const e=new Date(d.getFullYear(),d.getMonth()+1,0); start=d.toISOString().slice(0,10); end=e.toISOString().slice(0,10); }
-            const count = myClo.filter(o=>{const ds=(o.created_at||"").slice(0,10); return ds>=start&&ds<=end;}).length;
-            return {label:tcfg.fmt(d), count};
-          });
-          const maxCnt    = Math.max(...trendData.map(d=>d.count),1);
-          const cW=280, cH=80;
-          const pts = trendData.map((d,i)=>`${(i/Math.max(trendData.length-1,1))*cW},${cH-(d.count/maxCnt)*(cH-10)}`).join(" ");
-          const labelStride = Math.max(1, Math.ceil(trendData.length/7));
+          const pending = orders.filter(o=>["pendiente","no_contesta","reprogramar"].includes(o.status));
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-              {[
-                {Ico:Package,label:"Aujourd'hui",value:todayOrds.length,color:"#0284C7",bg:"#E0F2FE"},
-                {Ico:Check,label:"Confirmées", value:confirmed.length, color:G.green,  bg:G.greenLight},
-                {Ico:Hourglass,label:"En attente", value:pending.length,   color:G.gold,   bg:"#FFF8E7"},
-                {Ico:Coins,label:"Revenu livré",value:fmt(revenue),    color:"#7C3AED",bg:"#EDE9FE"},
-              ].map((kpi,i)=>(
-                <div key={i} style={{background:G.white,borderRadius:14,padding:"14px 12px",boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-                  <div style={{marginBottom:4}}><kpi.Ico size={20} color={kpi.color}/></div>
-                  <div style={{fontSize:22,fontWeight:800,color:kpi.color}}>{kpi.value}</div>
-                  <div style={{fontSize:11,color:G.gray,fontWeight:500,marginTop:2}}>{kpi.label}</div>
-                </div>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
+              <SC icon={<Package size={18}/>} label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
+              <SC icon={<Check size={18}/>}   label="Livrées"  value={livres}  color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
+              <SC icon={<X size={18}/>}       label="Rejetées" value={rejetes} color={G.red}   bg="#FEE2E2"      onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
+              <SC icon={<Bike size={18}/>}    label="En route" value={enRoute} color={G.blue}  bg="#EFF6FF"      onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
             </div>
-            <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5}}>TENDANCE {tcfg.label.toUpperCase()}</div>
-                <div style={{display:"flex",gap:4}}>
-                  {Object.keys(trendCfg).map(k=>(
-                    <button key={k} onClick={()=>{setTrendPeriod(k);try{localStorage.setItem("teamly_trend_period",k);}catch(e){}}} style={{background:trendPeriod===k?G.green:G.grayLight,color:trendPeriod===k?"#fff":G.dark,border:"none",borderRadius:8,padding:"4px 9px",fontSize:11,fontWeight:600,cursor:"pointer"}}>{k}</button>
-                  ))}
+
+            {/* Aperçu du jour — même graphique que l'admin */}
+            {(()=>{
+              const todayStr = new Date().toISOString().slice(0,10);
+              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
+              const bars = [
+                {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
+                {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
+                {label:"Livré",    count:tod.filter(o=>o.status==="entregado").length,                                                         color:"#4ADE80"},
+                {label:"Rejeté",   count:tod.filter(o=>o.status==="rechazado").length,                                                         color:G.red},
+              ];
+              const maxB = Math.max(...bars.map(b=>b.count),1);
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Aperçu du jour</div>
+                  <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
+                    {bars.map((b,i)=>(
+                      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:b.count>0?b.color:G.gray}}>{b.count}</span>
+                        <div style={{width:"100%",background:b.count>0?b.color:G.grayLight,borderRadius:6,height:b.count>0?`${Math.max(b.count/maxB*100,6)}px`:"2px",transition:"height 0.4s"}}/>
+                        <span style={{fontSize:9,color:G.gray,textAlign:"center",lineHeight:1.2}}>{b.label}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              );
+            })()}
+
+            {/* Taux de livraison */}
+            <div style={{background:G.white,borderRadius:14,padding:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <span style={{fontSize:12,fontWeight:700,color:G.dark}}>Taux de livraison</span>
+                <span style={{fontSize:14,fontWeight:700,color:taux>=60?G.green:G.red}}>{taux}%</span>
               </div>
-              <svg width="100%" height="140" viewBox={`0 0 ${cW} ${cH+20}`} preserveAspectRatio="xMidYMid meet" style={{overflow:"visible",display:"block"}}>
-                <defs><linearGradient id="cloTrend" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={G.green} stopOpacity="0.2"/><stop offset="100%" stopColor={G.green} stopOpacity="0"/></linearGradient></defs>
-                <polygon points={`0,${cH} ${pts} ${cW},${cH}`} fill="url(#cloTrend)"/>
-                <polyline points={pts} fill="none" stroke={G.green} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                {trendData.map((d,i)=>{ const x=(i/Math.max(trendData.length-1,1))*cW; const y=cH-(d.count/maxCnt)*(cH-10); const showLabel=(i%labelStride===0)||i===trendData.length-1; const dotR=trendData.length>20?2:3; return (<g key={i}><circle cx={x} cy={y} r={dotR} fill={G.green}/>{d.count>0&&trendData.length<=14&&<text x={x} y={y-7} textAnchor="middle" fontSize="9" fill={G.green} fontWeight="700">{d.count}</text>}{showLabel&&<text x={x} y={cH+16} textAnchor="middle" fontSize="9" fill={G.gray}>{d.label}</text>}</g>); })}
-              </svg>
+              <div style={{background:G.grayLight,borderRadius:4,height:8}}>
+                <div style={{background:taux>=60?G.green:G.red,borderRadius:4,height:8,width:`${taux}%`,transition:"width 0.5s"}}/>
+              </div>
             </div>
+
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>{setTab("commandes");setTimeout(()=>setShowAdd(true),50);}} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Plus size={14}/> Nouvelle commande</button>
               <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}><MessageCircle size={14}/> WhatsApp</a>
@@ -7191,31 +7182,18 @@ function AppInner() {
           <div style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:480,margin:"0 auto",maxHeight:"90vh",overflowY:"auto"}}>
             <div style={{fontWeight:700,fontSize:16,color:G.green,marginBottom:16,display:"flex",alignItems:"center",gap:6}}><Pencil size={17}/> Modifier la commande #{editOrder.id}</div>
 
-            {(()=>{
-              const zEdit = editOrder.city
-                ? detectDeliveryZone(editOrder.city, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500)
-                : null;
-              const fraisIsPredefined = zEdit && (zEdit.type==="senegal" || zEdit.type==="unknown");
-              return [
-                {key:"client",   Ico:User,       label:"Nom client",        ph:"Moussa Diallo",   type:"text"},
-                {key:"phone",    Ico:Smartphone, label:"Téléphone",          ph:"77 123 45 67",    type:"text"},
-                {key:"address",  Ico:MapPin,     label:"Adresse du client",  ph:"Médina, Dakar",   type:"text"},
-                {key:"product",  Ico:Package,    label:"Produit",            ph:"Chaussures Nike", type:"text"},
-                {key:"price",    Ico:Coins,      label:"Prix COD (CFA)",     ph:"25000",           type:"number"},
-                {key:"fraisLiv", Ico:Truck,      label:"Frais livraison (CFA)", ph:"1500",        type:"number", hint: fraisIsPredefined ? "Prix prédéterminé à configurer" : null},
-              ].map(f=>(
-                <div key={f.key} style={{marginBottom:10}}>
-                  <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
-                  <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
-                    style={{width:"100%",border:`1.5px solid ${f.hint?"#F59E0B":G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-                  {f.hint&&(
-                    <div style={{marginTop:4,fontSize:11,color:"#92400E",display:"flex",alignItems:"center",gap:4}}>
-                      <AlertTriangle size={11}/> {f.hint}
-                    </div>
-                  )}
-                </div>
-              ));
-            })()}
+            {[
+              {key:"client",   Ico:User,       label:"Nom client",        ph:"Moussa Diallo",   type:"text"},
+              {key:"phone",    Ico:Smartphone, label:"Téléphone",          ph:"77 123 45 67",    type:"text"},
+              {key:"product",  Ico:Package,    label:"Produit",            ph:"Chaussures Nike", type:"text"},
+              {key:"address",  Ico:MapPin,     label:"Adresse du client",  ph:"Médina, Dakar",   type:"text"},
+            ].map(f=>(
+              <div key={f.key} style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
+                <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              </div>
+            ))}
 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Building2 size={12}/> Ville du client</div>
@@ -7241,6 +7219,28 @@ function AppInner() {
                 );
               })()}
             </div>
+
+            {(()=>{
+              const zEdit = editOrder.city
+                ? detectDeliveryZone(editOrder.city, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500)
+                : null;
+              const fraisIsPredefined = zEdit && (zEdit.type==="senegal" || zEdit.type==="unknown");
+              return [
+                {key:"price",    Ico:Coins, label:"Prix COD (CFA)",        ph:"25000", type:"number"},
+                {key:"fraisLiv", Ico:Truck, label:"Frais livraison (CFA)", ph:"1500",  type:"number", hint: fraisIsPredefined ? "Prix prédéterminé à configurer" : null},
+              ].map(f=>(
+                <div key={f.key} style={{marginBottom:10}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><f.Ico size={12}/> {f.label}</div>
+                  <input type={f.type} value={editOrder[f.key]||""} onChange={e=>setEditOrder(p=>({...p,[f.key]:e.target.value}))} placeholder={f.ph}
+                    style={{width:"100%",border:`1.5px solid ${f.hint?"#F59E0B":G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                  {f.hint&&(
+                    <div style={{marginTop:4,fontSize:11,color:"#92400E",display:"flex",alignItems:"center",gap:4}}>
+                      <AlertTriangle size={11}/> {f.hint}
+                    </div>
+                  )}
+                </div>
+              ));
+            })()}
 
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><BarChart3 size={12}/> Statut</div>
