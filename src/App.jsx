@@ -4498,13 +4498,24 @@ function AppInner() {
                 <div key={client.id} style={{background:"#FFF",borderRadius:14,padding:"16px 18px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
                   {/* Header client */}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-                    <div>
+                    <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:700,fontSize:15,color:G.dark}}>{client.name}</div>
+                      {(client.adminNom||client.adminEmail)&&(
+                        <div style={{fontSize:11,color:G.dark,marginTop:3,display:"flex",alignItems:"center",gap:4,fontWeight:600}}>
+                          <User size={11}/> {client.adminNom||"—"}
+                          {client.adminEmail&&<span style={{color:G.gray,fontWeight:400}}>· {client.adminEmail}</span>}
+                        </div>
+                      )}
+                      {client.adminPhone&&(
+                        <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4}}>
+                          <Smartphone size={11}/> {client.adminPhone}
+                        </div>
+                      )}
                       <div style={{fontSize:11,color:G.gray,marginTop:2}}>
                         {client.memberCount} membre{client.memberCount>1?"s":""} · {client.ordersThisMonth} cmd ce mois
                       </div>
                     </div>
-                    <span style={{background:planColor+"20",color:planColor,borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5}}>
+                    <span style={{background:planColor+"20",color:planColor,borderRadius:8,padding:"3px 10px",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:0.5,flexShrink:0,marginLeft:8}}>
                       {client.plan||"gratuit"}
                     </span>
                   </div>

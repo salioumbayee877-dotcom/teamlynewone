@@ -43,15 +43,21 @@ exports.handler = async (event) => {
     if (method === "GET") {
       const [orgsRes, profilesRes] = await Promise.all([
         fetch(`${SB_URL}/rest/v1/organizations?select=id,name,plan,plan_expires_at,created_at&order=created_at.desc`, { headers: sbHeaders }),
-        fetch(`${SB_URL}/rest/v1/profiles?select=org_id,role`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/profiles?select=org_id,role,nom,email,phone`, { headers: sbHeaders }),
       ]);
       const orgs     = await orgsRes.json();
       const profiles = await profilesRes.json();
 
-      // Count members and fetch order counts per org
+      // Count members and pick the admin (seller) profile per org
       const memberCounts = {};
+      const adminByOrg = {};
       if (Array.isArray(profiles)) {
-        profiles.forEach(p => { memberCounts[p.org_id] = (memberCounts[p.org_id] || 0) + 1; });
+        profiles.forEach(p => {
+          memberCounts[p.org_id] = (memberCounts[p.org_id] || 0) + 1;
+          if (p.role === "admin" && !adminByOrg[p.org_id]) {
+            adminByOrg[p.org_id] = { nom: p.nom || "", email: p.email || "", phone: p.phone || "" };
+          }
+        });
       }
 
       // Fetch orders this month for all orgs
@@ -69,6 +75,9 @@ exports.handler = async (event) => {
         ...o,
         memberCount: memberCounts[o.id] || 0,
         ordersThisMonth: orderCounts[o.id] || 0,
+        adminNom:   adminByOrg[o.id]?.nom   || "",
+        adminEmail: adminByOrg[o.id]?.email || "",
+        adminPhone: adminByOrg[o.id]?.phone || "",
       })) : [];
 
       return { statusCode: 200, headers, body: JSON.stringify(result) };
