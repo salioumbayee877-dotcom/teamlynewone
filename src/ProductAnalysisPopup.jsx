@@ -65,6 +65,8 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
     : isDrop ? [
       { id: "discount",  emoji: "🏷️", label: "Promotion temporaire", sub: "Badge PROMO + ancien prix barré" },
       { id: "permanent", emoji: "📉", label: "Baisse définitive",     sub: "Nouveau prix de référence" },
+      { id: "variant",   emoji: "📏", label: "Différente taille",     sub: "Variante du même produit (taille / couleur)" },
+      { id: "unit",      emoji: "📦", label: "Toujours prix unitaire", sub: "Nouveau prix unitaire de référence" },
     ]
     : /* isRise */ [
       { id: "bundle",  emoji: "🎁", label: "Devenu bundle",          sub: "Vendu par lot maintenant" },
@@ -82,7 +84,10 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
   const handleMainCTA = () => {
     if (!mainChoice) return;
     if (isDrop) {
-      const msg = mainChoice === "discount" ? "Promo enregistrée" : "Nouveau prix enregistré";
+      const msg =
+        mainChoice === "discount" ? "Promo enregistrée"
+        : mainChoice === "variant" ? "Variante enregistrée"
+        : "Nouveau prix enregistré";
       finish({ priceDropType: mainChoice }, msg);
       return;
     }

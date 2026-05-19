@@ -7828,8 +7828,14 @@ function AppInner() {
               upd.type = "acknowledged";
             }
           } else if (item.case === 3) {
+            // 4 opciones → 2 acciones:
+            //   no toca la regla: discount (ponctuelle), variant
+            //   actualiza reference_price_unit al nuevo precio: permanent, unit
             if (result?.priceDropType === "discount") { upd.type = "discount"; upd.discountType = "ponctuel"; }
-            else if (result?.priceDropType === "permanent") { upd.type = "discount"; upd.discountType = "permanent"; }
+            else if (result?.priceDropType === "variant") { upd.type = "variant"; }
+            else if (result?.priceDropType === "permanent" || result?.priceDropType === "unit") {
+              upd.type = "discount"; upd.discountType = "permanent";
+            }
             else upd.type = "no_discount";
           }
           const newResponses = pResp.map((r,i) => i === currentIdx ? {...r, ...upd} : r);
