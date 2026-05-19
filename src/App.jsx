@@ -2785,20 +2785,18 @@ function AppInner() {
     }
 
     const camv  = totalUnits * (prod.cost||0);
-    const frais = livOps.reduce((s,o)=>{
-      if(o.fraisLiv) return s+o.fraisLiv;
-      return s+detectZone(o.address).price;
-    },0)||nLiv*(prod.fraisLiv||FRAIS_LIV);
-    // CA net : on retire les frais de livraison (revenue inclut souvent la livraison
-    // pour les pedidos manuels où le user a tapé le prix tout-compris)
-    const ca = revenue - frais;
+    // Sync con config actual de zonas: ignora fraisLiv guardado en el pedido
+    const frais = livOps.reduce((s,o)=>s+detectZone(o.address).price,0);
+    // CA = total cobrado por el livreur (producto + livraison encaissée)
+    const ca = revenue + frais;
     const zoneBreakdown = WA_ZONES.map(z=>({
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
     })).filter(x=>x.count>0);
     const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
     const pub      = parseFloat(adSpend[prod.id]||0);
-    const ben      = ca-camv-echouees-pub;
+    // Bénéfice = CA − frais livraison (reversado al livreur) − CAMV − pub − frais extra
+    const ben      = ca-frais-camv-echouees-pub;
     const marge    = ca>0?ben/ca:0;
     return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown,totalUnits};
   });
