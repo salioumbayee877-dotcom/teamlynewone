@@ -1558,9 +1558,18 @@ function AppInner() {
           try { pending = JSON.parse(localStorage.getItem("teamly_pending_signup")||"null"); } catch(e){}
           if(pending) {
             _authToken = jwt; setSbToken(jwt);
-            const {nom,phone,boutique,orgId:newOrgId,email} = pending;
-            await sbFetch("organizations","POST",{id:newOrgId,name:boutique||"Ma Boutique",whatsapp:phone||""});
-            await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom:nom||"Admin",phone:phone||"",email,role:"admin"});
+            const {nom,phone,boutique,orgId:pendingOrgId,email} = pending;
+            // Bootstrap via Netlify function (SERVICE_KEY) — evita RLS 42501
+            let newOrgId = pendingOrgId;
+            try {
+              const br = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${jwt}` },
+                body: JSON.stringify({ boutique: boutique || "Ma Boutique", phone: phone || "", nom: nom || "Admin" }),
+              }, 20000);
+              const bj = await br.json().catch(()=>({}));
+              if (br.ok && bj.ok && bj.orgId) newOrgId = bj.orgId;
+            } catch(e) { /* fallback: keep pendingOrgId, server may already have it */ }
             setOrgId(newOrgId); setSbReady(true);
             setCurrentUser({id:userId,nom,email,role:"admin"});
             setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
@@ -2940,19 +2949,25 @@ function AppInner() {
           return;
         }
         const tok=data.access_token; _authToken=tok; setSbToken(tok);
-        // Generate org UUID client-side so we don't need to read it back
-        const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
+        // Org + profile via Netlify function (SERVICE_KEY) — evita el error
+        // RLS 42501 "new row violates row-level security policy for organizations"
+        // que ocurría con sbFetch client-side justo después del signup.
+        let newOrgId;
         try {
-          await sbFetch("organizations","POST",{id:newOrgId,name:authForm.boutique||"Ma Boutique",whatsapp:authForm.phone||""});
-          await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:derivedNom,phone:authForm.phone||"",email:authForm.email,role:"admin"});
+          const r = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
+            body: JSON.stringify({ boutique: authForm.boutique || "Ma Boutique", phone: authForm.phone || "", nom: derivedNom }),
+          }, 20000);
+          const j = await r.json().catch(()=>({}));
+          if (!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+          newOrgId = j.orgId;
         } catch(insertErr) {
-          // RLS rejected the INSERT — the user's Supabase likely requires email confirmation
-          // before granting full auth. Persist pending data and route to verify-email screen.
-          let code=""; try { code = JSON.parse(insertErr.message)?.code || ""; } catch(_){}
-          if(code==="42501" || /row-level security|row level security/i.test(insertErr.message||"")) {
+          if(/email.*confirm|confirm.*email/i.test(insertErr.message||"")) {
+            const pendingOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
             try { localStorage.setItem("teamly_pending_signup", JSON.stringify({
               userId: data.user?.id, email: authForm.email, nom: derivedNom,
-              phone: authForm.phone, boutique: authForm.boutique, orgId: newOrgId,
+              phone: authForm.phone, boutique: authForm.boutique, orgId: pendingOrgId,
             })); } catch(e){}
             _authToken = null; setSbToken(null);
             setAuthStep("verify-email");
@@ -3146,12 +3161,18 @@ function AppInner() {
                       localStorage.setItem("teamly_nom", p.nom||"");
                     } catch(e){}
                   } else {
-                    // No profile — create org+profile with user JWT (RLS allows it)
-                    const newOrgId = crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`;
-                    await sbFetch("organizations","POST",{id:newOrgId,name:"Ma Boutique",whatsapp:""});
-                    await sbFetch("profiles","POST",{id:data.user.id,org_id:newOrgId,nom:authForm.email.split("@")[0],phone:"",email:authForm.email,role:"admin"});
+                    // No profile — bootstrap via Netlify function (bypassa RLS 42501)
+                    const r = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
+                      body: JSON.stringify({ boutique: "Ma Boutique", phone: "", nom: authForm.email.split("@")[0] }),
+                    }, 20000);
+                    const j = await r.json().catch(()=>({}));
+                    if (!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
+                    const newOrgId = j.orgId;
                     setOrgId(newOrgId); setSbReady(true); setRole("admin"); setTab("dashboard");
-                    try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_role","admin");}catch(e){}
+                    setCurrentUser({id:data.user.id,nom:j.nom||authForm.email.split("@")[0],email:authForm.email,role:"admin"});
+                    try{localStorage.setItem("teamly_token",tok);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);}catch(e){}
                   }
                 } catch(e) {
                   const errMsg = e.message||"";
@@ -3654,14 +3675,20 @@ function AppInner() {
             }
             const tok = data.access_token; _authToken = tok; setSbToken(tok);
             const userId = data.user?.id;
-            const newOrgId = pending?.orgId || (crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`);
             const nom      = pending?.nom      || authForm.nom      || "Admin";
             const phone    = pending?.phone    || authForm.phone    || "";
             const boutique = pending?.boutique || authForm.boutique || "Ma Boutique";
+            // Bootstrap via Netlify function (SERVICE_KEY) — evita RLS 42501
+            let newOrgId = pending?.orgId || (crypto.randomUUID ? crypto.randomUUID() : `org_${Date.now()}`);
             try {
-              await sbFetch("organizations","POST",{id:newOrgId,name:boutique,whatsapp:phone});
-              await sbFetch("profiles","POST",{id:userId,org_id:newOrgId,nom,phone,email,role:"admin"});
-            } catch(e){ /* may already exist via realtime — ignore */ }
+              const br = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
+                body: JSON.stringify({ boutique, phone, nom }),
+              }, 20000);
+              const bj = await br.json().catch(()=>({}));
+              if (br.ok && bj.ok && bj.orgId) newOrgId = bj.orgId;
+            } catch(e){ /* bootstrap may already exist — keep newOrgId */ }
             setOrgId(newOrgId); setSbReady(true);
             setCurrentUser({id:userId, nom, email, role:"admin", phone});
             setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
