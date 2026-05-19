@@ -3930,7 +3930,7 @@ function AppInner() {
     // actions / setters
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
-    setProducts, setExpandedProd, setStockAjout, setShowAddProd,
+    setProducts, setExpandedProd, setStockAjout, setShowAddProd, setEditProd,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
     setAdSpend, setLivraisonsEchouees, setCashRemis,
@@ -6799,18 +6799,31 @@ function AppInner() {
 <AlertTriangle size={14} style={{display:"inline",verticalAlign:"-3px"}}/> Réinitialiser règles de prix
             </button>
             <button onClick={async()=>{
-              try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);}catch(e){}
-              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{name:settings.boutique,whatsapp:settings.whatsapp},_authToken);}catch(e){}
-              try{await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500}},_authToken);}catch(e){}
-              const fresh = await sbFetch(`profiles?id=eq.${currentUser.id}&select=*`).catch(()=>null);
-              if(fresh?.[0]) setCurrentUser(u=>({...u,...fresh[0]}));
-              else setCurrentUser(u=>({...u,nom:settings.nom}));
+              try {
+                const updated = await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:settings.nom},_authToken);
+                const newRow = Array.isArray(updated) ? updated[0] : updated;
+                if (newRow) setCurrentUser(u=>({...u,...newRow}));
+                else setCurrentUser(u=>({...u,nom:settings.nom}));
+              } catch(e) {
+                addToast(`Erreur profil: ${(e.message||"sauvegarde impossible").slice(0,80)}`,"❌",G.red,8000);
+                return;
+              }
+              try {
+                await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{name:settings.boutique,whatsapp:settings.whatsapp},_authToken);
+              } catch(e) {
+                addToast(`Erreur boutique: ${(e.message||"sauvegarde impossible").slice(0,80)}`,"❌",G.red,8000);
+                return;
+              }
+              try {
+                await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500}},_authToken);
+              } catch(e) { /* settings JSONB write is non-critical */ }
               try{
                 localStorage.setItem("teamly_nom",settings.nom);
                 localStorage.setItem(`teamly_boutique_${orgId}`,settings.boutique||"");
                 localStorage.setItem(`teamly_whatsapp_${orgId}`,settings.whatsapp||"");
                 localStorage.setItem(`teamly_baseZone_${orgId}`,settings.baseZone||"sn_dakar");
               }catch(e){}
+              if (loadMainRef.current) loadMainRef.current(); // refresh teamMembers so équipe tab shows new nom
               addToast("Paramètres sauvegardés ✅","✅",G.green);
               setShowSettings(false);
             }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
@@ -6833,16 +6846,20 @@ function AppInner() {
               ))}
             </div>
             <button onClick={async()=>{
-              await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null}).catch(()=>{});
-              // Re-fetch from DB to keep currentUser in sync with any server-side changes
-              const fresh = await sbFetch(`profiles?id=eq.${currentUser.id}&select=*`).catch(()=>null);
-              if(fresh?.[0]) setCurrentUser(u=>({...u,...fresh[0]}));
-              else setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
-              try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
-              try{localStorage.setItem("teamly_phone",profileEdit.phone||"");}catch(e){}
-              try{localStorage.setItem("teamly_birthday",profileEdit.birthday||"");}catch(e){}
-              addToast("Profil mis à jour ✅","✅",G.green);
-              setShowSettings(false);
+              try {
+                const updated = await sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday||null});
+                const newRow = Array.isArray(updated) ? updated[0] : updated;
+                if (newRow) setCurrentUser(u=>({...u,...newRow}));
+                else setCurrentUser(u=>({...u,nom:profileEdit.nom,phone:profileEdit.phone,birthday:profileEdit.birthday}));
+                try{localStorage.setItem("teamly_nom",profileEdit.nom);}catch(e){}
+                try{localStorage.setItem("teamly_phone",profileEdit.phone||"");}catch(e){}
+                try{localStorage.setItem("teamly_birthday",profileEdit.birthday||"");}catch(e){}
+                if (loadMainRef.current) loadMainRef.current(); // refresh teamMembers so équipe tab updates
+                addToast("Profil mis à jour ✅","✅",G.green);
+                setShowSettings(false);
+              } catch(e) {
+                addToast(`Erreur: ${(e.message||"sauvegarde impossible").slice(0,80)}`,"❌",G.red,8000);
+              }
             }} style={{width:"100%",background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:10}}>
 <Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer
             </button>
