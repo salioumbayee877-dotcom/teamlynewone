@@ -1,4 +1,4 @@
-const CACHE = "teamly-v7";
+const CACHE = "teamly-v8";
 const STATIC = ["/", "/index.html", "/app.js", "/apple-touch-icon.png", "/manifest.json"];
 const SKIP_CACHE = ["/rest/v1/", "supabase.co", ".netlify/functions", "nominatim.openstreetmap", "anthropic"];
 

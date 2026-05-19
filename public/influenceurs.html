@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collabore avec Teamly – Formulaire Influenceurs</title>
+  <link rel="icon" href="/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0F2412;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      font-family: 'DM Sans', sans-serif;
+    }
+
+    .card {
+      background: #1B3A1E;
+      border-radius: 20px;
+      padding: 3rem 2.5rem 2.5rem;
+      width: 100%;
+      max-width: 620px;
+      color: #fff;
+    }
+
+    /* Logo */
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 2.2rem;
+    }
+    .logomark {
+      width: 40px;
+      height: 40px;
+      background: #E8801A;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-family: 'DM Serif Display', serif;
+      font-size: 19px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .logotxt {
+      font-family: 'DM Serif Display', serif;
+      font-size: 23px;
+      color: #fff;
+    }
+    .badge {
+      background: #E8801A;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 500;
+      padding: 3px 11px;
+      border-radius: 20px;
+      margin-left: 4px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+      border: 2px solid rgba(255,255,255,.15);
+    }
+
+    /* Heading */
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 30px;
+      color: #fff;
+      line-height: 1.2;
+      margin-bottom: .45rem;
+    }
+    h1 em { color: #E8801A; font-style: normal; }
+    .sub {
+      font-size: 14px;
+      color: #8FB894;
+      line-height: 1.65;
+      margin-bottom: 2.2rem;
+    }
+
+    /* Section labels */
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #E8801A;
+      letter-spacing: .8px;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #2D4E22;
+    }
+
+    /* Grid */
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+      .card { padding: 2rem 1.25rem 1.75rem; }
+    }
+
+    /* Fields */
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 11px;
+      font-weight: 500;
+      color: #8FB894;
+      letter-spacing: .6px;
+      text-transform: uppercase;
+    }
+
+    input, select, textarea {
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: #fff;
+      background: #2D4E22;
+      border: 1.5px solid #3D6030;
+      border-radius: 10px;
+      padding: 11px 14px;
+      outline: none;
+      transition: border-color .18s;
+      width: 100%;
+    }
+    input::placeholder, textarea::placeholder { color: #5A7E55; }
+    input:focus, select:focus, textarea:focus { border-color: #E8801A; }
+
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238FB894' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 13px center;
+      background-color: #2D4E22;
+      padding-right: 36px;
+      cursor: pointer;
+    }
+    select option { background: #1B3A1E; color: #fff; }
+
+    textarea { resize: vertical; min-height: 90px; }
+
+    /* Instagram field */
+    .ig-wrap { position: relative; }
+    .ig-wrap input { padding-left: 44px; }
+    .ig-icon {
+      position: absolute;
+      left: 13px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      pointer-events: none;
+    }
+
+    /* Radio */
+    .radiogrp {
+      display: flex;
+      gap: 22px;
+      padding: 5px 0;
+      flex-wrap: wrap;
+    }
+    .radiopt {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      color: #cde8c7;
+    }
+    .radiopt input[type="radio"] {
+      width: 17px;
+      height: 17px;
+      accent-color: #E8801A;
+      margin: 0;
+      padding: 0;
+      border: none;
+      background: none;
+      flex-shrink: 0;
+    }
+
+    /* Submit button */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: #E8801A;
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      margin-top: .6rem;
+      transition: background .15s, transform .1s, opacity .15s;
+      letter-spacing: .2px;
+    }
+    .btn:hover { background: #C96A10; }
+    .btn:active { transform: scale(.99); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .note {
+      text-align: center;
+      font-size: 12px;
+      color: #5A7E55;
+      margin-top: 1rem;
+    }
+
+    .err {
+      display: none;
+      background: rgba(220,38,38,0.15);
+      border: 1px solid rgba(220,38,38,0.4);
+      color: #fca5a5;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 13px;
+      margin-top: 14px;
+    }
+    .err.show { display: block; }
+
+    /* Success state */
+    .success {
+      display: none;
+      text-align: center;
+      padding: 3.5rem 1rem;
+    }
+    .sicon {
+      width: 64px;
+      height: 64px;
+      background: #E8801A;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.4rem;
+    }
+    .success h2 {
+      font-family: 'DM Serif Display', serif;
+      color: #fff;
+      font-size: 24px;
+      margin-bottom: .5rem;
+    }
+    .success p { font-size: 14px; color: #8FB894; line-height: 1.65; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+
+    <!-- Logo -->
+    <div class="logo">
+      <div class="logomark">T</div>
+      <span class="logotxt">Teamly</span>
+      <span class="badge">Influenceurs</span>
+    </div>
+
+    <!-- Form -->
+    <div id="form-content">
+      <h1>Collabore avec <em>Teamly</em></h1>
+      <p class="sub">La plateforme n°1 de gestion COD pour le e-commerce en Afrique de l'Ouest. Remplis le formulaire et on te contacte sous 48h.</p>
+
+      <form id="tform" novalidate>
+
+        <div class="section-label">Informations personnelles</div>
+
+        <div class="row">
+          <div class="field">
+            <label for="nom">Nom complet</label>
+            <input type="text" id="nom" name="nom_complet" placeholder="Ton nom complet" required autocomplete="name" />
+          </div>
+          <div class="field">
+            <label for="email">Email de contact</label>
+            <input type="email" id="email" name="email" placeholder="email@exemple.com" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="wa">WhatsApp (avec indicatif pays)</label>
+          <input type="tel" id="wa" name="whatsapp" placeholder="+221 77 000 00 00" required autocomplete="tel" />
+        </div>
+
+        <div class="section-label">Ton profil créateur</div>
+
+        <div class="field">
+          <label for="ig">Profil Instagram</label>
+          <div class="ig-wrap">
+            <svg class="ig-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="2" y="2" width="20" height="20" rx="5" stroke="#E8801A" stroke-width="1.8"/>
+              <circle cx="12" cy="12" r="4" stroke="#E8801A" stroke-width="1.8"/>
+              <circle cx="17.5" cy="6.5" r="1" fill="#E8801A"/>
+            </svg>
+            <input type="url" id="ig" name="instagram" placeholder="https://instagram.com/tonprofil" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label for="pays">Pays / marché principal</label>
+            <select id="pays" name="pays">
+              <option value="">Sélectionner…</option>
+              <option value="Sénégal">Sénégal</option>
+              <option value="Côte d'Ivoire">Côte d'Ivoire</option>
+              <option value="Mali">Mali</option>
+              <option value="Cameroun">Cameroun</option>
+              <option value="Burkina Faso">Burkina Faso</option>
+              <option value="France">France</option>
+              <option value="Espagne">Espagne</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="niche">Niche de contenu</label>
+            <select id="niche" name="niche">
+              <option value="">Sélectionner…</option>
+              <option value="E-commerce / Vente en ligne">E-commerce / Vente en ligne</option>
+              <option value="Tech / SaaS">Tech / SaaS</option>
+              <option value="Marketing digital">Marketing digital</option>
+              <option value="Entrepreneuriat">Entrepreneuriat</option>
+              <option value="Finance / Business">Finance / Business</option>
+              <option value="Autre">Autre</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-label">Expérience & motivation</div>
+
+        <div class="field">
+          <label>As-tu déjà fait des collaborations payées ?</label>
+          <div class="radiogrp">
+            <label class="radiopt">
+              <input type="radio" name="experience" value="oui" />
+              Oui, j'ai de l'expérience
+            </label>
+            <label class="radiopt">
+              <input type="radio" name="experience" value="non" />
+              Non, ce serait une première
+            </label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="msg">Message bref</label>
+          <textarea id="msg" name="message" placeholder="Pourquoi veux-tu collaborer avec Teamly ? Comment penses-tu pouvoir apporter de la valeur ?"></textarea>
+        </div>
+
+        <button type="submit" class="btn" id="submitBtn">Envoyer ma candidature →</button>
+        <p class="note">On te répond sous 48h par email ou WhatsApp</p>
+        <div class="err" id="errBox"></div>
+
+      </form>
+    </div>
+
+    <!-- Success message -->
+    <div class="success" id="success-msg">
+      <div class="sicon">
+        <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <h2>Candidature reçue !</h2>
+      <p>Merci pour ton intérêt à collaborer avec Teamly.<br>On te contacte sous 48h par WhatsApp ou email.</p>
+    </div>
+
+  </div>
+
+  <script>
+    const SB_URL = "https://rddtislrbbkjpoqpdcry.supabase.co";
+    const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJkZHRpc2xyYmJranBvcXBkY3J5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYzMzcwMDIsImV4cCI6MjA5MTkxMzAwMn0.2G6eiQyih1h3PTDbYU757hGW7ScRqHhyyqsolEO-Rzc";
+
+    const form = document.getElementById("tform");
+    const btn  = document.getElementById("submitBtn");
+    const err  = document.getElementById("errBox");
+
+    function showErr(text) {
+      err.textContent = text;
+      err.classList.add("show");
+    }
+    function hideErr() {
+      err.classList.remove("show");
+      err.textContent = "";
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideErr();
+
+      const data = new FormData(form);
+      const nom  = (data.get("nom_complet")||"").trim();
+      const mail = (data.get("email")||"").trim();
+      const wa   = (data.get("whatsapp")||"").trim();
+
+      if (!nom || !mail || !wa) {
+        showErr("Nom, email et WhatsApp sont obligatoires.");
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mail)) {
+        showErr("Adresse email invalide.");
+        return;
+      }
+
+      const exp = data.get("experience");
+      const payload = {
+        nom_complet: nom,
+        email: mail,
+        whatsapp: wa,
+        instagram: (data.get("instagram")||"").trim() || null,
+        pays: data.get("pays") || null,
+        niche: data.get("niche") || null,
+        experience_payee: exp === "oui" ? true : exp === "non" ? false : null,
+        message: (data.get("message")||"").trim() || null,
+        user_agent: navigator.userAgent.slice(0, 300),
+        referrer: (document.referrer || "").slice(0, 300) || null,
+      };
+
+      btn.disabled = true;
+      btn.textContent = "Envoi en cours...";
+
+      try {
+        const r = await fetch(SB_URL + "/rest/v1/influencer_applications", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": SB_KEY,
+            "Authorization": "Bearer " + SB_KEY,
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify(payload),
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          throw new Error("HTTP " + r.status + " — " + txt.slice(0, 140));
+        }
+        document.getElementById("form-content").style.display = "none";
+        document.getElementById("success-msg").style.display = "block";
+      } catch (e2) {
+        showErr("Erreur d'envoi : " + (e2.message || "réessaie dans un instant."));
+        btn.disabled = false;
+        btn.textContent = "Envoyer ma candidature →";
+      }
+    });
+  </script>
+
+</body>
+</html>

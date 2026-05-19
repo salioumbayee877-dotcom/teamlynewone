@@ -58,7 +58,7 @@ export const StockPage = () => {
         const nCours= orders.filter(o=>o.product?.startsWith(prod.name)&&["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length;
         const caTotal = orders.filter(o=>o.product?.startsWith(prod.name)&&o.status==="entregado").reduce((a,o)=>a+o.price,0);
         const tauxLiv = nTot>0?Math.round(nLiv/nTot*100):0;
-        const margeU  = prod.price-(prod.cost||0)-(prod.fraisLiv||FRAIS_LIV);
+        const margeU  = prod.price-(prod.cost||0);
         const isExpanded = expandedProd===prod.id;
 
         return (
@@ -190,10 +190,8 @@ export const StockPage = () => {
                   <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8,display:"flex",alignItems:"center",gap:5}}><Coins size={12}/> FINANCES</div>
                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
                     {[
-                      {l:"Prix de vente",   v:`${fmt(prod.price)} F`,         c:G.dark},
-                      {l:"Coût produit",    v:`${fmt(prod.cost||0)} F`,        c:"#DC2626"},
-                      {l:"Frais livraison", v:`${fmt(prod.fraisLiv||FRAIS_LIV)} F`, c:"#D97706"},
-                      {l:"Marge / unité",   v:`${fmt(margeU)} F`,              c:margeU>=0?G.green:G.red},
+                      {l:"Prix de vente",   v:`${fmt(prod.price)} F`,   c:G.dark},
+                      {l:"Coût produit",    v:`${fmt(prod.cost||0)} F`, c:"#DC2626"},
                     ].map((s,i)=>(
                       <div key={i} style={{background:G.grayLight,borderRadius:9,padding:"8px 10px"}}>
                         <div style={{fontSize:13,fontWeight:700,color:s.c}}>{s.v}</div>
