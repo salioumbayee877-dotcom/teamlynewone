@@ -7769,7 +7769,10 @@ function AppInner() {
           for (let i = 0; i < pItems.length; i++) {
             const item = pItems[i]; const resp = newResponses[i];
             const existing = findPricingRule(item.name);
-            if (item.case === 1) {
+            if (item.case === 1 && resp.type === "variant") {
+              // Variante de un producto nuevo: no creamos regla — el próximo
+              // pedido del mismo nombre volverá a disparar el popup 🆕.
+            } else if (item.case === 1) {
               const isBundle = resp.type === "bundle" && resp.bundleQty;
               const bq       = isBundle ? resp.bundleQty : null;
               const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.pricePerUnit;
@@ -7816,8 +7819,14 @@ function AppInner() {
         const onDone = (result) => {
           let upd = { resolved: true };
           if (item.case === 1) {
-            upd.type = result?.pricingType === "bundle" ? "bundle" : "unit";
-            upd.bundleQty = result?.bundleQuantity || null;
+            if (result?.pricingType === "bundle") {
+              upd.type = "bundle";
+              upd.bundleQty = result?.bundleQuantity || null;
+            } else if (result?.pricingType === "variant") {
+              upd.type = "variant";
+            } else {
+              upd.type = "unit";
+            }
           } else if (item.case === 2) {
             if (result?.pricingType === "bundle") {
               upd.type = "bundle";

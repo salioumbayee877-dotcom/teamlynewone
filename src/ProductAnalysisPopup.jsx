@@ -59,8 +59,9 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
   // ── Main choices per case ────────────────────────────────────────────────
   const mainOptions =
     isNew ? [
-      { id: "unit",   emoji: "📦", label: "Prix unitaire",     sub: "Vendu à l'unité" },
-      { id: "bundle", emoji: "🎁", label: "Bundle / Pack",     sub: "Vendu par lot" },
+      { id: "unit",    emoji: "📦", label: "Prix unitaire",    sub: "Vendu à l'unité" },
+      { id: "bundle",  emoji: "🎁", label: "Bundle / Pack",    sub: "Vendu par lot" },
+      { id: "variant", emoji: "📏", label: "Différente taille", sub: "Variante (taille / couleur) — pas de règle créée" },
     ]
     : isDrop ? [
       { id: "discount",  emoji: "🏷️", label: "Promotion temporaire", sub: "Badge PROMO + ancien prix barré" },
