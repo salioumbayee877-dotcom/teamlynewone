@@ -1317,7 +1317,7 @@ function AppInner() {
     else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
   };
 
-  const startWavePayment = async (amount=8000, planKey="basic") => {
+  const startWavePayment = async (amount=9000, planKey="basic") => {
     if(!orgId||payLoading) return;
     setPayLoading(planKey);
     try {
@@ -2854,7 +2854,7 @@ function AppInner() {
       ],
     },
     {
-      key:"basic", name:"Basic", price:"8 000 CFA", priceNum:8000, maxMembers:3, maxOrders:100, maxStores:1, color:G.green, bg:G.greenLight,
+      key:"basic", name:"Basic", price:"9 000 CFA", priceNum:9000, maxMembers:3, maxOrders:100, maxStores:1, color:G.green, bg:G.greenLight,
       tag:"Le plus populaire",
       description:"Pour les boutiques qui démarrent",
       features:[
@@ -4527,7 +4527,7 @@ function AppInner() {
                       onChange={e=>setSaPlanEdit(p=>({...p,[client.id]:{...edit,plan:e.target.value}}))}
                       style={{flex:1,border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:13,outline:"none",minWidth:120}}>
                       <option value="gratuit">Gratuit</option>
-                      <option value="basic">Basic — 8 000 CFA</option>
+                      <option value="basic">Basic — 9 000 CFA</option>
                       <option value="pro">Pro — 14 000 CFA</option>
                       <option value="scale">Scale — 25 000 CFA</option>
                     </select>
