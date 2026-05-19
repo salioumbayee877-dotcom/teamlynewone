@@ -244,11 +244,6 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
             </div>
 
             <CTA enabled={!!bundleQty} label="✓ Confirmer" onClick={handleBundleCTA} />
-            <button onClick={onSkip}
-              style={{display:"block",width:"100%",background:"none",color:C.gray,border:"none",
-                      padding:"10px 0 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              Ignorer
-            </button>
           </>
         ) : (
           <>
@@ -274,11 +269,6 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
               label={(mainChoice === "bundle") ? "Suivant →" : "✓ Confirmer"}
               onClick={handleMainCTA}
             />
-            <button onClick={onSkip}
-              style={{display:"block",width:"100%",background:"none",color:C.gray,border:"none",
-                      padding:"10px 0 0",fontWeight:600,fontSize:13,cursor:"pointer"}}>
-              Ignorer
-            </button>
           </>
         )}
       </div>
