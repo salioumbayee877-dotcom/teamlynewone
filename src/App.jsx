@@ -1237,18 +1237,25 @@ function AppInner() {
     if (!_normProd(rawName)) return false;
     return products.some(p => !p.archived && _fuzzyProdMatch(p.name, rawName));
   };
-  // Limpia reglas huérfanas tras borrar un pedido. Para cada producto del
-  // pedido borrado, si no queda ningún otro pedido (no archivado) ni está en
-  // catálogo, eliminamos su regla en product_pricing_rules → el próximo
-  // pedido del mismo producto vuelve a disparar el popup desde cero.
+  // Limpia reglas huérfanas tras borrar un pedido. Si no queda NINGÚN otro
+  // pedido (no archivado) para ese producto → borramos la regla.
+  // El catálogo ya NO bloquea la limpieza (los webhooks lo llenan automáticamente
+  // y eso impedía que el popup volviera al estado 🆕 NOUVEAU PRODUIT).
+  // Resultado: borrar el último pedido de un producto → próximo pedido del mismo
+  // producto vuelve a disparar el popup desde el principio (caso 1).
   const cleanupOrphanRules = async (deletedOrder) => {
     if (!deletedOrder?.product || !orgId) return;
     const items = parseProd(deletedOrder.product);
     for (const item of items) {
       if (!item.name) continue;
-      if (isKnownProduct(item.name, deletedOrder.id)) continue;
       const rule = findPricingRule(item.name);
       if (!rule) continue;
+      // ¿Quedan otros pedidos (no archivados, distintos del borrado) para este producto?
+      const otherOrdersExist = orders.some(o => {
+        if (o.archived || o.id === deletedOrder.id || !o.product) return false;
+        return parseProd(o.product).some(p => _fuzzyProdMatch(rule.product_name, p.name));
+      });
+      if (otherOrdersExist) continue;
       try {
         await sbFetch(`product_pricing_rules?id=eq.${rule.id}`,"DELETE");
         setPricingRules(prev => prev.filter(r => r.id !== rule.id));
