@@ -7808,10 +7808,10 @@ function AppInner() {
 
         const item = pItems[currentIdx] || pItems[0];
         const alert = item.case === 1
-          ? { type: "new_product",  name: item.name, price: item.price }
+          ? { type: "new_product",  name: item.name, price: item.price, qty: item.qty, pricePerUnit: item.pricePerUnit }
           : item.case === 2
-          ? { type: "price_rise",   name: item.name, oldPrice: item.expectedPrice, newPrice: item.price }
-          : { type: "price_drop",   name: item.name, oldPrice: item.expectedPrice, newPrice: item.price };
+          ? { type: "price_rise",   name: item.name, oldPrice: item.expectedPrice, newPrice: item.price, qty: item.qty, pricePerUnit: item.pricePerUnit }
+          : { type: "price_drop",   name: item.name, oldPrice: item.expectedPrice, newPrice: item.price, qty: item.qty, pricePerUnit: item.pricePerUnit };
 
         const onDone = (result) => {
           let upd = { resolved: true };

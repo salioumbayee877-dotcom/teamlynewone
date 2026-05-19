@@ -74,7 +74,7 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
   const question = isNew
     ? "Comment vendez-vous ce produit ?"
     : isDrop
-    ? "Quelle est la nature de cette baisse ?"
+    ? "Quelle est la nature de cette baisse de prix ?"
     : "Toujours prix unitaire ou est-ce devenu un bundle ?";
 
   // ── Submit handlers ──────────────────────────────────────────────────────
@@ -131,10 +131,16 @@ export default function ProductAnalysisPopup({ alert, onDone, onSkip, onClose })
             <span style={{fontSize:12,color:C.gray,fontWeight:600}}>Ancien prix</span>
             <span style={{fontSize:13,color:C.gray,textDecoration:"line-through"}}>{fmtF(alert.oldPrice)}</span>
           </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
             <span style={{fontSize:12,color:C.gray,fontWeight:600}}>Nouveau prix</span>
             <span style={{fontSize:18,fontWeight:800,color:tag.fg}}>{fmtF(alert.newPrice)}</span>
           </div>
+          {alert.pricePerUnit != null && (
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:12,color:C.gray,fontWeight:600}}>Prix unitaire{alert.qty>1?` (×${alert.qty})`:""}</span>
+              <span style={{fontSize:13,color:C.dark,fontWeight:700}}>{fmtF(alert.pricePerUnit)}</span>
+            </div>
+          )}
           <div style={{display:"flex",justifyContent:"flex-end",marginTop:8}}>
             <span style={{display:"inline-flex",alignItems:"center",gap:4,background:tag.bg,color:tag.fg,borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:700}}>
               <span>{isRise ? "▲" : "▼"}</span>
