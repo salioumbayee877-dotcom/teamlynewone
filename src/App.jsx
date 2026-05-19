@@ -2785,10 +2785,13 @@ function AppInner() {
     }
 
     const camv  = totalUnits * (prod.cost||0);
-    // Sync con config actual de zonas: ignora fraisLiv guardado en el pedido
-    const frais = livOps.reduce((s,o)=>s+detectZone(o.address).price,0);
-    // CA = total cobrado por el livreur (producto + livraison encaissée)
-    const ca = revenue + frais;
+    // Sync con la config actual de "Frais de livraison" (delivery_main_region +
+    // delivery_other_regions). Ignora el fraisLiv guardado en el pedido para
+    // reflejar siempre la tarifa actualizada que ve el admin en settings.
+    const _defPrice = settings.defaultDeliveryPrice||3500;
+    const frais = livOps.reduce((s,o)=>s+detectDeliveryZone(o.city||"", mainRegion, otherRegions, _defPrice).price,0);
+    // CA = total cobrado (revenue ya incluye la livraison en o.price/line_total)
+    const ca = revenue;
     const zoneBreakdown = WA_ZONES.map(z=>({
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
