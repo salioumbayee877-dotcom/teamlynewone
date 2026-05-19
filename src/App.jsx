@@ -1256,19 +1256,43 @@ function AppInner() {
       } catch(e) { console.error("Cleanup rule failed:", e.message); }
     }
   };
-  // Regla simple: si el producto ya apareció antes (catálogo, pedidos previos
-  // o regla guardada) → no popup, sea cual sea el precio. Solo se pregunta
-  // cuando el nombre del producto es desconocido para el sistema.
+  // Devuelve el nombre canónico del producto desde el catálogo (sin variantes).
+  // Si no se encuentra, devuelve el nombre tal cual. Sirve para guardar la regla
+  // con el nombre corto y que el fuzzy match reconozca todas las variantes.
+  const findCanonicalName = (rawName) => {
+    if (!_normProd(rawName)) return rawName;
+    const found = products.find(p => !p.archived && _fuzzyProdMatch(p.name, rawName));
+    return found?.name || rawName;
+  };
+  // Detección por reglas + precio: 3 casos
+  //  caso 1 (nuevo producto) → no hay regla → popup 🆕
+  //  caso 2 (precio subió)    → hay regla y precio > esperado + 2% → popup 📈
+  //  caso 3 (precio bajó)     → hay regla y precio < esperado − 2% → popup 📉
+  //  silencio                 → precio dentro de tolerancia
   const detectPricingIssues = (order) => {
     const items = parseProd(order.product);
     const totalQty = items.reduce((s,p)=>s+p.qty, 0);
     const orderPrice = parseInt(order.price)||0;
     const issues = [];
     for(const item of items) {
-      if(isKnownProduct(item.name, order.id)) continue;
+      if(!_normProd(item.name)) continue;
+      const rule = findPricingRule(item.name);
       const itemPrice = items.length===1 ? orderPrice : Math.round(orderPrice*item.qty/Math.max(1,totalQty));
       const pricePerUnit = item.qty>0 ? Math.round(itemPrice/item.qty) : itemPrice;
-      issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:findPricingRule(item.name)});
+      if(!rule) {
+        issues.push({case:1, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule:null});
+      } else {
+        let expectedPrice = (rule.reference_price_unit||0) * item.qty;
+        if(rule.type==="bundle" && rule.reference_price_bundle && item.qty===rule.bundle_quantity) {
+          expectedPrice = rule.reference_price_bundle;
+        }
+        const tol = Math.max(50, expectedPrice * 0.02);
+        if(expectedPrice>0 && itemPrice > expectedPrice + tol) {
+          issues.push({case:2, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
+        } else if(expectedPrice>0 && itemPrice < expectedPrice - tol && itemPrice > 0) {
+          issues.push({case:3, name:item.name, price:itemPrice, qty:item.qty, pricePerUnit, rule, expectedPrice});
+        }
+      }
     }
     return issues;
   };
@@ -7741,9 +7765,10 @@ function AppInner() {
             if (item.case === 1) {
               const isBundle = resp.type === "bundle" && resp.bundleQty;
               const bq       = isBundle ? resp.bundleQty : null;
-              const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.price;
+              const refUnit  = isBundle ? Math.round(item.price / Math.max(1, bq)) : item.pricePerUnit;
               const refBund  = isBundle ? item.price : null;
-              const payload  = {org_id:orgId, product_name:item.name, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, acknowledged_prices:[Number(item.price)], updated_at:new Date().toISOString()};
+              const canonical = findCanonicalName(item.name);
+              const payload  = {org_id:orgId, product_name:canonical, type:resp.type||"unit", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, acknowledged_prices:[Number(item.price)], updated_at:new Date().toISOString()};
               const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
               const saved = Array.isArray(res)?res[0]:res;
               if (saved) setPricingRules(prev=>[...prev,saved]);
@@ -7760,10 +7785,13 @@ function AppInner() {
               const patch = {type:"unit", reference_price_unit:item.pricePerUnit, bundle_quantity:null, reference_price_bundle:null, discount_percentage:null, discount_type:null, acknowledged_prices:ack, updated_at:new Date().toISOString()};
               if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
             } else if (item.case === 3 && resp.type === "discount") {
-              const pct = item.expectedPrice > 0 ? Math.max(1, Math.round((1 - item.price / item.expectedPrice) * 100)) : 0;
-              const ack = mergeAck(existing?.acknowledged_prices, item.price);
-              const patch = {type:"discount", discount_percentage:pct, discount_type:resp.discountType||"ponctuel", reference_price_unit:resp.discountType==="permanent"?item.pricePerUnit:(existing?.reference_price_unit||item.pricePerUnit), acknowledged_prices:ack, updated_at:new Date().toISOString()};
-              if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+              // Promo ponctuelle (opción a): no tocamos la regla — este pedido es una excepción de 1 vez.
+              // Permanente: el nuevo precio (más bajo) se convierte en la nueva referencia.
+              if (resp.discountType === "permanent" && existing) {
+                const patch = {type:"unit", reference_price_unit:item.pricePerUnit, bundle_quantity:null, reference_price_bundle:null, discount_percentage:null, discount_type:null, updated_at:new Date().toISOString()};
+                await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626"));
+                setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r));
+              }
             }
           }
           setPricingChecked(prev => new Set([...prev, orderId]));
