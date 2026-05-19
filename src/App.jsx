@@ -7463,9 +7463,16 @@ function AppInner() {
                   msg:`Supprimer "${editProd.name}" ?`,
                   sub:"Stock et historique supprimés définitivement.",
                   danger:true,
-                  onConfirm:()=>{ 
+                  onConfirm:()=>{
                     setProducts(p=>p.filter(x=>x.id!==editProd.id));
                     if(!String(editProd.id).startsWith("tmp_")) sbFetch(`products?id=eq.${editProd.id}`,"PATCH",{archived:true});
+                    // Borrar también la regla de pricing asociada (si existe)
+                    // para que el popup vuelva desde cero si el producto reaparece por webhook
+                    const orphanRule = findPricingRule(editProd.name);
+                    if (orphanRule) {
+                      sbFetch(`product_pricing_rules?id=eq.${orphanRule.id}`,"DELETE").catch(()=>{});
+                      setPricingRules(prev => prev.filter(r => r.id !== orphanRule.id));
+                    }
                     setEditProd(null);
                   }
                 })
