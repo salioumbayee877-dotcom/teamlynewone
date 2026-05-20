@@ -2201,6 +2201,17 @@ function AppInner() {
     return () => clearTimeout(timer);
   }, [mainRegion, otherRegions, sbToken, orgId, role, settings]);
 
+  // Sync saved compta inputs (adSpend / livraisonsEchouees / cashRemis) from
+  // organizations.settings.compta_inputs → local state. Fires when org settings
+  // load (login, refresh) so admin and closer ven los mismos valores guardados.
+  useEffect(() => {
+    const ci = settings?.compta_inputs;
+    if (!ci) return;
+    if (ci.adSpend  && typeof ci.adSpend  === "object") setAdSpend(ci.adSpend);
+    if (ci.echouees && typeof ci.echouees === "object") setLivraisonsEchouees(ci.echouees);
+    if (ci.cashRemis !== undefined) setCashRemis(String(ci.cashRemis||""));
+  }, [settings?.compta_inputs]);
+
   // Single-session enforcement — ping /auth/v1/user every 45s.
   // If Supabase has revoked the session (another device logged in), the JWT
   // becomes invalid server-side and we get 401 → force logout.

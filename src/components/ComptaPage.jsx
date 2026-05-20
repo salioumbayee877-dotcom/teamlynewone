@@ -15,6 +15,7 @@ export const ComptaPage = () => {
   const {
     G, fmt, pct, FRAIS_LIV, TODAY, sbFetch,
     _COMPTA_FILTERS_DEFAULT,
+    orgId, setSettings,
     products, teamMembers, mainRegion, otherRegions, settings,
     comptaFilters, comptaFiltersOpen, comptaPeriodMode, comptaShortcut,
     dateFrom, dateTo, comptaExpandedProd, comptaCostEdit, comptaExportOpen,
@@ -28,6 +29,31 @@ export const ComptaPage = () => {
     setTab, setExpandedProd,
     addToast,
   } = useAppContext();
+
+  const [savingCompta, setSavingCompta] = React.useState(false);
+
+  const saveComptaInputs = async () => {
+    if (!orgId) { addToast("Erreur : organisation introuvable","❌","#DC2626"); return; }
+    setSavingCompta(true);
+    const compta_inputs = {
+      adSpend:  adSpend  || {},
+      echouees: livraisonsEchouees || {},
+      cashRemis: cashRemis || "",
+    };
+    const newSettings = { ...settings, compta_inputs };
+    try {
+      await sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: newSettings });
+      setSettings(newSettings);
+      try {
+        localStorage.setItem("teamly_ad_spend", JSON.stringify(adSpend));
+        localStorage.setItem("teamly_echecs",   JSON.stringify(livraisonsEchouees));
+      } catch(e) {}
+      addToast("Saisies enregistrées ✅","✅","#16a34a");
+    } catch(e) {
+      addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");
+    }
+    setSavingCompta(false);
+  };
 
   return (
     <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:600,margin:"0 auto",width:"100%"}}>
@@ -408,6 +434,13 @@ export const ComptaPage = () => {
                   {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} CFA</div>}
                 </div>
               </div>
+            </div>
+            <button onClick={saveComptaInputs} disabled={savingCompta}
+              style={{width:"100%",background:savingCompta?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:600,cursor:savingCompta?"not-allowed":"pointer",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {savingCompta ? <>⏳ Enregistrement…</> : <><Check size={15}/> Enregistrer les saisies</>}
+            </button>
+            <div style={{fontSize:10,color:"#9CA3AF",textAlign:"center",marginTop:6,fontStyle:"italic"}}>
+              Les valeurs sont partagées avec le Closer si la Compta lui est accessible.
             </div>
           </div>
         );
