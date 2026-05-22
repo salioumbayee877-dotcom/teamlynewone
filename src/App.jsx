@@ -1596,6 +1596,18 @@ function AppInner() {
       })();
       return;
     }
+    // ── Detect password recovery callback ────────────────────────────────
+    // Supabase envoie: #access_token=…&type=recovery&refresh_token=…
+    if(_confirmToken && _confirmType === "recovery") {
+      _authToken = _confirmToken; setSbToken(_confirmToken);
+      try {
+        if(_hp.get("refresh_token")) localStorage.setItem("teamly_refresh_token", _hp.get("refresh_token"));
+      } catch(e){}
+      setAuthStep("reset-password");
+      window.history.replaceState(null,"",window.location.pathname);
+      setAppLoading(false);
+      return;
+    }
     // ── Detect Google OAuth callback (PKCE or implicit) ──────────────────
     // PKCE: ?code=…  →  POST /auth/v1/token?grant_type=pkce  → tokens
     // Implicit: #access_token=…&refresh_token=…              → tokens directly
@@ -3211,7 +3223,8 @@ function AppInner() {
                 <button onClick={async()=>{
                   if(!authForm.email){setAuthError("Entre ton email d'abord");return;}
                   try{
-                    const r=await fetch(`${SB_URL}/auth/v1/recover`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({email:authForm.email})});
+                    const redirectTo = `${window.location.origin}/?reset=1`;
+                    const r=await fetch(`${SB_URL}/auth/v1/recover`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({email:authForm.email,redirect_to:redirectTo})});
                     if(r.ok) setAuthError("✅ Email de récupération envoyé !");
                     else setAuthError("Erreur — vérifie ton email");
                   }catch(e){setAuthError("Erreur réseau");}
@@ -3269,6 +3282,65 @@ function AppInner() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── ÉTAPE Reset password (depuis email de récupération) ── */}
+      {authStep==="reset-password"&&(
+        <div style={{width:"100%",maxWidth:360}}>
+          <div style={{textAlign:"center",marginBottom:22}}>
+            <div style={{fontSize:18,fontWeight:700,color:G.white,fontFamily:"sans-serif"}}>Nouveau mot de passe</div>
+            <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Choisis un nouveau mot de passe pour ton compte</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>🔒 Nouveau mot de passe</div>
+              <input type="password" value={authForm.password||""} onChange={e=>setAuthForm(p=>({...p,password:e.target.value}))} placeholder="Au moins 8 caractères"
+                style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif"}}>🔒 Confirme le mot de passe</div>
+              <input type="password" value={authForm.password2||""} onChange={e=>setAuthForm(p=>({...p,password2:e.target.value}))} placeholder="Retape le mot de passe"
+                style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
+            </div>
+            {authError&&<div style={{fontSize:11,color:authError.startsWith("✅")?"#86EFAC":"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
+            <button onClick={async()=>{
+              const pwd = authForm.password||""; const pwd2 = authForm.password2||"";
+              if(pwd.length<8){setAuthError("Le mot de passe doit avoir au moins 8 caractères");return;}
+              if(pwd!==pwd2){setAuthError("Les deux mots de passe ne correspondent pas");return;}
+              setAuthError(""); setAuthLoading(true);
+              try {
+                const r = await fetch(`${SB_URL}/auth/v1/user`,{
+                  method:"PUT",
+                  headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":`Bearer ${_authToken}`},
+                  body:JSON.stringify({password:pwd}),
+                });
+                const data = await r.json().catch(()=>({}));
+                if(!r.ok) throw new Error(data?.msg||data?.error_description||data?.message||"Erreur");
+                setAuthError("✅ Mot de passe mis à jour ! Connecte-toi avec ton nouveau mot de passe.");
+                try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_refresh_token");}catch(e){}
+                _authToken = null; setSbToken(null);
+                setTimeout(()=>{
+                  setAuthStep("login"); setAuthMode("login");
+                  setAuthForm(p=>({...p,password:"",password2:""}));
+                  setAuthError("");
+                }, 1800);
+              } catch(e) {
+                setAuthError(e.message||"Erreur lors de la mise à jour");
+              }
+              setAuthLoading(false);
+            }} disabled={!!authLoading}
+              style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:authLoading?"wait":"pointer",marginTop:6,fontFamily:"sans-serif",opacity:authLoading?0.6:1}}>
+              {authLoading?"...":"Mettre à jour le mot de passe"}
+            </button>
+            <button onClick={()=>{
+              try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_refresh_token");}catch(e){}
+              _authToken=null;setSbToken(null);
+              setAuthStep("login");setAuthMode("login");setAuthError("");
+            }} style={{background:"none",border:"none",color:"rgba(255,255,255,0.45)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif",textDecoration:"underline",marginTop:4}}>
+              ← Annuler
+            </button>
+          </div>
         </div>
       )}
 
