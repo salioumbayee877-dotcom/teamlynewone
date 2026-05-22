@@ -1597,15 +1597,59 @@ function AppInner() {
       return;
     }
     // ── Detect password recovery callback ────────────────────────────────
-    // Supabase envoie: #access_token=…&type=recovery&refresh_token=…
+    // Supabase peut renvoyer le callback dans 3 formats :
+    //  A) Implicit:  #access_token=…&type=recovery&refresh_token=…
+    //  B) token_hash: ?token_hash=…&type=recovery
+    //  C) PKCE code: ?code=… (avec ?reset=1 qu'on a ajouté nous-mêmes)
+    const _isResetQuery = _qp.get("reset") === "1";
+    const _recoveryTokenHash = _qp.get("token_hash");
+    const _recoveryCode = _qp.get("code");
     if(_confirmToken && _confirmType === "recovery") {
+      // Cas A — implicit flow
       _authToken = _confirmToken; setSbToken(_confirmToken);
-      try {
-        if(_hp.get("refresh_token")) localStorage.setItem("teamly_refresh_token", _hp.get("refresh_token"));
-      } catch(e){}
+      try { if(_hp.get("refresh_token")) localStorage.setItem("teamly_refresh_token", _hp.get("refresh_token")); } catch(e){}
       setAuthStep("reset-password");
       window.history.replaceState(null,"",window.location.pathname);
       setAppLoading(false);
+      return;
+    }
+    if((_isResetQuery || _confirmType === "recovery") && (_recoveryTokenHash || _recoveryCode) && _confirmType !== "signup") {
+      // Cas B/C — il faut échanger le token_hash ou code contre un JWT
+      (async()=>{
+        try {
+          let jwt = null;
+          if(_recoveryTokenHash) {
+            const vRes = await fetchWithTimeout(`${SB_URL}/auth/v1/verify`,{
+              method:"POST",
+              headers:{"Content-Type":"application/json","apikey":SB_KEY},
+              body:JSON.stringify({type:"recovery",token_hash:_recoveryTokenHash}),
+            },15000);
+            const vData = await vRes.json().catch(()=>({}));
+            jwt = vData.access_token || null;
+          } else if(_recoveryCode) {
+            const tokRes = await fetchWithTimeout(`${SB_URL}/auth/v1/token?grant_type=pkce`,{
+              method:"POST",
+              headers:{"Content-Type":"application/json","apikey":SB_KEY},
+              body:JSON.stringify({auth_code:_recoveryCode}),
+            },15000);
+            const tokData = await tokRes.json().catch(()=>({}));
+            jwt = tokData.access_token || null;
+          }
+          if(jwt) {
+            _authToken = jwt; setSbToken(jwt);
+            setAuthStep("reset-password");
+          } else {
+            setAuthError("Lien expiré ou invalide. Demande un nouveau lien.");
+            setAuthStep("login");
+          }
+        } catch(e) {
+          console.error("[TEAMLY recovery] error:", e?.message);
+          setAuthError("Erreur lors de la vérification du lien. Réessaie.");
+          setAuthStep("login");
+        }
+        window.history.replaceState(null,"",window.location.pathname);
+        setAppLoading(false);
+      })();
       return;
     }
     // ── Detect Google OAuth callback (PKCE or implicit) ──────────────────
