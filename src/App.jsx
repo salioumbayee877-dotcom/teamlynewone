@@ -4287,7 +4287,7 @@ function AppInner() {
               {t.k==="chat"&&chatUnread>0&&<span style={{background:"#25D366",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{chatUnread}</span>}
               {t.k==="boutique"&&(()=>{const cnt=orders.filter(o=>o.status==="boutique").length;return cnt>0?<span style={{background:G.gold,color:G.dark,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
               {t.k==="commandes"&&(()=>{const cnt=orders.filter(o=>o.status==="confirmado"&&!o.livreur&&(role!=="closer"||o.closer_id!==currentUser.id)).length;return cnt>0?<span style={{background:"#EF4444",color:"#fff",borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
-              {t.k==="livraisons"&&(()=>{const cnt=orders.filter(o=>o.livreur_id===currentUser.id&&!["entregado","rechazado"].includes(o.status)).length;return cnt>0?<span style={{background:"#0284C7",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
+              {t.k==="livraisons"&&(()=>{const cnt=orders.filter(o=>o.livreur_id===currentUser.id&&LIV_ACTIVE.has(o.status)).length;return cnt>0?<span style={{background:"#0284C7",color:G.white,borderRadius:"50%",width:18,height:18,fontSize:10,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{cnt}</span>:null;})()}
             </button>
             );
           })}
