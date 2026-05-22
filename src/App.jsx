@@ -4075,25 +4075,6 @@ function AppInner() {
         );
       })()}
 
-      {/* ── BANNIÈRE EMAIL NON CONFIRMÉ (dismissible) ── */}
-      {currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed && (
-        <div style={{background:"#FFF4D6",padding:"10px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0,borderBottom:"1px solid rgba(0,0,0,0.05)"}}>
-          <div style={{fontSize:12,color:G.green,fontWeight:500,flex:1}}>
-<Mail size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Vérifie ton email pour sécuriser ton compte
-          </div>
-          <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
-            <button onClick={async()=>{
-              try {
-                await fetch(`${SB_URL}/auth/v1/resend`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({type:"signup",email:currentUser.email})});
-                addToast("✅ Email de vérification renvoyé","✅",G.green);
-              } catch(e) { addToast("Erreur — réessaie","❌",G.red); }
-            }} style={{background:G.green,color:"#FFF",border:"none",borderRadius:6,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Renvoyer</button>
-            <button onClick={()=>{ setEmailBannerDismissed(true); try{localStorage.setItem("teamly_email_banner_dismissed","1");}catch(e){} }}
-              style={{background:"none",border:"none",color:G.green,fontSize:18,cursor:"pointer",lineHeight:1,padding:"0 4px"}}>×</button>
-          </div>
-        </div>
-      )}
-
       {/* ── BANNIÈRE TRIAL (derniers 3 jours) ── */}
       {!isPro&&!trialExpired&&trialDaysLeft<=3&&(
         <div style={{background:G.green,padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,flexShrink:0}}>
@@ -5947,8 +5928,7 @@ function AppInner() {
           const hasBottomBar = !isDesktop; // all roles have tab bar on mobile
           // Banners between header and content also consume vertical space — subtract them
           const showTrialBanner = !isPro && !trialExpired && trialDaysLeft<=3;
-          const showEmailBanner = currentUser.email && !currentUser.email_confirmed_at && !emailBannerDismissed;
-          const bannersH = (showTrialBanner?32:0) + (showEmailBanner?38:0);
+          const bannersH = (showTrialBanner?32:0);
           // When keyboard is open, the bottom tab bar is hidden behind it — don't reserve space for it.
           const chatH = isDesktop
             ? `calc(100vh - 54px - ${bannersH}px)`
