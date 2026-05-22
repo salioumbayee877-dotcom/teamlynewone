@@ -3267,7 +3267,12 @@ function AppInner() {
                 <button onClick={async()=>{
                   if(!authForm.email){setAuthError("Entre ton email d'abord");return;}
                   try{
-                    const redirectTo = `${window.location.origin}/?reset=1`;
+                    // Force www canonical to avoid Netlify 301 redirect stripping the hash tokens
+                    const host = window.location.host;
+                    const origin = (host.includes("teamlyecom.com") && !host.startsWith("www."))
+                      ? "https://www.teamlyecom.com"
+                      : window.location.origin;
+                    const redirectTo = `${origin}/?reset=1`;
                     const r=await fetch(`${SB_URL}/auth/v1/recover`,{method:"POST",headers:{"Content-Type":"application/json","apikey":SB_KEY},body:JSON.stringify({email:authForm.email,redirect_to:redirectTo})});
                     if(r.ok) setAuthError("✅ Email de récupération envoyé !");
                     else setAuthError("Erreur — vérifie ton email");
