@@ -1635,13 +1635,15 @@ function AppInner() {
           setOrgId(p.org_id); setSbReady(true);
           setSettings(s=>({...s, nom:p.nom||s.nom, whatsapp:p.phone||orgPhone||s.whatsapp, boutique:orgName, ...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{}), ...(orgs?.[0]?.settings||{})}));
           setOrg(orgs?.[0] ? {id:orgs[0].id, name:orgs[0].name, whatsapp:orgs[0].whatsapp, plan:orgs[0].plan} : null);
-          setCurrentUser({id:p.id, nom:p.nom||fullName, email:p.email||email, role:p.role||"admin", phone:p.phone||"", birthday:p.birthday||""});
+          const emailConfirmedAt = uData?.email_confirmed_at || uData?.confirmed_at || new Date().toISOString();
+          setCurrentUser({id:p.id, nom:p.nom||fullName, email:p.email||email, role:p.role||"admin", phone:p.phone||"", birthday:p.birthday||"", email_confirmed_at:emailConfirmedAt});
           setRole(p.role||"admin"); setTab("dashboard");
           try {
             localStorage.setItem("teamly_org", p.org_id);
             localStorage.setItem("teamly_role", p.role||"admin");
             localStorage.setItem("teamly_userId", p.id||"");
             localStorage.setItem("teamly_nom", p.nom||fullName||"");
+            localStorage.setItem("teamly_email_confirmed", "1");
           } catch(e){}
         } else {
           console.log("[TEAMLY OAuth] New user — onboarding (boutique + phone)");
@@ -1732,7 +1734,7 @@ function AppInner() {
       // Restore immediately from cache so dashboard shows data while verifying
       if(savedOrg && savedRole && savedId) {
         setOrgId(savedOrg);
-        setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole,phone:localStorage.getItem("teamly_phone")||"",birthday:localStorage.getItem("teamly_birthday")||""});
+        setCurrentUser({id:savedId,nom:savedNom||"",email,role:savedRole,phone:localStorage.getItem("teamly_phone")||"",birthday:localStorage.getItem("teamly_birthday")||"",email_confirmed_at:localStorage.getItem("teamly_email_confirmed")==="1"?"confirmed":null});
         setRole(savedRole);
         if(savedRole==="admin"){
           const cc=localStorage.getItem(`teamly_cc_${savedOrg}`)||localStorage.getItem("teamly_closerCompta");
@@ -3171,6 +3173,8 @@ function AppInner() {
                       localStorage.setItem("teamly_role", p.role||"admin");
                       localStorage.setItem("teamly_userId", p.id||"");
                       localStorage.setItem("teamly_nom", p.nom||"");
+                      if(data.user?.email_confirmed_at) localStorage.setItem("teamly_email_confirmed", "1");
+                      else localStorage.removeItem("teamly_email_confirmed");
                     } catch(e){}
                   } else {
                     // No profile — bootstrap via Netlify function (bypassa RLS 42501)
