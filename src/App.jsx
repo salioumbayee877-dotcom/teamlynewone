@@ -1596,6 +1596,23 @@ function AppInner() {
       })();
       return;
     }
+    // ── Detect expired/invalid recovery link error ───────────────────────
+    const _hashError = _hp.get("error") || _hp.get("error_code");
+    const _hashErrorDesc = _hp.get("error_description");
+    if(_hashError) {
+      const msg = decodeURIComponent((_hashErrorDesc||"").replace(/\+/g," "));
+      if(msg.toLowerCase().includes("expired") || _hashError==="otp_expired") {
+        setAuthError("Le lien a expiré ou a déjà été utilisé. Demande un nouveau email.");
+      } else if(msg) {
+        setAuthError(msg);
+      }
+      try{localStorage.removeItem("teamly_token");localStorage.removeItem("teamly_refresh_token");}catch(e){}
+      _authToken = null;
+      setAuthStep("login");
+      window.history.replaceState(null,"",window.location.pathname);
+      setAppLoading(false);
+      return;
+    }
     // ── Detect password recovery callback ────────────────────────────────
     // Supabase peut renvoyer le callback dans 3 formats :
     //  A) Implicit:  #access_token=…&type=recovery&refresh_token=…
