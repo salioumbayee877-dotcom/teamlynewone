@@ -8531,8 +8531,11 @@ function AppInner() {
                       setOrders(o=>o.map(x=>{
                         if(x.id!==ordId) return x;
                         if(x.status!=="entregado"){
+                          const prodMatch = products.find(pr=>pr.name===x.product);
                           setProducts(p=>p.map(pr=>pr.name===x.product?{...pr,stock:Math.max(0,pr.stock-1)}:pr));
-                          sbFetch("stock_movements","POST",{org_id:orgId,product_id:x.product,user_id:currentUser?.id,source:"entregado",delta:-1,reason:"Livraison confirmée",order_id:x.id}).catch(()=>{});
+                          if(prodMatch?.id){
+                            sbFetch("stock_movements","POST",{org_id:orgId,product_id:prodMatch.id,user_id:currentUser?.id,source:"entregado",delta:-1,reason:"Livraison confirmée",order_id:x.id}).catch(()=>{});
+                          }
                         }
                         return {...x,status:"entregado"};
                       }));
