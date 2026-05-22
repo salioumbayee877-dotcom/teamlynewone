@@ -1068,16 +1068,35 @@ function AppInner() {
   };
 
   // ── WhatsApp confirmation ──
-  const sendWAConfirmation = (order) => {
+  const sendWAConfirmation = async (order) => {
     if(!order?.phone) return;
     const phone = order.phone.replace(/\D/g,"");
     const intlPhone = phone.startsWith("221") ? phone : `221${phone}`;
-    const msg = waTemplate
+    // Get or generate tracking token so the client can follow the order in real time
+    let token = order.tracking_token;
+    if(!token) {
+      try {
+        const rows = await sbFetch(`orders?id=eq.${order.id}&select=tracking_token`,"GET");
+        token = rows?.[0]?.tracking_token || null;
+        if(!token) {
+          // Fallback: ask Supabase to set one
+          const updated = await sbFetch(`orders?id=eq.${order.id}`,"PATCH",{tracking_token:crypto.randomUUID()});
+          token = updated?.[0]?.tracking_token || null;
+        }
+        if(token) setOrders(o=>o.map(x=>x.id===order.id?{...x,tracking_token:token}:x));
+      } catch(e) { /* best-effort */ }
+    }
+    const trackingLink = token ? `https://www.teamlyecom.com/track/${token}` : "";
+    const suiviLine = trackingLink ? `\n\n🔗 Suis ta commande en direct :\n${trackingLink}` : "";
+    let msg = waTemplate
       .replace("{client}", order.client||"")
       .replace("{produit}", order.product||"")
       .replace("{prix}", Number(order.price).toLocaleString("fr-FR"))
       .replace("{adresse}", order.address||"")
       .replace("{boutique}", settings.boutique||"Teamly");
+    // If user added {suivi} placeholder, replace it; otherwise append at the end
+    if(msg.includes("{suivi}")) msg = msg.replace("{suivi}", trackingLink);
+    else msg = msg + suiviLine;
     window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, "_blank");
   };
 
@@ -2540,17 +2559,34 @@ function AppInner() {
     if(wa) {
       const phone = newOrder.phone.replace(/\s+/g,"").replace(/^00/,"").replace(/^\+/,"");
       const phoneWA = phone.startsWith("221") ? phone : `221${phone}`;
-      // Use editable template — replace variables
-      const msg = waTemplate
-        .replace(/{client}/g, newOrder.client||"")
-        .replace(/{produit}/g, productLabel)
-        .replace(/{prix}/g, Number(price).toLocaleString("fr-FR"))
-        .replace(/{adresse}/g, newOrder.address||"")
-        .replace(/{boutique}/g, settings.boutique||"Teamly")
-        .replace(/{livreur}/g, _autoLivreurNom||"notre livreur");
-      const url = `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
-      setWaUrl(url);
+      const buildMsg = (token) => {
+        const trackingLink = token ? `https://www.teamlyecom.com/track/${token}` : "";
+        const suiviLine = trackingLink ? `\n\n🔗 Suis ta commande en direct :\n${trackingLink}` : "";
+        let msg = waTemplate
+          .replace(/{client}/g, newOrder.client||"")
+          .replace(/{produit}/g, productLabel)
+          .replace(/{prix}/g, Number(price).toLocaleString("fr-FR"))
+          .replace(/{adresse}/g, newOrder.address||"")
+          .replace(/{boutique}/g, settings.boutique||"Teamly")
+          .replace(/{livreur}/g, _autoLivreurNom||"notre livreur");
+        if(msg.includes("{suivi}")) msg = msg.replace(/{suivi}/g, trackingLink);
+        else if(trackingLink) msg = msg + suiviLine;
+        return `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
+      };
+      // Open immediately with no link — will be replaced as soon as DB returns tracking_token
+      setWaUrl(buildMsg(null));
       setShowWA(true);
+      // Refetch saved row to get the auto-generated tracking_token
+      const waitForToken = async () => {
+        for(let i=0;i<8;i++){
+          await new Promise(r=>setTimeout(r,400));
+          try {
+            const list = await sbFetch(`orders?phone=eq.${encodeURIComponent(newOrder.phone)}&order=created_at.desc&limit=1&select=id,tracking_token,created_at`,"GET");
+            if(list?.[0]?.tracking_token){ setWaUrl(buildMsg(list[0].tracking_token)); return; }
+          } catch(e){}
+        }
+      };
+      waitForToken();
     }
 
     setNewOrder({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"confirmado",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
@@ -8243,13 +8279,17 @@ function AppInner() {
                 else if(digits.startsWith("221")) phoneWA = digits;
                 else if(digits.startsWith("0")) phoneWA = "221" + digits.slice(1);
                 else phoneWA = "221" + digits;
-                const msg = waTemplate
+                const trackingLink = o.tracking_token ? `https://www.teamlyecom.com/track/${o.tracking_token}` : "";
+                const suiviLine = trackingLink ? `\n\n🔗 Suis ta commande en direct :\n${trackingLink}` : "";
+                let msg = waTemplate
                   .replace(/{client}/g,  o.client||"")
                   .replace(/{produit}/g, o.product||"")
                   .replace(/{prix}/g,    Number(o.price).toLocaleString("fr-FR"))
                   .replace(/{adresse}/g, o.address||"")
                   .replace(/{boutique}/g, settings.boutique||"Teamly")
                   .replace(/{livreur}/g,  assignSelLiv?.nom||"notre livreur");
+                if(msg.includes("{suivi}")) msg = msg.replace(/{suivi}/g, trackingLink);
+                else if(trackingLink) msg = msg + suiviLine;
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank");
               };
               return (

@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react'
 import './styles/global.css'
 import App from './App'
 import TeamlyLanding from './teamly-v2'
+import TrackingView from './TrackingView'
 
 Sentry.init({
   dsn: "https://f9ab4ebc622cca0a77e4227c91389f06@o4511325827760128.ingest.de.sentry.io/4511326170972240",
@@ -18,7 +19,12 @@ const isRecoveryCallback = _qp.get("type") === "recovery"
   || _qp.get("reset") === "1"
   || (!!_qp.get("token_hash") && _qp.get("type") !== "signup");
 
+const trackMatch = path.match(/^\/track\/([^/?#]+)/);
+
 function Root() {
+  if (trackMatch) {
+    return <TrackingView token={trackMatch[1]} />;
+  }
   if (path === '/' || path === '') {
     if (isRecoveryCallback) {
       // Password recovery callback landed on root — route to App so the handler fires
