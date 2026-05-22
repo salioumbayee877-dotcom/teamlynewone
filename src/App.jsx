@@ -1496,7 +1496,13 @@ function AppInner() {
       setChatUnread(0);
       setChatShowNew(false);
       // Save current timestamp so on next reload we only count messages newer than this
-      try { localStorage.setItem(`teamly_lastread_${currentUser.id}`, new Date().toISOString()); } catch(e){}
+      const nowIso = new Date().toISOString();
+      try { localStorage.setItem(`teamly_lastread_${currentUser.id}`, nowIso); } catch(e){}
+      // Also sync to profile so other devices see the same read state
+      if(currentUser.id) {
+        sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{chat_last_read_at:nowIso}).catch(()=>{});
+        setCurrentUser(u=>({...u, chat_last_read_at: nowIso}));
+      }
       setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
     }
   },[tab]);
@@ -1709,7 +1715,7 @@ function AppInner() {
           setSettings(s=>({...s, nom:p.nom||s.nom, whatsapp:p.phone||orgPhone||s.whatsapp, boutique:orgName, ...(orgs?.[0]?.plan?{plan:orgs[0].plan}:{}), ...(orgs?.[0]?.settings||{})}));
           setOrg(orgs?.[0] ? {id:orgs[0].id, name:orgs[0].name, whatsapp:orgs[0].whatsapp, plan:orgs[0].plan} : null);
           const emailConfirmedAt = uData?.email_confirmed_at || uData?.confirmed_at || new Date().toISOString();
-          setCurrentUser({id:p.id, nom:p.nom||fullName, email:p.email||email, role:p.role||"admin", phone:p.phone||"", birthday:p.birthday||"", email_confirmed_at:emailConfirmedAt});
+          setCurrentUser({id:p.id, nom:p.nom||fullName, email:p.email||email, role:p.role||"admin", phone:p.phone||"", birthday:p.birthday||"", email_confirmed_at:emailConfirmedAt, chat_last_read_at:p.chat_last_read_at||null});
           setRole(p.role||"admin"); setTab("dashboard");
           try {
             localStorage.setItem("teamly_org", p.org_id);
@@ -1875,7 +1881,7 @@ function AppInner() {
               if(sn)setSettings(s=>({...s,nom:sn}));
             }
             if(p.role==="closer"){const cc=localStorage.getItem(`teamly_cc_${p.org_id}`);if(cc!==null)setSettings(s=>({...s,closerCompta:cc==="true"}));}
-            setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||""});
+            setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||"",role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||"",chat_last_read_at:p.chat_last_read_at||null});
             setRole(p.role||"admin");
             try {
               localStorage.setItem("teamly_org",p.org_id);
@@ -2060,7 +2066,13 @@ function AppInner() {
           // Use genuineNew logic (messages not already in prev state).
           if(firstLoad || !lastMsgTime || prev.length === 0) {
             if(currentTab !== "chat" && merged.length > 0) {
-              const lastReadTime = (() => { try { return localStorage.getItem(lastReadKey); } catch(e) { return null; } })();
+              const lastReadTime = (() => {
+                let ls = null; try { ls = localStorage.getItem(lastReadKey); } catch(e) {}
+                const remote = currentUserRef.current?.chat_last_read_at || null;
+                // Use the most recent of the two
+                if(ls && remote) return ls > remote ? ls : remote;
+                return ls || remote;
+              })();
               let unread = 0;
               if(lastReadTime) {
                 unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
@@ -3236,7 +3248,7 @@ function AppInner() {
                         if(!pro){const days=Math.max(0,14-Math.floor((Date.now()-new Date(org.created_at||Date.now()))/86400000));setTrialDaysLeft(days);}
                       }
                     }
-                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||"",email_confirmed_at:data.user?.email_confirmed_at||null});
+                    setCurrentUser({id:p.id||"",nom:p.nom||"",email:p.email||authForm.email,role:p.role||"admin",phone:p.phone||"",birthday:p.birthday||"",email_confirmed_at:data.user?.email_confirmed_at||null,chat_last_read_at:p.chat_last_read_at||null});
                     setRole(p.role||"admin"); setTab("dashboard");
                     try {
                       localStorage.setItem("teamly_token", tok);
