@@ -1017,6 +1017,12 @@ function AppInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [memberReviewsModal, setMemberReviewsModal] = useState(null); // {member, role: 'closer'|'livreur'}
+  const [promoCode, setPromoCode] = useState("");
+  const [promoApplied, setPromoApplied] = useState(false);
+  // List of valid promo codes — all give -30% off
+  const VALID_PROMO_CODES = ["LANCEMENT30","INFLUENCER30","PROMO30","PARTENAIRE30","TEAMLY30","RAMADAN30","BIENVENUE30"];
+  const checkPromoCode = (code) => VALID_PROMO_CODES.includes((code||"").toUpperCase().trim());
+  const applyPromoDiscount = (price) => promoApplied ? Math.round(price * 0.7) : price;
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
@@ -1343,7 +1349,7 @@ function AppInner() {
     else setPricingPopup({orderId:order.id, order, items:issues, responses:issues.map(()=>({type:null,bundleQty:null,discountPct:"",discountType:"ponctuel",resolved:false}))});
   };
 
-  const startWavePayment = async (amount=9000, planKey="basic") => {
+  const startWavePayment = async (amount=13000, planKey="basic") => {
     if(!orgId||payLoading) return;
     setPayLoading(planKey);
     try {
@@ -3009,7 +3015,7 @@ function AppInner() {
       ],
     },
     {
-      key:"basic", name:"Basic", price:"9 000 CFA", priceNum:9000, maxMembers:3, maxOrders:100, maxStores:1, color:G.green, bg:G.greenLight,
+      key:"basic", name:"Basic", price:"13 000 CFA", priceNum:13000, maxMembers:3, maxOrders:100, maxStores:1, color:G.green, bg:G.greenLight,
       tag:"Le plus populaire",
       description:"Pour les boutiques qui démarrent",
       features:[
@@ -3027,7 +3033,7 @@ function AppInner() {
       locked:[],
     },
     {
-      key:"pro", name:"Pro", price:"14 000 CFA", priceNum:14000, maxMembers:5, maxOrders:200, maxStores:2, color:G.blue, bg:"#EFF6FF",
+      key:"pro", name:"Pro", price:"20 000 CFA", priceNum:20000, maxMembers:5, maxOrders:200, maxStores:2, color:G.blue, bg:"#EFF6FF",
       tag:"Pour les équipes",
       description:"Pour les boutiques en croissance",
       features:[
@@ -3047,7 +3053,7 @@ function AppInner() {
       locked:[],
     },
     {
-      key:"scale", name:"Scale", price:"25 000 CFA", priceNum:25000, maxMembers:null, maxOrders:null, maxStores:4, color:"#7C3AED", bg:"#EDE9FE",
+      key:"scale", name:"Scale", price:"36 000 CFA", priceNum:36000, maxMembers:null, maxOrders:null, maxStores:4, color:"#7C3AED", bg:"#EDE9FE",
       tag:"Pour les grandes équipes",
       description:"Croissance sans limites",
       features:[
@@ -4252,14 +4258,54 @@ function AppInner() {
                     </div>
 
                     <button
-                      onClick={()=>startWavePayment(p.price, p.key)}
+                      onClick={()=>startWavePayment(applyPromoDiscount(p.price), p.key)}
                       disabled={!!payLoading}
                       style={{width:"100%",background:payLoading===p.key?"#9CA3AF":p.highlight?G.green:"rgba(240,165,0,0.15)",color:p.highlight?"#FFF":G.gold,border:p.highlight?"none":`1px solid ${G.gold}`,borderRadius:11,padding:"13px 0",fontWeight:700,fontSize:14,cursor:payLoading?"not-allowed":"pointer",letterSpacing:0.3}}>
-                      {payLoading===p.key?"Connexion Wave...":`Choisir ${p.name} — ${p.priceLabel} CFA`}
+                      {payLoading===p.key
+                        ? "Connexion Wave..."
+                        : promoApplied
+                          ? `Choisir ${p.name} — ${(applyPromoDiscount(p.price)).toLocaleString("fr-FR")} CFA (-30%)`
+                          : `Choisir ${p.name} — ${p.priceLabel} CFA`}
                     </button>
                   </div>
                 </div>
               ))}
+
+              {/* Code promo input */}
+              <div style={{maxWidth:480,margin:"18px auto 0"}}>
+                <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(240,165,0,0.3)",borderRadius:12,padding:"12px 14px"}}>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,marginBottom:8,letterSpacing:0.5,display:"flex",alignItems:"center",gap:6}}>
+                    🎟 As-tu un code promo ?
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={e=>{
+                        const v = e.target.value.toUpperCase();
+                        setPromoCode(v);
+                        setPromoApplied(checkPromoCode(v));
+                      }}
+                      placeholder="Ex: LANCEMENT30"
+                      style={{
+                        flex:1,background:"rgba(0,0,0,0.25)",border:`1px solid ${promoApplied?G.green:"rgba(255,255,255,0.15)"}`,
+                        borderRadius:8,padding:"9px 12px",fontSize:13,color:"#fff",outline:"none",
+                        textTransform:"uppercase",letterSpacing:1,
+                      }}/>
+                    {promoApplied && (
+                      <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 12px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
+                        ✓ −30%
+                      </div>
+                    )}
+                  </div>
+                  {promoCode && !promoApplied && (
+                    <div style={{fontSize:10,color:"#FCA5A5",marginTop:6}}>Code invalide</div>
+                  )}
+                  {promoApplied && (
+                    <div style={{fontSize:11,color:"#86EFAC",marginTop:6}}>✓ Code <strong>{promoCode}</strong> appliqué — économise 30% sur ton plan</div>
+                  )}
+                </div>
+              </div>
 
               <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8}}>
                 Paiement sécurisé via Wave · Sans engagement
@@ -4278,9 +4324,9 @@ function AppInner() {
           <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",fontWeight:500}}>
             <strong style={{color:"#F0A500"}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""}</strong> d'essai restants
           </div>
-          <button onClick={()=>startWavePayment(14000,"pro")} disabled={!!payLoading}
+          <button onClick={()=>startWavePayment(20000,"pro")} disabled={!!payLoading}
             style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,letterSpacing:0.2}}>
-            {payLoading?"...":"Passer Pro — 14 000 CFA/mois"}
+            {payLoading?"...":"Passer Pro — 20 000 CFA/mois"}
           </button>
         </div>
       )}
@@ -7300,9 +7346,19 @@ function AppInner() {
                           <div style={{fontSize:11,color:G.gray,marginTop:2}}>{p.description}</div>
                         </div>
                         <div style={{textAlign:"right",flexShrink:0}}>
-                          <div style={{fontWeight:800,fontSize:18,color:G.dark,lineHeight:1}}>{p.key==="gratuit"?"Gratuit":p.price.split(" CFA")[0]}</div>
-                          {p.key!=="gratuit"&&<div style={{fontSize:10,color:G.gray}}>CFA / mois</div>}
-                          {p.key==="gratuit"&&<div style={{fontSize:10,color:G.gray}}>14 jours</div>}
+                          {(promoApplied && p.key!=="gratuit") ? (
+                            <>
+                              <div style={{fontSize:11,color:G.gray,textDecoration:"line-through",lineHeight:1}}>{p.price.split(" CFA")[0]} CFA</div>
+                              <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1.2}}>{applyPromoDiscount(p.priceNum).toLocaleString("fr-FR")}</div>
+                              <div style={{fontSize:10,color:G.green,fontWeight:600}}>CFA / mois · −30%</div>
+                            </>
+                          ) : (
+                            <>
+                              <div style={{fontWeight:800,fontSize:18,color:G.dark,lineHeight:1}}>{p.key==="gratuit"?"Gratuit":p.price.split(" CFA")[0]}</div>
+                              {p.key!=="gratuit"&&<div style={{fontSize:10,color:G.gray}}>CFA / mois</div>}
+                              {p.key==="gratuit"&&<div style={{fontSize:10,color:G.gray}}>14 jours</div>}
+                            </>
+                          )}
                         </div>
                       </div>
                       {/* Stats rapides */}
@@ -7341,7 +7397,7 @@ function AppInner() {
                       {!isCurrent&&(
                         <button onClick={async()=>{
                           if(isPaidPlan && !isOwner){
-                            startWavePayment(p.priceNum, p.key);
+                            startWavePayment(applyPromoDiscount(p.priceNum), p.key);
                             setShowPlanModal(false);
                           } else {
                             // Mise à jour immédiate locale
@@ -7366,6 +7422,42 @@ function AppInner() {
                   </div>
                 );
               })}
+
+              {/* Code promo */}
+              <div style={{marginTop:6,padding:"12px 14px",border:`1px solid ${promoApplied?G.green:G.grayLight}`,borderRadius:12,background:promoApplied?G.greenLight:G.grayLight}}>
+                <div style={{fontSize:11,fontWeight:700,color:G.dark,marginBottom:8,letterSpacing:0.3,display:"flex",alignItems:"center",gap:6}}>
+                  🎟 As-tu un code promo ?
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={e=>{
+                      const v = e.target.value.toUpperCase();
+                      setPromoCode(v);
+                      setPromoApplied(checkPromoCode(v));
+                    }}
+                    placeholder="Ex: LANCEMENT30"
+                    style={{
+                      flex:1,background:"#fff",border:`1.5px solid ${promoApplied?G.green:G.grayLight}`,
+                      borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,outline:"none",
+                      textTransform:"uppercase",letterSpacing:1,boxSizing:"border-box",
+                    }}/>
+                  {promoApplied && (
+                    <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 14px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
+                      ✓ −30%
+                    </div>
+                  )}
+                </div>
+                {promoCode && !promoApplied && (
+                  <div style={{fontSize:11,color:G.red,marginTop:6}}>Code invalide</div>
+                )}
+                {promoApplied && (
+                  <div style={{fontSize:11,color:G.green,marginTop:6,fontWeight:600}}>
+                    ✓ Code <strong>{promoCode}</strong> appliqué — économise 30% sur ton plan
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
