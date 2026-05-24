@@ -7751,6 +7751,19 @@ function AppInner() {
               </div>
             </div>
 
+            {/* Photo URL */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Package size={12}/> Photo du produit (URL)</div>
+              <div style={{fontSize:10,color:"#9CA3AF",marginBottom:4}}>Lien d'une image (Imgur, Drive public, etc.) — visible par le client et le livreur</div>
+              <input type="url" value={editProd.photo_url||""} onChange={e=>setEditProd(p=>({...p,photo_url:e.target.value}))} placeholder="https://i.imgur.com/abc123.jpg"
+                style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+              {editProd.photo_url && (
+                <div style={{marginTop:8,borderRadius:8,overflow:"hidden",border:`1px solid ${G.grayLight}`,aspectRatio:"4/3",background:G.grayLight,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <img src={editProd.photo_url} alt="aperçu" style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>{e.currentTarget.style.display="none";e.currentTarget.parentElement.innerHTML='<span style="font-size:11;color:#9CA3AF">Image invalide</span>';}}/>
+                </div>
+              )}
+            </div>
+
             {/* Stock direct */}
             <div style={{marginBottom:14}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Package size={12}/> Ajuster stock actuel</div>
@@ -7790,6 +7803,7 @@ function AppInner() {
                     name:updProd.name,cost:updProd.cost,price:updProd.price,
                     frais_liv:updProd.fraisLiv,frais_liv_extra:updProd.fraisLivExtra,
                     niche:updProd.niche,stock:updProd.stock,stock_initial:updProd.stockInitial,
+                    photo_url:editProd.photo_url||null,
                   }).catch(e=>console.error("editProd save:",e.message));
                 setEditProd(null);
               }} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:700,fontSize:13,cursor:"pointer"}}>

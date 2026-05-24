@@ -12,12 +12,19 @@ const StepIcon = ({ Ico, size = 11, color = "#fff" }) => <Ico size={size} color=
 export const OCard = ({ o, showPrendre = false }) => {
   const {
     G, fmt, STATUS, parseProd, sbFetch,
-    role, currentUser, settings, orders, orderItems,
+    role, currentUser, settings, orders, orderItems, products,
     openModifId, pinnedOrderIds, waSentIds,
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
     upSt, addToast, togglePin,
   } = useAppContext();
+
+  // Match product photo by first product name (for thumbnail in card)
+  const firstProdName = ((parseProd(o.product)||[])[0]?.name || "").toLowerCase();
+  const productPhoto = (products||[]).find(p =>
+    (p.name||"").toLowerCase() === firstProdName ||
+    (o.product||"").toLowerCase().includes((p.name||"").toLowerCase())
+  )?.photo_url;
   const canPin = role==="admin"||role==="closer";
 
   const showModif = openModifId === o.id;
@@ -58,8 +65,13 @@ export const OCard = ({ o, showPrendre = false }) => {
 
       {/* ── Corps cliquable ── */}
       <div onClick={()=>setOrderDetail(o)} style={{padding:`11px ${canPin?44:12}px 8px 12px`,cursor:"pointer"}}>
-        {/* Row 1: Client + Price */}
+        {/* Row 1: Client + Price (with optional product thumbnail) */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:4}}>
+          {productPhoto && (
+            <div style={{flexShrink:0,width:42,height:42,borderRadius:8,overflow:"hidden",background:G.grayLight,border:`1px solid ${G.grayLight}`}}>
+              <img src={productPhoto} alt={o.product} style={{width:"100%",height:"100%",objectFit:"cover"}} onError={e=>e.currentTarget.style.display="none"}/>
+            </div>
+          )}
           <div style={{minWidth:0,flex:1}}>
             <div style={{fontWeight:800,fontSize:15,color:"#111",lineHeight:1.2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{o.client}</div>
             <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}><Gift size={10}/> {totalQty}</span>}</div>
