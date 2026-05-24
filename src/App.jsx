@@ -1013,7 +1013,7 @@ function AppInner() {
   const [showNotifSettings,setShowNotifSettings] = useState(false);
   const [showNotifPanel, setShowNotifPanel]     = useState(false);
   const [sessionExpired, setSessionExpired]     = useState(false);
-  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000});
+  const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000, reviewsEnabled:true});
   const [showSettings, setShowSettings] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [memberReviewsModal, setMemberReviewsModal] = useState(null); // {member, role: 'closer'|'livreur'}
@@ -7007,6 +7007,40 @@ function AppInner() {
                 <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
                   style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                   <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                </button>
+              </div>
+            </div>
+
+            {/* Avis clients — toggle global */}
+            <div style={{marginBottom:18}}>
+              <div style={{fontSize:12,fontWeight:700,color:G.gray,marginBottom:4,letterSpacing:0.5,display:"flex",alignItems:"center",gap:5}}>⭐ AVIS CLIENTS</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Active ou désactive complètement les avis clients pour ta boutique</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 14px",background:G.grayLight,borderRadius:12}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:700,color:G.dark}}>Demander des avis après livraison</div>
+                  <div style={{fontSize:11,color:G.gray,marginTop:1}}>
+                    {settings.reviewsEnabled!==false
+                      ? "Le client voit la page d'avis et les notes apparaissent sur tes commandes"
+                      : "Aucun avis demandé · aucune note affichée sur les cartes"}
+                  </div>
+                </div>
+                <button onClick={()=>{
+                  const v = !(settings.reviewsEnabled !== false);
+                  setSettings(s=>({...s, reviewsEnabled:v}));
+                  sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...(settings||{}), reviewsEnabled:v}}, _authToken).then(res=>{
+                    if(!res||(Array.isArray(res)&&res.length===0)){
+                      setSettings(s=>({...s, reviewsEnabled:!v}));
+                      addToast("Erreur de sauvegarde","❌","#DC2626");
+                    } else {
+                      addToast(v?"✅ Avis activés":"Avis désactivés","✅",v?G.green:"#6B7280");
+                    }
+                  }).catch(()=>{
+                    setSettings(s=>({...s, reviewsEnabled:!v}));
+                    addToast("Erreur — réessaie","❌","#DC2626");
+                  });
+                }}
+                  style={{background:(settings.reviewsEnabled!==false)?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
+                  <div style={{position:"absolute",top:2,left:(settings.reviewsEnabled!==false)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
               </div>
             </div>
