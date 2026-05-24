@@ -1015,6 +1015,8 @@ function AppInner() {
   const [sessionExpired, setSessionExpired]     = useState(false);
   const [settings, setSettings]         = useState({boutique:"Ma Boutique", whatsapp:"221771234567", nom:"Admin", plan:"gratuit", notifStock:true, notifRejet:true, notifSansLivreur:true, notifLivre:true, notifRetour:true, notifChat:true, closerCompta:false, baseZone:"sn_dakar", defaultDeliveryPrice:3500, regional_local_fee:1500, regional_transport_fee:2000});
   const [showSettings, setShowSettings] = useState(false);
+  const [showReviewsModal, setShowReviewsModal] = useState(false);
+  const [memberReviewsModal, setMemberReviewsModal] = useState(null); // {member, role: 'closer'|'livreur'}
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
@@ -2801,6 +2803,10 @@ function AppInner() {
   const enRoute = orders.filter(o=>o.status==="en_camino").length;
   const revenus = orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
   const taux    = orders.length>0?Math.round(livres/orders.length*100):0;
+  const ratedOrders = orders.filter(o=>o.rating);
+  const avgRating = ratedOrders.length>0
+    ? (ratedOrders.reduce((s,o)=>s+(o.rating||0),0) / ratedOrders.length)
+    : 0;
   const myLiv   = orders.filter(o=>o.livreur_id===currentUser.id);
   const myClo   = orders.filter(o=>String(o.closer_id)===String(currentUser.id));
 
@@ -4886,11 +4892,12 @@ function AppInner() {
             })()}
 
             {/* KPIs */}
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(5,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
               <SC icon={<Package size={18}/>} label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
               <SC icon={<Check size={18}/>} label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
               <SC icon={<X size={18}/>} label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
               <SC icon={<Bike size={18}/>} label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
+              <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${ratedOrders.length})`} value={ratedOrders.length>0?avgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
             </div>
 
             {/* Aperçu du jour */}
@@ -5816,6 +5823,8 @@ function AppInner() {
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Phone size={14}/> CLOSERS</div>
               {teamMembers.filter(m=>m.role==="closer").map((m,i)=>{
                 const all=orders.filter(o=>o.closer_id===m.id);
+                const rated=all.filter(o=>o.rating);
+                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating||0),0)/rated.length):0;
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -5830,13 +5839,19 @@ function AppInner() {
                       </div>
                     </div>
                     <div style={{display:"flex",gap:6}}>
-                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"},{l:"Total",v:all.length,c:G.gray,bg:G.grayLight}].map(s=>(
+                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"},{l:"Total",v:all.length,c:G.gray,bg:G.grayLight},{l:`Note (${rated.length})`,v:rated.length>0?`${avg.toFixed(1)}★`:"—",c:"#92400E",bg:"#FEF3C7"}].map(s=>(
                         <div key={s.l} style={{flex:1,background:s.bg,borderRadius:8,padding:"6px 0",textAlign:"center"}}>
-                          <div style={{fontSize:16,fontWeight:700,color:s.c}}>{s.v}</div>
-                          <div style={{fontSize:10,color:G.gray}}>{s.l}</div>
+                          <div style={{fontSize:14,fontWeight:700,color:s.c}}>{s.v}</div>
+                          <div style={{fontSize:9,color:G.gray}}>{s.l}</div>
                         </div>
                       ))}
                     </div>
+                    {rated.length>0 && (
+                      <button onClick={()=>setMemberReviewsModal({member:m,role:"closer"})}
+                        style={{marginTop:6,background:"none",border:"none",color:G.green,fontSize:11,fontWeight:600,cursor:"pointer",textDecoration:"underline",padding:0}}>
+                        Voir les {rated.length} avis →
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -5848,6 +5863,8 @@ function AppInner() {
               {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
                 const all=orders.filter(o=>o.livreur_id===m.id);
                 const gains=all.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
+                const rated=all.filter(o=>o.rating);
+                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating||0),0)/rated.length):0;
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -5863,13 +5880,19 @@ function AppInner() {
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:G.green,marginBottom:6}}>{fmt(gains)} CFA encaissés</div>
                     <div style={{display:"flex",gap:6}}>
-                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"En route",v:all.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length,c:G.blue,bg:"#EFF6FF"},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"}].map(s=>(
+                      {[{l:"Livrées",v:all.filter(o=>o.status==="entregado").length,c:G.green,bg:G.greenLight},{l:"En route",v:all.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length,c:G.blue,bg:"#EFF6FF"},{l:"Rejetées",v:all.filter(o=>o.status==="rechazado").length,c:G.red,bg:"#FEE2E2"},{l:`Note (${rated.length})`,v:rated.length>0?`${avg.toFixed(1)}★`:"—",c:"#92400E",bg:"#FEF3C7"}].map(s=>(
                         <div key={s.l} style={{flex:1,background:s.bg,borderRadius:8,padding:"6px 0",textAlign:"center"}}>
-                          <div style={{fontSize:16,fontWeight:700,color:s.c}}>{s.v}</div>
-                          <div style={{fontSize:10,color:G.gray}}>{s.l}</div>
+                          <div style={{fontSize:14,fontWeight:700,color:s.c}}>{s.v}</div>
+                          <div style={{fontSize:9,color:G.gray}}>{s.l}</div>
                         </div>
                       ))}
                     </div>
+                    {rated.length>0 && (
+                      <button onClick={()=>setMemberReviewsModal({member:m,role:"livreur"})}
+                        style={{marginTop:6,background:"none",border:"none",color:G.green,fontSize:11,fontWeight:600,cursor:"pointer",textDecoration:"underline",padding:0}}>
+                        Voir les {rated.length} avis →
+                      </button>
+                    )}
                   </div>
                 );
               })}
@@ -8026,6 +8049,124 @@ function AppInner() {
           </div>
         </div>
       )}
+
+      {/* ── MODAL AVIS CLIENTS — admin only ── */}
+      {showReviewsModal && (
+        <div onClick={()=>setShowReviewsModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:18,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+              <div style={{fontSize:16,fontWeight:800,color:G.dark,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:20}}>⭐</span> Avis clients
+              </div>
+              <button onClick={()=>setShowReviewsModal(false)} style={{background:"none",border:"none",fontSize:22,color:G.gray,cursor:"pointer"}}>×</button>
+            </div>
+            {/* Distribution */}
+            <div style={{background:"#FFFBEB",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+              <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:8}}>
+                <span style={{fontSize:32,fontWeight:800,color:"#92400E"}}>{ratedOrders.length>0?avgRating.toFixed(1):"—"}</span>
+                <span style={{fontSize:13,color:"#92400E"}}>/ 5</span>
+                <span style={{fontSize:11,color:"#78350F",marginLeft:"auto"}}>{ratedOrders.length} avis</span>
+              </div>
+              {[5,4,3,2,1].map(n=>{
+                const cnt = ratedOrders.filter(o=>o.rating===n).length;
+                const pct = ratedOrders.length>0 ? cnt/ratedOrders.length*100 : 0;
+                return (
+                  <div key={n} style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <span style={{fontSize:11,width:18,color:"#78350F"}}>{n}★</span>
+                    <div style={{flex:1,height:8,background:"#FDE68A",borderRadius:4,overflow:"hidden"}}>
+                      <div style={{height:"100%",background:"#F59E0B",width:`${pct}%`,transition:"width 0.4s"}}/>
+                    </div>
+                    <span style={{fontSize:11,color:"#78350F",width:24,textAlign:"right"}}>{cnt}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {/* List of reviews */}
+            {ratedOrders.length===0 ? (
+              <div style={{textAlign:"center",padding:"30px 16px",color:G.gray,fontSize:13}}>
+                Aucun avis pour le moment.<br/>
+                <span style={{fontSize:11}}>Les clients pourront laisser un avis après chaque livraison.</span>
+              </div>
+            ) : (
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {ratedOrders.sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0)).slice(0,30).map(o=>(
+                  <div key={o.id} style={{background:G.grayLight,borderRadius:10,padding:"10px 12px"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                      <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{o.client}</div>
+                      <div style={{fontSize:13,color:"#F59E0B",letterSpacing:1}}>
+                        {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,color:G.gray,marginBottom:o.review?4:0}}>
+                      {o.product} · {o.livreur && `🛵 ${o.livreur}`}{o.closer && o.livreur && " · "}{o.closer && `📞 ${o.closer}`}
+                    </div>
+                    {o.review && (
+                      <div style={{fontSize:12,color:G.dark,fontStyle:"italic",lineHeight:1.4}}>« {o.review} »</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL AVIS PAR MEMBRE (Équipe) ── */}
+      {memberReviewsModal && (()=>{
+        const {member:mm, role:mr} = memberReviewsModal;
+        const memberOrders = orders.filter(o=> mr==="closer" ? o.closer_id===mm.id : o.livreur_id===mm.id);
+        const memberRated = memberOrders.filter(o=>o.rating).sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0));
+        const mAvg = memberRated.length>0 ? memberRated.reduce((s,o)=>s+(o.rating||0),0)/memberRated.length : 0;
+        return (
+          <div onClick={()=>setMemberReviewsModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:18,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                <div>
+                  <div style={{fontSize:11,color:G.gray,fontWeight:600}}>{mr==="closer"?"CLOSER":"LIVREUR"}</div>
+                  <div style={{fontSize:16,fontWeight:800,color:G.dark}}>{mm.nom}</div>
+                </div>
+                <button onClick={()=>setMemberReviewsModal(null)} style={{background:"none",border:"none",fontSize:22,color:G.gray,cursor:"pointer"}}>×</button>
+              </div>
+              <div style={{background:"#FFFBEB",borderRadius:12,padding:"14px 16px",marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:8}}>
+                  <span style={{fontSize:32,fontWeight:800,color:"#92400E"}}>{mAvg.toFixed(1)}</span>
+                  <span style={{fontSize:13,color:"#92400E"}}>/ 5</span>
+                  <span style={{fontSize:11,color:"#78350F",marginLeft:"auto"}}>{memberRated.length} avis</span>
+                </div>
+                {[5,4,3,2,1].map(n=>{
+                  const cnt = memberRated.filter(o=>o.rating===n).length;
+                  const pct = memberRated.length>0 ? cnt/memberRated.length*100 : 0;
+                  return (
+                    <div key={n} style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                      <span style={{fontSize:11,width:18,color:"#78350F"}}>{n}★</span>
+                      <div style={{flex:1,height:8,background:"#FDE68A",borderRadius:4,overflow:"hidden"}}>
+                        <div style={{height:"100%",background:"#F59E0B",width:`${pct}%`,transition:"width 0.4s"}}/>
+                      </div>
+                      <span style={{fontSize:11,color:"#78350F",width:24,textAlign:"right"}}>{cnt}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:10}}>
+                {memberRated.slice(0,30).map(o=>(
+                  <div key={o.id} style={{background:G.grayLight,borderRadius:10,padding:"10px 12px"}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                      <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{o.client}</div>
+                      <div style={{fontSize:13,color:"#F59E0B",letterSpacing:1}}>
+                        {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+                      </div>
+                    </div>
+                    <div style={{fontSize:10,color:G.gray,marginBottom:o.review?4:0}}>{o.product}</div>
+                    {o.review && (
+                      <div style={{fontSize:12,color:G.dark,fontStyle:"italic",lineHeight:1.4}}>« {o.review} »</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── MODAL PRICING DETECTION (ProductAnalysisPopup) ── */}
       {pricingPopup&&(()=>{
