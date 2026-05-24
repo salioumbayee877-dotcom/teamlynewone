@@ -1184,7 +1184,12 @@ function AppInner() {
     if(order) addToast(`${order.client} → ${LABELS[s]||s}`, ICONS[s]||"📦", COLORS[s]||G.green);
     // Save to Supabase — rollback local state if it fails
     if(!String(id).startsWith("tmp_")) {
-      const patch = autoPin ? {status:s, pinned:true, pinned_at:autoPinAt} : {status:s};
+      let patch = autoPin ? {status:s, pinned:true, pinned_at:autoPinAt} : {status:s};
+      // Capture timestamp when the livreur leaves towards the CLIENT (en_camino).
+      // en_route is for interurbain (towards transporteur), no client ETA there.
+      if(s==="en_camino" && !target?.en_camino_at) {
+        patch = {...patch, en_camino_at: new Date().toISOString()};
+      }
       sbFetch(`orders?id=eq.${id}`,"PATCH",patch).catch(e=>{
         console.error("upSt error:",e);
         setOrders(prevOrders);

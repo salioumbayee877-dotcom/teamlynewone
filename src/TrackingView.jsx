@@ -127,6 +127,19 @@ function timeAgo(iso) {
   return `il y a ${Math.floor(diff/86400)} j`;
 }
 
+// Average delivery time once en_camino — based on Dakar urban traffic
+const AVG_DELIVERY_MIN = 25;
+
+function computeETA(en_camino_at) {
+  if (!en_camino_at) return null;
+  const elapsed = (Date.now() - new Date(en_camino_at).getTime()) / 60000; // min
+  const remaining = AVG_DELIVERY_MIN - elapsed;
+  if (remaining <= 0) return { mins: 0, label: "Le livreur arrive d'un instant à l'autre" };
+  if (remaining < 1)  return { mins: 1, label: "Moins d'1 min" };
+  if (remaining < 5)  return { mins: Math.ceil(remaining), label: `Arrive dans ~${Math.ceil(remaining)} min` };
+  return { mins: Math.ceil(remaining), label: `Arrive dans ~${Math.ceil(remaining)} min` };
+}
+
 function installPromptInit() {
   const ref = { event: null };
   window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); ref.event = e; });
@@ -142,6 +155,9 @@ export default function TrackingView({ token }) {
   const [statusChanged, setStatusChanged] = useState(false);
   const installRef = useRef(null);
   const [canInstall, setCanInstall] = useState(false);
+  const [ratingState, setRatingState] = useState({ stars: 0, hovered: 0, review: "", submitting: false, justSubmitted: false });
+  const [, forceTick] = useState(0); // re-render every 30s for ETA countdown
+  useEffect(() => { const id = setInterval(()=>forceTick(t=>t+1), 30000); return ()=>clearInterval(id); }, []);
 
   useEffect(() => {
     if (!installRef.current) installRef.current = installPromptInit();
@@ -248,6 +264,27 @@ export default function TrackingView({ token }) {
   const isCancelled = order.status === "rechazado";
   const isDelivered = order.status === "entregado";
   const firstName = (order.client || "").split(" ")[0];
+  const eta = (order.status === "en_camino") ? computeETA(order.en_camino_at) : null;
+  const alreadyRated = !!order.rated_at;
+
+  const submitRating = async () => {
+    if (!ratingState.stars || ratingState.submitting) return;
+    setRatingState(r=>({...r, submitting:true}));
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/rpc/submit_order_rating`, {
+        method:"POST",
+        headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`},
+        body: JSON.stringify({ p_token: token, p_rating: ratingState.stars, p_review: ratingState.review||null }),
+      });
+      const data = await res.json();
+      if (res.ok && data === true) {
+        setRatingState(r=>({...r, submitting:false, justSubmitted:true}));
+        fetchOrder();
+      } else {
+        setRatingState(r=>({...r, submitting:false}));
+      }
+    } catch(e) { setRatingState(r=>({...r, submitting:false})); }
+  };
 
   return (
     <div style={pageStyle}>
@@ -319,6 +356,83 @@ export default function TrackingView({ token }) {
             marginBottom:14,fontSize:12,color:"#92400E",fontWeight:500,lineHeight:1.4,
           }}>
             {s.tip}
+          </div>
+        )}
+
+        {/* ETA countdown — when en_camino vers le client */}
+        {eta && (
+          <div style={{
+            background:"linear-gradient(135deg,#FFEDD5,#FED7AA)",borderRadius:14,padding:"14px 16px",
+            marginBottom:14,display:"flex",alignItems:"center",gap:12,
+            animation:"slideIn 0.3s ease",
+          }}>
+            <div style={{fontSize:34}}>⏱</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:10,letterSpacing:1.2,color:"#9A3412",fontWeight:700}}>TEMPS D'ARRIVÉE ESTIMÉ</div>
+              <div style={{fontSize:18,fontWeight:800,color:"#7C2D12",marginTop:2}}>{eta.label}</div>
+              <div style={{fontSize:10,color:"#9A3412",opacity:0.7,marginTop:2}}>Estimation basée sur le trafic moyen à Dakar</div>
+            </div>
+          </div>
+        )}
+
+        {/* Rating UI — appears after delivery */}
+        {isDelivered && !alreadyRated && !ratingState.justSubmitted && (
+          <div style={{
+            background:"linear-gradient(135deg,#FEF3C7,#FCD34D)",borderRadius:14,padding:"16px",
+            marginBottom:14,animation:"slideIn 0.3s ease",
+          }}>
+            <div style={{textAlign:"center",fontSize:13,fontWeight:700,color:"#7C2D12",marginBottom:10}}>
+              Comment s'est passée ta livraison ?
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:10}}>
+              {[1,2,3,4,5].map(n=>(
+                <button key={n}
+                  onMouseEnter={()=>setRatingState(r=>({...r,hovered:n}))}
+                  onMouseLeave={()=>setRatingState(r=>({...r,hovered:0}))}
+                  onClick={()=>setRatingState(r=>({...r,stars:n}))}
+                  style={{
+                    background:"none",border:"none",cursor:"pointer",fontSize:36,padding:0,lineHeight:1,
+                    color: ((ratingState.hovered||ratingState.stars)>=n) ? "#F59E0B" : "#D1D5DB",
+                    transition:"transform 0.15s",transform: (ratingState.hovered===n)?"scale(1.2)":"scale(1)",
+                  }}>★</button>
+              ))}
+            </div>
+            {ratingState.stars > 0 && (
+              <>
+                <textarea
+                  value={ratingState.review}
+                  onChange={e=>setRatingState(r=>({...r,review:e.target.value}))}
+                  maxLength={500}
+                  placeholder={ratingState.stars>=4 ? "Qu'est-ce qui t'a plu ? (optionnel)" : "Comment peut-on s'améliorer ? (optionnel)"}
+                  style={{
+                    width:"100%",borderRadius:10,border:"1px solid #FCD34D",padding:"10px",
+                    fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,boxSizing:"border-box",
+                    background:"#FFFBEB",color:G.dark,outline:"none",
+                  }}/>
+                <button onClick={submitRating} disabled={ratingState.submitting}
+                  style={{
+                    width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:10,
+                    padding:"12px",fontSize:13,fontWeight:800,marginTop:8,cursor:"pointer",
+                    opacity:ratingState.submitting?0.6:1,
+                  }}>{ratingState.submitting ? "Envoi…" : "Envoyer mon avis"}</button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Already rated — thank you */}
+        {isDelivered && (alreadyRated || ratingState.justSubmitted) && (
+          <div style={{
+            background:G.greenLight,borderRadius:14,padding:"14px",marginBottom:14,textAlign:"center",
+            animation:"slideIn 0.3s ease",
+          }}>
+            <div style={{fontSize:26,marginBottom:4}}>🙏</div>
+            <div style={{fontSize:13,fontWeight:700,color:G.green}}>Merci pour ton avis !</div>
+            {(order.rating || ratingState.stars) > 0 && (
+              <div style={{fontSize:18,color:"#F59E0B",marginTop:4,letterSpacing:2}}>
+                {"★".repeat(order.rating || ratingState.stars)}{"☆".repeat(5 - (order.rating || ratingState.stars))}
+              </div>
+            )}
           </div>
         )}
 
