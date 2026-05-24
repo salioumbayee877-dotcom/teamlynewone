@@ -536,6 +536,26 @@ export const OCard = ({ o, showPrendre = false }) => {
       </div>
       )}
       </div>{/* end actions zone */}
+
+      {/* Avis client — visible une fois la commande livrée et notée */}
+      {o.status === "entregado" && o.rating && (
+        <div style={{
+          marginTop:10,background:"#FFFBEB",border:"1px solid #FDE68A",
+          borderRadius:10,padding:"10px 12px",
+        }}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:o.review?6:0}}>
+            <div style={{fontSize:10,color:"#92400E",fontWeight:700,letterSpacing:0.5}}>AVIS CLIENT</div>
+            <div style={{fontSize:14,color:"#F59E0B",letterSpacing:1}}>
+              {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+            </div>
+          </div>
+          {o.review && (
+            <div style={{fontSize:12,color:"#78350F",lineHeight:1.4,fontStyle:"italic"}}>
+              « {o.review} »
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
