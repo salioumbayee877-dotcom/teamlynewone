@@ -6992,11 +6992,47 @@ function AppInner() {
 
                   {/* Jours restants si trial */}
                   {curPlan.key==="starter"&&!isPro&&(
-                    <div style={{background:"#FEF3C7",borderRadius:10,padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{background:"#FEF3C7",borderRadius:10,padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                       <span style={{fontSize:12,color:"#92400E",fontWeight:600}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""} restants</span>
                       <button onClick={()=>setShowPlanModal(true)} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:7,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Passer Pro</button>
                     </div>
                   )}
+
+                  {/* Code promo */}
+                  <div style={{padding:"10px 12px",border:`1px solid ${promoApplied?G.green:G.grayLight}`,borderRadius:10,background:promoApplied?G.greenLight:G.grayLight,marginTop:6}}>
+                    <div style={{fontSize:10,fontWeight:700,color:G.dark,marginBottom:6,letterSpacing:0.3,display:"flex",alignItems:"center",gap:5}}>
+                      🎟 CODE PROMO
+                    </div>
+                    <div style={{display:"flex",gap:6}}>
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={e=>{
+                          const v = e.target.value.toUpperCase();
+                          setPromoCode(v);
+                          setPromoApplied(checkPromoCode(v));
+                        }}
+                        placeholder="Ex: LANCEMENT30"
+                        style={{
+                          flex:1,background:"#fff",border:`1.5px solid ${promoApplied?G.green:G.grayLight}`,
+                          borderRadius:7,padding:"8px 11px",fontSize:12,color:G.dark,outline:"none",
+                          textTransform:"uppercase",letterSpacing:0.8,boxSizing:"border-box",
+                        }}/>
+                      {promoApplied && (
+                        <div style={{background:G.green,color:"#fff",borderRadius:7,padding:"8px 11px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+                          ✓ −30%
+                        </div>
+                      )}
+                    </div>
+                    {promoCode && !promoApplied && (
+                      <div style={{fontSize:10,color:G.red,marginTop:5}}>Code invalide</div>
+                    )}
+                    {promoApplied && (
+                      <div style={{fontSize:10,color:G.green,marginTop:5,fontWeight:600}}>
+                        ✓ <strong>{promoCode}</strong> — économise 30% au prochain paiement
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })()}
