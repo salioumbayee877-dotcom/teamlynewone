@@ -4,17 +4,17 @@ import { fullAddr } from "../lib/senegal";
 import {
   Pin, Gift, Smartphone, MapPin, Bike, Check, Package, Bus, Rocket,
   Phone, Pencil, StickyNote, MessageCircle, Send, X, RotateCcw, PhoneOff,
-  Lock, AlertTriangle, Coins, Clock, ChevronUp,
+  Lock, AlertTriangle, Coins, Clock, ChevronUp, Star, StarOff,
 } from "lucide-react";
 
 const StepIcon = ({ Ico, size = 11, color = "#fff" }) => <Ico size={size} color={color} strokeWidth={2.5}/>;
 
 export const OCard = ({ o, showPrendre = false }) => {
   const {
-    G, fmt, STATUS, parseProd,
+    G, fmt, STATUS, parseProd, sbFetch,
     role, currentUser, settings, orders, orderItems,
     openModifId, pinnedOrderIds, waSentIds,
-    setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery,
+    setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
     upSt, addToast, togglePin,
   } = useAppContext();
@@ -557,6 +557,44 @@ export const OCard = ({ o, showPrendre = false }) => {
       </div>
       )}
       </div>{/* end actions zone */}
+
+      {/* Toggle 'Demander un avis' — admin/closer uniquement */}
+      {(role==="admin"||role==="closer") && (
+        <div style={{
+          marginTop:8,padding:"7px 10px",background:G.grayLight,borderRadius:8,
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+        }}>
+          <div style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:G.gray}}>
+            <Star size={12}/> Demander un avis au client
+          </div>
+          <button
+            onClick={()=>{
+              const newVal = !(o.reviews_enabled !== false);
+              setOrders(orders.map(x=>x.id===o.id?{...x,reviews_enabled:newVal}:x));
+              if(!String(o.id).startsWith("tmp_"))
+                sbFetch(`orders?id=eq.${o.id}`,"PATCH",{reviews_enabled:newVal}).catch(()=>{
+                  setOrders(orders.map(x=>x.id===o.id?{...x,reviews_enabled:!newVal}:x));
+                  addToast("Erreur — réessaie","❌",G.red);
+                });
+            }}
+            style={{
+              background:"none",border:"none",cursor:"pointer",padding:0,
+              display:"flex",alignItems:"center",
+            }}>
+            <div style={{
+              width:32,height:18,borderRadius:9,
+              background: (o.reviews_enabled !== false) ? G.green : "#D1D5DB",
+              position:"relative",transition:"background 0.2s",
+            }}>
+              <div style={{
+                position:"absolute",top:2,left: (o.reviews_enabled !== false) ? 16 : 2,
+                width:14,height:14,borderRadius:"50%",background:"#fff",
+                transition:"left 0.2s",boxShadow:"0 1px 2px rgba(0,0,0,0.2)",
+              }}/>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Avis client — visible une fois la commande livrée et notée */}
       {o.status === "entregado" && (o.rating || o.rating_product || o.rating_livreur || o.rating_closer) && (

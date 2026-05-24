@@ -4170,7 +4170,7 @@ function AppInner() {
     fraisConfigTab, fraisMainNameEdit, fraisEditCity, fraisNewMain, fraisNewOther,
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,
     // actions / setters
-    setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery,
+    setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
     setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
     setProducts, setExpandedProd, setStockAjout, setShowAddProd, setEditProd,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
