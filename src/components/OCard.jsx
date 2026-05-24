@@ -379,6 +379,18 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{background:"#DBEAFE",borderRadius:10,padding:"10px 12px",fontSize:12,color:G.blue,fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
                 <Package size={14}/> Étape 3 — Colis en main, pars vers le client
               </div>
+              {/* Prévenir le client par WhatsApp — colis_pris */}
+              {o.phone&&(()=>{
+                const suiviLine = o.tracking_token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}` : "";
+                const msg = `Salut ${o.client} 👋\n\nJe suis *${currentUser.nom}*, ton livreur.\n📦 J'ai ton colis *${o.product}* en main, je pars maintenant vers chez toi 🛵💨\n\n💵 Prépare *${fmt(o.price)} CFA* en cash pour gagner du temps${suiviLine}`;
+                return (
+                  <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
+                    target="_blank" rel="noreferrer"
+                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                    <MessageCircle size={20}/> Prévenir le client maintenant
+                  </a>
+                );
+              })()}
               <button onClick={()=>{
                 const activeDelivery=orders.find(x=>String(x.livreur_id)===String(currentUser.id)&&(x.status==="en_camino"||x.status==="chez_client")&&x.id!==o.id);
                 if(activeDelivery){ setConflictDelivery(activeDelivery); return; }
@@ -396,17 +408,15 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{background:"#E0F2FE",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#0284C7",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
                 <Rocket size={14}/> Étape 4 — En route vers {o.client}
               </div>
-              {/* Rappel WhatsApp personnalisé */}
+              {/* Prévenir le client par WhatsApp — en_camino */}
               {o.phone&&(()=>{
-                const suiviLine = o.tracking_token
-                  ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}`
-                  : "";
-                const msg=`Bonjour ${o.client} ! 🚨\n\nJe suis *${currentUser.nom}*, votre livreur — *je suis juste à côté de chez vous !* 🏍️💨\n\nVotre commande *${o.product}* arrive dans quelques minutes !\n\n💰 Préparez *${fmt(o.price)} CFA* maintenant s'il vous plaît\n\n⚠️ *Soyez disponible, je sonne dans un instant !*${suiviLine}`;
+                const suiviLine = o.tracking_token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}` : "";
+                const msg=`Salut ${o.client} 🚨\n\nJe suis *${currentUser.nom}*, ton livreur — je suis *en route vers chez toi maintenant* 🏍️💨\n\nTa commande *${o.product}* arrive dans quelques minutes !\n\n💵 Prépare *${fmt(o.price)} CFA* en cash s'il te plaît\n📞 Garde ton téléphone à portée${suiviLine}`;
                 return (
                   <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
                     target="_blank" rel="noreferrer"
                     style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
-                    <MessageCircle size={20}/> Rappeler le client par WhatsApp
+                    <MessageCircle size={20}/> Prévenir le client maintenant
                   </a>
                 );
               })()}
@@ -423,6 +433,17 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{background:"#FEF3C7",borderRadius:10,padding:"10px 12px",fontSize:12,color:"#D97706",fontWeight:600,display:"flex",alignItems:"center",gap:6}}>
                 <MapPin size={14}/> Étape 5 — Vous êtes chez {o.client}. Comment ça s'est passé ?
               </div>
+              {/* Prévenir le client par WhatsApp — chez_client */}
+              {o.phone&&(()=>{
+                const msg = `Salut ${o.client} 🚪\n\nJe suis *${currentUser.nom}*, ton livreur — *je suis à ta porte maintenant !* 📍\n\nTu peux descendre récupérer ta commande ?\n💵 N'oublie pas *${fmt(o.price)} CFA* en cash 🙏\n\nSi tu ne peux pas, réponds vite stp !`;
+                return (
+                  <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
+                    target="_blank" rel="noreferrer"
+                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                    <MessageCircle size={20}/> Prévenir le client — je suis là
+                  </a>
+                );
+              })()}
               <button onClick={()=>{setLivFinalNote("");setLivFinalConfirm({orderId:o.id,type:"livre",client:o.client,price:o.price});}}
                 style={{width:"100%",background:"#D1FAE5",color:"#1A5C38",border:"2px solid #6EE7B7",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
                 <Check size={22}/> Livré — Cash encaissé
