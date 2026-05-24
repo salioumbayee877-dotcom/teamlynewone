@@ -538,17 +538,34 @@ export const OCard = ({ o, showPrendre = false }) => {
       </div>{/* end actions zone */}
 
       {/* Avis client — visible une fois la commande livrée et notée */}
-      {o.status === "entregado" && o.rating && (
+      {o.status === "entregado" && (o.rating || o.rating_product || o.rating_livreur || o.rating_closer) && (
         <div style={{
           marginTop:10,background:"#FFFBEB",border:"1px solid #FDE68A",
           borderRadius:10,padding:"10px 12px",
         }}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:o.review?6:0}}>
-            <div style={{fontSize:10,color:"#92400E",fontWeight:700,letterSpacing:0.5}}>AVIS CLIENT</div>
-            <div style={{fontSize:14,color:"#F59E0B",letterSpacing:1}}>
-              {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+          <div style={{fontSize:10,color:"#92400E",fontWeight:700,letterSpacing:0.5,marginBottom:6}}>AVIS CLIENT</div>
+          {(o.rating_product || o.rating_livreur || o.rating_closer) ? (
+            <div style={{display:"flex",justifyContent:"space-between",gap:6,marginBottom:o.review?6:0}}>
+              {[
+                {l:"📦 Produit",v:o.rating_product},
+                {l:"🛵 Livreur",v:o.rating_livreur},
+                {l:"📞 Appel",  v:o.rating_closer},
+              ].map((r,i)=> r.v ? (
+                <div key={i} style={{flex:1,textAlign:"center"}}>
+                  <div style={{fontSize:11,color:"#F59E0B",letterSpacing:0.5}}>
+                    {"★".repeat(r.v)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-r.v)}</span>
+                  </div>
+                  <div style={{fontSize:9,color:"#78350F",marginTop:2}}>{r.l}</div>
+                </div>
+              ) : null)}
             </div>
-          </div>
+          ) : (
+            <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:o.review?6:0}}>
+              <div style={{fontSize:14,color:"#F59E0B",letterSpacing:1}}>
+                {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+              </div>
+            </div>
+          )}
           {o.review && (
             <div style={{fontSize:12,color:"#78350F",lineHeight:1.4,fontStyle:"italic"}}>
               « {o.review} »

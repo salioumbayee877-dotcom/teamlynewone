@@ -5823,8 +5823,9 @@ function AppInner() {
               <div style={{fontWeight:700,fontSize:13,color:G.green,marginBottom:12,paddingBottom:6,borderBottom:`1px solid ${G.grayLight}`,display:"flex",alignItems:"center",gap:6}}><Phone size={14}/> CLOSERS</div>
               {teamMembers.filter(m=>m.role==="closer").map((m,i)=>{
                 const all=orders.filter(o=>o.closer_id===m.id);
-                const rated=all.filter(o=>o.rating);
-                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating||0),0)/rated.length):0;
+                // Closer is rated specifically on rating_closer (la qualité de l'appel)
+                const rated=all.filter(o=>o.rating_closer || o.rating);
+                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating_closer||o.rating||0),0)/rated.length):0;
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="closer").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -5863,8 +5864,9 @@ function AppInner() {
               {teamMembers.filter(m=>m.role==="livreur").map((m,i)=>{
                 const all=orders.filter(o=>o.livreur_id===m.id);
                 const gains=all.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
-                const rated=all.filter(o=>o.rating);
-                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating||0),0)/rated.length):0;
+                // Livreur is rated specifically on rating_livreur (la qualité de la livraison)
+                const rated=all.filter(o=>o.rating_livreur || o.rating);
+                const avg=rated.length>0?(rated.reduce((s,o)=>s+(o.rating_livreur||o.rating||0),0)/rated.length):0;
                 return(
                   <div key={i} style={{padding:"12px 0",borderBottom:i<teamMembers.filter(m=>m.role==="livreur").length-1?`1px solid ${G.grayLight}`:"none"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
@@ -8089,14 +8091,34 @@ function AppInner() {
               </div>
             ) : (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                {ratedOrders.sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0)).slice(0,30).map(o=>(
+                {ratedOrders.sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0)).slice(0,30).map(o=>{
+                  const has3 = o.rating_product || o.rating_livreur || o.rating_closer;
+                  return (
                   <div key={o.id} style={{background:G.grayLight,borderRadius:10,padding:"10px 12px"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                       <div style={{fontSize:12,fontWeight:700,color:G.dark}}>{o.client}</div>
-                      <div style={{fontSize:13,color:"#F59E0B",letterSpacing:1}}>
-                        {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
-                      </div>
+                      {!has3 && (
+                        <div style={{fontSize:13,color:"#F59E0B",letterSpacing:1}}>
+                          {"★".repeat(o.rating||0)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-(o.rating||0))}</span>
+                        </div>
+                      )}
                     </div>
+                    {has3 && (
+                      <div style={{display:"flex",justifyContent:"space-between",gap:6,marginBottom:6}}>
+                        {[
+                          {l:"📦",v:o.rating_product},
+                          {l:"🛵",v:o.rating_livreur},
+                          {l:"📞",v:o.rating_closer},
+                        ].map((r,i)=> r.v ? (
+                          <div key={i} style={{flex:1,textAlign:"center"}}>
+                            <div style={{fontSize:11,color:"#F59E0B",letterSpacing:0.5}}>
+                              {"★".repeat(r.v)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-r.v)}</span>
+                            </div>
+                            <div style={{fontSize:11,marginTop:1}}>{r.l}</div>
+                          </div>
+                        ) : <div key={i} style={{flex:1}}/>)}
+                      </div>
+                    )}
                     <div style={{fontSize:10,color:G.gray,marginBottom:o.review?4:0}}>
                       {o.product} · {o.livreur && `🛵 ${o.livreur}`}{o.closer && o.livreur && " · "}{o.closer && `📞 ${o.closer}`}
                     </div>
@@ -8104,7 +8126,8 @@ function AppInner() {
                       <div style={{fontSize:12,color:G.dark,fontStyle:"italic",lineHeight:1.4}}>« {o.review} »</div>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -8114,9 +8137,11 @@ function AppInner() {
       {/* ── MODAL AVIS PAR MEMBRE (Équipe) ── */}
       {memberReviewsModal && (()=>{
         const {member:mm, role:mr} = memberReviewsModal;
+        const axisField = mr==="closer" ? "rating_closer" : "rating_livreur";
         const memberOrders = orders.filter(o=> mr==="closer" ? o.closer_id===mm.id : o.livreur_id===mm.id);
-        const memberRated = memberOrders.filter(o=>o.rating).sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0));
-        const mAvg = memberRated.length>0 ? memberRated.reduce((s,o)=>s+(o.rating||0),0)/memberRated.length : 0;
+        const memberRated = memberOrders.filter(o=> o[axisField] || o.rating).sort((a,b)=>new Date(b.rated_at||0)-new Date(a.rated_at||0));
+        const getRate = o => o[axisField] || o.rating || 0;
+        const mAvg = memberRated.length>0 ? memberRated.reduce((s,o)=>s+getRate(o),0)/memberRated.length : 0;
         return (
           <div onClick={()=>setMemberReviewsModal(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
             <div onClick={e=>e.stopPropagation()} style={{background:"#fff",borderRadius:16,padding:18,maxWidth:520,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>

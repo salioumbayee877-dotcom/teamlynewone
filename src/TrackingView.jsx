@@ -155,7 +155,11 @@ export default function TrackingView({ token }) {
   const [statusChanged, setStatusChanged] = useState(false);
   const installRef = useRef(null);
   const [canInstall, setCanInstall] = useState(false);
-  const [ratingState, setRatingState] = useState({ stars: 0, hovered: 0, review: "", submitting: false, justSubmitted: false });
+  const [ratingState, setRatingState] = useState({
+    product: 0, livreur: 0, closer: 0,
+    hoveredAxis: null, hoveredStar: 0,
+    review: "", submitting: false, justSubmitted: false,
+  });
   const [, forceTick] = useState(0); // re-render every 30s for ETA countdown
   useEffect(() => { const id = setInterval(()=>forceTick(t=>t+1), 30000); return ()=>clearInterval(id); }, []);
 
@@ -267,14 +271,21 @@ export default function TrackingView({ token }) {
   const eta = (order.status === "en_camino") ? computeETA(order.en_camino_at) : null;
   const alreadyRated = !!order.rated_at;
 
+  const allRatingsSet = ratingState.product && ratingState.livreur && ratingState.closer;
   const submitRating = async () => {
-    if (!ratingState.stars || ratingState.submitting) return;
+    if (!allRatingsSet || ratingState.submitting) return;
     setRatingState(r=>({...r, submitting:true}));
     try {
       const res = await fetch(`${SB_URL}/rest/v1/rpc/submit_order_rating`, {
         method:"POST",
         headers:{"Content-Type":"application/json","apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`},
-        body: JSON.stringify({ p_token: token, p_rating: ratingState.stars, p_review: ratingState.review||null }),
+        body: JSON.stringify({
+          p_token: token,
+          p_rating_product: ratingState.product,
+          p_rating_livreur: ratingState.livreur,
+          p_rating_closer:  ratingState.closer,
+          p_review: ratingState.review||null,
+        }),
       });
       const data = await res.json();
       if (res.ok && data === true) {
@@ -285,6 +296,30 @@ export default function TrackingView({ token }) {
       }
     } catch(e) { setRatingState(r=>({...r, submitting:false})); }
   };
+
+  const StarRow = ({ axis, label, sub }) => (
+    <div style={{marginBottom:14}}>
+      <div style={{fontSize:12,fontWeight:700,color:"#78350F",marginBottom:2}}>{label}</div>
+      {sub && <div style={{fontSize:10,color:"#92400E",opacity:0.75,marginBottom:6}}>{sub}</div>}
+      <div style={{display:"flex",gap:4}}>
+        {[1,2,3,4,5].map(n=>{
+          const isHov = ratingState.hoveredAxis === axis && ratingState.hoveredStar >= n;
+          const isSel = ratingState[axis] >= n;
+          return (
+            <button key={n}
+              onMouseEnter={()=>setRatingState(r=>({...r,hoveredAxis:axis,hoveredStar:n}))}
+              onMouseLeave={()=>setRatingState(r=>({...r,hoveredAxis:null,hoveredStar:0}))}
+              onClick={()=>setRatingState(r=>({...r,[axis]:n}))}
+              style={{
+                background:"none",border:"none",cursor:"pointer",fontSize:28,padding:0,lineHeight:1,
+                color: (isHov||isSel) ? "#F59E0B" : "#D1D5DB",
+                transition:"transform 0.15s",transform: isHov?"scale(1.15)":"scale(1)",
+              }}>★</button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
     <div style={pageStyle}>
@@ -375,64 +410,68 @@ export default function TrackingView({ token }) {
           </div>
         )}
 
-        {/* Rating UI — appears after delivery */}
+        {/* Rating UI — 3 axes (produit, livreur, closer téléphonique) */}
         {isDelivered && !alreadyRated && !ratingState.justSubmitted && (
           <div style={{
-            background:"linear-gradient(135deg,#FEF3C7,#FCD34D)",borderRadius:14,padding:"16px",
+            background:"linear-gradient(135deg,#FEF3C7,#FCD34D)",borderRadius:14,padding:"18px 16px",
             marginBottom:14,animation:"slideIn 0.3s ease",
           }}>
-            <div style={{textAlign:"center",fontSize:13,fontWeight:700,color:"#7C2D12",marginBottom:10}}>
-              Comment s'est passée ta livraison ?
+            <div style={{textAlign:"center",fontSize:14,fontWeight:800,color:"#7C2D12",marginBottom:14}}>
+              Donne ton avis sur ta commande
             </div>
-            <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:10}}>
-              {[1,2,3,4,5].map(n=>(
-                <button key={n}
-                  onMouseEnter={()=>setRatingState(r=>({...r,hovered:n}))}
-                  onMouseLeave={()=>setRatingState(r=>({...r,hovered:0}))}
-                  onClick={()=>setRatingState(r=>({...r,stars:n}))}
-                  style={{
-                    background:"none",border:"none",cursor:"pointer",fontSize:36,padding:0,lineHeight:1,
-                    color: ((ratingState.hovered||ratingState.stars)>=n) ? "#F59E0B" : "#D1D5DB",
-                    transition:"transform 0.15s",transform: (ratingState.hovered===n)?"scale(1.2)":"scale(1)",
-                  }}>★</button>
-              ))}
-            </div>
-            {ratingState.stars > 0 && (
+            <StarRow axis="product" label="📦 Le produit" sub="Es-tu satisfait du produit reçu ?"/>
+            <StarRow axis="livreur" label="🛵 La livraison" sub="Le livreur a-t-il été ponctuel et aimable ?"/>
+            <StarRow axis="closer"  label="📞 L'appel téléphonique" sub="Comment s'est passé l'appel de confirmation ?"/>
+            {allRatingsSet && (
               <>
                 <textarea
                   value={ratingState.review}
                   onChange={e=>setRatingState(r=>({...r,review:e.target.value}))}
                   maxLength={500}
-                  placeholder={ratingState.stars>=4 ? "Qu'est-ce qui t'a plu ? (optionnel)" : "Comment peut-on s'améliorer ? (optionnel)"}
+                  placeholder="Laisse un commentaire (optionnel)"
                   style={{
                     width:"100%",borderRadius:10,border:"1px solid #FCD34D",padding:"10px",
                     fontSize:12,fontFamily:"inherit",resize:"vertical",minHeight:60,boxSizing:"border-box",
-                    background:"#FFFBEB",color:G.dark,outline:"none",
+                    background:"#FFFBEB",color:G.dark,outline:"none",marginTop:6,
                   }}/>
                 <button onClick={submitRating} disabled={ratingState.submitting}
                   style={{
                     width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:10,
-                    padding:"12px",fontSize:13,fontWeight:800,marginTop:8,cursor:"pointer",
+                    padding:"13px",fontSize:13,fontWeight:800,marginTop:10,cursor:"pointer",
                     opacity:ratingState.submitting?0.6:1,
-                  }}>{ratingState.submitting ? "Envoi…" : "Envoyer mon avis"}</button>
+                  }}>{ratingState.submitting ? "Envoi…" : "Envoyer mes avis"}</button>
               </>
+            )}
+            {!allRatingsSet && (
+              <div style={{textAlign:"center",fontSize:10,color:"#92400E",opacity:0.7,marginTop:4}}>
+                Note les 3 critères pour envoyer ton avis
+              </div>
             )}
           </div>
         )}
 
-        {/* Already rated — thank you */}
+        {/* Already rated — thank you with breakdown of the 3 ratings */}
         {isDelivered && (alreadyRated || ratingState.justSubmitted) && (
           <div style={{
-            background:G.greenLight,borderRadius:14,padding:"14px",marginBottom:14,textAlign:"center",
+            background:G.greenLight,borderRadius:14,padding:"16px",marginBottom:14,textAlign:"center",
             animation:"slideIn 0.3s ease",
           }}>
             <div style={{fontSize:26,marginBottom:4}}>🙏</div>
-            <div style={{fontSize:13,fontWeight:700,color:G.green}}>Merci pour ton avis !</div>
-            {(order.rating || ratingState.stars) > 0 && (
-              <div style={{fontSize:18,color:"#F59E0B",marginTop:4,letterSpacing:2}}>
-                {"★".repeat(order.rating || ratingState.stars)}{"☆".repeat(5 - (order.rating || ratingState.stars))}
-              </div>
-            )}
+            <div style={{fontSize:13,fontWeight:700,color:G.green,marginBottom:8}}>Merci pour ton avis !</div>
+            <div style={{display:"flex",justifyContent:"space-around",gap:6,fontSize:10,color:G.dark}}>
+              {[
+                {l:"📦 Produit",  v: order.rating_product || ratingState.product},
+                {l:"🛵 Livreur",  v: order.rating_livreur || ratingState.livreur},
+                {l:"📞 Appel",    v: order.rating_closer  || ratingState.closer},
+              ].map((r,i)=>(
+                <div key={i}>
+                  <div style={{fontSize:14,color:"#F59E0B",letterSpacing:1}}>
+                    {"★".repeat(r.v||0)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-(r.v||0))}</span>
+                  </div>
+                  <div style={{fontSize:9,color:G.gray,marginTop:2}}>{r.l}</div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
