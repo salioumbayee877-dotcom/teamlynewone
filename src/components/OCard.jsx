@@ -302,7 +302,10 @@ export const OCard = ({ o, showPrendre = false }) => {
       {!inOtherFlow&&(role==="admin"||role==="closer")&&o.phone&&(()=>{
         const waSent = waSentIds.has(o.id);
         const phone = `221${o.phone.replace(/\s+/g,"")}`;
-        const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+        const suiviLine = o.tracking_token
+          ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${o.tracking_token}`
+          : "";
+        const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
         return (
           <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
             target="_blank" rel="noreferrer"
@@ -395,7 +398,10 @@ export const OCard = ({ o, showPrendre = false }) => {
               </div>
               {/* Rappel WhatsApp personnalisé */}
               {o.phone&&(()=>{
-                const msg=`Bonjour ${o.client} ! 🚨\n\nJe suis *${currentUser.nom}*, votre livreur — *je suis juste à côté de chez vous !* 🏍️💨\n\nVotre commande *${o.product}* arrive dans quelques minutes !\n\n💰 Préparez *${fmt(o.price)} CFA* maintenant s'il vous plaît\n\n⚠️ *Soyez disponible, je sonne dans un instant !*`;
+                const suiviLine = o.tracking_token
+                  ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}`
+                  : "";
+                const msg=`Bonjour ${o.client} ! 🚨\n\nJe suis *${currentUser.nom}*, votre livreur — *je suis juste à côté de chez vous !* 🏍️💨\n\nVotre commande *${o.product}* arrive dans quelques minutes !\n\n💰 Préparez *${fmt(o.price)} CFA* maintenant s'il vous plaît\n\n⚠️ *Soyez disponible, je sonne dans un instant !*${suiviLine}`;
                 return (
                   <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
                     target="_blank" rel="noreferrer"
