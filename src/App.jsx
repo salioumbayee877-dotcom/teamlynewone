@@ -2554,6 +2554,25 @@ function AppInner() {
           setShowAdd(false);
           return;
         }
+        // Notificación al admin al cruzar el 80% (1 sola vez por mes — dedup en BD)
+        const _threshold = Math.floor(_max * 0.8);
+        if(isFinite(_max) && _count >= _threshold && _count < _max && role==="admin" && orgId){
+          (async()=>{
+            try {
+              const existing = await sbFetch(`notifications?org_id=eq.${orgId}&type=eq.plan_limit_warning&data->>month=eq.${_ym}&select=id&limit=1`);
+              if(Array.isArray(existing) && existing.length>0) return;
+              await sbFetch("notifications","POST",{
+                org_id: orgId,
+                type: "plan_limit_warning",
+                title: `⚠️ Limite du plan ${_key} bientôt atteinte`,
+                body: `${_count}/${_max} commandes utilisées ce mois. Passe à un plan supérieur pour ne pas perdre de ventes.`,
+                role_target: "admin",
+                read: false,
+                data: { month: _ym, cnt: _count, limit: _max, plan: _key },
+              });
+            } catch(e){}
+          })();
+        }
       }
     } catch(e){}
     if(!newOrder.client.trim()) { addToast("Nom du client obligatoire","⚠️","#F59E0B"); return; }
