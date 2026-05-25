@@ -8997,7 +8997,7 @@ function AppInner() {
                 addToast(`${o.client} → ${assignSelLiv.nom} ✅`,"✅",G.green);
                 setAssignLivreurModal(null);
               };
-              const sendWA = () => {
+              const sendWA = async () => {
                 // Nettoyer le numéro — garder uniquement les chiffres
                 const digits = (o.phone||"").replace(/\D/g,"");
                 if(digits.length < 8) {
@@ -9010,7 +9010,20 @@ function AppInner() {
                 else if(digits.startsWith("221")) phoneWA = digits;
                 else if(digits.startsWith("0")) phoneWA = "221" + digits.slice(1);
                 else phoneWA = "221" + digits;
-                const trackingLink = o.tracking_token ? `https://www.teamlyecom.com/track/${o.tracking_token}` : "";
+                // Asegurar tracking_token (fetch/PATCH si falta)
+                let token = o.tracking_token;
+                if (!token) {
+                  try {
+                    const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+                    token = rows?.[0]?.tracking_token || null;
+                    if (!token) {
+                      const upd = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                      token = (Array.isArray(upd)?upd[0]:upd)?.tracking_token || null;
+                    }
+                    if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+                  } catch(e){}
+                }
+                const trackingLink = token ? `https://www.teamlyecom.com/track/${token}` : "";
                 const suiviLine = trackingLink ? `\n\n🔗 Suis ta commande en direct :\n${trackingLink}` : "";
                 let msg = waTemplate
                   .replace(/{client}/g,  o.client||"")

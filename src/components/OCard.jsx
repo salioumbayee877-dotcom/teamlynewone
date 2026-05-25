@@ -314,17 +314,31 @@ export const OCard = ({ o, showPrendre = false }) => {
       {!inOtherFlow&&(role==="admin"||role==="closer")&&o.phone&&(()=>{
         const waSent = waSentIds.has(o.id);
         const phone = `221${o.phone.replace(/\s+/g,"")}`;
-        const suiviLine = o.tracking_token
-          ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${o.tracking_token}`
-          : "";
-        const msgConf=`Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+        const buildMsg = (token) => {
+          const suiviLine = token ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${token}` : "";
+          return `Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+        };
+        const openWA = async (e) => {
+          let token = o.tracking_token;
+          if (!token) {
+            try {
+              const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+              token = rows?.[0]?.tracking_token || null;
+              if (!token) {
+                const updated = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                token = (Array.isArray(updated)?updated[0]:updated)?.tracking_token || null;
+              }
+              if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+            } catch(err) { /* sigue sin link si falla */ }
+          }
+          setWaSentIds(prev=>new Set([...prev,o.id]));
+          window.open(`https://wa.me/${phone}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+        };
         return (
-          <a href={`https://wa.me/${phone}?text=${encodeURIComponent(msgConf)}`}
-            target="_blank" rel="noreferrer"
-            onClick={()=>setWaSentIds(prev=>new Set([...prev,o.id]))}
-            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:"#fff",color:"#111",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",marginBottom:6,border:"1.5px solid #111"}}>
+          <button onClick={openWA}
+            style={{display:"flex",alignItems:"center",justifyContent:"center",gap:7,background:"#fff",color:"#111",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,marginBottom:6,border:"1.5px solid #111",cursor:"pointer",width:"100%"}}>
             {waSent?<><Check size={13}/> Renvoyer confirmation WA</>:<><Send size={13}/> Confirmer par WhatsApp</>}
-          </a>
+          </button>
         );
       })()}
 
@@ -393,14 +407,30 @@ export const OCard = ({ o, showPrendre = false }) => {
               </div>
               {/* Prévenir le client par WhatsApp — colis_pris */}
               {o.phone&&(()=>{
-                const suiviLine = o.tracking_token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}` : "";
-                const msg = `Salut ${o.client} 👋\n\nJe suis *${currentUser.nom}*, ton livreur.\n📦 J'ai ton colis *${o.product}* en main, je pars maintenant vers chez toi 🛵💨\n\n💵 Prépare *${fmt(o.price)} CFA* en cash pour gagner du temps${suiviLine}`;
+                const buildMsg = (token) => {
+                  const suiviLine = token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${token}` : "";
+                  return `Salut ${o.client} 👋\n\nJe suis *${currentUser.nom}*, ton livreur.\n📦 J'ai ton colis *${o.product}* en main, je pars maintenant vers chez toi 🛵💨\n\n💵 Prépare *${fmt(o.price)} CFA* en cash pour gagner du temps${suiviLine}`;
+                };
+                const openWA = async () => {
+                  let token = o.tracking_token;
+                  if (!token) {
+                    try {
+                      const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+                      token = rows?.[0]?.tracking_token || null;
+                      if (!token) {
+                        const upd = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                        token = (Array.isArray(upd)?upd[0]:upd)?.tracking_token || null;
+                      }
+                      if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+                    } catch(err) {}
+                  }
+                  window.open(`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+                };
                 return (
-                  <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
-                    target="_blank" rel="noreferrer"
-                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                  <button onClick={openWA}
+                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,boxShadow:"0 3px 10px rgba(37,211,102,0.35)",border:"none",cursor:"pointer",width:"100%"}}>
                     <MessageCircle size={20}/> Prévenir le client maintenant
-                  </a>
+                  </button>
                 );
               })()}
               <button onClick={()=>{
@@ -422,14 +452,30 @@ export const OCard = ({ o, showPrendre = false }) => {
               </div>
               {/* Prévenir le client par WhatsApp — en_camino */}
               {o.phone&&(()=>{
-                const suiviLine = o.tracking_token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${o.tracking_token}` : "";
-                const msg=`Salut ${o.client} 🚨\n\nJe suis *${currentUser.nom}*, ton livreur — je suis *en route vers chez toi maintenant* 🏍️💨\n\nTa commande *${o.product}* arrive dans quelques minutes !\n\n💵 Prépare *${fmt(o.price)} CFA* en cash s'il te plaît\n📞 Garde ton téléphone à portée${suiviLine}`;
+                const buildMsg = (token) => {
+                  const suiviLine = token ? `\n\n🔗 Suis-moi en direct :\nhttps://www.teamlyecom.com/track/${token}` : "";
+                  return `Salut ${o.client} 🚨\n\nJe suis *${currentUser.nom}*, ton livreur — je suis *en route vers chez toi maintenant* 🏍️💨\n\nTa commande *${o.product}* arrive dans quelques minutes !\n\n💵 Prépare *${fmt(o.price)} CFA* en cash s'il te plaît\n📞 Garde ton téléphone à portée${suiviLine}`;
+                };
+                const openWA = async () => {
+                  let token = o.tracking_token;
+                  if (!token) {
+                    try {
+                      const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+                      token = rows?.[0]?.tracking_token || null;
+                      if (!token) {
+                        const upd = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                        token = (Array.isArray(upd)?upd[0]:upd)?.tracking_token || null;
+                      }
+                      if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+                    } catch(err) {}
+                  }
+                  window.open(`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+                };
                 return (
-                  <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
-                    target="_blank" rel="noreferrer"
-                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                  <button onClick={openWA}
+                    style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,boxShadow:"0 3px 10px rgba(37,211,102,0.35)",border:"none",cursor:"pointer",width:"100%"}}>
                     <MessageCircle size={20}/> Prévenir le client maintenant
-                  </a>
+                  </button>
                 );
               })()}
               <button onClick={()=>upSt(o.id,"chez_client")}
