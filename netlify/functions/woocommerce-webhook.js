@@ -70,18 +70,25 @@ exports.handler = async (event) => {
     const price        = parseFloat(order.total || 0);
     const ref          = `#${order.number || order.id}`;
 
-    // ── Plan limit check ────────────────────────────────────────────────
+    // ── Plan limit check (bypass para OWNER) ────────────────────────────
     const LIMITS = {gratuit:30, starter:30, trial:30, basic:100, pro:2000, scale:999999};
+    const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"];
     try {
-      const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=plan&limit=1`, { headers: sbHeaders });
-      const orgData = await orgRes.json();
-      const plan    = orgData?.[0]?.plan || "gratuit";
-      const limit   = LIMITS[plan] ?? 30;
-      const month   = new Date().toISOString().slice(0,7);
-      const cntRes  = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&created_at=gte.${month}-01&select=id`, { headers: sbHeaders });
-      const cnt     = (await cntRes.json())?.length || 0;
-      if (cnt >= limit)
-        return { statusCode: 429, headers, body: JSON.stringify({ error: `Limite ${limit} commandes/mois atteinte (plan ${plan})` }) };
+      const adminRes = await fetch(`${SB_URL}/rest/v1/profiles?org_id=eq.${orgId}&role=eq.admin&select=email&limit=5`, { headers: sbHeaders });
+      const admins   = await adminRes.json();
+      const isOwnerOrg = Array.isArray(admins) && admins.some(a => OWNER_EMAILS.includes((a.email||"").toLowerCase()));
+
+      if (!isOwnerOrg) {
+        const orgRes  = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=plan&limit=1`, { headers: sbHeaders });
+        const orgData = await orgRes.json();
+        const plan    = orgData?.[0]?.plan || "gratuit";
+        const limit   = LIMITS[plan] ?? 30;
+        const month   = new Date().toISOString().slice(0,7);
+        const cntRes  = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&created_at=gte.${month}-01&select=id`, { headers: sbHeaders });
+        const cnt     = (await cntRes.json())?.length || 0;
+        if (cnt >= limit)
+          return { statusCode: 429, headers, body: JSON.stringify({ error: `Limite ${limit} commandes/mois atteinte (plan ${plan})` }) };
+      }
     } catch(e) { console.error("Limit check error:", e.message); }
 
     // Duplicate check
