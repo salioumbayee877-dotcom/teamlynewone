@@ -6661,7 +6661,7 @@ function AppInner() {
                   <input value={chatMsg} onChange={e=>setChatMsg(e.target.value)}
                     onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&sendChat()}
                     placeholder="Message…"
-                    style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:13,outline:"none",resize:"none"}}/>
+                    style={{flex:1,border:"none",borderRadius:22,background:"#F3F4F6",padding:"10px 14px",fontSize:16,outline:"none",resize:"none"}}/>
                   {chatMsg.trim()?(
                     <button onClick={()=>sendChat()} style={{width:40,height:40,borderRadius:"50%",background:"#25D366",border:"none",color:"#FFF",fontSize:18,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center"}}>➤</button>
                   ):(
