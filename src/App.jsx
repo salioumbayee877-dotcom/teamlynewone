@@ -874,7 +874,8 @@ function AppInner() {
   const [fraisTableauSearch,setFraisTableauSearch]= useState("");
   const [fraisTableauFilter,setFraisTableauFilter]= useState("all");
   const [newOrder,setNewOrder]   = useState({client:"",phone:"",address:"",city:"",product:"",bundle:"",price:"",qty:"1",discount:"",livreur:"",deliveryStatus:"confirmado",deliveryZoneType:"unknown",deliveryZoneName:"",deliveryFee:"",deliveryFeeOverridden:false,zone:"sn_dakar",fraisLiv:1500,paymentMethod:"cod"});
-  const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",niche:"",bundles:[]});
+  const [newProd,setNewProd]     = useState({name:"",cost:"",price:"",stock:"",niche:"",bundles:[],variants:{}});
+  const [variantInput,setVariantInput] = useState({}); // {Couleur:"texto en curso", Taille:"..."}
   const [newBundleForm,setNewBundleForm] = useState({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
   const [newBundle,setNewBundle] = useState({name:"",type:"quantite",prodNom:"",prodQte:"2",qteOfferte:"1",remisePct:"",prixVente:"",livraisonOfferte:false});
   const [adSpend,setAdSpend]           = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_ad_spend")||"null")||{};}catch(e){return {};}});
@@ -2692,14 +2693,19 @@ function AppInner() {
     setProdErrors({});
     const tempProdId = "tmp_" + Date.now();
     const _defFrais = settings.defaultDeliveryPrice||1500;
-    const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:_defFrais,fraisLivExtra:_defFrais,niche:newProd.niche||"Autre",bundles:newProd.bundles||[]};
+    // Limpia variantes vacías (ejes sin valores no se guardan)
+    const cleanVariants = Object.fromEntries(
+      Object.entries(newProd.variants||{}).filter(([_,vals])=>Array.isArray(vals)&&vals.length>0)
+    );
+    const hasVariants = Object.keys(cleanVariants).length > 0;
+    const newProduct = {id:tempProdId,name:newProd.name,cost:parseInt(newProd.cost)||0,price:parseInt(newProd.price)||0,stock:parseInt(newProd.stock)||0,stockInitial:parseInt(newProd.stock)||0,fraisLiv:_defFrais,fraisLivExtra:_defFrais,niche:newProd.niche||"Autre",bundles:newProd.bundles||[],variants:hasVariants?cleanVariants:null};
     setProducts(p=>[...p,newProduct]);
     if(!orgId) {
       setProducts(p=>p.filter(x=>x.id!==tempProdId));
       addToast("⚠️ Connexion incomplète — réessayez","⚠️",G.red);
       return;
     }
-    sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,frais_liv_extra:newProduct.fraisLivExtra,niche:newProduct.niche,archived:false})
+    sbFetch("products","POST",{org_id:orgId,name:newProduct.name,cost:newProduct.cost,price:newProduct.price,stock:newProduct.stock,stock_initial:newProduct.stock,frais_liv:newProduct.fraisLiv,frais_liv_extra:newProduct.fraisLivExtra,niche:newProduct.niche,archived:false,variants:newProduct.variants})
       .then(res=>{
         const saved=Array.isArray(res)?res[0]:res;
         if(saved?.id) setProducts(p=>p.map(x=>x.id===tempProdId?{...x,id:saved.id}:x));
@@ -2713,7 +2719,7 @@ function AppInner() {
         addToast(`❌ Erreur d'enregistrement: ${e.message}`,"❌",G.red);
         console.error("addProduct error:",e.message);
       });
-    setNewProd({name:"",cost:"",price:"",stock:"",niche:"",bundles:[]});
+    setNewProd({name:"",cost:"",price:"",stock:"",niche:"",bundles:[],variants:{}});
     setNewBundleForm({label:"",type:"quantite",qte:"2",qteOfferte:"1",prixVente:"",livraisonOfferte:false});
     setShowAddProd(false);
   };
@@ -6958,6 +6964,112 @@ function AppInner() {
               </div>
             )}
 
+            {/* ── SECTION VARIANTES ── */}
+            <div style={{borderTop:`2px dashed ${G.grayLight}`,paddingTop:16,marginTop:4,marginBottom:14}}>
+              <div style={{fontWeight:700,fontSize:14,color:G.dark,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Package size={15}/> Variantes du produit</div>
+              <div style={{fontSize:11,color:G.gray,marginBottom:12}}>Optionnel — taille, couleur, matière...</div>
+
+              {(()=>{
+                const variants = newProd.variants || {};
+                const activeAxes = Object.keys(variants);
+                const AXIS_PRESETS = [
+                  { key:"Taille",  icon:"🏷️" },
+                  { key:"Couleur", icon:"🎨" },
+                  { key:"Matière", icon:"🧵" },
+                ];
+                const presetUnused = AXIS_PRESETS.filter(a => !activeAxes.includes(a.key));
+
+                const addAxis = (axisName) => {
+                  const name = (axisName||"").trim();
+                  if (!name || variants[name]) return;
+                  setNewProd(p => ({...p, variants:{...(p.variants||{}), [name]:[]}}));
+                };
+                const removeAxis = (axisName) => {
+                  setNewProd(p => {
+                    const v = {...(p.variants||{})};
+                    delete v[axisName];
+                    return {...p, variants:v};
+                  });
+                };
+                const addValue = (axisName, value) => {
+                  const v = (value||"").trim();
+                  if (!v) return;
+                  setNewProd(p => {
+                    const cur = (p.variants||{})[axisName] || [];
+                    if (cur.some(x => x.toLowerCase() === v.toLowerCase())) return p;
+                    return {...p, variants:{...(p.variants||{}), [axisName]:[...cur, v]}};
+                  });
+                  setVariantInput(p => ({...p, [axisName]:""}));
+                };
+                const removeValue = (axisName, value) => {
+                  setNewProd(p => ({
+                    ...p,
+                    variants:{...(p.variants||{}), [axisName]:(p.variants||{})[axisName].filter(x=>x!==value)}
+                  }));
+                };
+
+                return (
+                  <div style={{border:`1.5px dashed #E5E7EB`,borderRadius:12,padding:"14px"}}>
+                    {/* Si no hay ningún eje activo: estado empty con icono y chips de presets */}
+                    {activeAxes.length === 0 && (
+                      <div style={{textAlign:"center",padding:"8px 0 4px"}}>
+                        <div style={{width:42,height:42,borderRadius:10,background:"#EFF6FF",display:"inline-flex",alignItems:"center",justifyContent:"center",marginBottom:10}}>
+                          <Package size={20} color={G.blue}/>
+                        </div>
+                        <div style={{fontSize:12,color:G.gray,marginBottom:12}}>Votre produit existe en plusieurs déclinaisons ?</div>
+                      </div>
+                    )}
+
+                    {/* Ejes activos: para cada uno mostrar nombre, chips de valores y input para añadir */}
+                    {activeAxes.map(axis => (
+                      <div key={axis} style={{background:G.grayLight,borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                          <div style={{fontWeight:700,fontSize:12,color:G.dark}}>{axis}</div>
+                          <button onClick={()=>removeAxis(axis)} style={{background:"none",border:"none",color:G.red,fontSize:16,cursor:"pointer",padding:0,lineHeight:1}} title="Supprimer cet axe">×</button>
+                        </div>
+                        <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:6}}>
+                          {(variants[axis]||[]).map(val => (
+                            <span key={val} style={{background:G.white,border:`1px solid #E5E7EB`,borderRadius:14,padding:"3px 4px 3px 9px",fontSize:11,color:G.dark,display:"inline-flex",alignItems:"center",gap:4}}>
+                              {val}
+                              <button onClick={()=>removeValue(axis,val)} style={{background:"none",border:"none",color:G.gray,cursor:"pointer",fontSize:13,padding:"0 3px",lineHeight:1}}>×</button>
+                            </span>
+                          ))}
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <input
+                            type="text"
+                            value={variantInput[axis] || ""}
+                            onChange={e => setVariantInput(p => ({...p, [axis]:e.target.value}))}
+                            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addValue(axis, variantInput[axis]); } }}
+                            placeholder={axis === "Taille" ? "Ex: S, M, L" : axis === "Couleur" ? "Ex: Rouge, Bleu" : `Ajouter une valeur`}
+                            style={{flex:1,border:`1px solid #E5E7EB`,borderRadius:7,padding:"6px 10px",fontSize:12,outline:"none",background:G.white,boxSizing:"border-box"}}/>
+                          <button onClick={()=>addValue(axis, variantInput[axis])}
+                            style={{background:G.green,color:G.white,border:"none",borderRadius:7,padding:"6px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>+</button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Botones para añadir ejes preset o custom */}
+                    {presetUnused.length > 0 && (
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6,justifyContent:"center",marginTop:activeAxes.length>0?8:0}}>
+                        {presetUnused.map(a => (
+                          <button key={a.key} onClick={()=>addAxis(a.key)}
+                            style={{background:G.white,color:G.dark,border:`1px solid #E5E7EB`,borderRadius:20,padding:"5px 12px",fontSize:12,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,fontWeight:500}}>
+                            <span>{a.icon}</span> {a.key}
+                          </button>
+                        ))}
+                        <button onClick={()=>{
+                          const name = prompt("Nom de l'axe (ex: Pointure, Style…)");
+                          if (name) addAxis(name);
+                        }}
+                          style={{background:G.white,color:G.green,border:`1px dashed ${G.green}`,borderRadius:20,padding:"5px 12px",fontSize:12,cursor:"pointer",fontWeight:600}}>+ Autre</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
             {/* ── SECTION BUNDLES ── */}
             <div style={{borderTop:`2px dashed ${G.grayLight}`,paddingTop:16,marginTop:4}}>
               <div style={{fontWeight:700,fontSize:14,color:G.green,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><Gift size={15}/> Bundles de ce produit</div>
@@ -7090,7 +7202,7 @@ function AppInner() {
               <button onClick={addProduct} style={{flex:1,background:G.green,color:G.white,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer"}}>
                 Enregistrer le produit
               </button>
-              <button onClick={()=>{setShowAddProd(false);setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[]});setProdErrors({});}} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
+              <button onClick={()=>{setShowAddProd(false);setNewProd({name:"",cost:"",price:"",stock:"",fraisLiv:"1500",fraisLivExtra:"",niche:"",bundles:[],variants:{}});setProdErrors({});}} style={{flex:1,background:G.grayLight,color:G.gray,border:"none",borderRadius:10,padding:12,cursor:"pointer",fontSize:13}}>Annuler</button>
             </div>
           </div>
         </div>
