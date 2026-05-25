@@ -188,6 +188,7 @@ export default function TrackingView({ token }) {
       const data = await res.json();
       if (res.ok && data === true) {
         setRatingState(r=>({...r, submitting:false, justSubmitted:true}));
+        setEditingRating(false);
         fetchOrder();
       } else { setRatingState(r=>({...r, submitting:false})); }
     } catch(e) { setRatingState(r=>({...r, submitting:false})); }
@@ -388,6 +389,21 @@ export default function TrackingView({ token }) {
                 </div>
               ))}
             </div>
+            <button onClick={()=>{
+              setRatingState({
+                product: order.rating_product || 0,
+                livreur: order.rating_livreur || 0,
+                closer:  order.rating_closer  || 0,
+                hoveredAxis: null, hoveredStar: 0,
+                review:  order.review || "",
+                submitting: false,
+                justSubmitted: false,
+              });
+              setEditingRating(true);
+            }} style={{
+              marginTop:10,background:"none",border:`1px solid ${C.accent}55`,color:C.accent,
+              borderRadius:8,padding:"6px 14px",fontSize:11,fontWeight:600,cursor:"pointer",
+            }}>Modifier mon avis</button>
           </div>
         )}
 
