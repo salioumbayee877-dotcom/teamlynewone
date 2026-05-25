@@ -3,6 +3,7 @@ const { deriveSyncStatus }  = require('./lib/syncStatus');
 const { extractCityFromAddress } = require('./lib/senegalCities');
 const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
+const { notifyPlanLimit } = require('./lib/notifyPlanLimit');
 const { expandBundles } = require('./lib/bundleParser');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -86,6 +87,7 @@ exports.handler = async (event) => {
         const month   = new Date().toISOString().slice(0,7);
         const cntRes  = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&created_at=gte.${month}-01&select=id`, { headers: sbHeaders });
         const cnt     = (await cntRes.json())?.length || 0;
+        await notifyPlanLimit({ orgId, cnt, limit, plan, sbHeaders, SB_URL });
         if (cnt >= limit)
           return { statusCode: 429, headers, body: JSON.stringify({ error: `Limite ${limit} commandes/mois atteinte (plan ${plan})` }) };
       }
