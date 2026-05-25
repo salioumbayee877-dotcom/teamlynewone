@@ -31,7 +31,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { orgId, sessionId, plan = "pro" } = body;
+    const { orgId, sessionId, plan = "pro", promoCode } = body;
     if (!orgId) return { statusCode: 400, headers, body: JSON.stringify({ error: "orgId requis" }) };
 
     // Verify the user belongs to this org and is admin
@@ -68,6 +68,23 @@ exports.handler = async (event) => {
     if (!res.ok) {
       const err = await res.text();
       return { statusCode: 500, headers, body: JSON.stringify({ error: "Supabase error: " + err }) };
+    }
+
+    // Incrementar uses_count del código promo aplicado (best-effort)
+    if (promoCode) {
+      try {
+        const code = String(promoCode).toUpperCase().trim();
+        const lookup = await fetch(`${SB_URL}/rest/v1/promo_codes?code=eq.${encodeURIComponent(code)}&select=id,uses_count&limit=1`, { headers: sbHeaders });
+        const rows = await lookup.json();
+        if (Array.isArray(rows) && rows[0]) {
+          const row = rows[0];
+          await fetch(`${SB_URL}/rest/v1/promo_codes?id=eq.${row.id}`, {
+            method: "PATCH",
+            headers: { ...sbHeaders, Prefer: "return=minimal" },
+            body: JSON.stringify({ uses_count: (row.uses_count || 0) + 1 }),
+          });
+        }
+      } catch (e) { /* no bloquear pago si falla */ }
     }
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, plan: validPlan, expiresAt }) };

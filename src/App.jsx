@@ -1019,10 +1019,27 @@ function AppInner() {
   const [memberReviewsModal, setMemberReviewsModal] = useState(null); // {member, role: 'closer'|'livreur'}
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
-  // List of valid promo codes — all give -30% off
-  const VALID_PROMO_CODES = ["LANCEMENT30","INFLUENCER30","PROMO30","PARTENAIRE30","TEAMLY30","RAMADAN30","BIENVENUE30"];
-  const checkPromoCode = (code) => VALID_PROMO_CODES.includes((code||"").toUpperCase().trim());
-  const applyPromoDiscount = (price) => promoApplied ? Math.round(price * 0.7) : price;
+  // Códigos promo cargados desde Supabase (tabla promo_codes)
+  const [promoCodesList, setPromoCodesList] = useState([]);
+  const [appliedPromo, setAppliedPromo] = useState(null); // {code, discount_pct, ...} o null
+  const checkPromoCode = (code) => {
+    const norm = (code||"").toUpperCase().trim();
+    if (!norm) return null;
+    const now = new Date();
+    const match = promoCodesList.find(p => {
+      if (p.code.toUpperCase() !== norm) return false;
+      if (!p.active) return false;
+      if (p.expires_at && new Date(p.expires_at) < now) return false;
+      if (p.max_uses != null && (p.uses_count||0) >= p.max_uses) return false;
+      return true;
+    });
+    return match || null;
+  };
+  const applyPromoDiscount = (price) => {
+    if (!promoApplied || !appliedPromo) return price;
+    const pct = Number(appliedPromo.discount_pct) || 0;
+    return Math.round(price * (100 - pct) / 100);
+  };
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
@@ -1031,6 +1048,8 @@ function AppInner() {
   const [saClients,     setSaClients]     = useState([]);
   const [saLoading,     setSaLoading]     = useState(false);
   const [saPlanEdit,    setSaPlanEdit]    = useState({});
+  // Formulario para crear código promo (super-admin)
+  const [newPromo, setNewPromo] = useState({ code:"", pct:30, expires:"", maxUses:"" });
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
   const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com","diarriag@gmail.com"];
   const [stockAjout, setStockAjout]     = useState({});
@@ -1353,6 +1372,12 @@ function AppInner() {
     if(!orgId||payLoading) return;
     setPayLoading(planKey);
     try {
+      // Guardar el código promo aplicado (si lo hay) para incrementar uses_count tras el pago
+      if(promoApplied && appliedPromo?.code){
+        try{ localStorage.setItem("teamly_pending_promo", appliedPromo.code); }catch(e){}
+      } else {
+        try{ localStorage.removeItem("teamly_pending_promo"); }catch(e){}
+      }
       const res = await fetch("/.netlify/functions/wave-checkout",{
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({orgId, amount: String(amount), plan: planKey}),
@@ -1369,12 +1394,15 @@ function AppInner() {
     const params = new URLSearchParams(window.location.search);
     if(params.get("payment")==="success" && params.get("org")===orgId && orgId) {
       const sessionId = params.get("session") || params.get("session_id") || null;
+      let pendingPromo = null;
+      try{ pendingPromo = localStorage.getItem("teamly_pending_promo"); }catch(e){}
       fetch("/.netlify/functions/wave-success",{
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`},
-        body: JSON.stringify({orgId, sessionId}),
+        body: JSON.stringify({orgId, sessionId, promoCode: pendingPromo}),
       }).then(r=>r.json()).then(d=>{
         if(d.success){ setIsPro(true); setTrialDaysLeft(31); addToast("Paiement confirmé — Bienvenue en Pro 🎉","✅","#1A5C38"); }
+        try{ localStorage.removeItem("teamly_pending_promo"); }catch(e){}
       }).catch(()=>{});
       window.history.replaceState({},document.title,window.location.pathname);
     }
@@ -2427,6 +2455,18 @@ function AppInner() {
       .then(p=>{ if(Array.isArray(p)) setOrgMemberCount(p.length); })
       .catch(()=>{});
   },[orgId, sbReady, teamMembers.length]);
+
+  // Carga códigos promo desde Supabase
+  const loadPromoCodes = async () => {
+    try {
+      const codes = await sbFetch(`promo_codes?select=*&order=created_at.desc`);
+      if(Array.isArray(codes)) setPromoCodesList(codes);
+    } catch(e){ /* tabla puede no existir aún antes de aplicar SQL */ }
+  };
+  useEffect(()=>{
+    if(!sbReady) return;
+    loadPromoCodes();
+  },[sbReady]);
 
   // Supabase persist helpers
   const sbSave = async (table, data) => {
@@ -4243,8 +4283,18 @@ function AppInner() {
                         <div style={{fontSize:12,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",marginTop:2}}>{p.members} · {p.orders}</div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{p.priceLabel}</div>
-                        <div style={{fontSize:11,color:p.highlight?G.gray:"rgba(255,255,255,0.4)"}}>CFA / mois</div>
+                        {promoApplied ? (
+                          <>
+                            <div style={{fontSize:13,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",textDecoration:"line-through",lineHeight:1,marginBottom:2}}>{p.priceLabel} CFA</div>
+                            <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{applyPromoDiscount(p.price).toLocaleString("fr-FR")}</div>
+                            <div style={{fontSize:11,color:p.highlight?G.green:G.gold,fontWeight:700}}>CFA / mois · −{appliedPromo?.discount_pct||0}%</div>
+                          </>
+                        ) : (
+                          <>
+                            <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{p.priceLabel}</div>
+                            <div style={{fontSize:11,color:p.highlight?G.gray:"rgba(255,255,255,0.4)"}}>CFA / mois</div>
+                          </>
+                        )}
                       </div>
                     </div>
 
@@ -4264,7 +4314,7 @@ function AppInner() {
                       {payLoading===p.key
                         ? "Connexion Wave..."
                         : promoApplied
-                          ? `Choisir ${p.name} — ${(applyPromoDiscount(p.price)).toLocaleString("fr-FR")} CFA (-30%)`
+                          ? `Choisir ${p.name} — ${(applyPromoDiscount(p.price)).toLocaleString("fr-FR")} CFA (-${appliedPromo?.discount_pct||0}%)`
                           : `Choisir ${p.name} — ${p.priceLabel} CFA`}
                     </button>
                   </div>
@@ -4284,7 +4334,9 @@ function AppInner() {
                       onChange={e=>{
                         const v = e.target.value.toUpperCase();
                         setPromoCode(v);
-                        setPromoApplied(checkPromoCode(v));
+                        const match = checkPromoCode(v);
+                        setAppliedPromo(match);
+                        setPromoApplied(!!match);
                       }}
                       placeholder="Ex: LANCEMENT30"
                       style={{
@@ -4294,7 +4346,7 @@ function AppInner() {
                       }}/>
                     {promoApplied && (
                       <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 12px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
-                        ✓ −30%
+                        ✓ −{appliedPromo?.discount_pct||0}%
                       </div>
                     )}
                   </div>
@@ -4302,7 +4354,7 @@ function AppInner() {
                     <div style={{fontSize:10,color:"#FCA5A5",marginTop:6}}>Code invalide</div>
                   )}
                   {promoApplied && (
-                    <div style={{fontSize:11,color:"#86EFAC",marginTop:6}}>✓ Code <strong>{promoCode}</strong> appliqué — économise 30% sur ton plan</div>
+                    <div style={{fontSize:11,color:"#86EFAC",marginTop:6}}>✓ Code <strong>{promoCode}</strong> appliqué — économise {appliedPromo?.discount_pct||0}% sur ton plan</div>
                   )}
                 </div>
               </div>
@@ -4867,6 +4919,135 @@ function AppInner() {
             {saClients.length===0&&!saLoading&&(
               <div style={{textAlign:"center",padding:32,color:G.gray,fontSize:13}}>
                 Aucun client trouvé. Clique sur "↺ Actualiser" pour réessayer.
+              </div>
+            )}
+
+            {/* ── GESTION CODES PROMO ── */}
+            <div style={{background:"linear-gradient(135deg,#1A3828,#0D1F14)",borderRadius:16,padding:"18px 20px",marginTop:18}}>
+              <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.4)",fontWeight:600,marginBottom:6}}>🎟 OWNER</div>
+              <div style={{fontWeight:800,fontSize:18,color:"#FFF",marginBottom:4}}>Codes promo</div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Crée tes propres codes — % de réduction, expiration et limite d'usages</div>
+            </div>
+
+            {/* Formulaire créer code */}
+            <div style={{background:"#FFF",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
+              <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>+ Nouveau code</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 90px",gap:8,marginBottom:8}}>
+                <input
+                  type="text"
+                  value={newPromo.code}
+                  onChange={e=>setNewPromo(p=>({...p,code:e.target.value.toUpperCase().replace(/\s+/g,"")}))}
+                  placeholder="Ex: RAMADAN50"
+                  style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textTransform:"uppercase",letterSpacing:1}}/>
+                <input
+                  type="number" min="1" max="100"
+                  value={newPromo.pct}
+                  onChange={e=>setNewPromo(p=>({...p,pct:e.target.value}))}
+                  placeholder="%"
+                  style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textAlign:"center"}}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                <div>
+                  <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Expire le (optionnel)</div>
+                  <input
+                    type="date"
+                    value={newPromo.expires}
+                    onChange={e=>setNewPromo(p=>({...p,expires:e.target.value}))}
+                    style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+                <div>
+                  <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Max usages (optionnel)</div>
+                  <input
+                    type="number" min="1"
+                    value={newPromo.maxUses}
+                    onChange={e=>setNewPromo(p=>({...p,maxUses:e.target.value}))}
+                    placeholder="∞"
+                    style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+                </div>
+              </div>
+              <button onClick={async()=>{
+                const code = (newPromo.code||"").trim().toUpperCase();
+                const pct  = parseInt(newPromo.pct,10);
+                if(!code) return addToast("Code requis","❌",G.red);
+                if(!pct||pct<1||pct>100) return addToast("% entre 1 et 100","❌",G.red);
+                if(promoCodesList.some(c=>c.code.toUpperCase()===code))
+                  return addToast("Ce code existe déjà","❌",G.red);
+                try {
+                  const payload = {
+                    code, discount_pct:pct, active:true,
+                    expires_at: newPromo.expires ? new Date(newPromo.expires+"T23:59:59").toISOString() : null,
+                    max_uses: newPromo.maxUses ? parseInt(newPromo.maxUses,10) : null,
+                    created_by: currentUser.id,
+                  };
+                  await sbFetch(`promo_codes`,"POST",payload);
+                  setNewPromo({code:"",pct:30,expires:"",maxUses:""});
+                  await loadPromoCodes();
+                  addToast(`Code ${code} créé ✅`,"✅",G.green);
+                } catch(e){
+                  addToast("Erreur — vérifie que la table promo_codes existe","❌",G.red);
+                }
+              }} style={{width:"100%",background:G.green,color:"#FFF",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                Créer le code
+              </button>
+            </div>
+
+            {/* Liste codes existants */}
+            {promoCodesList.length>0 && (
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {promoCodesList.map(c=>{
+                  const expired = c.expires_at && new Date(c.expires_at) < new Date();
+                  const usedUp  = c.max_uses != null && (c.uses_count||0) >= c.max_uses;
+                  const inactive = !c.active || expired || usedUp;
+                  return (
+                  <div key={c.id} style={{background:"#FFF",borderRadius:12,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",borderLeft:`4px solid ${inactive?G.gray:G.green}`,display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        <div style={{fontWeight:800,fontSize:14,color:G.dark,letterSpacing:0.5}}>{c.code}</div>
+                        <div style={{background:G.green+"20",color:G.green,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>−{c.discount_pct}%</div>
+                        {expired && <div style={{background:"#FEE2E2",color:G.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Expiré</div>}
+                        {usedUp && <div style={{background:"#FEE2E2",color:G.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Épuisé</div>}
+                        {!c.active && <div style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Inactif</div>}
+                      </div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:3}}>
+                        {c.uses_count||0}{c.max_uses?`/${c.max_uses}`:""} usage{(c.uses_count||0)>1?"s":""}
+                        {c.expires_at && <> · expire le {new Date(c.expires_at).toLocaleDateString("fr-FR")}</>}
+                      </div>
+                    </div>
+                    <button onClick={async()=>{
+                      try {
+                        await sbFetch(`promo_codes?id=eq.${c.id}`,"PATCH",{active:!c.active});
+                        await loadPromoCodes();
+                        addToast(`Code ${c.active?"désactivé":"activé"} ✅`,"✅",G.green);
+                      } catch(e){ addToast("Erreur","❌",G.red); }
+                    }} title={c.active?"Désactiver":"Activer"}
+                      style={{background:c.active?"#FEF3C7":G.greenLight,color:c.active?"#92400E":G.green,border:"none",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      {c.active?"Pause":"On"}
+                    </button>
+                    <button onClick={()=>{
+                      setConfirmModal({
+                        msg:`Supprimer le code ${c.code} ?`,
+                        sub:"Cette action est irréversible.",
+                        danger:true,
+                        onConfirm: async ()=>{
+                          try {
+                            await sbFetch(`promo_codes?id=eq.${c.id}`,"DELETE");
+                            await loadPromoCodes();
+                            addToast(`Code ${c.code} supprimé`,"🗑️",G.gray);
+                          } catch(e){ addToast("Erreur","❌",G.red); }
+                        },
+                      });
+                    }} title="Supprimer"
+                      style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      🗑
+                    </button>
+                  </div>
+                  );
+                })}
+              </div>
+            )}
+            {promoCodesList.length===0 && (
+              <div style={{textAlign:"center",padding:20,color:G.gray,fontSize:12,background:"#F9FAFB",borderRadius:10}}>
+                Aucun code promo créé pour l'instant
               </div>
             )}
           </div>
@@ -7010,7 +7191,9 @@ function AppInner() {
                         onChange={e=>{
                           const v = e.target.value.toUpperCase();
                           setPromoCode(v);
-                          setPromoApplied(checkPromoCode(v));
+                          const match = checkPromoCode(v);
+                          setAppliedPromo(match);
+                          setPromoApplied(!!match);
                         }}
                         placeholder="Ex: LANCEMENT30"
                         style={{
@@ -7020,7 +7203,7 @@ function AppInner() {
                         }}/>
                       {promoApplied && (
                         <div style={{background:G.green,color:"#fff",borderRadius:7,padding:"8px 11px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
-                          ✓ −30%
+                          ✓ −{appliedPromo?.discount_pct||0}%
                         </div>
                       )}
                     </div>
@@ -7029,7 +7212,7 @@ function AppInner() {
                     )}
                     {promoApplied && (
                       <div style={{fontSize:10,color:G.green,marginTop:5,fontWeight:600}}>
-                        ✓ <strong>{promoCode}</strong> — économise 30% au prochain paiement
+                        ✓ <strong>{promoCode}</strong> — économise {appliedPromo?.discount_pct||0}% au prochain paiement
                       </div>
                     )}
                   </div>
@@ -7386,7 +7569,7 @@ function AppInner() {
                             <>
                               <div style={{fontSize:11,color:G.gray,textDecoration:"line-through",lineHeight:1}}>{p.price.split(" CFA")[0]} CFA</div>
                               <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1.2}}>{applyPromoDiscount(p.priceNum).toLocaleString("fr-FR")}</div>
-                              <div style={{fontSize:10,color:G.green,fontWeight:600}}>CFA / mois · −30%</div>
+                              <div style={{fontSize:10,color:G.green,fontWeight:600}}>CFA / mois · −{appliedPromo?.discount_pct||0}%</div>
                             </>
                           ) : (
                             <>
@@ -7471,7 +7654,9 @@ function AppInner() {
                     onChange={e=>{
                       const v = e.target.value.toUpperCase();
                       setPromoCode(v);
-                      setPromoApplied(checkPromoCode(v));
+                      const match = checkPromoCode(v);
+                      setAppliedPromo(match);
+                      setPromoApplied(!!match);
                     }}
                     placeholder="Ex: LANCEMENT30"
                     style={{
@@ -7481,7 +7666,7 @@ function AppInner() {
                     }}/>
                   {promoApplied && (
                     <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 14px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
-                      ✓ −30%
+                      ✓ −{appliedPromo?.discount_pct||0}%
                     </div>
                   )}
                 </div>
@@ -7490,7 +7675,7 @@ function AppInner() {
                 )}
                 {promoApplied && (
                   <div style={{fontSize:11,color:G.green,marginTop:6,fontWeight:600}}>
-                    ✓ Code <strong>{promoCode}</strong> appliqué — économise 30% sur ton plan
+                    ✓ Code <strong>{promoCode}</strong> appliqué — économise {appliedPromo?.discount_pct||0}% sur ton plan
                   </div>
                 )}
               </div>
