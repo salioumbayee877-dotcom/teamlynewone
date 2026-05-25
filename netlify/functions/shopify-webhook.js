@@ -221,6 +221,7 @@ exports.handler = async (event) => {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
       body: JSON.stringify({
+        tracking_token: require('crypto').randomUUID(),
         org_id: orgId, client: clientName, phone, address,
         city: matchedCity || (matchedZone?.name) || city || null,
         delivery_zone_name: matchedZone?.name || null,

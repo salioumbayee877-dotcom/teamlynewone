@@ -2618,7 +2618,7 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||null,delivery_zone_name:order.deliveryZoneName||null,delivery_zone_type:order.deliveryZoneType||null,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||null,delivery_zone_name:order.deliveryZoneName||null,delivery_zone_type:order.deliveryZoneType||null,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType,tracking_token:(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():null})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) {

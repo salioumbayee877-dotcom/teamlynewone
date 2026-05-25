@@ -197,7 +197,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ org_id:orgId, client:clientName, phone, address, city: matchedCity || matchedZone?.name || city || null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce", region_type:regionType, payment_type:paymentType, total_discount:totalDiscount, items_count:itemsForDb.length||1 }),
+      body: JSON.stringify({ tracking_token: require('crypto').randomUUID(), org_id:orgId, client:clientName, phone, address, city: matchedCity || matchedZone?.name || city || null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||lineItems.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"woocommerce", region_type:regionType, payment_type:paymentType, total_discount:totalDiscount, items_count:itemsForDb.length||1 }),
     });
 
     if (!res.ok) {
