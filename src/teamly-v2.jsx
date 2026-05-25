@@ -1151,7 +1151,7 @@ export default function TeamlyLanding() {
               fontSize: 17, color: "rgba(255,255,255,.65)", lineHeight: 1.65,
               maxWidth: 460, marginBottom: 28,
             }}>
-              Admin, Closer et Livreur — une seule plateforme. Chaque commande confirmée, livrée et encaissée plus vite.
+              Admin, Closer, Livreur et le client — une seule plateforme. Chaque commande confirmée, livrée, suivie et encaissée plus vite.
             </p>
             <div className="hero-ctas" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
               <a href="/dashboard?signup=1" style={{ textDecoration: "none" }}><button className="btn-gold" style={{ fontSize: 15, padding: "14px 28px" }}>
