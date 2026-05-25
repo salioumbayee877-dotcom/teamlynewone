@@ -822,6 +822,104 @@ function MockupDesktopDashboard() {
   );
 }
 
+function MockupTracking() {
+  return (
+    <PhoneFrame>
+      <div style={{ background: "#fff", padding: "12px 14px 14px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 7, color: G.muted, fontWeight: 700, letterSpacing: 1.5 }}>SUIVI</div>
+            <div style={{ fontSize: 12, fontWeight: 900, color: G.dark }}>Ma Boutique</div>
+          </div>
+          <div style={{ fontSize: 8, color: G.greenMid, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: G.greenMid }}/> EN LIGNE
+          </div>
+        </div>
+        <div style={{ background: G.goldLight, borderRadius: 10, padding: "12px", textAlign: "center", marginBottom: 10 }}>
+          <div style={{ fontSize: 18, marginBottom: 4 }}>📦</div>
+          <div style={{ fontSize: 11, fontWeight: 900, color: G.gold }}>Colis récupéré</div>
+          <div style={{ fontSize: 8, color: "#92400E", marginTop: 2 }}>Le livreur a ton colis · Direction chez toi</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, padding: "0 4px" }}>
+          {[
+            { l: "Confirmée", on: true },
+            { l: "Préparée", on: true },
+            { l: "En route", on: true },
+            { l: "À ta porte", on: false },
+            { l: "Livrée", on: false },
+          ].map((s, i, arr) => (
+            <div key={i} style={{ flex: 1, textAlign: "center", position: "relative" }}>
+              {i < arr.length - 1 && (
+                <div style={{ position: "absolute", top: 7, left: "55%", right: "-45%", height: 2, background: arr[i+1].on ? G.greenMid : "#E5E7EB" }}/>
+              )}
+              <div style={{
+                width: 14, height: 14, borderRadius: "50%", margin: "0 auto",
+                background: s.on ? G.greenMid : "#fff",
+                border: `2px solid ${s.on ? G.greenMid : "#E5E7EB"}`,
+                color: "#fff", fontSize: 8, fontWeight: 900,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                position: "relative", zIndex: 1,
+              }}>{s.on ? "✓" : ""}</div>
+              <div style={{ fontSize: 6, fontWeight: 700, color: s.on ? G.greenMid : G.muted, marginTop: 4 }}>{s.l}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background: G.dark, color: "#fff", borderRadius: 8, padding: "10px 12px", marginBottom: 8 }}>
+          <div style={{ fontSize: 7, color: "rgba(255,255,255,0.5)", fontWeight: 700, letterSpacing: 1 }}>MONTANT À PRÉPARER</div>
+          <div style={{ fontSize: 16, fontWeight: 900, color: "#fff", marginTop: 2 }}>8 500 <span style={{ fontSize: 9, color: "rgba(255,255,255,0.7)" }}>CFA</span></div>
+          <div style={{ fontSize: 7, color: "rgba(255,255,255,0.5)" }}>Paiement en liquide à la livraison</div>
+        </div>
+        <div style={{ background: G.greenPale, borderRadius: 8, padding: "8px 10px", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 24, height: 24, borderRadius: "50%", background: G.greenMid, color: "#fff", fontSize: 11, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>I</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 9, fontWeight: 800, color: G.dark }}>Ibou · Ton livreur</div>
+            <div style={{ fontSize: 7, color: G.muted }}>46 55 65 64</div>
+          </div>
+          <div style={{ background: G.greenMid, color: "#fff", fontSize: 9, fontWeight: 800, padding: "4px 7px", borderRadius: 6 }}>📞</div>
+          <div style={{ background: "#25D366", color: "#fff", fontSize: 9, fontWeight: 800, padding: "4px 7px", borderRadius: 6 }}>💬</div>
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+}
+
+function MockupReviews() {
+  return (
+    <PhoneFrame>
+      <div style={{ background: "#fff", padding: "16px 16px 18px", textAlign: "center" }}>
+        <div style={{
+          width: 36, height: 36, borderRadius: "50%", margin: "0 auto 8px",
+          border: `2.5px solid ${G.greenMid}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 18, color: G.greenMid,
+        }}>✓</div>
+        <div style={{ fontSize: 14, fontWeight: 900, color: G.dark, marginBottom: 3 }}>Commande livrée</div>
+        <div style={{ fontSize: 8, color: G.muted, marginBottom: 14 }}>Merci ! Ton avis nous aide à nous améliorer.</div>
+        {[
+          { icon: "📦", title: "Le produit", desc: "Es-tu satisfait du produit ?", fill: 5 },
+          { icon: "🚴", title: "La livraison", desc: "Le livreur a-t-il été aimable ?", fill: 4 },
+          { icon: "📞", title: "L'appel", desc: "Comment s'est passé l'appel ?", fill: 5 },
+        ].map((r, idx) => (
+          <div key={idx} style={{ textAlign: "left", paddingBottom: 10, marginBottom: 10, borderBottom: idx<2?`1px solid ${G.border}`:"none" }}>
+            <div style={{ fontSize: 10, fontWeight: 800, color: G.dark, display: "flex", alignItems: "center", gap: 5 }}>
+              <span style={{ fontSize: 11 }}>{r.icon}</span> {r.title}
+            </div>
+            <div style={{ fontSize: 7, color: G.muted, marginBottom: 4 }}>{r.desc}</div>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1,2,3,4,5].map(i=>(
+                <span key={i} style={{ fontSize: 14, color: i<=r.fill ? G.gold : "#E5E7EB" }}>★</span>
+              ))}
+            </div>
+          </div>
+        ))}
+        <div style={{ background: G.greenMid, color: "#fff", borderRadius: 8, padding: "8px 0", fontSize: 10, fontWeight: 800, marginTop: 4 }}>
+          Envoyer mon avis
+        </div>
+      </div>
+    </PhoneFrame>
+  );
+}
+
 function FeatureSection({ id, kicker, title, titleAccent, desc, points, mockup, reverse, bg }) {
   return (
     <section id={id} style={{ padding: "84px 28px", background: bg || G.offwhite }}>
@@ -1179,6 +1277,39 @@ export default function TeamlyLanding() {
           "Disponible pour Admin et Closer",
         ]}
         mockup={<MockupWhatsApp />}
+        bg={G.offwhite}
+      />
+
+      <FeatureSection
+        id="tracking"
+        kicker="Suivi client"
+        title="Le client voit sa commande"
+        titleAccent="en temps réel."
+        desc="Chaque client reçoit un lien de suivi unique. Il voit l'étape actuelle de sa livraison, le montant à préparer et peut appeler le livreur directement — sans appel à ton équipe."
+        points={[
+          "Page de suivi avec barre de progression live",
+          "Montant exact à préparer en cash affiché",
+          "Contact direct livreur (appel + WhatsApp)",
+          "Rassure le client, réduit les appels entrants",
+        ]}
+        mockup={<MockupTracking />}
+        reverse
+        bg={G.greenPale}
+      />
+
+      <FeatureSection
+        id="avis"
+        kicker="Avis & réputation"
+        title="Récolte des avis"
+        titleAccent="après chaque livraison."
+        desc="À la livraison, un mini-formulaire propose au client de noter le produit, la livraison et l'appel de confirmation. Tu identifies en un coup d'œil ce qui marche et ce qui freine tes ventes."
+        points={[
+          "Note 1 à 5 étoiles sur 3 critères clés",
+          "Affichage public optionnel sur la boutique",
+          "Détecte les livreurs ou closers à former",
+          "Preuves sociales pour booster la conversion",
+        ]}
+        mockup={<MockupReviews />}
         bg={G.offwhite}
       />
 
