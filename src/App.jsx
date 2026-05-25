@@ -212,6 +212,33 @@ const TeamlyLogo = ({size=1, dark=false}) => (
 );
 const fmt = n => Math.round(Number(n||0)).toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
 const pct = n => (Number(n||0)*100).toFixed(1)+"%";
+
+// ── Detección de moneda y conversión multidivisa ──
+const CURRENCY_RATES = { XOF: 1, EUR: 1/656, USD: 1/600 };
+const CURRENCY_META  = {
+  XOF: { symbol:"CFA", unit:"CFA / mois", short:"CFA" },
+  EUR: { symbol:"€",   unit:"€ / mois",   short:"€"   },
+  USD: { symbol:"$",   unit:"$ / mois",   short:"$"   },
+};
+function detectCurrencyByTimezone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    const cfaZones = ["Dakar","Abidjan","Bamako","Ouagadougou","Niamey","Lome","Cotonou","Bissau","Conakry","Nouakchott","Douala","Libreville","Brazzaville","Bangui","Ndjamena","Malabo","Sao_Tome"];
+    if (cfaZones.some(z => tz.includes(z))) return "XOF";
+    if (tz.startsWith("Europe/")) return "EUR";
+    return "USD";
+  } catch (e) { return "XOF"; }
+}
+function convertCFA(cfa, currency) {
+  const rate = CURRENCY_RATES[currency] || 1;
+  return Math.round(Number(cfa||0) * rate);
+}
+function fmtMoney(cfa, currency) {
+  const n = convertCFA(cfa, currency);
+  if (currency === "XOF") return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g," ");
+  return n.toLocaleString("fr-FR");
+}
+
 const localDateStr = (dt = new Date()) => { const d = new Date(dt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const TODAY = localDateStr();
 const FRAIS_LIV = 1500;
@@ -1017,6 +1044,9 @@ function AppInner() {
   const [showSettings, setShowSettings] = useState(false);
   const [showReviewsModal, setShowReviewsModal] = useState(false);
   const [memberReviewsModal, setMemberReviewsModal] = useState(null); // {member, role: 'closer'|'livreur'}
+  // Moneda detectada por timezone (XOF/EUR/USD) — el usuario puede cambiarla
+  const [currency, setCurrency] = useState(() => detectCurrencyByTimezone());
+  const cur = CURRENCY_META[currency] || CURRENCY_META.XOF;
   const [promoCode, setPromoCode] = useState("");
   const [promoApplied, setPromoApplied] = useState(false);
   // Códigos promo cargados desde Supabase (tabla promo_codes)
@@ -3559,7 +3589,7 @@ function AppInner() {
                 onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>{p.name}</div>
-                  <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.price} <span style={{fontSize:10,opacity:0.7}}>CFA/mois</span></div>
+                  <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.key==="gratuit"?"0":fmtMoney(p.priceNum, currency)} <span style={{fontSize:10,opacity:0.7}}>{cur.short}/mois</span></div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:3}}>
                   {p.features.map((f,i)=>(
@@ -4239,7 +4269,7 @@ function AppInner() {
       {/* ── PAYWALL — trial expiré ── */}
       {trialExpired&&(()=>{
         const PLANS_PAY = PLANS.filter(p=>p.key!=="gratuit").map(p=>({
-          key:p.key, name:p.name, price:p.priceNum, priceLabel:p.price.replace(" CFA",""),
+          key:p.key, name:p.name, price:p.priceNum, priceLabel:fmtMoney(p.priceNum, currency),
           tag:p.tag, features:p.features,
           highlight:p.key==="basic",
         }));
@@ -4254,10 +4284,23 @@ function AppInner() {
               </div>
 
               {/* Titre */}
-              <div style={{textAlign:"center",marginBottom:24}}>
+              <div style={{textAlign:"center",marginBottom:18}}>
                 <div style={{fontSize:11,letterSpacing:2,color:"rgba(255,255,255,0.45)",fontWeight:600,marginBottom:8}}>PÉRIODE D'ESSAI TERMINÉE</div>
                 <div style={{fontWeight:800,fontSize:22,color:"#FFF",marginBottom:6}}>Choisissez votre plan</div>
                 <div style={{fontSize:13,color:"rgba(255,255,255,0.55)"}}>L'accès est suspendu pour toute votre équipe</div>
+              </div>
+
+              {/* Sélecteur de devise */}
+              <div style={{display:"flex",justifyContent:"center",gap:6,marginBottom:18}}>
+                {["XOF","EUR","USD"].map(c=>(
+                  <button key={c} onClick={()=>setCurrency(c)}
+                    style={{
+                      background: currency===c ? G.gold : "rgba(255,255,255,0.08)",
+                      color: currency===c ? G.dark : "rgba(255,255,255,0.7)",
+                      border:"none", borderRadius:8, padding:"5px 12px",
+                      fontSize:11, fontWeight:700, cursor:"pointer", letterSpacing:0.5,
+                    }}>{CURRENCY_META[c].short}</button>
+                ))}
               </div>
 
               {/* Plan Starter — rappel gratuit */}
@@ -4286,14 +4329,14 @@ function AppInner() {
                       <div style={{textAlign:"right"}}>
                         {promoApplied ? (
                           <>
-                            <div style={{fontSize:13,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",textDecoration:"line-through",lineHeight:1,marginBottom:2}}>{p.priceLabel} CFA</div>
-                            <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{applyPromoDiscount(p.price).toLocaleString("fr-FR")}</div>
-                            <div style={{fontSize:11,color:p.highlight?G.green:G.gold,fontWeight:700}}>CFA / mois · −{appliedPromo?.discount_pct||0}%</div>
+                            <div style={{fontSize:13,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",textDecoration:"line-through",lineHeight:1,marginBottom:2}}>{p.priceLabel} {cur.short}</div>
+                            <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{fmtMoney(applyPromoDiscount(p.price), currency)}</div>
+                            <div style={{fontSize:11,color:p.highlight?G.green:G.gold,fontWeight:700}}>{cur.unit} · −{appliedPromo?.discount_pct||0}%</div>
                           </>
                         ) : (
                           <>
                             <div style={{fontWeight:800,fontSize:26,color:p.highlight?G.green:G.gold,lineHeight:1}}>{p.priceLabel}</div>
-                            <div style={{fontSize:11,color:p.highlight?G.gray:"rgba(255,255,255,0.4)"}}>CFA / mois</div>
+                            <div style={{fontSize:11,color:p.highlight?G.gray:"rgba(255,255,255,0.4)"}}>{cur.unit}</div>
                           </>
                         )}
                       </div>
@@ -4315,8 +4358,8 @@ function AppInner() {
                       {payLoading===p.key
                         ? "Connexion Wave..."
                         : promoApplied
-                          ? `Choisir ${p.name} — ${(applyPromoDiscount(p.price)).toLocaleString("fr-FR")} CFA (-${appliedPromo?.discount_pct||0}%)`
-                          : `Choisir ${p.name} — ${p.priceLabel} CFA`}
+                          ? `Choisir ${p.name} — ${fmtMoney(applyPromoDiscount(p.price), currency)} ${cur.short} (-${appliedPromo?.discount_pct||0}%)`
+                          : `Choisir ${p.name} — ${p.priceLabel} ${cur.short}`}
                     </button>
                   </div>
                 </div>
@@ -4388,7 +4431,7 @@ function AppInner() {
           </div>
           <button onClick={()=>startWavePayment(20000,"pro")} disabled={!!payLoading}
             style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,letterSpacing:0.2}}>
-            {payLoading?"...":"Passer Pro — 20 000 CFA/mois"}
+            {payLoading?"...":`Passer Pro — ${fmtMoney(20000, currency)} ${cur.short}/mois`}
           </button>
         </div>
       )}
@@ -7156,7 +7199,7 @@ function AppInner() {
                         <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.45)",fontWeight:600,marginBottom:4}}>{curPlan.key==="starter"?"ESSAI GRATUIT":"PLAN ACTIF"}</div>
                         <div style={{fontWeight:800,fontSize:22,color:"#FFF",letterSpacing:0.3}}>{curPlan.name}</div>
                         <div style={{fontSize:12,color:"rgba(255,255,255,0.55)",marginTop:3}}>
-                          {curPlan.key==="starter"?"14 jours gratuits":`${curPlan.price} CFA / mois`}
+                          {curPlan.key==="starter"?"14 jours gratuits":`${fmtMoney(curPlan.priceNum||0, currency)} ${cur.unit}`}
                         </div>
                       </div>
                       <button onClick={()=>setShowPlanModal(true)}
@@ -7586,14 +7629,14 @@ function AppInner() {
                         <div style={{textAlign:"right",flexShrink:0}}>
                           {(promoApplied && p.key!=="gratuit") ? (
                             <>
-                              <div style={{fontSize:11,color:G.gray,textDecoration:"line-through",lineHeight:1}}>{p.price.split(" CFA")[0]} CFA</div>
-                              <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1.2}}>{applyPromoDiscount(p.priceNum).toLocaleString("fr-FR")}</div>
-                              <div style={{fontSize:10,color:G.green,fontWeight:600}}>CFA / mois · −{appliedPromo?.discount_pct||0}%</div>
+                              <div style={{fontSize:11,color:G.gray,textDecoration:"line-through",lineHeight:1}}>{fmtMoney(p.priceNum, currency)} {cur.short}</div>
+                              <div style={{fontWeight:800,fontSize:18,color:G.green,lineHeight:1.2}}>{fmtMoney(applyPromoDiscount(p.priceNum), currency)}</div>
+                              <div style={{fontSize:10,color:G.green,fontWeight:600}}>{cur.unit} · −{appliedPromo?.discount_pct||0}%</div>
                             </>
                           ) : (
                             <>
-                              <div style={{fontWeight:800,fontSize:18,color:G.dark,lineHeight:1}}>{p.key==="gratuit"?"Gratuit":p.price.split(" CFA")[0]}</div>
-                              {p.key!=="gratuit"&&<div style={{fontSize:10,color:G.gray}}>CFA / mois</div>}
+                              <div style={{fontWeight:800,fontSize:18,color:G.dark,lineHeight:1}}>{p.key==="gratuit"?"Gratuit":fmtMoney(p.priceNum, currency)}</div>
+                              {p.key!=="gratuit"&&<div style={{fontSize:10,color:G.gray}}>{cur.unit}</div>}
                               {p.key==="gratuit"&&<div style={{fontSize:10,color:G.gray}}>14 jours</div>}
                             </>
                           )}
@@ -7653,7 +7696,7 @@ function AppInner() {
                             }
                           }
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
-                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${p.price}` : `Activer le plan ${p.name}`}
+                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(p.priceNum, currency)} ${cur.short}` : `Activer le plan ${p.name}`}
                         </button>
                       )}
                     </div>

@@ -955,10 +955,24 @@ function FeatureSection({ id, kicker, title, titleAccent, desc, points, mockup, 
 }
 
 const PRICE_TABLE = {
-  XOF: { unit: "CFA / mois", basic: "8 000", pro: "14 000", scale: "25 000" },
-  EUR: { unit: "€ / mois", basic: "15", pro: "25", scale: "45" },
-  USD: { unit: "$ / mois", basic: "15", pro: "25", scale: "45" },
+  XOF: { unit: "CFA / mois", basic: "13 000", pro: "20 000", scale: "36 000" },
+  EUR: { unit: "€ / mois",   basic: "20",     pro: "30",     scale: "55" },
+  USD: { unit: "$ / mois",   basic: "22",     pro: "33",     scale: "60" },
 };
+
+// Detección de moneda por timezone del navegador (sin API externa, sin permisos)
+function detectCurrencyByTimezone() {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+    // Países de la zona Franco CFA (BCEAO + BEAC) → XOF
+    const cfaZones = ["Dakar","Abidjan","Bamako","Ouagadougou","Niamey","Lome","Cotonou","Bissau","Conakry","Nouakchott","Douala","Libreville","Brazzaville","Bangui","Ndjamena","Malabo","Sao_Tome"];
+    if (cfaZones.some(z => tz.includes(z))) return "XOF";
+    if (tz.startsWith("Europe/")) return "EUR";
+    return "USD";
+  } catch (e) {
+    return "XOF";
+  }
+}
 
 const PLANS = [
   {
@@ -1025,17 +1039,11 @@ const PLANS = [
 
 export default function TeamlyLanding() {
   const [scrolled, setScrolled] = useState(false);
-  const [currency, setCurrency] = useState("XOF");
+  const [currency, setCurrency] = useState(() => detectCurrencyByTimezone());
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 40);
     window.addEventListener("scroll", h);
     return () => window.removeEventListener("scroll", h);
-  }, []);
-  useEffect(() => {
-    fetch("/api/geo")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d && PRICE_TABLE[d.currency]) setCurrency(d.currency); })
-      .catch(() => {});
   }, []);
   const prices = PRICE_TABLE[currency];
 
