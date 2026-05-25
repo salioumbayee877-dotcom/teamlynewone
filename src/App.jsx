@@ -1050,6 +1050,7 @@ function AppInner() {
   const [saPlanEdit,    setSaPlanEdit]    = useState({});
   // Formulario para crear código promo (super-admin)
   const [newPromo, setNewPromo] = useState({ code:"", pct:30, expires:"", maxUses:"" });
+  const [promoSectionOpen, setPromoSectionOpen] = useState(false);
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
   const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com","diarriag@gmail.com"];
   const [stockAjout, setStockAjout]     = useState({});
@@ -4362,8 +4363,17 @@ function AppInner() {
               <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8}}>
                 Paiement sécurisé via Wave · Sans engagement
               </div>
-              <button onClick={()=>window.location.reload()} style={{width:"100%",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.4)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 0",fontSize:12,cursor:"pointer",marginTop:8,marginBottom:24}}>
+              <button onClick={()=>window.location.reload()} style={{width:"100%",background:"rgba(255,255,255,0.06)",color:"rgba(255,255,255,0.4)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:10,padding:"10px 0",fontSize:12,cursor:"pointer",marginTop:8}}>
                 J'ai déjà payé — Actualiser
+              </button>
+              <button onClick={()=>{
+                try{localStorage.clear();}catch(e){}
+                _authToken=null;
+                setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);
+                setOrders([]);setProducts([]);
+                window.location.reload();
+              }} style={{width:"100%",background:"transparent",color:"rgba(255,255,255,0.5)",border:"1px solid rgba(255,80,80,0.3)",borderRadius:10,padding:"10px 0",fontSize:12,cursor:"pointer",marginTop:8,marginBottom:24,fontWeight:600}}>
+                Se déconnecter
               </button>
             </div>
           </div>
@@ -4794,6 +4804,143 @@ function AppInner() {
               <div style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Modifie les plans de tes clients directement ici</div>
             </div>
 
+            {/* ── CODES PROMO (colapsable, arriba para acceso rápido) ── */}
+            <div style={{background:"#FFF",borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",overflow:"hidden"}}>
+              <button onClick={()=>setPromoSectionOpen(v=>!v)} style={{width:"100%",background:"linear-gradient(135deg,#1A3828,#0D1F14)",color:"#FFF",border:"none",padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:18}}>🎟</span>
+                  <div style={{textAlign:"left"}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>Codes promo</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>{promoCodesList.length} code{promoCodesList.length>1?"s":""} · clique pour {promoSectionOpen?"replier":"gérer"}</div>
+                  </div>
+                </div>
+                <span style={{fontSize:18,color:"rgba(255,255,255,0.7)",transform:promoSectionOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▾</span>
+              </button>
+
+              {promoSectionOpen && (
+                <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+                  {/* Formulaire créer */}
+                  <div style={{fontWeight:700,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:6}}>+ Nouveau code</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 90px",gap:8}}>
+                    <input
+                      type="text"
+                      value={newPromo.code}
+                      onChange={e=>setNewPromo(p=>({...p,code:e.target.value.toUpperCase().replace(/\s+/g,"")}))}
+                      placeholder="Ex: RAMADAN50"
+                      style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textTransform:"uppercase",letterSpacing:1}}/>
+                    <input
+                      type="number" min="1" max="100"
+                      value={newPromo.pct}
+                      onChange={e=>setNewPromo(p=>({...p,pct:e.target.value}))}
+                      placeholder="%"
+                      style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textAlign:"center"}}/>
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    <div>
+                      <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Expire le (optionnel)</div>
+                      <input
+                        type="date"
+                        value={newPromo.expires}
+                        onChange={e=>setNewPromo(p=>({...p,expires:e.target.value}))}
+                        style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                    <div>
+                      <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Max usages (optionnel)</div>
+                      <input
+                        type="number" min="1"
+                        value={newPromo.maxUses}
+                        onChange={e=>setNewPromo(p=>({...p,maxUses:e.target.value}))}
+                        placeholder="∞"
+                        style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
+                    </div>
+                  </div>
+                  <button onClick={async()=>{
+                    const code = (newPromo.code||"").trim().toUpperCase();
+                    const pct  = parseInt(newPromo.pct,10);
+                    if(!code) return addToast("Code requis","❌",G.red);
+                    if(!pct||pct<1||pct>100) return addToast("% entre 1 et 100","❌",G.red);
+                    if(promoCodesList.some(c=>c.code.toUpperCase()===code))
+                      return addToast("Ce code existe déjà","❌",G.red);
+                    try {
+                      const payload = {
+                        code, discount_pct:pct, active:true,
+                        expires_at: newPromo.expires ? new Date(newPromo.expires+"T23:59:59").toISOString() : null,
+                        max_uses: newPromo.maxUses ? parseInt(newPromo.maxUses,10) : null,
+                        created_by: currentUser.id,
+                      };
+                      await sbFetch(`promo_codes`,"POST",payload);
+                      setNewPromo({code:"",pct:30,expires:"",maxUses:""});
+                      await loadPromoCodes();
+                      addToast(`Code ${code} créé ✅`,"✅",G.green);
+                    } catch(e){
+                      addToast("Erreur — vérifie que la table promo_codes existe","❌",G.red);
+                    }
+                  }} style={{width:"100%",background:G.green,color:"#FFF",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                    Créer le code
+                  </button>
+
+                  {/* Liste codes */}
+                  {promoCodesList.length>0 ? (
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:4}}>
+                      {promoCodesList.map(c=>{
+                        const expired = c.expires_at && new Date(c.expires_at) < new Date();
+                        const usedUp  = c.max_uses != null && (c.uses_count||0) >= c.max_uses;
+                        const inactive = !c.active || expired || usedUp;
+                        return (
+                        <div key={c.id} style={{background:"#F9FAFB",borderRadius:10,padding:"10px 12px",borderLeft:`4px solid ${inactive?G.gray:G.green}`,display:"flex",alignItems:"center",gap:8}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                              <div style={{fontWeight:800,fontSize:13,color:G.dark,letterSpacing:0.5}}>{c.code}</div>
+                              <div style={{background:G.green+"20",color:G.green,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>−{c.discount_pct}%</div>
+                              {expired && <div style={{background:"#FEE2E2",color:G.red,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>Expiré</div>}
+                              {usedUp && <div style={{background:"#FEE2E2",color:G.red,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>Épuisé</div>}
+                              {!c.active && <div style={{background:G.grayLight,color:G.gray,borderRadius:5,padding:"1px 7px",fontSize:10,fontWeight:700}}>Inactif</div>}
+                            </div>
+                            <div style={{fontSize:10,color:G.gray,marginTop:2}}>
+                              {c.uses_count||0}{c.max_uses?`/${c.max_uses}`:""} usage{(c.uses_count||0)>1?"s":""}
+                              {c.expires_at && <> · {new Date(c.expires_at).toLocaleDateString("fr-FR")}</>}
+                            </div>
+                          </div>
+                          <button onClick={async()=>{
+                            try {
+                              await sbFetch(`promo_codes?id=eq.${c.id}`,"PATCH",{active:!c.active});
+                              await loadPromoCodes();
+                              addToast(`Code ${c.active?"désactivé":"activé"} ✅`,"✅",G.green);
+                            } catch(e){ addToast("Erreur","❌",G.red); }
+                          }} title={c.active?"Désactiver":"Activer"}
+                            style={{background:c.active?"#FEF3C7":G.greenLight,color:c.active?"#92400E":G.green,border:"none",borderRadius:7,padding:"5px 9px",fontSize:10,fontWeight:700,cursor:"pointer"}}>
+                            {c.active?"Pause":"On"}
+                          </button>
+                          <button onClick={()=>{
+                            setConfirmModal({
+                              msg:`Supprimer le code ${c.code} ?`,
+                              sub:"Cette action est irréversible.",
+                              danger:true,
+                              onConfirm: async ()=>{
+                                try {
+                                  await sbFetch(`promo_codes?id=eq.${c.id}`,"DELETE");
+                                  await loadPromoCodes();
+                                  addToast(`Code ${c.code} supprimé`,"🗑️",G.gray);
+                                } catch(e){ addToast("Erreur","❌",G.red); }
+                              },
+                            });
+                          }} title="Supprimer"
+                            style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:7,padding:"5px 9px",fontSize:10,fontWeight:700,cursor:"pointer"}}>
+                            🗑
+                          </button>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:11,background:"#F9FAFB",borderRadius:8}}>
+                      Aucun code promo créé
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button onClick={async()=>{
               setSaLoading(true);
               try {
@@ -4922,134 +5069,6 @@ function AppInner() {
               </div>
             )}
 
-            {/* ── GESTION CODES PROMO ── */}
-            <div style={{background:"linear-gradient(135deg,#1A3828,#0D1F14)",borderRadius:16,padding:"18px 20px",marginTop:18}}>
-              <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.4)",fontWeight:600,marginBottom:6}}>🎟 OWNER</div>
-              <div style={{fontWeight:800,fontSize:18,color:"#FFF",marginBottom:4}}>Codes promo</div>
-              <div style={{fontSize:12,color:"rgba(255,255,255,0.5)"}}>Crée tes propres codes — % de réduction, expiration et limite d'usages</div>
-            </div>
-
-            {/* Formulaire créer code */}
-            <div style={{background:"#FFF",borderRadius:14,padding:"14px 16px",boxShadow:"0 2px 8px rgba(0,0,0,0.06)"}}>
-              <div style={{fontWeight:700,fontSize:13,color:G.dark,marginBottom:10,display:"flex",alignItems:"center",gap:6}}>+ Nouveau code</div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 90px",gap:8,marginBottom:8}}>
-                <input
-                  type="text"
-                  value={newPromo.code}
-                  onChange={e=>setNewPromo(p=>({...p,code:e.target.value.toUpperCase().replace(/\s+/g,"")}))}
-                  placeholder="Ex: RAMADAN50"
-                  style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textTransform:"uppercase",letterSpacing:1}}/>
-                <input
-                  type="number" min="1" max="100"
-                  value={newPromo.pct}
-                  onChange={e=>setNewPromo(p=>({...p,pct:e.target.value}))}
-                  placeholder="%"
-                  style={{border:"1px solid #E5E7EB",borderRadius:9,padding:"9px 11px",fontSize:13,outline:"none",textAlign:"center"}}/>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                <div>
-                  <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Expire le (optionnel)</div>
-                  <input
-                    type="date"
-                    value={newPromo.expires}
-                    onChange={e=>setNewPromo(p=>({...p,expires:e.target.value}))}
-                    style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
-                </div>
-                <div>
-                  <div style={{fontSize:10,color:G.gray,marginBottom:3,fontWeight:600}}>Max usages (optionnel)</div>
-                  <input
-                    type="number" min="1"
-                    value={newPromo.maxUses}
-                    onChange={e=>setNewPromo(p=>({...p,maxUses:e.target.value}))}
-                    placeholder="∞"
-                    style={{width:"100%",border:"1px solid #E5E7EB",borderRadius:9,padding:"8px 10px",fontSize:12,outline:"none",boxSizing:"border-box"}}/>
-                </div>
-              </div>
-              <button onClick={async()=>{
-                const code = (newPromo.code||"").trim().toUpperCase();
-                const pct  = parseInt(newPromo.pct,10);
-                if(!code) return addToast("Code requis","❌",G.red);
-                if(!pct||pct<1||pct>100) return addToast("% entre 1 et 100","❌",G.red);
-                if(promoCodesList.some(c=>c.code.toUpperCase()===code))
-                  return addToast("Ce code existe déjà","❌",G.red);
-                try {
-                  const payload = {
-                    code, discount_pct:pct, active:true,
-                    expires_at: newPromo.expires ? new Date(newPromo.expires+"T23:59:59").toISOString() : null,
-                    max_uses: newPromo.maxUses ? parseInt(newPromo.maxUses,10) : null,
-                    created_by: currentUser.id,
-                  };
-                  await sbFetch(`promo_codes`,"POST",payload);
-                  setNewPromo({code:"",pct:30,expires:"",maxUses:""});
-                  await loadPromoCodes();
-                  addToast(`Code ${code} créé ✅`,"✅",G.green);
-                } catch(e){
-                  addToast("Erreur — vérifie que la table promo_codes existe","❌",G.red);
-                }
-              }} style={{width:"100%",background:G.green,color:"#FFF",border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                Créer le code
-              </button>
-            </div>
-
-            {/* Liste codes existants */}
-            {promoCodesList.length>0 && (
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                {promoCodesList.map(c=>{
-                  const expired = c.expires_at && new Date(c.expires_at) < new Date();
-                  const usedUp  = c.max_uses != null && (c.uses_count||0) >= c.max_uses;
-                  const inactive = !c.active || expired || usedUp;
-                  return (
-                  <div key={c.id} style={{background:"#FFF",borderRadius:12,padding:"12px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",borderLeft:`4px solid ${inactive?G.gray:G.green}`,display:"flex",alignItems:"center",gap:10}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                        <div style={{fontWeight:800,fontSize:14,color:G.dark,letterSpacing:0.5}}>{c.code}</div>
-                        <div style={{background:G.green+"20",color:G.green,borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:700}}>−{c.discount_pct}%</div>
-                        {expired && <div style={{background:"#FEE2E2",color:G.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Expiré</div>}
-                        {usedUp && <div style={{background:"#FEE2E2",color:G.red,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Épuisé</div>}
-                        {!c.active && <div style={{background:G.grayLight,color:G.gray,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>Inactif</div>}
-                      </div>
-                      <div style={{fontSize:11,color:G.gray,marginTop:3}}>
-                        {c.uses_count||0}{c.max_uses?`/${c.max_uses}`:""} usage{(c.uses_count||0)>1?"s":""}
-                        {c.expires_at && <> · expire le {new Date(c.expires_at).toLocaleDateString("fr-FR")}</>}
-                      </div>
-                    </div>
-                    <button onClick={async()=>{
-                      try {
-                        await sbFetch(`promo_codes?id=eq.${c.id}`,"PATCH",{active:!c.active});
-                        await loadPromoCodes();
-                        addToast(`Code ${c.active?"désactivé":"activé"} ✅`,"✅",G.green);
-                      } catch(e){ addToast("Erreur","❌",G.red); }
-                    }} title={c.active?"Désactiver":"Activer"}
-                      style={{background:c.active?"#FEF3C7":G.greenLight,color:c.active?"#92400E":G.green,border:"none",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      {c.active?"Pause":"On"}
-                    </button>
-                    <button onClick={()=>{
-                      setConfirmModal({
-                        msg:`Supprimer le code ${c.code} ?`,
-                        sub:"Cette action est irréversible.",
-                        danger:true,
-                        onConfirm: async ()=>{
-                          try {
-                            await sbFetch(`promo_codes?id=eq.${c.id}`,"DELETE");
-                            await loadPromoCodes();
-                            addToast(`Code ${c.code} supprimé`,"🗑️",G.gray);
-                          } catch(e){ addToast("Erreur","❌",G.red); }
-                        },
-                      });
-                    }} title="Supprimer"
-                      style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"6px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                      🗑
-                    </button>
-                  </div>
-                  );
-                })}
-              </div>
-            )}
-            {promoCodesList.length===0 && (
-              <div style={{textAlign:"center",padding:20,color:G.gray,fontSize:12,background:"#F9FAFB",borderRadius:10}}>
-                Aucun code promo créé pour l'instant
-              </div>
-            )}
           </div>
         )}
 
