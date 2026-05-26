@@ -15,7 +15,7 @@ export const OCard = ({ o, showPrendre = false }) => {
     role, currentUser, settings, orders, orderItems, products,
     openModifId, pinnedOrderIds, waSentIds,
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
-    setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
+    setLivFinalNote, setLivFinalConfirm, setTransporterModal, setNoteModal, setNoteText, setEditOrder,
     upSt, addToast, togglePin,
   } = useAppContext();
 
@@ -181,7 +181,7 @@ export const OCard = ({ o, showPrendre = false }) => {
               </button>
             )}
             {role==="livreur" && o.status==="en_route" && (
-              <button onClick={()=>upSt(o.id,"remis_transporteur")}
+              <button onClick={()=>setTransporterModal({orderId:o.id, client:o.client})}
                 style={{width:"100%",background:"#0891B2",color:"#fff",border:"none",borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
                 <Bus size={20}/> Remis au transporteur
               </button>
@@ -189,17 +189,34 @@ export const OCard = ({ o, showPrendre = false }) => {
             {role==="livreur" && o.status==="remis_transporteur" && (
               <div style={{background:"#CFFAFE",border:"1px solid #0891B2",borderRadius:10,padding:"10px 12px",marginTop:6,display:"flex",alignItems:"center",gap:10}}>
                 <Bus size={22} color="#0891B2"/>
-                <div>
+                <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:13,fontWeight:800,color:"#0891B2",display:"flex",alignItems:"center",gap:5}}><Check size={14}/> Livré au transporteur</div>
+                  {o.transporter_phone && (
+                    <div style={{fontSize:12,color:"#0E7490",marginTop:3,display:"flex",alignItems:"center",gap:4,fontWeight:600}}>
+                      <Phone size={11}/> {o.transporter_phone}
+                    </div>
+                  )}
                   <div style={{fontSize:11,color:"#0E7490",marginTop:2,display:"flex",alignItems:"center",gap:4}}><Lock size={11}/> Ta mission est terminée — Admin/Closer confirme la livraison finale</div>
                 </div>
               </div>
             )}
             {isAdminOrCloser && o.status==="remis_transporteur" && (
-              <button onClick={()=>upSt(o.id,"entregado")}
-                style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <Check size={18}/> Marquer comme livré
-              </button>
+              <>
+                {o.transporter_phone && (
+                  <div style={{background:"#CFFAFE",border:"1px solid #0891B2",borderRadius:10,padding:"9px 12px",marginTop:6,display:"flex",alignItems:"center",gap:8}}>
+                    <Bus size={16} color="#0891B2"/>
+                    <div style={{fontSize:12,color:"#0E7490",fontWeight:600,flex:1,minWidth:0}}>Transporteur</div>
+                    <a href={`tel:${(o.transporter_phone||"").replace(/\s+/g,"")}`}
+                      style={{fontSize:13,fontWeight:700,color:"#0891B2",textDecoration:"none",display:"inline-flex",alignItems:"center",gap:5}}>
+                      <Phone size={12}/> {o.transporter_phone}
+                    </a>
+                  </div>
+                )}
+                <button onClick={()=>upSt(o.id,"entregado")}
+                  style={{width:"100%",background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
+                  <Check size={18}/> Marquer comme livré
+                </button>
+              </>
             )}
             {o.status==="entregado" && (
               <div style={{background:G.greenLight,borderRadius:10,padding:"9px 12px",fontSize:12,color:G.green,fontWeight:700,marginTop:6,display:"flex",alignItems:"center",gap:8}}>
@@ -226,7 +243,10 @@ export const OCard = ({ o, showPrendre = false }) => {
                         {s:"en_route",           Ico:Bike,    l:"Aller vers le transporteur"},
                         {s:"remis_transporteur", Ico:Bus,     l:"Remis au transporteur"},
                       ].map(({s,Ico,l})=>(
-                        <button key={s} onClick={()=>{ upSt(o.id,s); setOpenModifId(null); }}
+                        <button key={s} onClick={()=>{
+                          if(s==="remis_transporteur"){ setTransporterModal({orderId:o.id, client:o.client}); setOpenModifId(null); return; }
+                          upSt(o.id,s); setOpenModifId(null);
+                        }}
                           style={{background:o.status===s?"#1A5C38":"#fff",color:o.status===s?"#fff":G.dark,border:`1.5px solid ${o.status===s?"#1A5C38":"#E2E8F0"}`,borderRadius:8,padding:"5px 9px",fontSize:11,fontWeight:600,cursor:"pointer",display:"flex",alignItems:"center",gap:4}}>
                           <Ico size={12}/><span>{l}</span>
                         </button>

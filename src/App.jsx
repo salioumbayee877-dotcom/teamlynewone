@@ -965,6 +965,9 @@ function AppInner() {
   const [remise,setRemise]     = useState({});
   const [comptaShortcut,setComptaShortcut] = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut||"today";}catch(e){return"today";}});
   const [livFinalConfirm, setLivFinalConfirm] = useState(null); // {orderId, type:"livre"|"rejete", client, price}
+  const [transporterModal, setTransporterModal] = useState(null); // {orderId, client}
+  const [transporterPhoneInput, setTransporterPhoneInput] = useState("");
+  const [transporterSaving, setTransporterSaving] = useState(false);
   const [livFinalNote,    setLivFinalNote]    = useState("");
   const [livBtnLoading,   setLivBtnLoading]   = useState(null);
   const [trendPeriod,     setTrendPeriod]     = useState(()=>{try{return localStorage.getItem("teamly_trend_period")||"7j";}catch(e){return "7j";}});
@@ -4279,7 +4282,7 @@ function AppInner() {
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,
     // actions / setters
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
-    setLivFinalNote, setLivFinalConfirm, setNoteModal, setNoteText, setEditOrder,
+    setLivFinalNote, setLivFinalConfirm, setTransporterModal, setNoteModal, setNoteText, setEditOrder,
     setProducts, setExpandedProd, setStockAjout, setShowAddProd, setEditProd,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
@@ -9289,6 +9292,59 @@ function AppInner() {
                 style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Annuler</button>
               <button onClick={()=>{setConflictDelivery(null);setTab("livraisons");}}
                 style={{flex:1,background:"#0284C7",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:"pointer"}}>Voir la livraison</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Saisie téléphone transporteur (livreur remet le colis) ── */}
+      {transporterModal&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:3000,display:"flex",alignItems:"flex-end",justifyContent:"center"}}
+          onClick={e=>{if(e.target===e.currentTarget&&!transporterSaving){setTransporterModal(null);setTransporterPhoneInput("");}}}>
+          <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"28px 20px 36px",width:"100%",maxWidth:480,boxShadow:"0 -8px 32px rgba(0,0,0,0.18)"}}>
+            <div style={{textAlign:"center",marginBottom:16}}>
+              <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><Bus size={40} color="#0891B2"/></div>
+              <div style={{fontSize:18,fontWeight:800,color:"#0891B2",marginBottom:4}}>Remis au transporteur</div>
+              <div style={{fontSize:13,color:"#6B7280"}}>{transporterModal.client}</div>
+            </div>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,color:"#6B7280",fontWeight:600,marginBottom:6}}>Téléphone du transporteur *</div>
+              <input
+                type="tel"
+                value={transporterPhoneInput}
+                onChange={e=>setTransporterPhoneInput(e.target.value)}
+                placeholder="Ex: 77 123 45 67"
+                autoFocus
+                style={{width:"100%",border:"1.5px solid #E2E8F0",borderRadius:10,padding:"13px 14px",fontSize:15,outline:"none",boxSizing:"border-box"}}
+              />
+              <div style={{fontSize:11,color:"#9CA3AF",marginTop:6}}>Le client pourra appeler ce numéro depuis sa page de suivi.</div>
+            </div>
+            <div style={{display:"flex",gap:10}}>
+              <button disabled={transporterSaving} onClick={()=>{if(!transporterSaving){setTransporterModal(null);setTransporterPhoneInput("");}}}
+                style={{flex:1,background:"#F3F4F6",color:"#374151",border:"none",borderRadius:14,padding:"15px 0",fontWeight:700,fontSize:15,cursor:transporterSaving?"not-allowed":"pointer"}}>Annuler</button>
+              <button disabled={transporterSaving||!transporterPhoneInput.replace(/\D/g,"").trim()} onClick={async()=>{
+                const digits = transporterPhoneInput.replace(/\D/g,"").trim();
+                if(!digits||digits.length<7){ addToast("Numéro invalide","⚠️",G.red); return; }
+                setTransporterSaving(true);
+                const ordId = transporterModal.orderId;
+                try {
+                  await sbFetch(`orders?id=eq.${ordId}`,"PATCH",{
+                    status:"remis_transporteur",
+                    transporter_phone: transporterPhoneInput.trim(),
+                    transported_at: new Date().toISOString(),
+                  });
+                  setOrders(o=>o.map(x=>x.id===ordId?{...x,status:"remis_transporteur",transporter_phone:transporterPhoneInput.trim(),transported_at:new Date().toISOString()}:x));
+                  setTransporterModal(null); setTransporterPhoneInput("");
+                  addToast("🚌 Colis remis au transporteur","🚌","#0891B2");
+                } catch(err) {
+                  console.error("transporter save:",err);
+                  addToast("❌ Erreur — Réessayer","❌",G.red);
+                } finally {
+                  setTransporterSaving(false);
+                }
+              }} style={{flex:2,background:transporterSaving?"#6B7280":"#0891B2",color:"#fff",border:"none",borderRadius:14,padding:"15px 0",fontWeight:800,fontSize:16,cursor:transporterSaving?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                {transporterSaving?<><div style={{width:16,height:16,border:"2px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.75s linear infinite"}}/>Enregistrement…</>:<><Bus size={18}/> Confirmer</>}
+              </button>
             </div>
           </div>
         </div>

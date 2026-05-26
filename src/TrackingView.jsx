@@ -368,6 +368,30 @@ export default function TrackingView({ token }) {
           {order.delivered_at && <DetailRow Ico={CheckCircle2} label="Livrée" value={timeAgo(order.delivered_at)}/>}
         </div>
 
+        {/* Transporteur (livraisons interurbaines) */}
+        {order.status === "remis_transporteur" && order.transporter_phone && (
+          <div style={{background:"#ECFEFF",borderRadius:12,padding:"12px",marginBottom:14,border:`1px solid #06B6D4`}}>
+            <div style={{fontSize:10,color:"#0E7490",marginBottom:8,fontWeight:700,letterSpacing:1}}>TON COLIS EST AVEC LE TRANSPORTEUR</div>
+            <div style={{display:"flex",alignItems:"center",gap:12}}>
+              <div style={{
+                width:42,height:42,borderRadius:"50%",background:"#0891B2",color:"#fff",
+                display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+              }}><Truck size={20}/></div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:600,color:C.text}}>Transporteur interurbain</div>
+                <div style={{fontSize:11,color:C.textSoft,marginTop:1}}>{order.transporter_phone}</div>
+              </div>
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <a href={`tel:${digits(order.transporter_phone)}`} style={iconBtn("#0891B2")}><Phone size={15}/></a>
+                <a href={`https://wa.me/${digits(order.transporter_phone)}`} target="_blank" rel="noreferrer" style={iconBtn("#25D366")}><MessageCircle size={15}/></a>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:"#0E7490",marginTop:8,lineHeight:1.4}}>
+              Appelle le transporteur pour coordonner la livraison finale dans ta région.
+            </div>
+          </div>
+        )}
+
         {/* Livreur */}
         {order.livreur && currentStep >= 2 && currentStep < 6 && (
           <div style={{background:C.bg,borderRadius:12,padding:"12px",marginBottom:14,border:`1px solid ${C.border}`}}>
