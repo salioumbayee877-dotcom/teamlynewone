@@ -520,7 +520,7 @@ function ReviewFullscreen({ order, firstName, ratingState, setRatingState, allRa
               placeholder="Laisse un commentaire (optionnel)"
               style={{
                 width:"100%",borderRadius:10,border:`1px solid ${C.border}`,padding:"10px",
-                fontSize:13,fontFamily:"inherit",resize:"vertical",minHeight:70,boxSizing:"border-box",
+                fontSize:16,fontFamily:"inherit",resize:"vertical",minHeight:70,boxSizing:"border-box",
                 background:C.bg,color:C.text,outline:"none",marginTop:10,
               }}/>
             <button onClick={submit} disabled={ratingState.submitting}
