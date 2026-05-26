@@ -251,9 +251,41 @@ export const OCard = ({ o, showPrendre = false }) => {
               </>
             )}
             {o.status==="entregado" && (
-              <div style={{background:G.greenLight,borderRadius:10,padding:"9px 12px",fontSize:12,color:G.green,fontWeight:700,marginTop:6,display:"flex",alignItems:"center",gap:8}}>
-                <Check size={16}/> Livraison confirmée
-              </div>
+              <>
+                <div style={{background:G.greenLight,borderRadius:10,padding:"9px 12px",fontSize:12,color:G.green,fontWeight:700,marginTop:6,display:"flex",alignItems:"center",gap:8}}>
+                  <Check size={16}/> Livraison confirmée
+                </div>
+                {settings?.reviewsEnabled !== false && (o.rating || o.rating_product || o.rating_livreur || o.rating_closer) && (
+                  <div style={{marginTop:8,background:"#FFFBEB",border:"1px solid #FDE68A",borderRadius:10,padding:"10px 12px"}}>
+                    <div style={{fontSize:10,color:"#92400E",fontWeight:700,letterSpacing:0.5,marginBottom:6}}>AVIS CLIENT</div>
+                    {(o.rating_product || o.rating_livreur || o.rating_closer) ? (
+                      <div style={{display:"flex",justifyContent:"space-between",gap:6,marginBottom:o.review?6:0}}>
+                        {[
+                          {l:"📦 Produit",v:o.rating_product},
+                          {l:"🛵 Livreur",v:o.rating_livreur},
+                          {l:"📞 Appel",  v:o.rating_closer},
+                        ].map((r,i)=> r.v ? (
+                          <div key={i} style={{flex:1,textAlign:"center"}}>
+                            <div style={{fontSize:11,color:"#F59E0B",letterSpacing:0.5}}>
+                              {"★".repeat(r.v)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-r.v)}</span>
+                            </div>
+                            <div style={{fontSize:9,color:"#78350F",marginTop:2}}>{r.l}</div>
+                          </div>
+                        ) : null)}
+                      </div>
+                    ) : (
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",marginBottom:o.review?6:0}}>
+                        <div style={{fontSize:14,color:"#F59E0B",letterSpacing:1}}>
+                          {"★".repeat(o.rating)}<span style={{color:"#D1D5DB"}}>{"★".repeat(5-o.rating)}</span>
+                        </div>
+                      </div>
+                    )}
+                    {o.review && (
+                      <div style={{fontSize:12,color:"#78350F",lineHeight:1.4,fontStyle:"italic"}}>« {o.review} »</div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
 
             {/* Modifier statut — livreur (interurbain) */}
@@ -670,7 +702,7 @@ export const OCard = ({ o, showPrendre = false }) => {
 
       {/* Avis client — visible une fois la commande livrée et notée
           (caché si l'admin a désactivé globalement les avis via Paramètres) */}
-      {o.status === "entregado" && settings?.reviewsEnabled !== false && (o.rating || o.rating_product || o.rating_livreur || o.rating_closer) && (
+      {!inOtherFlow && o.status === "entregado" && settings?.reviewsEnabled !== false && (o.rating || o.rating_product || o.rating_livreur || o.rating_closer) && (
         <div style={{
           marginTop:10,background:"#FFFBEB",border:"1px solid #FDE68A",
           borderRadius:10,padding:"10px 12px",
