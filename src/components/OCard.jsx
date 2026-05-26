@@ -151,12 +151,44 @@ export const OCard = ({ o, showPrendre = false }) => {
             </div>
 
             {/* Boutons d'action selon rôle + statut */}
-            {isAdminOrCloser && o.status==="en_attente_paiement" && (
-              <button onClick={()=>upSt(o.id,"paiement_confirme")}
-                style={{width:"100%",background:"#2E8B57",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,marginTop:6}}>
-                <Check size={18}/> Confirmer le paiement reçu
-              </button>
-            )}
+            {isAdminOrCloser && o.status==="en_attente_paiement" && (()=>{
+              const buildMsg = (token) => {
+                const suiviLine = token ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${token}` : "";
+                return `Cher(e) ${o.client} 👋\n\n✅ *Paiement bien reçu — merci !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* encaissé\n📍 Destination : ${o.address||"adresse à confirmer"}\n\n🚌 *Ton colis va voyager avec un transporteur* jusqu'à ta région. Tu pourras le suivre en direct ci-dessous.${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+              };
+              const confirmAndWA = async () => {
+                upSt(o.id,"paiement_confirme");
+                if(!o.phone){ return; }
+                let token = o.tracking_token;
+                if(!token){
+                  try{
+                    const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+                    token = rows?.[0]?.tracking_token || null;
+                    if(!token){
+                      const upd = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                      token = (Array.isArray(upd)?upd[0]:upd)?.tracking_token || null;
+                    }
+                    if(token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+                  }catch(e){}
+                }
+                const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
+                window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+              };
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:6}}>
+                  {o.phone && (
+                    <button onClick={confirmAndWA}
+                      style={{width:"100%",background:"#25D366",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
+                      <MessageCircle size={18}/> Confirmer paiement + WhatsApp
+                    </button>
+                  )}
+                  <button onClick={()=>upSt(o.id,"paiement_confirme")}
+                    style={{width:"100%",background:o.phone?"#F3F4F6":"#2E8B57",color:o.phone?"#374151":"#fff",border:"none",borderRadius:12,padding:o.phone?"10px 0":"13px 0",fontWeight:o.phone?600:800,fontSize:o.phone?13:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+                    <Check size={o.phone?14:18}/> {o.phone?"Confirmer sans WhatsApp":"Confirmer le paiement reçu"}
+                  </button>
+                </div>
+              );
+            })()}
             {isAdminOrCloser && o.status==="paiement_confirme" && (
               <div style={{background:"#E8F5EE",borderRadius:10,padding:"9px 12px",fontSize:11,color:"#1A5C38",fontWeight:600,marginTop:6,display:"flex",alignItems:"center",gap:6}}>
                 <Clock size={13}/> En attente que le livreur prenne le colis en main
