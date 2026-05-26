@@ -174,8 +174,34 @@ export const OCard = ({ o, showPrendre = false }) => {
                 const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
               };
+              const sendPaymentLink = async () => {
+                if(!o.phone) return;
+                let token = o.tracking_token;
+                if(!token){
+                  try{
+                    const rows = await sbFetch(`orders?id=eq.${o.id}&select=tracking_token`,"GET");
+                    token = rows?.[0]?.tracking_token || null;
+                    if(!token){
+                      const upd = await sbFetch(`orders?id=eq.${o.id}`,"PATCH",{tracking_token: crypto.randomUUID()});
+                      token = (Array.isArray(upd)?upd[0]:upd)?.tracking_token || null;
+                    }
+                    if(token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
+                  }catch(e){}
+                }
+                if(!token){ return; }
+                const payLink = `https://www.teamlyecom.com/pay/${token}`;
+                const msg = `Bonjour ${o.client} 👋\n\n📦 Pour confirmer ta commande *${o.product}*, paie *${fmt(o.price)} CFA* via Wave en cliquant ci-dessous :\n\n💳 ${payLink}\n\n👉 Saisis exactement *${fmt(o.price)} CFA* dans Wave.\nUne fois payé, on confirme ta commande sous quelques minutes 🚀\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+                const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
+                window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank","noopener,noreferrer");
+              };
               return (
                 <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:6}}>
+                  {o.phone && settings?.wave_payment_link && (
+                    <button onClick={sendPaymentLink}
+                      style={{width:"100%",background:"#1A8FE3",color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 3px 10px rgba(26,143,227,0.35)"}}>
+                      <Send size={16}/> Envoyer lien paiement Wave (WA)
+                    </button>
+                  )}
                   {o.phone && (
                     <button onClick={confirmAndWA}
                       style={{width:"100%",background:"#25D366",color:"#fff",border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>

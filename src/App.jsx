@@ -7321,6 +7321,14 @@ function AppInner() {
                     style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
                 </div>
               ))}
+              {/* Lien de paiement Wave (pour pedidos interurbain prepaid) */}
+              <div style={{marginBottom:10}}>
+                <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Banknote size={12}/> Lien de paiement Wave (interurbain)</div>
+                <input type="url" value={settings.wave_payment_link||""} onChange={e=>setSettings(s=>({...s,wave_payment_link:e.target.value}))}
+                  placeholder="https://pay.wave.com/m/M_xxxxx/c/sn/"
+                  style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
+                <div style={{fontSize:10,color:G.gray,marginTop:3,lineHeight:1.4}}>Le client interurbain sera redirigé vers ce lien pour payer. Récupère-le depuis ton app Wave Business.</div>
+              </div>
             </div>
 
             {/* Plan */}
@@ -7568,7 +7576,7 @@ function AppInner() {
                 return;
               }
               try {
-                await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500}},_authToken);
+                await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...(settings||{}),closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500,wave_payment_link:(settings.wave_payment_link||"").trim()}},_authToken);
               } catch(e) { /* settings JSONB write is non-critical */ }
               try{
                 localStorage.setItem("teamly_nom",settings.nom);

@@ -5,6 +5,7 @@ import './styles/global.css'
 import App from './App'
 import TeamlyLanding from './teamly-v2'
 import TrackingView from './TrackingView'
+import WavePayment from './WavePayment'
 
 Sentry.init({
   dsn: "https://f9ab4ebc622cca0a77e4227c91389f06@o4511325827760128.ingest.de.sentry.io/4511326170972240",
@@ -20,8 +21,12 @@ const isRecoveryCallback = _qp.get("type") === "recovery"
   || (!!_qp.get("token_hash") && _qp.get("type") !== "signup");
 
 const trackMatch = path.match(/^\/track\/([^/?#]+)/);
+const payMatch   = path.match(/^\/pay\/([^/?#]+)/);
 
 function Root() {
+  if (payMatch) {
+    return <WavePayment token={payMatch[1]} />;
+  }
   if (trackMatch) {
     return <TrackingView token={trackMatch[1]} />;
   }
