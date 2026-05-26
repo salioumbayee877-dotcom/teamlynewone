@@ -187,6 +187,8 @@ export default function TrackingView({ token }) {
       });
       const data = await res.json();
       if (res.ok && data === true) {
+        // Marca este dispositivo como el del cliente que dejó la reseña
+        try { localStorage.setItem(`teamly_review_${token}`, "1"); } catch(e) {}
         setRatingState(r=>({...r, submitting:false, justSubmitted:true}));
         setEditingRating(false);
         fetchOrder();
@@ -224,9 +226,30 @@ export default function TrackingView({ token }) {
   const eta = (order.status === "en_camino") ? computeETA(order.en_camino_at) : null;
   const alreadyRated = !!order.rated_at;
   const reviewsEnabled = order.reviews_enabled !== false; // default true
-  const shouldShowRating = isDelivered && reviewsEnabled && !alreadyRated && !ratingState.justSubmitted;
 
-  // FULLSCREEN REVIEW MODAL — appears when delivered + reviews enabled + not yet rated
+  // Detecta si el visitante está logueado como miembro del equipo (admin/closer/livreur)
+  const isTeamMember = (() => {
+    try { return !!localStorage.getItem("teamly_token"); } catch(e) { return false; }
+  })();
+
+  // Identificador del dispositivo del cliente: localStorage por tracking_token.
+  // Solo el dispositivo que dejó la reseña original tiene esta clave → puede editar.
+  // Otro dispositivo o miembro del equipo → no la tiene → no puede editar.
+  const clientDeviceKey = `teamly_review_${token}`;
+  const hasClientToken = (() => {
+    try { return !!localStorage.getItem(clientDeviceKey); } catch(e) { return false; }
+  })();
+
+  // Reglas de visibilidad del formulario de reseña:
+  // - Nunca si el visitante es del equipo (admin/closer/livreur)
+  // - Primera vez (no rated): cualquier visitante anónimo con el link
+  // - Edición: solo si tiene la clave del dispositivo del cliente
+  const shouldShowRating = isDelivered && reviewsEnabled && !isTeamMember && (
+    (!alreadyRated && !ratingState.justSubmitted) ||
+    (editingRating && hasClientToken)
+  );
+
+  // FULLSCREEN REVIEW MODAL
   if (shouldShowRating) {
     return <ReviewFullscreen
       order={order} firstName={firstName}
@@ -234,11 +257,6 @@ export default function TrackingView({ token }) {
       allRatingsSet={allRatingsSet} submit={submitRating}
     />;
   }
-
-  // Detecta si el visitante está logueado como miembro del equipo (admin/closer/livreur)
-  const isTeamMember = (() => {
-    try { return !!localStorage.getItem("teamly_token"); } catch(e) { return false; }
-  })();
 
   return (
     <div style={pageStyle}>
@@ -407,21 +425,23 @@ export default function TrackingView({ token }) {
                 </div>
               ))}
             </div>
-            <button onClick={()=>{
-              setRatingState({
-                product: order.rating_product || 0,
-                livreur: order.rating_livreur || 0,
-                closer:  order.rating_closer  || 0,
-                hoveredAxis: null, hoveredStar: 0,
-                review:  order.review || "",
-                submitting: false,
-                justSubmitted: false,
-              });
-              setEditingRating(true);
-            }} style={{
-              marginTop:10,background:"none",border:`1px solid ${C.accent}55`,color:C.accent,
-              borderRadius:8,padding:"6px 14px",fontSize:11,fontWeight:600,cursor:"pointer",
-            }}>Modifier mon avis</button>
+            {hasClientToken && !isTeamMember && (
+              <button onClick={()=>{
+                setRatingState({
+                  product: order.rating_product || 0,
+                  livreur: order.rating_livreur || 0,
+                  closer:  order.rating_closer  || 0,
+                  hoveredAxis: null, hoveredStar: 0,
+                  review:  order.review || "",
+                  submitting: false,
+                  justSubmitted: false,
+                });
+                setEditingRating(true);
+              }} style={{
+                marginTop:10,background:"none",border:`1px solid ${C.accent}55`,color:C.accent,
+                borderRadius:8,padding:"6px 14px",fontSize:11,fontWeight:600,cursor:"pointer",
+              }}>Modifier mon avis</button>
+            )}
           </div>
         )}
 
