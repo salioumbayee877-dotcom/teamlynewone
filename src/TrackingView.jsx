@@ -265,19 +265,6 @@ export default function TrackingView({ token }) {
         @keyframes slideIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
         @keyframes flash { 0%{box-shadow:0 0 0 0 rgba(26,92,56,0.35)} 100%{box-shadow:0 0 0 12px rgba(26,92,56,0)} }
       `}</style>
-      {isTeamMember && (
-        <div style={{
-          maxWidth:520,margin:"0 auto 12px",background:"#FFF7ED",border:`1px solid #FED7AA`,
-          borderRadius:10,padding:"10px 14px",fontSize:12,color:"#9A3412",
-          display:"flex",alignItems:"center",gap:8,
-        }}>
-          <span style={{fontSize:14}}>👁️</span>
-          <div>
-            <strong>Mode admin</strong> — cette page est destinée au client final.
-            Tu peux la consulter mais les avis ne peuvent être modifiés que par le client.
-          </div>
-        </div>
-      )}
       <div style={cardStyle}>
         {/* Header */}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
