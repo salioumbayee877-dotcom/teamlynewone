@@ -302,7 +302,17 @@
         <div class="section-label">Ton profil créateur</div>
 
         <div class="field">
-          <label for="ig">Profil Instagram</label>
+          <label for="tt">Profil TikTok</label>
+          <div class="ig-wrap">
+            <svg class="ig-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M16.5 3v2.4a4.6 4.6 0 0 0 4.5 4.5V12a7.1 7.1 0 0 1-4.5-1.6V16a5 5 0 1 1-5-5c.3 0 .7 0 1 .1v2.6a2.4 2.4 0 1 0 1.6 2.3V3h2.4z" stroke="#E8801A" stroke-width="1.6" stroke-linejoin="round"/>
+            </svg>
+            <input type="url" id="tt" name="tiktok" placeholder="https://tiktok.com/@tonprofil" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="ig">Profil Instagram <span style="color:#9ab59b;font-size:12px;font-weight:400">(facultatif)</span></label>
           <div class="ig-wrap">
             <svg class="ig-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="2" y="2" width="20" height="20" rx="5" stroke="#E8801A" stroke-width="1.8"/>
@@ -343,6 +353,24 @@
         </div>
 
         <div class="section-label">Expérience & motivation</div>
+
+        <div class="field">
+          <label>Es-tu intéressé(e) par l'affiliation ?</label>
+          <div class="radiogrp">
+            <label class="radiopt">
+              <input type="radio" name="affiliation" value="oui" required />
+              Oui
+            </label>
+            <label class="radiopt">
+              <input type="radio" name="affiliation" value="peut_etre" />
+              Peut-être
+            </label>
+            <label class="radiopt">
+              <input type="radio" name="affiliation" value="non" />
+              Non
+            </label>
+          </div>
+        </div>
 
         <div class="field">
           <label>As-tu déjà fait des collaborations payées ?</label>
@@ -419,13 +447,16 @@
       }
 
       const exp = data.get("experience");
+      const aff = data.get("affiliation");
       const payload = {
         nom_complet: nom,
         email: mail,
         whatsapp: wa,
+        tiktok: (data.get("tiktok")||"").trim() || null,
         instagram: (data.get("instagram")||"").trim() || null,
         pays: data.get("pays") || null,
         niche: data.get("niche") || null,
+        affiliation_interest: aff || null,
         experience_payee: exp === "oui" ? true : exp === "non" ? false : null,
         message: (data.get("message")||"").trim() || null,
         user_agent: navigator.userAgent.slice(0, 300),
