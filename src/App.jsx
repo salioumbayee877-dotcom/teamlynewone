@@ -1606,9 +1606,25 @@ function AppInner() {
         sbFetch(`profiles?id=eq.${currentUser.id}`,"PATCH",{chat_last_read_at:nowIso}).catch(()=>{});
         setCurrentUser(u=>({...u, chat_last_read_at: nowIso}));
       }
-      setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),100);
+      // Instant scroll on entry (no smooth animation) + retry shortly in case
+      // messages are still loading.
+      const jump = () => chatBottomRef.current?.scrollIntoView({behavior:"auto",block:"end"});
+      requestAnimationFrame(jump);
+      setTimeout(jump, 200);
+      setTimeout(jump, 600);
     }
   },[tab]);
+
+  // While the chat tab is open, keep scrolled to the latest message whenever
+  // the chat array grows (initial load, realtime, sent message).
+  const lastChatLenRef = useRef(0);
+  useEffect(()=>{
+    if(tab!=="chat") { lastChatLenRef.current = chat.length; return; }
+    if(chat.length > lastChatLenRef.current) {
+      requestAnimationFrame(()=>chatBottomRef.current?.scrollIntoView({behavior:"auto",block:"end"}));
+    }
+    lastChatLenRef.current = chat.length;
+  },[chat.length, tab]);
 
   // Sync filterStatus to URL query param (?status=xxx) so it survives refresh
   useEffect(()=>{
@@ -2135,6 +2151,8 @@ function AppInner() {
         if(firstLoad) setChatLoading(false);
         if(!msgs || msgs.length === 0) return;
         const myNom = currentUserRef.current.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+        const myUid = currentUserRef.current.id||null;
+        const isFromMe = (m) => (m.fromId && myUid) ? m.fromId === myUid : m.from === myNom;
         const lastReadKey = `teamly_lastread_${currentUser.id}`;
         setChat(prev => {
           let merged;
@@ -2178,17 +2196,17 @@ function AppInner() {
               })();
               let unread = 0;
               if(lastReadTime) {
-                unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > lastReadTime).length;
+                unread = merged.filter(m=>!isFromMe(m) && m.created_at && m.created_at > lastReadTime).length;
               } else {
                 const cutoff = new Date(Date.now()-24*60*60*1000).toISOString();
-                unread = merged.filter(m=>m.from!==myNom && m.created_at && m.created_at > cutoff).length;
+                unread = merged.filter(m=>!isFromMe(m) && m.created_at && m.created_at > cutoff).length;
               }
               if(unread > 0) setChatUnread(Math.min(unread, 99));
             }
           } else if(merged.length > prev.length) {
             // True incremental: only messages not already in state
             const prevIds = new Set(prev.map(m=>String(m.id)));
-            const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&m.from!==myNom);
+            const genuineNew = merged.filter(m=>!prevIds.has(String(m.id))&&!isFromMe(m));
             if(genuineNew.length > 0) {
               if(currentTab !== "chat") {
                 setChatUnread(u => u + genuineNew.length);
@@ -2462,6 +2480,22 @@ function AppInner() {
   // Keep refs in sync so closures always read fresh values
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
   useEffect(()=>{ currentUserRef.current = currentUser; }, [currentUser]);
+
+  // Handle clicks on Web Push notifications (SW posts {type:"push-click",url}).
+  useEffect(()=>{
+    if(typeof navigator === "undefined" || !navigator.serviceWorker) return;
+    const onMsg = (e) => {
+      const d = e.data;
+      if(!d || d.type !== "push-click") return;
+      try {
+        const u = new URL(d.url, window.location.origin);
+        const t = u.searchParams.get("tab");
+        if(t) setTab(t);
+      } catch(_) {}
+    };
+    navigator.serviceWorker.addEventListener("message", onMsg);
+    return ()=>navigator.serviceWorker.removeEventListener("message", onMsg);
+  },[]);
 
   // Request browser notification permission once user is logged in.
   // Bumps notifPermBump so the subscribe effect re-runs as soon as the user
