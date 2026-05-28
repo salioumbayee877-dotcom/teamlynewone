@@ -9565,7 +9565,18 @@ function AppInner() {
                         }
                         return {...x,status:"entregado"};
                       }));
-                      if(orgId&&ord) sbFetch("notifications","POST",{org_id:orgId,type:"delivered",title:`✅ Livré — ${ord.client} a payé ${fmt(ord.price)} CFA`,body:`${ord.product} · ${fmt(ord.price)} CFA`,role_target:"closer",read:false,data:{}}).catch(()=>{});
+                      if(orgId&&ord) {
+                        const _title = `✅ Livré — ${ord.client} a payé ${fmt(ord.price)} CFA`;
+                        sbFetch("notifications","POST",{org_id:orgId,type:"delivered",title:_title,body:`${ord.product} · ${fmt(ord.price)} CFA`,role_target:"closer",read:false,data:{}}).catch(()=>{});
+                        // OS push (notification shade) to admin + closer
+                        pushNotify({
+                          title: _title,
+                          body: `${ord.product||""} · ${fmt(ord.price||0)} CFA`,
+                          roles: ["admin","closer"],
+                          tag: `order-${ord.id}`,
+                          url: "/?tab=commandes",
+                        });
+                      }
                       setLivFinalConfirm(null); setLivFinalNote("");
                       addToast("✅ Livraison confirmée","✅",G.green);
                     } catch(err) {
