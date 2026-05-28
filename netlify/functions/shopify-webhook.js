@@ -6,6 +6,7 @@ const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
 const { notifyPlanLimit } = require('./lib/notifyPlanLimit');
 const { expandBundles } = require('./lib/bundleParser');
+const { sendPush } = require('./lib/sendPush');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -266,6 +267,19 @@ exports.handler = async (event) => {
         if (!itemsRes.ok) console.error("order_items insert error:", await itemsRes.text());
       } catch(e) { console.error("order_items insert error:", e.message); }
     }
+
+    // ── OS push (notification shade) ──────────────────────────────────────
+    try {
+      const bodyTxt = `${clientName} — ${shopifyProduct} · ${Math.round(price).toLocaleString("fr-FR")} CFA`;
+      await sendPush({
+        orgId,
+        roles: ["admin", "closer"],
+        title: "🛒 Nouvelle commande Shopify",
+        body: bodyTxt,
+        tag: `order-${insertedOrderId||shopifyRef}`,
+        url: "/?tab=commandes",
+      });
+    } catch (e) { console.error("Push error:", e.message); }
 
     const zoneName = matchedZone?.name || "";
     console.log(`[TEAMLY] Shopify ${shopifyRef} — city="${city}" matchType=${matchType} zone="${zoneName}" frais=${fraisAmount} CFA`);

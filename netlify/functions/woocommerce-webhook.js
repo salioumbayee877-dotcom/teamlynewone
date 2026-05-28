@@ -5,6 +5,7 @@ const { parsePackQuantity } = require('./lib/parsePack');
 const { ensureProduct } = require('./lib/ensureProduct');
 const { notifyPlanLimit } = require('./lib/notifyPlanLimit');
 const { expandBundles } = require('./lib/bundleParser');
+const { sendPush } = require('./lib/sendPush');
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL = process.env.SUPABASE_URL;
@@ -221,6 +222,17 @@ exports.handler = async (event) => {
         if (!itemsRes.ok) console.error("order_items insert error:", await itemsRes.text());
       } catch(e) { console.error("order_items insert error:", e.message); }
     }
+
+    try {
+      await sendPush({
+        orgId,
+        roles: ["admin", "closer"],
+        title: "🛒 Nouvelle commande WooCommerce",
+        body: `${clientName} — ${rawProductName} · ${Math.round(price).toLocaleString("fr-FR")} CFA`,
+        tag: `order-${insertedOrderId||ref}`,
+        url: "/?tab=commandes",
+      });
+    } catch (e) { console.error("Push error:", e.message); }
 
     console.log(`[TEAMLY] WooCommerce ${ref} — city="${city}" matchType=${matchType} frais=${fraisAmount} CFA`);
     return { statusCode: 200, headers, body: JSON.stringify({ success:true, ref, matched, finalProduct, zone:{matchType,frais:fraisAmount} }) };

@@ -1258,10 +1258,18 @@ function AppInner() {
         addToast("Statut non sauvegardé — vérifie ta connexion","⚠️",G.red);
       });
       // Notify closer + admin on key livreur status changes
-      if(orgId && order && (s==="entregado"||s==="rechazado"||s==="en_camino"||s==="chez_client")) {
-        const notifTitle = s==="entregado"?`✅ Livré — ${order.client} a payé ${fmt(order.price)} CFA`:s==="rechazado"?`❌ Rejeté — ${order.client}`:s==="en_camino"?`🚀 En route → ${order.client}`:s==="chez_client"?`📍 Arrivé chez ${order.client}`:"📦";
-        const notifType = s==="entregado"?"delivered":s==="rechazado"?"rejected":"status_update";
+      if(orgId && order && (s==="entregado"||s==="rechazado"||s==="en_camino"||s==="chez_client"||s==="confirmado")) {
+        const notifTitle = s==="entregado"?`✅ Livré — ${order.client} a payé ${fmt(order.price)} CFA`:s==="rechazado"?`❌ Rejeté — ${order.client}`:s==="confirmado"?`✅ Commande acceptée — ${order.client}`:s==="en_camino"?`🚀 En route → ${order.client}`:s==="chez_client"?`📍 Arrivé chez ${order.client}`:"📦";
+        const notifType = s==="entregado"?"delivered":s==="rechazado"?"rejected":s==="confirmado"?"accepted":"status_update";
         sbFetch("notifications","POST",{org_id:orgId,type:notifType,title:notifTitle,body:`${order.product} · ${fmt(order.price)} CFA`,role_target:"closer",read:false,data:{}}).catch(()=>{});
+        // OS-level push (notification shade) to admin + closer
+        pushNotify({
+          title: notifTitle,
+          body: `${order.product||""} · ${fmt(order.price||0)} CFA`,
+          roles: ["admin","closer"],
+          tag: `order-${id}`,
+          url: `/?tab=${role==="livreur"?"livraisons":"commandes"}`,
+        });
       }
     }
   };
@@ -2011,7 +2019,7 @@ function AppInner() {
       let audioUrl=null,dur="0:00",fileUrl=null,fileName=null,fileSize=null,fileMime=null;
       if(isAud){const rest=t.slice(4);const sep=rest.indexOf("|");dur=sep>-1?rest.slice(0,sep):"0:00";audioUrl=sep>-1?rest.slice(sep+1):null;}
       if(isFile){const parts=t.slice(5).split("|");fileUrl=parts[0]||null;fileName=parts[1]||"Fichier";fileSize=parts[2]?Number(parts[2]):null;fileMime=parts[3]||null;}
-      return {id:m.id,from:m.from_user,role:m.role,text:isImg||isFile?"":isAud?"🎤":t,type:isImg?"image":isFile?"file":null,imgSrc:isImg?t.slice(4):null,fileUrl,fileName,fileSize,fileMime,audio:isAud||!!m.audio,audioUrl,duration:dur,created_at:m.created_at,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
+      return {id:m.id,fromId:m.from_user_id||null,from:m.from_user,role:m.role,text:isImg||isFile?"":isAud?"🎤":t,type:isImg?"image":isFile?"file":null,imgSrc:isImg?t.slice(4):null,fileUrl,fileName,fileSize,fileMime,audio:isAud||!!m.audio,audioUrl,duration:dur,created_at:m.created_at,time:new Date(m.created_at).toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"})};
     });
 
     // Restore pedidos/productos/equipo del caché al instante
@@ -2455,13 +2463,75 @@ function AppInner() {
   useEffect(()=>{ tabRef.current = tab; }, [tab]);
   useEffect(()=>{ currentUserRef.current = currentUser; }, [currentUser]);
 
-  // Request browser notification permission once user is logged in
+  // Request browser notification permission once user is logged in.
+  // Bumps notifPermBump so the subscribe effect re-runs as soon as the user
+  // grants permission (otherwise it'd only subscribe on next reload).
+  const [notifPermBump, setNotifPermBump] = useState(0);
   useEffect(()=>{
     if(!orgId) return;
-    if(typeof Notification !== "undefined" && Notification.permission === "default") {
-      Notification.requestPermission().catch(()=>{});
+    if(typeof Notification === "undefined") return;
+    if(Notification.permission === "granted") { setNotifPermBump(b=>b+1); return; }
+    if(Notification.permission === "default") {
+      Notification.requestPermission().then(p=>{
+        if(p === "granted") setNotifPermBump(b=>b+1);
+      }).catch(()=>{});
     }
   },[orgId]);
+
+  // ── Web Push: subscribe device so OS notification shade fires ──────────
+  // Runs once the user is logged in AND notification permission is granted.
+  // Safe no-op on browsers / iOS versions without push or when the PWA isn't
+  // installed.
+  useEffect(()=>{
+    if(!orgId || !sbToken) return;
+    if(typeof window === "undefined") return;
+    if(!("serviceWorker" in navigator) || !("PushManager" in window)) {
+      console.log("[push] not supported");
+      return;
+    }
+    if(typeof Notification === "undefined" || Notification.permission !== "granted") {
+      console.log("[push] permission not granted:", typeof Notification!=="undefined"?Notification.permission:"no-api");
+      return;
+    }
+
+    const VAPID_PUBLIC = (import.meta.env.VITE_VAPID_PUBLIC_KEY||"").trim();
+    if(!VAPID_PUBLIC) { console.warn("[push] VITE_VAPID_PUBLIC_KEY missing in bundle — redeploy after adding env var"); return; }
+
+    const urlB64ToUint8 = (b64) => {
+      const padding = "=".repeat((4 - b64.length % 4) % 4);
+      const base64  = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const raw     = atob(base64);
+      const out     = new Uint8Array(raw.length);
+      for(let i=0;i<raw.length;i++) out[i] = raw.charCodeAt(i);
+      return out;
+    };
+
+    let cancelled = false;
+    (async()=>{
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        let sub = await reg.pushManager.getSubscription();
+        if(!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlB64ToUint8(VAPID_PUBLIC),
+          });
+        }
+        if(cancelled || !sub) return;
+        const json = sub.toJSON();
+        const p256dh = json.keys?.p256dh;
+        const auth   = json.keys?.auth;
+        if(!p256dh || !auth) return;
+        const r = await fetch("/.netlify/functions/push-subscribe", {
+          method: "POST",
+          headers: { "Content-Type":"application/json", "Authorization":`Bearer ${sbToken}` },
+          body: JSON.stringify({ endpoint: sub.endpoint, p256dh, auth }),
+        });
+        console.log("[push] subscribe response:", r.status);
+      } catch(e) { console.warn("[push] subscribe error:", e.message); }
+    })();
+    return ()=>{ cancelled = true; };
+  },[orgId, sbToken, notifPermBump]);
 
   // Show new notifications as toasts
   const prevNotifsRef = useRef([]);
@@ -2513,6 +2583,20 @@ function AppInner() {
     if(!sbToken||!orgId) return;
     try { await sbFetch(`${table}?id=eq.${id}`, "PATCH", data, sbToken); }
     catch(e) { console.error("sbUpdate error:", e.message); }
+  };
+
+  // Fire a Web Push (OS notification shade) to teammates in the same org.
+  // Silent no-op if not logged in or the function isn't reachable.
+  const pushNotify = (opts) => {
+    if(!sbToken) return;
+    try {
+      fetch("/.netlify/functions/send-push", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "Authorization":`Bearer ${sbToken}` },
+        body: JSON.stringify(opts||{}),
+        keepalive: true,
+      }).catch(()=>{});
+    } catch(e) { /* ignore */ }
   };
 
   // ── Detect new orders assigned to livreur
@@ -2651,7 +2735,24 @@ function AppInner() {
               chez_client:      "📍 Déjà chez le client — Finaliser la livraison",
             };
             sbFetch("notifications","POST",{org_id:orgId,type:"nouveau_colis",title:NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",body:`${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,role_target:"livreur",livreur_name:_autoLivreurNom,read:false,data:{}}).catch(()=>{});
+            // OS push to the assigned livreur
+            const _livUserId = teamMembers.find(m=>m.nom===_autoLivreurNom)?.id;
+            if(_livUserId) pushNotify({
+              title: NOTIF_MSG[deliveryStatus]||"🔔 Nouveau colis",
+              body: `${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,
+              userIds: [_livUserId],
+              tag: `order-${saved.id}`,
+              url: "/?tab=livraisons",
+            });
           }
+          // OS push to admins + closers — new manual order
+          pushNotify({
+            title: "🆕 Nouvelle commande manuelle",
+            body: `${newOrder.client} — ${productLabel} · ${Number(price).toLocaleString("fr-FR")} CFA`,
+            roles: role==="admin" ? ["closer"] : ["admin","closer"],
+            tag: `order-${saved.id}`,
+            url: "/?tab=commandes",
+          });
         })
         .catch(e=>{
           let sbErr={};
@@ -2753,14 +2854,18 @@ function AppInner() {
     setShowAddBundle(false);
   };
 
-  const myName = currentUser.nom||(role==="admin"?"Admin":role==="closer"?"Closer":"Livreur");
+  // Prefer user nom; fall back to email prefix or short uid suffix so two
+  // accounts can never collide on the generic "Admin"/"Livreur" labels.
+  const myName = currentUser.nom
+    || (currentUser.email ? currentUser.email.split("@")[0] : null)
+    || (currentUser.id ? `User-${String(currentUser.id).slice(0,4)}` : (role==="admin"?"Admin":role==="closer"?"Closer":"Livreur"));
 
   const sendChat = (textOverride, extra={}) => {
     const txt = textOverride ?? chatMsg;
     if(!txt && !extra.audio && !extra.type) return;
     const now = new Date().toLocaleTimeString("fr-FR",{hour:"2-digit",minute:"2-digit"});
     const optimisticId = Date.now(); // numeric id enables dedup when real message arrives
-    const msg = {id:optimisticId, from:myName, role, text:txt||"", time:now, audio:false, ...extra};
+    const msg = {id:optimisticId, fromId:currentUser.id||null, from:myName, role, text:txt||"", time:now, audio:false, ...extra};
     setChat(p=>[...p,msg]);
     setChatMsg("");
     setTimeout(()=>chatBottomRef.current?.scrollIntoView({behavior:"smooth"}),50);
@@ -2771,8 +2876,20 @@ function AppInner() {
     fetchWithTimeout(`${SB_URL}/rest/v1/messages`, {
       method: "POST",
       headers: {...sbHeaders(), "Prefer":"return=minimal"},
-      body: JSON.stringify({org_id:orgId, from_user:myName, role, text:msg.text, audio:!!extra.audio}),
+      body: JSON.stringify({org_id:orgId, from_user:myName, from_user_id:currentUser.id||null, role, text:msg.text, audio:!!extra.audio}),
     }, timeout).catch(e => console.error("sendChat error:", e.message));
+    // OS push (notification shade) to teammates — exclude self automatically
+    const isImg   = extra.type === "image" || (msg.text||"").startsWith("IMG:");
+    const isAud   = !!extra.audio || (msg.text||"").startsWith("AUD:");
+    const isFile  = extra.type === "file" || (msg.text||"").startsWith("FILE:");
+    const preview = isImg ? "📷 Photo" : isAud ? "🎤 Message vocal" : isFile ? "📎 Fichier" : (msg.text||"").slice(0,140);
+    pushNotify({
+      title: `💬 ${myName}`,
+      body: preview,
+      roles: ["admin","closer","livreur"],
+      tag: "teamly-chat",
+      url: "/?tab=chat",
+    });
   };
 
   const uploadMedia = async (blob, ext, mime, folder="photos") => {
@@ -6524,10 +6641,15 @@ function AppInner() {
               {chat.map((msg,i)=>{
                 // Skip garbled old messages (raw base64 without proper prefix)
                 if(!msg.type&&!msg.audio&&msg.text&&(msg.text.startsWith("data:")||(msg.text.length>400&&!/\s/.test(msg.text.slice(0,80))))) return null;
-                const isMe = msg.from===myName;
+                // Use uid when available (bulletproof) — fall back to name only
+                // for legacy messages without from_user_id.
+                const isMe = msg.fromId
+                  ? msg.fromId === currentUser.id
+                  : (currentUser.id ? false : msg.from === myName);
                 const canDel = isMe || role==="admin";
-                const prevFrom = i>0?chat[i-1].from:null;
-                const showAvatar = !isMe && msg.from!==prevFrom;
+                const prevFrom = i>0?(chat[i-1].fromId||chat[i-1].from):null;
+                const curFromKey = msg.fromId||msg.from;
+                const showAvatar = !isMe && curFromKey!==prevFrom;
                 const ROLE_LABEL = {admin:"Admin",closer:"Closer",livreur:"Livreur"};
                 const rc = ROLE_COLOR[msg.role]||G.gray;
                 const isSelected = selectedMsgId===msg.id;
@@ -7324,10 +7446,20 @@ function AppInner() {
               {/* Lien de paiement Wave (pour pedidos interurbain prepaid) */}
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Banknote size={12}/> Lien de paiement Wave (interurbain)</div>
-                <input type="url" value={settings.wave_payment_link||""} onChange={e=>setSettings(s=>({...s,wave_payment_link:e.target.value}))}
+                <input type="url" value={settings.wave_payment_link||""}
+                  onChange={e=>setSettings(s=>({...s,wave_payment_link:e.target.value}))}
+                  onBlur={e=>{
+                    if(!orgId) return;
+                    const link = (e.target.value||"").trim();
+                    const newSettings = {...(settings||{}), wave_payment_link: link};
+                    setSettings(newSettings);
+                    sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:newSettings},_authToken)
+                      .then(()=>{ if(link) addToast("Lien Wave sauvegardé ✓","💾",G.green); })
+                      .catch(err=>{ console.error("wave_payment_link save:",err?.message); addToast("Erreur sauvegarde lien Wave","❌",G.red); });
+                  }}
                   placeholder="https://pay.wave.com/m/M_xxxxx/c/sn/"
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
-                <div style={{fontSize:10,color:G.gray,marginTop:3,lineHeight:1.4}}>Le client interurbain sera redirigé vers ce lien pour payer. Récupère-le depuis ton app Wave Business.</div>
+                <div style={{fontSize:10,color:G.gray,marginTop:3,lineHeight:1.4}}>Le client interurbain sera redirigé vers ce lien pour payer. Récupère-le depuis ton app Wave Business. Sauvegarde automatique.</div>
               </div>
             </div>
 

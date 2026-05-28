@@ -1,4 +1,4 @@
-const CACHE = "teamly-v8";
+const CACHE = "teamly-v9";
 const STATIC = ["/", "/index.html", "/app.js", "/apple-touch-icon.png", "/manifest.json"];
 const SKIP_CACHE = ["/rest/v1/", "supabase.co", ".netlify/functions", "nominatim.openstreetmap", "anthropic"];
 
@@ -54,5 +54,40 @@ self.addEventListener("fetch", e => {
         return r;
       })
       .catch(() => caches.match(e.request).then(r => r || caches.match("/index.html")))
+  );
+});
+
+// ── Web Push: notification shade on Android + iOS (PWA installed) ──────────
+self.addEventListener("push", e => {
+  let data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(_) {
+    try { data = { title: "Teamly", body: e.data ? e.data.text() : "" }; } catch(__) {}
+  }
+  const title = data.title || "Teamly";
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/apple-touch-icon.png",
+    badge: data.badge || "/apple-touch-icon.png",
+    tag: data.tag || "teamly",
+    data: { url: data.url || "/", ...(data.data || {}) },
+    renotify: true,
+    requireInteraction: false,
+  };
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const target = (e.notification.data && e.notification.data.url) || "/";
+  e.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      for (const client of list) {
+        if ("focus" in client) {
+          client.postMessage({ type: "push-click", url: target });
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
   );
 });
