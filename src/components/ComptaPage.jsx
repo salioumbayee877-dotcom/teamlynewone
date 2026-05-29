@@ -251,9 +251,10 @@ export const ComptaPage = () => {
             <div style={{height:"0.5px",background:"#F3F4F6",margin:"0 -16px",marginBottom:14}}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
               {[
-                {l:"CA",        v:`${fmt(comptaCA)} CFA`},
-                {l:"Coûts",     v:`${fmt(totalCouts)} CFA`},
-                {l:"Pub",       v:`${fmt(comptaPub)} CFA`},
+                {l:"CA",          v:`${fmt(comptaCA)} CFA`},
+                {l:"Coûts",       v:`${fmt(totalCouts)} CFA`},
+                {l:"Pub",         v:`${fmt(comptaPub)} CFA`},
+                {l:"Livraison",   v:`${fmt(comptaFrais)} CFA`},
                 {l:"Livrées / Rejetées", v:`${nLivrees} / ${nRejetees}`},
               ].map(({l,v},i)=>(
                 <div key={i}>
