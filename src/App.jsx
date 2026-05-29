@@ -1650,6 +1650,15 @@ function AppInner() {
       setTimeout(jump, 200);
       setTimeout(jump, 600);
     }
+    // Compta tab → always reset to "Aujourd'hui" on each entry so it never
+    // inherits a stale period from a prior session or feels coupled to the
+    // Commandes filterDate. User can still pick a different period in-session.
+    if(tab==="compta") {
+      setComptaPeriodMode("jour");
+      setComptaShortcut("today");
+      setDateFrom(TODAY);
+      setDateTo(TODAY);
+    }
   },[tab]);
 
   // While the chat tab is open, keep scrolled to the latest message whenever
