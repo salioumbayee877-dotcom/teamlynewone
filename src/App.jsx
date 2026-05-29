@@ -918,8 +918,20 @@ function AppInner() {
   const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="yesterday")return"hier";if(s==="thisweek")return"semaine";if(s==="thismonth"||s==="lastmonth")return"mois";if(s==="today")return"jour";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
   const [fraisAdminEditId,setFraisAdminEditId]     = useState(null);
   const [fraisAdminEditVal,setFraisAdminEditVal]   = useState("");
-  const _COMPTA_FILTERS_DEFAULT = {produits:[],livraisonType:"all",region:"",ville:"",livreurs:[],statuts:["entregado"],source:"all"};
-  const [comptaFilters,setComptaFilters]           = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_adv_filters")||"null")||_COMPTA_FILTERS_DEFAULT;}catch(e){return _COMPTA_FILTERS_DEFAULT;}});
+  const _COMPTA_FILTERS_DEFAULT = {produits:[],livraisonType:"all",region:"",ville:"",livreurs:[],statuts:["entregado","rechazado"],source:"all"};
+  const [comptaFilters,setComptaFilters]           = useState(()=>{
+    try{
+      const saved = JSON.parse(localStorage.getItem("teamly_compta_adv_filters")||"null");
+      if(!saved) return _COMPTA_FILTERS_DEFAULT;
+      // Migration: if saved filter has only 'entregado' in statuts, add 'rechazado'
+      // so the Livrées/Rejetées card includes both. Triggered once per device.
+      if(Array.isArray(saved.statuts) && saved.statuts.length===1 && saved.statuts[0]==="entregado") {
+        saved.statuts = ["entregado","rechazado"];
+        try{ localStorage.setItem("teamly_compta_adv_filters", JSON.stringify(saved)); }catch(_){}
+      }
+      return saved;
+    }catch(e){return _COMPTA_FILTERS_DEFAULT;}
+  });
   const [comptaFiltersOpen,setComptaFiltersOpen]   = useState(false);
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
   const [dateFrom,setDateFrom]         = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").dateFrom||TODAY;}catch(e){return TODAY;}});
