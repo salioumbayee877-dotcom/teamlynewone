@@ -1005,6 +1005,7 @@ function AppInner() {
   const [playingMsgId,setPlayingMsgId]    = useState(null);
   const audioRef                           = useRef(null);
   const chatBottomRef                      = useRef(null);
+  const waveSaveTimerRef                   = useRef(null);
   const pendingUploadsRef                  = useRef(new Map());
   const chatScrollRef                      = useRef(null);
   const tabRef                             = useRef(tab);
@@ -7481,15 +7482,21 @@ function AppInner() {
               <div style={{marginBottom:10}}>
                 <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><Banknote size={12}/> Lien de paiement Wave (interurbain)</div>
                 <input type="url" value={settings.wave_payment_link||""}
-                  onChange={e=>setSettings(s=>({...s,wave_payment_link:e.target.value}))}
-                  onBlur={e=>{
+                  onChange={e=>{
+                    const v = e.target.value;
+                    setSettings(s=>({...s,wave_payment_link:v}));
                     if(!orgId) return;
-                    const link = (e.target.value||"").trim();
-                    const newSettings = {...(settings||{}), wave_payment_link: link};
-                    setSettings(newSettings);
-                    sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:newSettings},_authToken)
-                      .then(()=>{ if(link) addToast("Lien Wave sauvegardé ✓","💾",G.green); })
-                      .catch(err=>{ console.error("wave_payment_link save:",err?.message); addToast("Erreur sauvegarde lien Wave","❌",G.red); });
+                    if(waveSaveTimerRef.current) clearTimeout(waveSaveTimerRef.current);
+                    waveSaveTimerRef.current = setTimeout(()=>{
+                      const link = (v||"").trim();
+                      setSettings(curr=>{
+                        const merged = {...(curr||{}), wave_payment_link: link};
+                        sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:merged},_authToken)
+                          .then(()=>{ if(link) addToast("Lien Wave sauvegardé ✓","💾",G.green); })
+                          .catch(err=>{ console.error("wave_payment_link save:",err?.message); addToast("Erreur sauvegarde lien Wave","❌",G.red); });
+                        return merged;
+                      });
+                    }, 500);
                   }}
                   placeholder="https://pay.wave.com/m/M_xxxxx/c/sn/"
                   style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:8,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box"}}/>
