@@ -61,7 +61,11 @@ export const ComptaPage = () => {
       {/* ── Filter bar ── */}
       {(()=>{
         const cf = comptaFilters;
-        const activeCount = cf.produits.length+(cf.livraisonType!=="all"?1:0)+(cf.source!=="all"?1:0)+cf.livreurs.length+(cf.region?1:0)+(!(cf.statuts.length===1&&cf.statuts[0]==="entregado")?1:0);
+        // Treat the default {entregado,rechazado} (or legacy {entregado}) as
+        // "no status filter active" — only count when the user changed it.
+        const _statutsDefault = (cf.statuts.length<=2)
+          && cf.statuts.every(s=>s==="entregado"||s==="rechazado");
+        const activeCount = cf.produits.length+(cf.livraisonType!=="all"?1:0)+(cf.source!=="all"?1:0)+cf.livreurs.length+(cf.region?1:0)+(_statutsDefault?0:1);
         const resetFilters = ()=>{ setComptaFilters(_COMPTA_FILTERS_DEFAULT); setComptaFiltersOpen(false); };
         const livTeam = teamMembers.filter(m=>m.role==="livreur");
         const _mainC  = (mainRegion?.cities||[]).map(s=>{const{name}=_parseCity(s);return name;}).filter(Boolean);

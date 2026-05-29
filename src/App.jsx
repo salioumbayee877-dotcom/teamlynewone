@@ -934,8 +934,32 @@ function AppInner() {
   });
   const [comptaFiltersOpen,setComptaFiltersOpen]   = useState(false);
   const [toasts,setToasts]             = useState([]); // [{id,msg,color,icon}]
-  const [dateFrom,setDateFrom]         = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").dateFrom||TODAY;}catch(e){return TODAY;}});
-  const [dateTo,setDateTo]             = useState(()=>{try{return JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").dateTo||TODAY;}catch(e){return TODAY;}});
+  // Date range — when periodMode is a known shortcut (today/yesterday/week/month),
+  // ALWAYS recompute the dates from the current TODAY so a session that crossed
+  // midnight or a tab opened the next day shows today's data, not the stale
+  // localStorage value.
+  const _comptaInitDates = (()=>{
+    let mode = "plage";
+    try{
+      const s = JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;
+      if(s==="today") mode="jour";
+      else if(s==="yesterday") mode="hier";
+      else if(s==="thisweek") mode="semaine";
+      else if(s==="thismonth"||s==="lastmonth") mode="mois";
+      else if(!s) mode="plage";
+    }catch(_){}
+    if(mode==="jour")    return {from:TODAY, to:TODAY};
+    if(mode==="hier"){const y=new Date();y.setDate(y.getDate()-1);const s=localDateStr(y);return {from:s,to:s};}
+    if(mode==="semaine"){const n=new Date();const dow=(n.getDay()+6)%7;const m=new Date(n);m.setDate(n.getDate()-dow);return {from:localDateStr(m),to:TODAY};}
+    if(mode==="mois")   return {from:TODAY.slice(0,7)+"-01", to:TODAY};
+    // plage / unknown → respect what was saved
+    try{
+      const saved = JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}");
+      return {from: saved.dateFrom||TODAY, to: saved.dateTo||TODAY};
+    }catch(_){ return {from:TODAY,to:TODAY}; }
+  })();
+  const [dateFrom,setDateFrom]         = useState(_comptaInitDates.from);
+  const [dateTo,setDateTo]             = useState(_comptaInitDates.to);
   const [newAssignment,setNewAssignment] = useState(null);
   const [showGpsPrompt,setShowGpsPrompt] = useState(false);
   const [showIosInstall,setShowIosInstall] = useState(false);
