@@ -1014,6 +1014,12 @@ function AppInner() {
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
   const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"all";}catch(e){return "all";}});
   const filterDateRef = useRef(filterDate);
+  // Refs for compta date range so loadMain can fetch a wide-enough server-side
+  // window to satisfy BOTH the commandes filterDate AND the compta period —
+  // otherwise picking 'Aujourd'hui' in commandes would starve compta of older
+  // orders and make its date filter look broken.
+  const comptaFromRef = useRef(null);
+  const comptaToRef   = useRef(null);
   const [filterLivreur,    setFilterLivreur]    = useState("all");
   const [livResultFilter,  setLivResultFilter]  = useState([]); // multi-select result statuses for livreur
   const [refreshing, setRefreshing]     = useState(false);
@@ -1682,6 +1688,13 @@ function AppInner() {
     } catch(e) {}
   },[filterStatus]);
 
+  // Keep compta date refs in sync; re-fetch when range widens beyond loaded data.
+  useEffect(()=>{
+    comptaFromRef.current = dateFrom;
+    comptaToRef.current   = dateTo;
+    if(loadMainRef.current) loadMainRef.current();
+  },[dateFrom, dateTo]);
+
   // Sync filterDate to URL + localStorage, and re-fetch from server when it changes
   useEffect(()=>{
     filterDateRef.current = filterDate;
@@ -2100,21 +2113,33 @@ function AppInner() {
     // Carga pedidos, productos y equipo juntos (sin mensajes — son pesados)
     let mainReqId = 0;
     const buildDateQuery = (dateKey) => {
-      if(!dateKey || dateKey==="all") return "";
+      // Compute the commandes filter range (null if 'all').
       const now = new Date();
-      let start, end;
+      let cStart=null, cEnd=null;
       if(dateKey==="today") {
-        start=new Date(now); start.setHours(0,0,0,0);
-        end=new Date(now);   end.setHours(23,59,59,999);
+        cStart=new Date(now); cStart.setHours(0,0,0,0);
+        cEnd=new Date(now);   cEnd.setHours(23,59,59,999);
       } else if(dateKey==="yesterday") {
-        start=new Date(now); start.setDate(start.getDate()-1); start.setHours(0,0,0,0);
-        end=new Date(now);   end.setDate(end.getDate()-1);     end.setHours(23,59,59,999);
+        cStart=new Date(now); cStart.setDate(cStart.getDate()-1); cStart.setHours(0,0,0,0);
+        cEnd=new Date(now);   cEnd.setDate(cEnd.getDate()-1);     cEnd.setHours(23,59,59,999);
       } else if(dateKey==="week") {
-        start=new Date(now); start.setDate(start.getDate()-((start.getDay()+6)%7)); start.setHours(0,0,0,0);
-        end=new Date(now);   end.setHours(23,59,59,999);
+        cStart=new Date(now); cStart.setDate(cStart.getDate()-((cStart.getDay()+6)%7)); cStart.setHours(0,0,0,0);
+        cEnd=new Date(now);   cEnd.setHours(23,59,59,999);
       }
+      // Compute the compta filter range (always present once compta loaded).
+      let kStart=null, kEnd=null;
+      if(comptaFromRef.current) { kStart = new Date(comptaFromRef.current+"T00:00:00.000Z"); }
+      if(comptaToRef.current)   { kEnd   = new Date(comptaToRef.current  +"T23:59:59.999Z"); }
+      // Final range: widest envelope so both tabs have all the data they need.
+      // If 'all' is selected in commandes (cStart=null), the server returns
+      // everything — that's already the widest possible window.
+      if(!cStart && !kStart) return "";
+      if(!dateKey || dateKey==="all") return ""; // 'Tout' wins → full history
+      let start = cStart, end = cEnd;
+      if(kStart && (!start || kStart<start)) start = kStart;
+      if(kEnd   && (!end   || kEnd>end))     end   = kEnd;
       if(!start||!end) return "";
-      console.log("[TEAMLY] Filter range:", start.toISOString(), "→", end.toISOString());
+      console.log("[TEAMLY] Filter range (commandes∪compta):", start.toISOString(), "→", end.toISOString());
       return `&created_at=gte.${encodeURIComponent(start.toISOString())}&created_at=lte.${encodeURIComponent(end.toISOString())}`;
     };
 
