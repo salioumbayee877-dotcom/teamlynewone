@@ -83,7 +83,7 @@ exports.handler = async (event) => {
     // GET — list all orgs with stats
     if (method === "GET") {
       const [orgsRes, profilesRes] = await Promise.all([
-        fetch(`${SB_URL}/rest/v1/organizations?select=id,name,plan,plan_expires_at,created_at&order=created_at.desc`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/organizations?select=id,name,plan,plan_expires_at,created_at,affiliate_blocked&order=created_at.desc`, { headers: sbHeaders }),
         fetch(`${SB_URL}/rest/v1/profiles?select=org_id,role,nom,email,phone`, { headers: sbHeaders }),
       ]);
       const orgs     = await orgsRes.json();
@@ -139,6 +139,19 @@ exports.handler = async (event) => {
         method: "PATCH",
         headers: { ...sbHeaders, Prefer: "return=minimal" },
         body: JSON.stringify({ status: "paid", paid_at: new Date().toISOString(), paid_note: paid_note || null }),
+      });
+      if (!res.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: "Erreur Supabase" }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
+    }
+
+    // PATCH — bloquer/débloquer l'affiliation d'une org
+    if (method === "PATCH" && view === "affiliate-block") {
+      const { orgId, affiliate_blocked } = JSON.parse(event.body || "{}");
+      if (!orgId || typeof affiliate_blocked !== "boolean") return { statusCode: 400, headers, body: JSON.stringify({ error: "orgId et affiliate_blocked requis" }) };
+      const res = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({ affiliate_blocked }),
       });
       if (!res.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: "Erreur Supabase" }) };
       return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };

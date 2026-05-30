@@ -41,15 +41,21 @@ exports.handler = async (event) => {
   if (profile.role !== "admin") return { statusCode: 403, headers, body: JSON.stringify({ error: "Réservé à l'admin" }) };
   const orgId = profile.org_id;
 
+  // Bloqueo de afiliación de la org (influencer ya pagado)
+  const orgRes = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}&select=affiliate_blocked&limit=1`, { headers: sbHeaders });
+  const orgRows = await orgRes.json().catch(() => []);
+  const blocked = !!(Array.isArray(orgRows) && orgRows[0]?.affiliate_blocked);
+
   try {
-    // GET — code actuel de l'org
+    // GET — code actuel de l'org + statut de blocage
     if (event.httpMethod === "GET") {
       const r = await fetch(`${SB_URL}/rest/v1/referral_codes?org_id=eq.${orgId}&select=code&limit=1`, { headers: sbHeaders });
       const rows = await r.json().catch(() => []);
-      return { statusCode: 200, headers, body: JSON.stringify({ code: rows?.[0]?.code || "" }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ code: rows?.[0]?.code || "", blocked }) };
     }
 
     if (event.httpMethod === "POST") {
+      if (blocked) return { statusCode: 403, headers, body: JSON.stringify({ error: "blocked" }) };
       const body = JSON.parse(event.body || "{}");
       const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9-]/g, "").trim();
       if (code.length < 3 || code.length > 20) {

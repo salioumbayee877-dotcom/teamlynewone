@@ -1152,6 +1152,7 @@ function AppInner() {
   const [editCodeVal, setEditCodeVal]       = useState("");
   const [editCodeSaving, setEditCodeSaving] = useState(false);
   const [editCodeErr, setEditCodeErr]       = useState("");
+  const [affiliateBlocked, setAffiliateBlocked] = useState(false); // influencer ya pagado: oculta afiliación
   const [saReferrals, setSaReferrals]       = useState([]);      // vista owner
   const [saReferralTotals, setSaReferralTotals] = useState({ pending:0, paid:0 });
   const [saReferralOpen, setSaReferralOpen] = useState(false);
@@ -2738,7 +2739,7 @@ function AppInner() {
     try {
       const res = await fetch("/.netlify/functions/referral-code",{ headers:{ "Authorization":`Bearer ${_authToken}` } });
       const d = await res.json().catch(()=>({}));
-      if(res.ok && d.code) setMyReferralCode(d.code);
+      if(res.ok){ if(d.code) setMyReferralCode(d.code); setAffiliateBlocked(!!d.blocked); }
     } catch(e){ /* función puede no existir aún */ }
   };
   useEffect(()=>{
@@ -4894,7 +4895,7 @@ function AppInner() {
 <Sparkles size={14}/> <span>Support Teamly</span>
             </button>
           )}
-          {role==="admin"&&(
+          {role==="admin"&&!affiliateBlocked&&(
           <button onClick={()=>{setTab("affiliation");setSidebarOpen(false);loadReferrals();loadMyReferralCode();}} style={{background:"rgba(240,165,0,0.14)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.gold,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
 <Gift size={14}/> <span>Affiliation</span>
           </button>
@@ -5180,7 +5181,7 @@ function AppInner() {
         })()}
 
         {/* ── AFFILIATION / PARRAINAGE (page dédiée) ── */}
-        {dataReady&&tab==="affiliation"&&role==="admin"&&(()=>{
+        {dataReady&&tab==="affiliation"&&role==="admin"&&!affiliateBlocked&&(()=>{
           const filleuls   = referralsList.length;
           const converted  = referralsList.filter(r=>r.status!=="pending").length;
           const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
@@ -5672,6 +5673,29 @@ function AppInner() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Bloquer l'affiliation (influenceur déjà payé) */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginTop:10,paddingTop:10,borderTop:"1px solid #F3F4F6"}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:12,fontWeight:700,color:G.dark,display:"flex",alignItems:"center",gap:5}}><Gift size={12}/> Affiliation</div>
+                      <div style={{fontSize:10,color:G.gray,marginTop:1}}>{client.affiliate_blocked?"Bloquée — n'apparaît pas chez ce client":"Active — ce client peut parrainer"}</div>
+                    </div>
+                    <button onClick={async()=>{
+                      const next = !client.affiliate_blocked;
+                      try {
+                        const res = await fetch("/.netlify/functions/super-admin?view=affiliate-block",{
+                          method:"PATCH",
+                          headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken}`},
+                          body:JSON.stringify({orgId:client.id, affiliate_blocked:next}),
+                        });
+                        const data = await res.json();
+                        if(data.success){ setSaClients(prev=>prev.map(c=>c.id===client.id?{...c,affiliate_blocked:next}:c)); addToast(next?`Affiliation bloquée pour ${client.name}`:`Affiliation réactivée pour ${client.name}`,next?"🚫":"✅",next?G.gold:G.green); }
+                        else addToast("Erreur mise à jour","❌",G.red);
+                      } catch(e){ addToast("Erreur connexion","❌",G.red); }
+                    }} style={{background:client.affiliate_blocked?"#FEE2E2":G.greenLight,color:client.affiliate_blocked?G.red:G.green,border:"none",borderRadius:8,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                      {client.affiliate_blocked?"Débloquer":"Bloquer"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -5711,7 +5735,7 @@ function AppInner() {
             </div>
 
             {/* ── CTA Programme d'affiliation ── */}
-            {(()=>{
+            {!affiliateBlocked&&(()=>{
               const enrolled = !!myReferralCode;
               const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
               return (

@@ -68,6 +68,13 @@ CREATE POLICY "referrals_select" ON referrals
   FOR SELECT USING (referrer_org_id = auth_org_id());
 
 -- ════════════════════════════════════════════════════════════════
+-- Bloqueo de afiliación por organización (influencers ya pagados):
+-- el OWNER lo activa desde el panel super-admin. Cuando es true, se oculta
+-- la sección Affiliation y no se puede crear código.
+-- ════════════════════════════════════════════════════════════════
+ALTER TABLE organizations ADD COLUMN IF NOT EXISTS affiliate_blocked boolean NOT NULL DEFAULT false;
+
+-- ════════════════════════════════════════════════════════════════
 -- NOTA: Las Netlify Functions usan SUPABASE_SERVICE_KEY → bypasan RLS.
 -- Defaults económicos del programa (en el código, no en BD):
 --   REFERRAL_COMMISSION_PCT = 30 % del primer pago para el parrain
