@@ -2717,6 +2717,13 @@ function AppInner() {
       if(Array.isArray(rows)) setReferralsList(rows);
     } catch(e){ /* tabla puede no existir aún antes de aplicar SQL */ }
   };
+  // Lectura sin crear: indica si la org ya está inscrita al programa (tiene código)
+  const loadMyReferralCode = async () => {
+    try {
+      const rows = await sbFetch(`referral_codes?org_id=eq.${orgId}&select=code&limit=1`);
+      if(Array.isArray(rows) && rows[0]?.code) setMyReferralCode(rows[0].code);
+    } catch(e){ /* tabla puede no existir aún antes de aplicar SQL */ }
+  };
   // Devuelve el código de parrainage de esta org, creándolo si no existe
   const ensureReferralCode = async () => {
     if(!orgId) return "";
@@ -2739,7 +2746,15 @@ function AppInner() {
   useEffect(()=>{
     if(!sbReady || !orgId || role!=="admin") return;
     loadReferrals();
+    loadMyReferralCode();
   },[sbReady, orgId, role]);
+  // Inscripción al programa de afiliación + apertura de la sección Parrainage en Ajustes
+  const openParrainage = async ({ enroll=false } = {}) => {
+    if(enroll && !myReferralCode) await ensureReferralCode();
+    setShowSettings(true);
+    setReferralSectionOpen(true);
+    loadReferrals();
+  };
 
   // Supabase persist helpers
   const sbSave = async (table, data) => {
@@ -5554,6 +5569,31 @@ function AppInner() {
                 </button>
               </div>
             </div>
+
+            {/* ── CTA Programme d'affiliation ── */}
+            {(()=>{
+              const enrolled = !!myReferralCode;
+              const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
+              return (
+              <div style={{background:"linear-gradient(135deg,#1A3828,#0D1F14)",borderRadius:16,padding:"16px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <div style={{width:42,height:42,borderRadius:12,background:"rgba(240,165,0,0.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  <Gift size={22} color={G.gold}/>
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>{enrolled?"Programme d'affiliation":"Deviens affilié Teamly"}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:2,lineHeight:1.4}}>
+                    {enrolled
+                      ? (pendingPay>0 ? <>Solde à recevoir : <strong style={{color:G.gold}}>{fmt(pendingPay)} CFA</strong></> : <>Partage ton code et gagne {REFERRAL_COMMISSION_PCT}% par filleul</>)
+                      : <>Gagne <strong style={{color:G.gold}}>{REFERRAL_COMMISSION_PCT}%</strong> sur chaque boutique que tu parraines</>}
+                  </div>
+                </div>
+                <button onClick={()=>openParrainage({enroll:!enrolled})} disabled={referralCodeLoading}
+                  style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"10px 16px",fontSize:12,fontWeight:800,cursor:referralCodeLoading?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                  {referralCodeLoading?"…":enrolled?"Voir →":"Rejoindre →"}
+                </button>
+              </div>
+              );
+            })()}
 
             {/* ── Sync zones banners (admin only) ── */}
             {(()=>{
