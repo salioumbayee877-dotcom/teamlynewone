@@ -2712,6 +2712,18 @@ function AppInner() {
     if(!sbReady) return;
     loadPromoCodes();
   },[sbReady]);
+  // Refresca la lista de códigos al abrir cualquier pantalla de pago, para que
+  // un código recién creado por el owner valide aunque la sesión (PWA) sea vieja.
+  useEffect(()=>{ if(sbReady && showPlanModal) loadPromoCodes(); },[showPlanModal]);
+  useEffect(()=>{ if(sbReady && showSettings)  loadPromoCodes(); },[showSettings]);
+  useEffect(()=>{ if(sbReady && authStep==="plan") loadPromoCodes(); },[authStep]);
+  // Re-valida un código ya escrito cuando llega la lista fresca (evita "Code invalide"
+  // por carrera entre tipear y la recarga). No-destructivo: solo aplica si hay match.
+  useEffect(()=>{
+    if(!promoCode.trim()) return;
+    const m = checkPromoCode(promoCode);
+    if(m){ setAppliedPromo(m); setPromoApplied(true); }
+  },[promoCodesList]);
 
   // ── Parrainage / Afiliación ──
   // Carga las atribuciones de esta org (como parrain)
