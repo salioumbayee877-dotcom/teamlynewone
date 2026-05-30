@@ -2724,28 +2724,10 @@ function AppInner() {
   // Lectura sin crear: indica si la org ya está inscrita al programa (tiene código)
   const loadMyReferralCode = async () => {
     try {
-      const rows = await sbFetch(`referral_codes?org_id=eq.${orgId}&select=code&limit=1`);
-      if(Array.isArray(rows) && rows[0]?.code) setMyReferralCode(rows[0].code);
-    } catch(e){ /* tabla puede no existir aún antes de aplicar SQL */ }
-  };
-  // Devuelve el código de parrainage de esta org, creándolo si no existe
-  const ensureReferralCode = async () => {
-    if(!orgId) return "";
-    setReferralCodeLoading(true);
-    try {
-      const existing = await sbFetch(`referral_codes?org_id=eq.${orgId}&select=code&limit=1`);
-      if(Array.isArray(existing) && existing[0]?.code){ setMyReferralCode(existing[0].code); return existing[0].code; }
-      // Genera un código único TMLY-XXXX y lo inserta
-      const code = `TMLY-${genToken().slice(0,4)}`;
-      const created = await sbFetch(`referral_codes`,"POST",{ org_id:orgId, code });
-      const row = Array.isArray(created) ? created[0] : created;
-      const finalCode = row?.code || code;
-      setMyReferralCode(finalCode);
-      return finalCode;
-    } catch(e){
-      addToast("Erreur — vérifie que la table referral_codes existe","❌",G.red);
-      return "";
-    } finally { setReferralCodeLoading(false); }
+      const res = await fetch("/.netlify/functions/referral-code",{ headers:{ "Authorization":`Bearer ${_authToken}` } });
+      const d = await res.json().catch(()=>({}));
+      if(res.ok && d.code) setMyReferralCode(d.code);
+    } catch(e){ /* función puede no existir aún */ }
   };
   useEffect(()=>{
     if(!sbReady || !orgId || role!=="admin") return;
@@ -2760,8 +2742,8 @@ function AppInner() {
     loadReferrals();
     loadMyReferralCode();
   };
-  // Guarda un código personalizado (letras/números). Unicidad global garantizada
-  // por la constraint UNIQUE: si ya está registrado, no se puede reutilizar.
+  // Guarda un código personalizado (letras/números) vía Netlify Function
+  // (SERVICE_KEY): verifica unicidad global y hace upsert sin depender de RLS.
   const saveReferralCode = async () => {
     const code = (editCodeVal||"").toUpperCase().replace(/[^A-Z0-9-]/g,"").trim();
     if(code.length<3){ setEditCodeErr("Minimum 3 caractères (lettres ou chiffres)"); return; }
@@ -2769,18 +2751,20 @@ function AppInner() {
     if(code===myReferralCode){ setEditingCode(false); return; }
     setEditCodeSaving(true); setEditCodeErr("");
     try {
-      if(myReferralCode){
-        await sbFetch(`referral_codes?org_id=eq.${orgId}`,"PATCH",{ code });
-      } else {
-        await sbFetch(`referral_codes`,"POST",{ org_id:orgId, code });
-      }
-      setMyReferralCode(code);
+      const res = await fetch("/.netlify/functions/referral-code",{
+        method:"POST",
+        headers:{ "Content-Type":"application/json","Authorization":`Bearer ${_authToken}` },
+        body: JSON.stringify({ code }),
+      });
+      const d = await res.json().catch(()=>({}));
+      if(res.status===409 || d.error==="taken"){ setEditCodeErr("Ce code est déjà utilisé — choisis-en un autre"); return; }
+      if(d.error==="format"){ setEditCodeErr("3 à 20 caractères (lettres ou chiffres)"); return; }
+      if(!res.ok || !d.ok){ setEditCodeErr("Erreur — réessaie"); return; }
+      setMyReferralCode(d.code||code);
       setEditingCode(false);
       addToast("Code enregistré ✅","✅",G.green);
     } catch(e){
-      const msg = String(e?.message||"");
-      if(/23505|duplicate|already exists/i.test(msg)) setEditCodeErr("Ce code est déjà utilisé — choisis-en un autre");
-      else setEditCodeErr("Erreur — réessaie");
+      setEditCodeErr("Erreur réseau — réessaie");
     } finally { setEditCodeSaving(false); }
   };
 
