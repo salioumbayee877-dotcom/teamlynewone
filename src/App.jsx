@@ -4926,7 +4926,7 @@ function AppInner() {
             </button>
           )}
           {role==="admin"&&!affiliateBlocked&&(
-          <button onClick={()=>{setTab("affiliation");setSidebarOpen(false);loadReferrals();loadMyReferralCode();}} style={{background:"rgba(240,165,0,0.14)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.gold,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>{setTab("affiliation");setSidebarOpen(false);loadReferrals();loadMyReferralCode();}} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(240,165,0,0.35)",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.gold,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
 <Gift size={14}/> <span>Affiliation</span>
           </button>
           )}
