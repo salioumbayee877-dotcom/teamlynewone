@@ -27,6 +27,11 @@ CREATE POLICY "referral_codes_select" ON referral_codes
 CREATE POLICY "referral_codes_insert" ON referral_codes
   FOR INSERT WITH CHECK (org_id = auth_org_id());
 
+-- Editar: solo el código de tu propia org (personalización del code).
+-- La unicidad global (UNIQUE code) impide reutilizar un código ya registrado.
+CREATE POLICY "referral_codes_update" ON referral_codes
+  FOR UPDATE USING (org_id = auth_org_id()) WITH CHECK (org_id = auth_org_id());
+
 -- ════════════════════════════════════════════════════════════════
 -- referrals — una fila por filleul atribuido
 -- status: 'pending' → 'converted' → 'paid'

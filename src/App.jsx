@@ -1148,6 +1148,10 @@ function AppInner() {
   const [referralsList, setReferralsList]   = useState([]);      // filleuls de esta org
   const [referralSectionOpen, setReferralSectionOpen] = useState(false);
   const [referralCodeLoading, setReferralCodeLoading] = useState(false);
+  const [editingCode, setEditingCode]       = useState(false);   // edición del código personalizado
+  const [editCodeVal, setEditCodeVal]       = useState("");
+  const [editCodeSaving, setEditCodeSaving] = useState(false);
+  const [editCodeErr, setEditCodeErr]       = useState("");
   const [saReferrals, setSaReferrals]       = useState([]);      // vista owner
   const [saReferralTotals, setSaReferralTotals] = useState({ pending:0, paid:0 });
   const [saReferralOpen, setSaReferralOpen] = useState(false);
@@ -2748,12 +2752,36 @@ function AppInner() {
     loadReferrals();
     loadMyReferralCode();
   },[sbReady, orgId, role]);
-  // Inscripción al programa de afiliación + apertura de la sección Parrainage en Ajustes
-  const openParrainage = async ({ enroll=false } = {}) => {
-    if(enroll && !myReferralCode) await ensureReferralCode();
-    setShowSettings(true);
-    setReferralSectionOpen(true);
+  // Abre la sección Affiliation. Si aún no hay código, la página muestra el
+  // input para elegir un código personalizado (la inscripción = crear el código).
+  const openParrainage = async () => {
+    setTab("affiliation");
+    if(!myReferralCode){ setEditingCode(true); setEditCodeVal(""); setEditCodeErr(""); }
     loadReferrals();
+    loadMyReferralCode();
+  };
+  // Guarda un código personalizado (letras/números). Unicidad global garantizada
+  // por la constraint UNIQUE: si ya está registrado, no se puede reutilizar.
+  const saveReferralCode = async () => {
+    const code = (editCodeVal||"").toUpperCase().replace(/[^A-Z0-9-]/g,"").trim();
+    if(code.length<3){ setEditCodeErr("Minimum 3 caractères (lettres ou chiffres)"); return; }
+    if(code.length>20){ setEditCodeErr("Maximum 20 caractères"); return; }
+    if(code===myReferralCode){ setEditingCode(false); return; }
+    setEditCodeSaving(true); setEditCodeErr("");
+    try {
+      if(myReferralCode){
+        await sbFetch(`referral_codes?org_id=eq.${orgId}`,"PATCH",{ code });
+      } else {
+        await sbFetch(`referral_codes`,"POST",{ org_id:orgId, code });
+      }
+      setMyReferralCode(code);
+      setEditingCode(false);
+      addToast("Code enregistré ✅","✅",G.green);
+    } catch(e){
+      const msg = String(e?.message||"");
+      if(/23505|duplicate|already exists/i.test(msg)) setEditCodeErr("Ce code est déjà utilisé — choisis-en un autre");
+      else setEditCodeErr("Erreur — réessaie");
+    } finally { setEditCodeSaving(false); }
   };
 
   // Supabase persist helpers
@@ -4870,6 +4898,11 @@ function AppInner() {
 <Sparkles size={14}/> <span>Support Teamly</span>
             </button>
           )}
+          {role==="admin"&&(
+          <button onClick={()=>{setTab("affiliation");setSidebarOpen(false);loadReferrals();loadMyReferralCode();}} style={{background:"rgba(240,165,0,0.14)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.gold,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
+<Gift size={14}/> <span>Affiliation</span>
+          </button>
+          )}
           <button onClick={()=>{setProfileEdit({nom:currentUser.nom||"",phone:currentUser.phone||"",birthday:currentUser.birthday||""});setProfileError("");setProfileSaving(false);setShowSettings(true);setSidebarOpen(false);}} style={{background:"rgba(255,255,255,0.08)",border:"none",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.white,fontSize:13,display:"flex",alignItems:"center",gap:8}}>
 <IcoSettings size={14}/> <span>Paramètres</span>
           </button>
@@ -4902,7 +4935,7 @@ function AppInner() {
           {!isDesktop&&<TeamlyLogo size={0.85}/>}
           {isDesktop&&<div>
             <div style={{fontWeight:800,fontSize:18,color:G.white,letterSpacing:0.3}}>{
-              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Messages":tab==="equipe"?"Équipe":tab==="stock"?"Produits":tab==="frais"?"Frais de livraison":"Teamly"
+              tab==="dashboard"?"Dashboard":tab==="boutique"?"Commandes Boutique":tab==="commandes"?"Commandes à traiter":tab==="compta"?"Comptabilité":tab==="tracking"?"Suivi Livreurs":tab==="clients"?"Clients":tab==="chat"?"Messages":tab==="equipe"?"Équipe":tab==="stock"?"Produits":tab==="frais"?"Frais de livraison":tab==="affiliation"?"Affiliation":"Teamly"
             }</div>
             <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:1}}>{settings.boutique}</div>
           </div>}
@@ -5147,6 +5180,117 @@ function AppInner() {
                 );
               })()}
             </div>
+          );
+        })()}
+
+        {/* ── AFFILIATION / PARRAINAGE (page dédiée) ── */}
+        {dataReady&&tab==="affiliation"&&role==="admin"&&(()=>{
+          const filleuls   = referralsList.length;
+          const converted  = referralsList.filter(r=>r.status!=="pending").length;
+          const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
+          const paidTotal  = referralsList.filter(r=>r.status==="paid").reduce((s,r)=>s+(r.commission_cfa||0),0);
+          const link = myReferralCode ? `${window.location.origin}?ref=${myReferralCode}` : "";
+          const stLabel = {pending:"En attente",converted:"À payer",paid:"Payé"};
+          const stColor = {pending:G.gray,converted:G.gold,paid:G.green};
+          return (
+          <div style={{display:"flex",flexDirection:"column",gap:14,maxWidth:560,margin:"0 auto",width:"100%"}}>
+            {/* Hero */}
+            <div style={{background:"linear-gradient(135deg,#1A3828,#0D1F14)",borderRadius:16,padding:"20px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:11,marginBottom:8}}>
+                <div style={{width:44,height:44,borderRadius:12,background:"rgba(240,165,0,0.18)",display:"flex",alignItems:"center",justifyContent:"center"}}><Gift size={24} color={G.gold}/></div>
+                <div>
+                  <div style={{fontWeight:800,fontSize:18,color:"#FFF"}}>Programme d'affiliation</div>
+                  <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:1}}>Gagne {REFERRAL_COMMISSION_PCT}% sur chaque boutique parrainée</div>
+                </div>
+              </div>
+              <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",lineHeight:1.5,marginTop:6}}>
+                Partage ton code. Ton filleul reçoit <strong style={{color:G.gold}}>−{REFERRAL_DISCOUNT_PCT}%</strong> sur son 1er abonnement, et tu touches <strong style={{color:G.gold}}>{REFERRAL_COMMISSION_PCT}%</strong> de son paiement.
+              </div>
+            </div>
+
+            {/* Code personnalisable */}
+            <div style={{background:"#FFF",borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",padding:"16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5}}>MON CODE D'AFFILIATION</div>
+                {myReferralCode && !editingCode && (
+                  <button onClick={()=>{ setEditCodeVal(myReferralCode); setEditCodeErr(""); setEditingCode(true); }}
+                    style={{background:"none",border:"none",color:G.green,fontSize:12,fontWeight:700,cursor:"pointer"}}>✎ Modifier</button>
+                )}
+              </div>
+
+              {referralCodeLoading && !myReferralCode ? (
+                <div style={{fontSize:13,color:G.gray,padding:"8px 0"}}>Génération…</div>
+              ) : editingCode || !myReferralCode ? (<>
+                <div style={{display:"flex",gap:8}}>
+                  <input
+                    type="text"
+                    value={editCodeVal}
+                    onChange={e=>{ setEditCodeVal(e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g,"")); setEditCodeErr(""); }}
+                    placeholder="Ex: ALIOU221 ou 771234567"
+                    maxLength={20}
+                    style={{flex:1,border:`1.5px solid ${editCodeErr?G.red:G.grayLight}`,borderRadius:9,padding:"11px 12px",fontSize:15,fontWeight:800,letterSpacing:1,outline:"none",color:G.dark,textTransform:"uppercase",boxSizing:"border-box"}}/>
+                  <button onClick={saveReferralCode} disabled={editCodeSaving}
+                    style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"0 16px",fontSize:13,fontWeight:700,cursor:editCodeSaving?"wait":"pointer",whiteSpace:"nowrap"}}>{editCodeSaving?"…":"Enregistrer"}</button>
+                  {myReferralCode && <button onClick={()=>{ setEditingCode(false); setEditCodeErr(""); }} style={{background:G.grayLight,color:G.gray,border:"none",borderRadius:9,padding:"0 12px",fontSize:13,fontWeight:700,cursor:"pointer"}}>×</button>}
+                </div>
+                {editCodeErr && <div style={{fontSize:11,color:G.red,marginTop:6,fontWeight:600}}>{editCodeErr}</div>}
+                <div style={{fontSize:10,color:G.gray,marginTop:6,lineHeight:1.4}}>Lettres et chiffres (ex. ton numéro). Un code déjà pris par quelqu'un d'autre ne peut pas être réutilisé.</div>
+              </>) : (<>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+                  <div style={{flex:1,background:G.greenLight,border:`1.5px dashed ${G.green}`,borderRadius:10,padding:"12px 14px",fontWeight:800,fontSize:18,color:G.dark,letterSpacing:1,textAlign:"center"}}>{myReferralCode}</div>
+                  <button onClick={()=>{ navigator.clipboard?.writeText(myReferralCode); addToast("Code copié ✓","📋",G.green); }}
+                    style={{background:G.green,color:"#FFF",border:"none",borderRadius:10,padding:"12px 15px",fontSize:13,fontWeight:700,cursor:"pointer"}}>Copier</button>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>{ navigator.clipboard?.writeText(link); addToast("Lien copié ✓","🔗",G.green); }}
+                    style={{flex:1,background:"#FFF",color:G.green,border:`1px solid ${G.green}`,borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><Share2 size={14}/> Copier le lien</button>
+                  <a href={`https://wa.me/?text=${encodeURIComponent("Rejoins Teamly et gère tes commandes COD facilement ! Utilise mon code "+myReferralCode+" pour −"+REFERRAL_DISCOUNT_PCT+"% sur ton 1er abonnement : "+link)}`} target="_blank" rel="noreferrer"
+                    style={{flex:1,background:"#25D366",color:"#FFF",borderRadius:10,padding:"10px 0",fontSize:12,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><MessageCircle size={14}/> Partager</a>
+                </div>
+              </>)}
+            </div>
+
+            {/* KPIs */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:12,padding:"13px 15px"}}>
+                <div style={{fontSize:10,color:G.gray,fontWeight:600}}>Filleuls</div>
+                <div style={{fontSize:22,fontWeight:800,color:G.dark}}>{filleuls}<span style={{fontSize:11,color:G.gray,fontWeight:600}}> · {converted} abonné{converted>1?"s":""}</span></div>
+              </div>
+              <div style={{background:"linear-gradient(135deg,#0D3D25,#1A5C38)",borderRadius:12,padding:"13px 15px"}}>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontWeight:600}}>Solde à recevoir</div>
+                <div style={{fontSize:22,fontWeight:800,color:G.gold}}>{fmt(pendingPay)} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>CFA</span></div>
+              </div>
+            </div>
+            {paidTotal>0 && <div style={{fontSize:12,color:G.gray,textAlign:"center"}}>Déjà reçu : <strong style={{color:G.green}}>{fmt(paidTotal)} CFA</strong></div>}
+
+            {/* Liste filleuls */}
+            <div>
+              <div style={{fontSize:11,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:8}}>MES FILLEULS</div>
+              {referralsList.length>0 ? (
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {referralsList.map(r=>(
+                    <div key={r.id} style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"11px 13px",borderLeft:`4px solid ${stColor[r.status]||G.gray}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                      <div style={{minWidth:0,flex:1}}>
+                        <div style={{fontWeight:700,fontSize:13,color:G.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.referred_name||r.referred_email||"Filleul"}</div>
+                        <div style={{fontSize:10,color:G.gray,marginTop:1}}>{new Date(r.created_at).toLocaleDateString("fr-FR")}{r.plan?` · ${r.plan}`:""}</div>
+                      </div>
+                      <div style={{textAlign:"right",flexShrink:0}}>
+                        <div style={{fontSize:13,fontWeight:800,color:r.status==="pending"?G.gray:G.dark}}>{r.commission_cfa?`${fmt(r.commission_cfa)} CFA`:"—"}</div>
+                        <div style={{fontSize:9,fontWeight:700,color:stColor[r.status]||G.gray,textTransform:"uppercase",letterSpacing:0.5}}>{stLabel[r.status]||r.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{textAlign:"center",padding:18,color:G.gray,fontSize:12,background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:10}}>Aucun filleul pour l'instant — partage ton code pour commencer à gagner !</div>
+              )}
+            </div>
+
+            {pendingPay>0 && (
+              <a href={`https://wa.me/34673318387?text=${encodeURIComponent("Bonjour, je souhaite retirer mes gains de parrainage Teamly : "+fmt(pendingPay)+" CFA (code "+myReferralCode+").")}`} target="_blank" rel="noreferrer"
+                style={{background:G.gold,color:G.dark,borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:800,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}><Banknote size={16}/> Demander un retrait</a>
+            )}
+          </div>
           );
         })()}
 
@@ -5587,9 +5731,9 @@ function AppInner() {
                       : <>Gagne <strong style={{color:G.gold}}>{REFERRAL_COMMISSION_PCT}%</strong> sur chaque boutique que tu parraines</>}
                   </div>
                 </div>
-                <button onClick={()=>openParrainage({enroll:!enrolled})} disabled={referralCodeLoading}
-                  style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"10px 16px",fontSize:12,fontWeight:800,cursor:referralCodeLoading?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>
-                  {referralCodeLoading?"…":enrolled?"Voir →":"Rejoindre →"}
+                <button onClick={openParrainage}
+                  style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"10px 16px",fontSize:12,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+                  {enrolled?"Voir →":"Rejoindre →"}
                 </button>
               </div>
               );
@@ -7778,96 +7922,6 @@ function AppInner() {
                 <div style={{fontSize:10,color:G.gray,marginTop:3,lineHeight:1.4}}>Le client interurbain sera redirigé vers ce lien pour payer. Récupère-le depuis ton app Wave Business. Sauvegarde automatique.</div>
               </div>
             </div>
-
-            {/* ── PARRAINAGE ── */}
-            {(()=>{
-              const filleuls   = referralsList.length;
-              const converted  = referralsList.filter(r=>r.status!=="pending").length;
-              const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
-              const paidTotal  = referralsList.filter(r=>r.status==="paid").reduce((s,r)=>s+(r.commission_cfa||0),0);
-              const link = myReferralCode ? `${window.location.origin}?ref=${myReferralCode}` : "";
-              const stLabel = {pending:"En attente",converted:"À payer",paid:"Payé"};
-              const stColor = {pending:G.gray,converted:G.gold,paid:G.green};
-              return (
-              <div style={{marginBottom:18}}>
-                <button onClick={()=>{ const nv=!referralSectionOpen; setReferralSectionOpen(nv); if(nv){ if(!myReferralCode) ensureReferralCode(); loadReferrals(); } }}
-                  style={{width:"100%",background:"linear-gradient(135deg,#1A3828,#0D1F14)",color:"#FFF",border:"none",borderRadius:12,padding:"13px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                  <div style={{display:"flex",alignItems:"center",gap:9}}>
-                    <Gift size={17} color={G.gold}/>
-                    <div style={{textAlign:"left"}}>
-                      <div style={{fontWeight:800,fontSize:14}}>Parrainage</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:1}}>Gagne {REFERRAL_COMMISSION_PCT}% sur chaque filleul qui s'abonne</div>
-                    </div>
-                  </div>
-                  <span style={{fontSize:18,color:"rgba(255,255,255,0.7)",transform:referralSectionOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▾</span>
-                </button>
-
-                {referralSectionOpen && (
-                  <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:12}}>
-                    {/* Code + lien */}
-                    <div style={{background:G.grayLight,borderRadius:12,padding:"14px 14px"}}>
-                      <div style={{fontSize:10,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:6}}>TON CODE DE PARRAINAGE</div>
-                      {referralCodeLoading && !myReferralCode ? (
-                        <div style={{fontSize:13,color:G.gray}}>Génération…</div>
-                      ) : myReferralCode ? (<>
-                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-                          <div style={{flex:1,background:"#FFF",border:`1.5px dashed ${G.green}`,borderRadius:9,padding:"10px 12px",fontWeight:800,fontSize:16,color:G.dark,letterSpacing:1}}>{myReferralCode}</div>
-                          <button onClick={()=>{ navigator.clipboard?.writeText(myReferralCode); addToast("Code copié ✓","📋",G.green); }}
-                            style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"10px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Copier</button>
-                        </div>
-                        <div style={{display:"flex",gap:6}}>
-                          <button onClick={()=>{ navigator.clipboard?.writeText(link); addToast("Lien copié ✓","🔗",G.green); }}
-                            style={{flex:1,background:"#FFF",color:G.green,border:`1px solid ${G.green}`,borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><Share2 size={13}/> Copier le lien</button>
-                          <a href={`https://wa.me/?text=${encodeURIComponent("Rejoins Teamly et gère tes commandes COD facilement ! Utilise mon code "+myReferralCode+" pour −"+REFERRAL_DISCOUNT_PCT+"% sur ton 1er abonnement : "+link)}`} target="_blank" rel="noreferrer"
-                            style={{flex:1,background:"#25D366",color:"#FFF",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><MessageCircle size={13}/> Partager</a>
-                        </div>
-                      </>) : (
-                        <button onClick={ensureReferralCode} style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer",width:"100%"}}>Générer mon code</button>
-                      )}
-                    </div>
-
-                    {/* KPIs */}
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                      <div style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:11,padding:"11px 13px"}}>
-                        <div style={{fontSize:10,color:G.gray,fontWeight:600}}>Filleuls</div>
-                        <div style={{fontSize:20,fontWeight:800,color:G.dark}}>{filleuls}<span style={{fontSize:11,color:G.gray,fontWeight:600}}> · {converted} abonné{converted>1?"s":""}</span></div>
-                      </div>
-                      <div style={{background:"linear-gradient(135deg,#0D3D25,#1A5C38)",borderRadius:11,padding:"11px 13px"}}>
-                        <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontWeight:600}}>Solde à recevoir</div>
-                        <div style={{fontSize:20,fontWeight:800,color:G.gold}}>{fmt(pendingPay)} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>CFA</span></div>
-                      </div>
-                    </div>
-                    {paidTotal>0 && <div style={{fontSize:11,color:G.gray,textAlign:"center"}}>Déjà reçu : <strong style={{color:G.green}}>{fmt(paidTotal)} CFA</strong></div>}
-
-                    {/* Liste filleuls */}
-                    {referralsList.length>0 ? (
-                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                        {referralsList.map(r=>(
-                          <div key={r.id} style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"9px 12px",borderLeft:`4px solid ${stColor[r.status]||G.gray}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
-                            <div style={{minWidth:0,flex:1}}>
-                              <div style={{fontWeight:700,fontSize:13,color:G.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.referred_name||r.referred_email||"Filleul"}</div>
-                              <div style={{fontSize:10,color:G.gray,marginTop:1}}>{new Date(r.created_at).toLocaleDateString("fr-FR")}{r.plan?` · ${r.plan}`:""}</div>
-                            </div>
-                            <div style={{textAlign:"right",flexShrink:0}}>
-                              <div style={{fontSize:13,fontWeight:800,color:r.status==="pending"?G.gray:G.dark}}>{r.commission_cfa?`${fmt(r.commission_cfa)} CFA`:"—"}</div>
-                              <div style={{fontSize:9,fontWeight:700,color:stColor[r.status]||G.gray,textTransform:"uppercase",letterSpacing:0.5}}>{stLabel[r.status]||r.status}</div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:12,background:G.grayLight,borderRadius:10}}>Aucun filleul pour l'instant — partage ton code !</div>
-                    )}
-
-                    {pendingPay>0 && (
-                      <a href={`https://wa.me/34673318387?text=${encodeURIComponent("Bonjour, je souhaite retirer mes gains de parrainage Teamly : "+fmt(pendingPay)+" CFA (code "+myReferralCode+").")}`} target="_blank" rel="noreferrer"
-                        style={{background:G.gold,color:G.dark,borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Banknote size={15}/> Demander un retrait</a>
-                    )}
-                  </div>
-                )}
-              </div>
-              );
-            })()}
 
             {/* Plan */}
             {(()=>{
