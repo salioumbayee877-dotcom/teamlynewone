@@ -27,12 +27,12 @@ export const ComptaPage = () => {
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
     setAdSpend, setLivraisonsEchouees, setCashRemis,
     setTab, setExpandedProd,
-    addToast,
+    addToast, setConfirmModal,
   } = useAppContext();
 
   const [savingCompta, setSavingCompta] = React.useState(false);
 
-  const saveComptaInputs = async () => {
+  const _doSaveComptaInputs = async () => {
     if (!orgId) { addToast("Erreur : organisation introuvable","❌","#DC2626"); return; }
     setSavingCompta(true);
     const compta_inputs = {
@@ -53,6 +53,29 @@ export const ComptaPage = () => {
       addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");
     }
     setSavingCompta(false);
+  };
+
+  const saveComptaInputs = async () => {
+    // Confirmation popup when saving on a past single day (yesterday, before yesterday…) —
+    // user is rewriting historical data and needs to acknowledge it.
+    const isToday = comptaPeriodMode==="jour" || (comptaPeriodMode==="plage" && dateFrom===TODAY && dateTo===TODAY);
+    const isMultiDay = comptaPeriodMode==="semaine" || comptaPeriodMode==="mois" || (comptaPeriodMode==="plage" && dateFrom!==dateTo);
+    const isPastSingle = !isToday && !isMultiDay;
+    if (isPastSingle) {
+      const dayLabel = new Date((dateFrom||TODAY)+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+      if (typeof setConfirmModal === "function") {
+        setConfirmModal({
+          msg: `Modifier les saisies du ${dayLabel} ?`,
+          sub: `Tu n'es PAS sur Aujourd'hui.\nCes valeurs (Pub, Frais extra…) seront enregistrées pour ce jour passé et écraseront les valeurs précédentes.\n\nContinuer ?`,
+          danger: true,
+          onConfirm: ()=>{ setConfirmModal(null); _doSaveComptaInputs(); },
+        });
+        return;
+      }
+      // Fallback if confirmModal isn't wired
+      if (!window.confirm(`Tu modifies les saisies du ${dayLabel}. Continuer ?`)) return;
+    }
+    _doSaveComptaInputs();
   };
 
   return (
@@ -355,9 +378,37 @@ export const ComptaPage = () => {
       {(()=>{
         const recu = parseInt(cashRemis||0);
         const diff = comptaCA - recu;
+        const _fmtDay = d => new Date(d+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+        const isToday      = comptaPeriodMode==="jour" || (comptaPeriodMode==="plage" && dateFrom===TODAY && dateTo===TODAY);
+        const isMultiDay   = comptaPeriodMode==="semaine" || comptaPeriodMode==="mois" || (comptaPeriodMode==="plage" && dateFrom!==dateTo);
+        const isPastSingle = !isToday && !isMultiDay;
+        const readOnly     = isMultiDay;
+        const sectionTitle = isToday ? "SAISIES DU JOUR"
+          : isPastSingle ? `SAISIES DU ${_fmtDay(dateFrom||TODAY).toUpperCase()}`
+          : "SAISIES";
+        const inputBaseStyle = {border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"};
+        const inputStyle = readOnly ? {...inputBaseStyle,background:"#F3F4F6",color:"#9CA3AF",cursor:"not-allowed"} : inputBaseStyle;
         return (
           <div>
-            <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>SAISIES DU JOUR</div>
+            <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>{sectionTitle}</div>
+            {isPastSingle && (
+              <div style={{background:"#FFFBEB",borderLeft:"3px solid #F59E0B",borderRadius:8,padding:"10px 12px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:8}}>
+                <AlertTriangle size={16} color="#92400E" style={{flexShrink:0,marginTop:1}}/>
+                <div style={{flex:1,minWidth:0,fontSize:12,color:"#92400E",lineHeight:1.45}}>
+                  <div style={{fontWeight:700,marginBottom:2}}>Tu modifies les saisies du {_fmtDay(dateFrom||TODAY)}</div>
+                  <div style={{fontSize:11,color:"#A16207"}}>Ces valeurs ont déjà été enregistrées. Toute modification écrasera les données précédentes de ce jour.</div>
+                </div>
+              </div>
+            )}
+            {isMultiDay && (
+              <div style={{background:"#F3F4F6",borderLeft:"3px solid #9CA3AF",borderRadius:8,padding:"10px 12px",marginBottom:8,display:"flex",alignItems:"flex-start",gap:8}}>
+                <AlertTriangle size={16} color="#4B5563" style={{flexShrink:0,marginTop:1}}/>
+                <div style={{flex:1,minWidth:0,fontSize:12,color:"#374151",lineHeight:1.45}}>
+                  <div style={{fontWeight:700,marginBottom:2}}>Saisies en lecture seule</div>
+                  <div style={{fontSize:11,color:"#6B7280"}}>Sélectionne un jour précis (Aujourd'hui ou Hier) pour modifier les saisies.</div>
+                </div>
+              </div>
+            )}
             <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"hidden"}}>
               {comptaCalcProd.map(({prod,nLiv,nRej},idx)=>{
                 const notConfigured = !prod.cost||prod.cost===0;
@@ -398,8 +449,8 @@ export const ComptaPage = () => {
                       <input type="number" min="0" value={adSpend[prod.id]||""}
                         onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))}
                         onBlur={()=>localStorage.setItem("teamly_ad_spend",JSON.stringify(adSpend))}
-                        placeholder="0"
-                        style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                        placeholder="0" readOnly={readOnly}
+                        style={{...inputStyle,width:84}}/>
                       {adSpend[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(adSpend[prod.id]||0))} CFA</div>}
                     </div>
                   </div>
@@ -414,8 +465,8 @@ export const ComptaPage = () => {
                       <input type="number" min="0" value={livraisonsEchouees[prod.id]||""}
                         onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))}
                         onBlur={()=>localStorage.setItem("teamly_echecs",JSON.stringify(livraisonsEchouees))}
-                        placeholder="0"
-                        style={{width:84,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                        placeholder="0" readOnly={readOnly}
+                        style={{...inputStyle,width:84}}/>
                       {livraisonsEchouees[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(livraisonsEchouees[prod.id]||0))} CFA</div>}
                     </div>
                   </div>
@@ -434,15 +485,15 @@ export const ComptaPage = () => {
                   )}
                 </div>
                 <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                  <input type="number" min="0" value={cashRemis||""} onChange={e=>setCashRemis(e.target.value)} placeholder="0"
-                    style={{width:100,border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"}}/>
+                  <input type="number" min="0" value={cashRemis||""} onChange={e=>setCashRemis(e.target.value)} placeholder="0" readOnly={readOnly}
+                    style={{...inputStyle,width:100}}/>
                   {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} CFA</div>}
                 </div>
               </div>
             </div>
-            <button onClick={saveComptaInputs} disabled={savingCompta}
-              style={{width:"100%",background:savingCompta?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:600,cursor:savingCompta?"not-allowed":"pointer",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-              {savingCompta ? <>⏳ Enregistrement…</> : <><Check size={15}/> Enregistrer les saisies</>}
+            <button onClick={saveComptaInputs} disabled={savingCompta||readOnly}
+              style={{width:"100%",background:(savingCompta||readOnly)?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:600,cursor:(savingCompta||readOnly)?"not-allowed":"pointer",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
+              {savingCompta ? <>⏳ Enregistrement…</> : readOnly ? <>Lecture seule</> : <><Check size={15}/> Enregistrer les saisies</>}
             </button>
             <div style={{fontSize:10,color:"#9CA3AF",textAlign:"center",marginTop:6,fontStyle:"italic"}}>
               Les valeurs sont partagées avec le Closer si la Compta lui est accessible.

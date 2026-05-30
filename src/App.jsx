@@ -9024,6 +9024,23 @@ function AppInner() {
             const arr = Array.isArray(existingArr) ? existingArr.map(Number) : [];
             return arr.includes(Number(newPrice)) ? arr : [...arr, Number(newPrice)];
           };
+          // Sync pack_quantity sur les order_items pour ce produit dans cette commande,
+          // afin que le décompte stock (entregado → −units_total) reflète le bundle choisi.
+          const syncPackQty = async (productName, packQty) => {
+            const matches = orderItems.filter(it => it.order_id === orderId
+              && (it.product_name||"").toLowerCase() === (productName||"").toLowerCase());
+            if (!matches.length) return;
+            for (const it of matches) {
+              const newUnitsTotal = (it.quantity||1) * packQty;
+              await sbFetch(`order_items?id=eq.${it.id}`, "PATCH",
+                { pack_quantity: packQty, units_total: newUnitsTotal }
+              ).catch(e => addToast("Erreur MAJ pack: "+(e?.message||e),"❌","#DC2626"));
+            }
+            const ids = new Set(matches.map(m=>m.id));
+            setOrderItems(prev => prev.map(it => ids.has(it.id)
+              ? {...it, pack_quantity: packQty, units_total: (it.quantity||1)*packQty}
+              : it));
+          };
           for (let i = 0; i < pItems.length; i++) {
             const item = pItems[i]; const resp = newResponses[i];
             const existing = findPricingRule(item.name);
@@ -9040,6 +9057,7 @@ function AppInner() {
               const res = await sbFetch("product_pricing_rules","POST",payload).catch(e=>{ addToast("Erreur sauvegarde règle: "+(e?.message||e),"❌","#DC2626"); return null; });
               const saved = Array.isArray(res)?res[0]:res;
               if (saved) setPricingRules(prev=>[...prev,saved]);
+              if (isBundle) await syncPackQty(item.name, bq);
             } else if (item.case === 2 && resp.type === "bundle" && resp.bundleQty) {
               const bq      = resp.bundleQty;
               const refBund = item.price;
@@ -9047,6 +9065,7 @@ function AppInner() {
               const ack = mergeAck(existing?.acknowledged_prices, item.price);
               const patch = {type:"bundle", bundle_quantity:bq, reference_price_unit:refUnit, reference_price_bundle:refBund, discount_percentage:null, discount_type:null, acknowledged_prices:ack, updated_at:new Date().toISOString()};
               if (existing) { await sbFetch(`product_pricing_rules?id=eq.${existing.id}`,"PATCH",patch).catch(e=>addToast("Erreur MAJ règle: "+(e?.message||e),"❌","#DC2626")); setPricingRules(prev=>prev.map(r=>r.id===existing.id?{...r,...patch}:r)); }
+              await syncPackQty(item.name, bq);
             } else if (item.case === 2 && resp.type === "acknowledged") {
               // "Toujours prix unitaire": resetea a unit, limpia campos de bundle/discount
               const ack = mergeAck(existing?.acknowledged_prices, item.price);
