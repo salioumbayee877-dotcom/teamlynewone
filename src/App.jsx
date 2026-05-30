@@ -4598,13 +4598,40 @@ function AppInner() {
                       </div>
                     </div>
 
-                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:18}}>
+                    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:14}}>
                       {p.features.map(f=>(
                         <div key={f} style={{display:"flex",alignItems:"center",gap:8,fontSize:12,color:p.highlight?G.dark:"rgba(255,255,255,0.7)"}}>
                           <div style={{width:5,height:5,borderRadius:"50%",background:p.highlight?G.green:G.gold,flexShrink:0}}/>
                           {f}
                         </div>
                       ))}
+                    </div>
+
+                    {/* Code promo — par plan, dans chaque card */}
+                    <div style={{marginBottom:12,padding:"8px 10px",border:`1px solid ${promoApplied?G.green:(p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)")}`,borderRadius:10,background:p.highlight?"#FAFAFA":"rgba(0,0,0,0.18)"}}>
+                      <div style={{fontSize:10,color:p.highlight?G.gray:"rgba(255,255,255,0.55)",fontWeight:600,marginBottom:5,letterSpacing:0.3}}>🎟 Code promo</div>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={e=>{
+                            const v = e.target.value.toUpperCase();
+                            setPromoCode(v);
+                            const match = checkPromoCode(v);
+                            setAppliedPromo(match);
+                            setPromoApplied(!!match);
+                          }}
+                          placeholder="Ex: LANCEMENT30"
+                          style={{flex:1,background:p.highlight?"#FFF":"rgba(0,0,0,0.25)",border:`1px solid ${promoApplied?G.green:(p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)")}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none",textTransform:"uppercase",letterSpacing:0.5,color:p.highlight?G.dark:"#fff"}}/>
+                        {promoApplied && (
+                          <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+                            ✓ −{appliedPromo?.discount_pct||0}%
+                          </div>
+                        )}
+                      </div>
+                      {promoCode && !promoApplied && (
+                        <div style={{fontSize:10,color:p.highlight?"#DC2626":"#FCA5A5",marginTop:4}}>Code invalide</div>
+                      )}
                     </div>
 
                     <button
@@ -4620,44 +4647,6 @@ function AppInner() {
                   </div>
                 </div>
               ))}
-
-              {/* Code promo input */}
-              <div style={{maxWidth:480,margin:"18px auto 0"}}>
-                <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(240,165,0,0.3)",borderRadius:12,padding:"12px 14px"}}>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",fontWeight:600,marginBottom:8,letterSpacing:0.5,display:"flex",alignItems:"center",gap:6}}>
-                    🎟 As-tu un code promo ?
-                  </div>
-                  <div style={{display:"flex",gap:8}}>
-                    <input
-                      type="text"
-                      value={promoCode}
-                      onChange={e=>{
-                        const v = e.target.value.toUpperCase();
-                        setPromoCode(v);
-                        const match = checkPromoCode(v);
-                        setAppliedPromo(match);
-                        setPromoApplied(!!match);
-                      }}
-                      placeholder="Ex: LANCEMENT30"
-                      style={{
-                        flex:1,background:"rgba(0,0,0,0.25)",border:`1px solid ${promoApplied?G.green:"rgba(255,255,255,0.15)"}`,
-                        borderRadius:8,padding:"9px 12px",fontSize:13,color:"#fff",outline:"none",
-                        textTransform:"uppercase",letterSpacing:1,
-                      }}/>
-                    {promoApplied && (
-                      <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 12px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5}}>
-                        ✓ −{appliedPromo?.discount_pct||0}%
-                      </div>
-                    )}
-                  </div>
-                  {promoCode && !promoApplied && (
-                    <div style={{fontSize:10,color:"#FCA5A5",marginTop:6}}>Code invalide</div>
-                  )}
-                  {promoApplied && (
-                    <div style={{fontSize:11,color:"#86EFAC",marginTop:6}}>✓ Code <strong>{promoCode}</strong> appliqué — économise {appliedPromo?.discount_pct||0}% sur ton plan</div>
-                  )}
-                </div>
-              </div>
 
               <div style={{textAlign:"center",fontSize:11,color:"rgba(255,255,255,0.25)",marginTop:8}}>
                 Paiement sécurisé via Wave · Sans engagement
@@ -8065,6 +8054,34 @@ function AppInner() {
                           ))}
                         </div>
                       )}
+                      {/* Code promo — par plan, visible juste avant le bouton d'activation */}
+                      {!isCurrent && isPaidPlan && (
+                        <div style={{marginTop:10,padding:"8px 10px",border:`1px solid ${promoApplied?G.green:"#E5E7EB"}`,borderRadius:10,background:promoApplied?G.greenLight:"#FAFAFA"}}>
+                          <div style={{fontSize:10,color:G.gray,fontWeight:600,marginBottom:5,letterSpacing:0.3}}>🎟 Code promo</div>
+                          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                            <input
+                              type="text"
+                              value={promoCode}
+                              onChange={e=>{
+                                const v = e.target.value.toUpperCase();
+                                setPromoCode(v);
+                                const match = checkPromoCode(v);
+                                setAppliedPromo(match);
+                                setPromoApplied(!!match);
+                              }}
+                              placeholder="Ex: LANCEMENT30"
+                              style={{flex:1,background:"#FFF",border:`1px solid ${promoApplied?G.green:"#D1D5DB"}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none",textTransform:"uppercase",letterSpacing:0.5,color:G.dark}}/>
+                            {promoApplied && (
+                              <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
+                                ✓ −{appliedPromo?.discount_pct||0}%
+                              </div>
+                            )}
+                          </div>
+                          {promoCode && !promoApplied && (
+                            <div style={{fontSize:10,color:"#DC2626",marginTop:4}}>Code invalide</div>
+                          )}
+                        </div>
+                      )}
                       {/* Bouton */}
                       {!isCurrent&&(
                         <button onClick={async()=>{
@@ -8087,7 +8104,7 @@ function AppInner() {
                             }
                           }
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
-                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(p.priceNum, currency)} ${cur.short}` : `Activer le plan ${p.name}`}
+                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(applyPromoDiscount(p.priceNum), currency)} ${cur.short}` : `Activer le plan ${p.name}`}
                         </button>
                       )}
                     </div>
@@ -8095,43 +8112,6 @@ function AppInner() {
                 );
               })}
 
-              {/* Code promo */}
-              <div style={{marginTop:6,padding:"12px 14px",border:`1px solid ${promoApplied?G.green:G.grayLight}`,borderRadius:12,background:promoApplied?G.greenLight:G.grayLight}}>
-                <div style={{fontSize:11,fontWeight:700,color:G.dark,marginBottom:8,letterSpacing:0.3,display:"flex",alignItems:"center",gap:6}}>
-                  🎟 As-tu un code promo ?
-                </div>
-                <div style={{display:"flex",gap:8}}>
-                  <input
-                    type="text"
-                    value={promoCode}
-                    onChange={e=>{
-                      const v = e.target.value.toUpperCase();
-                      setPromoCode(v);
-                      const match = checkPromoCode(v);
-                      setAppliedPromo(match);
-                      setPromoApplied(!!match);
-                    }}
-                    placeholder="Ex: LANCEMENT30"
-                    style={{
-                      flex:1,background:"#fff",border:`1.5px solid ${promoApplied?G.green:G.grayLight}`,
-                      borderRadius:8,padding:"9px 12px",fontSize:13,color:G.dark,outline:"none",
-                      textTransform:"uppercase",letterSpacing:1,boxSizing:"border-box",
-                    }}/>
-                  {promoApplied && (
-                    <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"9px 14px",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:5,whiteSpace:"nowrap"}}>
-                      ✓ −{appliedPromo?.discount_pct||0}%
-                    </div>
-                  )}
-                </div>
-                {promoCode && !promoApplied && (
-                  <div style={{fontSize:11,color:G.red,marginTop:6}}>Code invalide</div>
-                )}
-                {promoApplied && (
-                  <div style={{fontSize:11,color:G.green,marginTop:6,fontWeight:600}}>
-                    ✓ Code <strong>{promoCode}</strong> appliqué — économise {appliedPromo?.discount_pct||0}% sur ton plan
-                  </div>
-                )}
-              </div>
             </div>
           </div>
         </div>
