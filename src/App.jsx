@@ -1195,6 +1195,9 @@ function AppInner() {
   const [saReferralLoading, setSaReferralLoading] = useState(false);
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
   const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com","diarriag@gmail.com"];
+  // Comparación de owner robusta: insensible a mayúsculas/espacios (un email
+  // guardado con otra capitalización en otro dispositivo rompía el acceso owner).
+  const isOwnerEmail = (e) => OWNER_EMAILS.includes(String(e||"").toLowerCase().trim());
   // ── Parrainage / Afiliación — economía del programa ──
   const REFERRAL_COMMISSION_PCT = 30; // % du premier paiement reversé au parrain
   const REFERRAL_DISCOUNT_PCT   = 30; // % de remise pour le filleul (1er paiement)
@@ -1658,9 +1661,8 @@ function AppInner() {
         // Sync org.settings for non-admin roles (closerCompta, etc.)
         const currentRole = currentUserRef.current?.role || localStorage.getItem("teamly_role");
         if(org.settings && currentRole!=="admin") setSettings(s=>({...s,...org.settings}));
-        const OWNER_MAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com"];
-        // Owner: always full access, just sync the plan label
-        if(OWNER_MAILS.includes(currentUserRef.current?.email)) {
+        // Owner: always full access, just sync the plan label (insensible à la casse)
+        if(isOwnerEmail(currentUserRef.current?.email) || isOwnerEmail(localStorage.getItem("teamly_email"))) {
           setIsPro(true); setIsOwnerOrg(true);
           const validPlans=["gratuit","basic","pro","scale"];
           const normalizedPlan=validPlans.includes(org.plan)?org.plan:(["basic","pro","scale"].includes(org.plan)?org.plan:"gratuit");
@@ -1670,7 +1672,7 @@ function AppInner() {
         // Check if org admin is an owner email — if so, all members get Scale access
         try {
           const adminProfiles = await sbFetch(`profiles?org_id=eq.${orgId}&role=eq.admin&select=email&limit=5`,"GET");
-          if(Array.isArray(adminProfiles) && adminProfiles.some(p=>OWNER_MAILS.includes(p.email))) {
+          if(Array.isArray(adminProfiles) && adminProfiles.some(p=>isOwnerEmail(p.email))) {
             setIsPro(true); setIsOwnerOrg(true);
             setSettings(s=>({...s, plan:"scale"}));
             return;
@@ -2103,8 +2105,8 @@ function AppInner() {
                 const org = orgs[0];
                 if(org.plan) setSettings(s=>({...s,plan:org.plan}));
                 if(org.settings) setSettings(s=>({...s,...org.settings}));
-                // Propriétaire → accès complet gratuit toujours
-                if(["salioumbayee877@gmail.com","salioumbayeee261@gmail.com"].includes(p.email)) {
+                // Propriétaire → accès complet gratuit toujours (insensible à la casse)
+                if(isOwnerEmail(p.email) || isOwnerEmail(email)) {
                   setIsPro(true);
                   setTrialDaysLeft(999);
                 } else {
@@ -2512,7 +2514,7 @@ function AppInner() {
 
   // Auto-load superadmin clients when navigating to that tab
   useEffect(()=>{
-    if(tab==="superadmin" && currentUser?.email===OWNER_EMAIL && saClients.length===0 && !saLoading){
+    if(tab==="superadmin" && isOwnerEmail(currentUser?.email) && saClients.length===0 && !saLoading){
       setSaLoading(true);
       fetch("/.netlify/functions/super-admin",{headers:{"Authorization":`Bearer ${_authToken}`}})
         .then(r=>r.json())
@@ -2872,7 +2874,7 @@ function AppInner() {
   const addOrder = wa => {
     // Plan limit guard (monthly orders)
     try {
-      const _isOwnerEarly = OWNER_EMAILS.includes(currentUser.email);
+      const _isOwnerEarly = isOwnerEmail(currentUser.email);
       if(!_isOwnerEarly){
         const _limits = {gratuit:30, starter:30, trial:30, basic:100, pro:200, scale:Infinity};
         const _key = settings.plan || "gratuit";
@@ -3757,7 +3759,7 @@ function AppInner() {
                     }
                     if(orgs?.[0]) {
                       const org=orgs[0];
-                      if(authForm.email==="salioumbayee877@gmail.com"||authForm.email==="salioumbayeee261@gmail.com"){
+                      if(isOwnerEmail(authForm.email)){
                         setIsPro(true); setTrialDaysLeft(999);
                       } else {
                         const paidPlans=["basic","pro","scale"];
@@ -4490,7 +4492,7 @@ function AppInner() {
   const canEditOrders = role==="admin" || role==="closer";
   const canSeeCompta  = role==="admin" || (role==="closer" && pC.closerCompta);
 
-  const isOwner       = OWNER_EMAILS.includes(currentUser.email) || isOwnerOrg;
+  const isOwner       = isOwnerEmail(currentUser.email) || (typeof localStorage!=="undefined" && isOwnerEmail(localStorage.getItem("teamly_email"))) || isOwnerOrg;
   const trialExpired  = !isOwner && !isPro && trialDaysLeft === 0;
 
   // ── Plan actif et feature gating ─────────────────────────────────────────
@@ -4860,7 +4862,7 @@ function AppInner() {
         {/* Nav links */}
         <div style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
           {/* Super-admin link — visible uniquement pour le propriétaire */}
-          {currentUser.email===OWNER_EMAIL&&(
+          {String(currentUser.email||"").toLowerCase().trim()===OWNER_EMAIL&&(
             <button onClick={()=>{setTab("superadmin");setSidebarOpen(false);}}
               style={{width:"100%",background:tab==="superadmin"?"rgba(240,165,0,0.15)":"none",border:"none",borderLeft:`3px solid ${tab==="superadmin"?G.gold:"transparent"}`,padding:"12px 18px",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:18,transition:"background 0.15s"}}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={tab==="superadmin"?G.gold:"rgba(255,255,255,0.7)"} strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -5349,7 +5351,7 @@ function AppInner() {
 
         {/* ── ADMIN DASHBOARD ── */}
         {/* ── SUPER ADMIN PANEL ── */}
-        {tab==="superadmin"&&currentUser.email===OWNER_EMAIL&&(
+        {tab==="superadmin"&&String(currentUser.email||"").toLowerCase().trim()===OWNER_EMAIL&&(
           <div style={{display:"flex",flexDirection:"column",gap:14}}>
             <div style={{background:"linear-gradient(135deg,#0D1F14,#1A3828)",borderRadius:16,padding:"18px 20px"}}>
               <div style={{fontSize:10,letterSpacing:2,color:"rgba(255,255,255,0.4)",fontWeight:600,marginBottom:6}}>PROPRIÉTAIRE</div>
