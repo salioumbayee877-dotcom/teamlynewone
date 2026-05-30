@@ -38,6 +38,47 @@ exports.handler = async (event) => {
 
     const method = event.httpMethod;
     const month  = new Date().toISOString().slice(0, 7);
+    const view   = event.queryStringParameters?.view || "";
+
+    // GET ?view=referrals — list all parrainage conversions across the platform
+    if (method === "GET" && view === "referrals") {
+      const [refsRes, orgsRes, profilesRes] = await Promise.all([
+        fetch(`${SB_URL}/rest/v1/referrals?select=*&order=created_at.desc`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/organizations?select=id,name`, { headers: sbHeaders }),
+        fetch(`${SB_URL}/rest/v1/profiles?select=org_id,role,nom,email,phone`, { headers: sbHeaders }),
+      ]);
+      const refs     = await refsRes.json();
+      const orgs     = await orgsRes.json();
+      const profiles = await profilesRes.json();
+
+      const orgName = {};
+      if (Array.isArray(orgs)) orgs.forEach(o => { orgName[o.id] = o.name; });
+      const adminByOrg = {};
+      if (Array.isArray(profiles)) {
+        profiles.forEach(p => {
+          if (p.role === "admin" && !adminByOrg[p.org_id]) {
+            adminByOrg[p.org_id] = { nom: p.nom || "", email: p.email || "", phone: p.phone || "" };
+          }
+        });
+      }
+
+      const rows = Array.isArray(refs) ? refs.map(r => ({
+        ...r,
+        referrerName:  orgName[r.referrer_org_id] || "—",
+        referrerAdmin: adminByOrg[r.referrer_org_id]?.nom   || "",
+        referrerEmail: adminByOrg[r.referrer_org_id]?.email || "",
+        referrerPhone: adminByOrg[r.referrer_org_id]?.phone || "",
+        referredOrgName: orgName[r.referred_org_id] || r.referred_name || "—",
+      })) : [];
+
+      const totals = rows.reduce((acc, r) => {
+        if (r.status === "converted") acc.pending += r.commission_cfa || 0;
+        if (r.status === "paid")      acc.paid    += r.commission_cfa || 0;
+        return acc;
+      }, { pending: 0, paid: 0 });
+
+      return { statusCode: 200, headers, body: JSON.stringify({ referrals: rows, totals }) };
+    }
 
     // GET — list all orgs with stats
     if (method === "GET") {
@@ -81,6 +122,26 @@ exports.handler = async (event) => {
       })) : [];
 
       return { statusCode: 200, headers, body: JSON.stringify(result) };
+    }
+
+    // PATCH — parrainage: marquer une commission comme payée
+    if (method === "PATCH" && view === "referrals") {
+      const { referralId, paid_note } = JSON.parse(event.body || "{}");
+      if (!referralId) return { statusCode: 400, headers, body: JSON.stringify({ error: "referralId requis" }) };
+
+      // Vérifier que la commission est bien 'converted' avant de la payer
+      const check = await fetch(`${SB_URL}/rest/v1/referrals?id=eq.${referralId}&select=status&limit=1`, { headers: sbHeaders });
+      const rows = await check.json().catch(() => []);
+      if (!Array.isArray(rows) || !rows[0]) return { statusCode: 404, headers, body: JSON.stringify({ error: "Parrainage introuvable" }) };
+      if (rows[0].status !== "converted") return { statusCode: 409, headers, body: JSON.stringify({ error: "Seules les commissions confirmées peuvent être payées" }) };
+
+      const res = await fetch(`${SB_URL}/rest/v1/referrals?id=eq.${referralId}`, {
+        method: "PATCH",
+        headers: { ...sbHeaders, Prefer: "return=minimal" },
+        body: JSON.stringify({ status: "paid", paid_at: new Date().toISOString(), paid_note: paid_note || null }),
+      });
+      if (!res.ok) return { statusCode: 500, headers, body: JSON.stringify({ error: "Erreur Supabase" }) };
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
     }
 
     // PATCH — update plan for an org

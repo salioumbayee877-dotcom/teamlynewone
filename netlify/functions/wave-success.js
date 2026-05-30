@@ -31,7 +31,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { orgId, sessionId, plan = "pro", promoCode } = body;
+    const { orgId, sessionId, plan = "pro", promoCode, refCode, amount } = body;
     if (!orgId) return { statusCode: 400, headers, body: JSON.stringify({ error: "orgId requis" }) };
 
     // Verify the user belongs to this org and is admin
@@ -86,6 +86,33 @@ exports.handler = async (event) => {
         }
       } catch (e) { /* no bloquear pago si falla */ }
     }
+
+    // Parrainage: acreditar comisión al parrain en la PRIMERA conversión del filleul.
+    // % del primer pago (una sola vez). Best-effort — no bloquear el pago si falla.
+    try {
+      const REFERRAL_COMMISSION_PCT = 30;
+      const PLAN_BASE_PRICE = { basic: 13000, pro: 20000, scale: 36000 };
+      const ref = await fetch(
+        `${SB_URL}/rest/v1/referrals?referred_org_id=eq.${orgId}&status=eq.pending&select=id&limit=1`,
+        { headers: sbHeaders }
+      );
+      const refRows = await ref.json().catch(() => []);
+      if (Array.isArray(refRows) && refRows[0]) {
+        const paid = Number(amount) > 0 ? Number(amount) : (PLAN_BASE_PRICE[validPlan] || 0);
+        const commission = Math.round(paid * REFERRAL_COMMISSION_PCT / 100);
+        await fetch(`${SB_URL}/rest/v1/referrals?id=eq.${refRows[0].id}`, {
+          method: "PATCH",
+          headers: { ...sbHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({
+            status: "converted",
+            plan: validPlan,
+            first_payment_cfa: paid,
+            commission_cfa: commission,
+            converted_at: new Date().toISOString(),
+          }),
+        });
+      }
+    } catch (e) { /* no bloquear pago si falla parrainage */ }
 
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, plan: validPlan, expiresAt }) };
   } catch (e) {

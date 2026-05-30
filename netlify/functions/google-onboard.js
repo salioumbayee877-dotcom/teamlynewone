@@ -1,6 +1,7 @@
 const { randomUUID } = require("crypto");
 const { requireUser } = require("./_auth");
 const { isOriginAllowed, corsOrigin } = require("./lib/cors");
+const { recordReferral } = require("./lib/recordReferral");
 
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const SB_URL      = process.env.SUPABASE_URL;
@@ -66,6 +67,8 @@ exports.handler = async (event) => {
       const t = await profRes.text();
       return { statusCode: 500, headers, body: JSON.stringify({ error: `profiles: ${profRes.status} ${t.slice(0,200)}` }) };
     }
+    // Parrainage: atribuir este filleul a su parrain (best-effort)
+    await recordReferral({ refCode: body.refCode, referredOrgId: orgId, referredEmail: user.email || "", referredName: nom });
     return { statusCode: 200, headers, body: JSON.stringify({ ok: true, orgId, role: "admin", nom }) };
   } catch (e) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: e?.message || "unknown" }) };

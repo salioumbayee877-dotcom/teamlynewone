@@ -9,7 +9,7 @@ import {
   Bookmark, ArrowRight, Globe, Clock, Sparkles, Hourglass, Save, ChevronDown,
   ChevronUp, Plus, Minus, Star, ShieldCheck, Cake, MailCheck, ListChecks,
   Wifi, Briefcase, Maximize2, StickyNote, Circle, Gift, HelpCircle, Ban,
-  Banknote, Pin as Pushpin, Percent, Hash, Download, FlaskConical,
+  Banknote, Pin as Pushpin, Percent, Hash, Download, FlaskConical, Share2,
 } from "lucide-react";
 import ProductAnalysisPopup from "./ProductAnalysisPopup";
 import { CityComboBox, CityAutocomplete } from "./components/CityComboBox";
@@ -1076,7 +1076,10 @@ function AppInner() {
     const org  = params.get("org")  || "";
     const role = params.get("role") || "";
     const tok  = params.get("token")|| "";
+    const ref  = (params.get("ref") || "").toUpperCase().trim();
+    if(ref){ try{ localStorage.setItem("teamly_pending_ref", ref); }catch(e){} }
     return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",otp:"",
+      refCode: ref || (()=>{ try{ return localStorage.getItem("teamly_pending_ref")||""; }catch(e){ return ""; } })(),
       inviteOrg:org, inviteRole:role, inviteToken:tok,
       inviteUrl: org ? window.location.href : ""
     };
@@ -1117,6 +1120,18 @@ function AppInner() {
     const pct = Number(appliedPromo.discount_pct) || 0;
     return Math.round(price * (100 - pct) / 100);
   };
+  // Parrainage: si le filleul a un code de parrainage et n'a saisi aucun code promo
+  // manuel, on applique automatiquement la remise filleul (mécanique promo réutilisée).
+  useEffect(()=>{
+    let pendingRef = ""; try{ pendingRef = localStorage.getItem("teamly_pending_ref")||""; }catch(e){}
+    const ref = (pendingRef || "").toUpperCase().trim();
+    if (ref && !promoCode.trim() && !(appliedPromo && !appliedPromo._referral)) {
+      setAppliedPromo({ code: ref, discount_pct: REFERRAL_DISCOUNT_PCT, _referral: true });
+      setPromoApplied(true);
+    } else if (!ref && appliedPromo?._referral && !promoCode.trim()) {
+      setAppliedPromo(null); setPromoApplied(false);
+    }
+  }, [promoCode, authStep]);
   const [showPlanModal, setShowPlanModal] = useState(false);
   const [trialDaysLeft, setTrialDaysLeft] = useState(14);
   const [isPro,         setIsPro]         = useState(false);
@@ -1128,8 +1143,20 @@ function AppInner() {
   // Formulario para crear código promo (super-admin)
   const [newPromo, setNewPromo] = useState({ code:"", pct:30, expires:"", maxUses:"" });
   const [promoSectionOpen, setPromoSectionOpen] = useState(false);
+  // ── Parrainage / Afiliación ──
+  const [myReferralCode, setMyReferralCode] = useState("");      // código del parrain (esta org)
+  const [referralsList, setReferralsList]   = useState([]);      // filleuls de esta org
+  const [referralSectionOpen, setReferralSectionOpen] = useState(false);
+  const [referralCodeLoading, setReferralCodeLoading] = useState(false);
+  const [saReferrals, setSaReferrals]       = useState([]);      // vista owner
+  const [saReferralTotals, setSaReferralTotals] = useState({ pending:0, paid:0 });
+  const [saReferralOpen, setSaReferralOpen] = useState(false);
+  const [saReferralLoading, setSaReferralLoading] = useState(false);
   const OWNER_EMAIL = "salioumbayee877@gmail.com";
   const OWNER_EMAILS = ["salioumbayee877@gmail.com","salioumbayeee261@gmail.com","mamadou@gmail.com","sezambackelo@gmail.com","gueyediarria@gmail.com","diarriag@gmail.com"];
+  // ── Parrainage / Afiliación — economía del programa ──
+  const REFERRAL_COMMISSION_PCT = 30; // % du premier paiement reversé au parrain
+  const REFERRAL_DISCOUNT_PCT   = 30; // % de remise pour le filleul (1er paiement)
   const [stockAjout, setStockAjout]     = useState({});
   const [editProd,   setEditProd]       = useState(null);
   const [waTemplate, setWaTemplate]     = useState(`✅ Commande confirmée !\n\n📦 {produit}\n💰 {prix} CFA (paiement à la livraison)\n📍 {adresse}\n📲 Enregistrez notre numéro pour ne pas rater aucune promotion !\nNos meilleures offres sont publiées dans nos statuts WhatsApp 🔥`); // produit en cours d'édition
@@ -1459,11 +1486,13 @@ function AppInner() {
     setPayLoading(planKey);
     try {
       // Guardar el código promo aplicado (si lo hay) para incrementar uses_count tras el pago
-      if(promoApplied && appliedPromo?.code){
+      if(promoApplied && appliedPromo?.code && !appliedPromo._referral){
         try{ localStorage.setItem("teamly_pending_promo", appliedPromo.code); }catch(e){}
       } else {
         try{ localStorage.removeItem("teamly_pending_promo"); }catch(e){}
       }
+      // Guardar monto pagado para acreditar la comisión de parrainage tras el pago
+      try{ localStorage.setItem("teamly_pending_amount", String(amount)); }catch(e){}
       const res = await fetch("/.netlify/functions/wave-checkout",{
         method:"POST", headers:{"Content-Type":"application/json"},
         body: JSON.stringify({orgId, amount: String(amount), plan: planKey}),
@@ -1480,15 +1509,17 @@ function AppInner() {
     const params = new URLSearchParams(window.location.search);
     if(params.get("payment")==="success" && params.get("org")===orgId && orgId) {
       const sessionId = params.get("session") || params.get("session_id") || null;
-      let pendingPromo = null;
+      let pendingPromo = null, pendingRef = null, pendingAmount = null;
       try{ pendingPromo = localStorage.getItem("teamly_pending_promo"); }catch(e){}
+      try{ pendingRef = localStorage.getItem("teamly_pending_ref"); }catch(e){}
+      try{ pendingAmount = localStorage.getItem("teamly_pending_amount"); }catch(e){}
       fetch("/.netlify/functions/wave-success",{
         method:"POST",
         headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`},
-        body: JSON.stringify({orgId, sessionId, promoCode: pendingPromo}),
+        body: JSON.stringify({orgId, sessionId, promoCode: pendingPromo, refCode: pendingRef, amount: pendingAmount?Number(pendingAmount):undefined}),
       }).then(r=>r.json()).then(d=>{
         if(d.success){ setIsPro(true); setTrialDaysLeft(31); addToast("Paiement confirmé — Bienvenue en Pro 🎉","✅","#1A5C38"); }
-        try{ localStorage.removeItem("teamly_pending_promo"); }catch(e){}
+        try{ localStorage.removeItem("teamly_pending_promo"); localStorage.removeItem("teamly_pending_amount"); localStorage.removeItem("teamly_pending_ref"); }catch(e){}
       }).catch(()=>{});
       window.history.replaceState({},document.title,window.location.pathname);
     }
@@ -1749,7 +1780,7 @@ function AppInner() {
               const br = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${jwt}` },
-                body: JSON.stringify({ boutique: boutique || "Ma Boutique", phone: phone || "", nom: nom || "Admin" }),
+                body: JSON.stringify({ boutique: boutique || "Ma Boutique", phone: phone || "", nom: nom || "Admin", refCode: (typeof localStorage!=="undefined"?(localStorage.getItem("teamly_pending_ref")||""):"") }),
               }, 20000);
               const bj = await br.json().catch(()=>({}));
               if (br.ok && bj.ok && bj.orgId) newOrgId = bj.orgId;
@@ -2678,6 +2709,38 @@ function AppInner() {
     loadPromoCodes();
   },[sbReady]);
 
+  // ── Parrainage / Afiliación ──
+  // Carga las atribuciones de esta org (como parrain)
+  const loadReferrals = async () => {
+    try {
+      const rows = await sbFetch(`referrals?referrer_org_id=eq.${orgId}&select=*&order=created_at.desc`);
+      if(Array.isArray(rows)) setReferralsList(rows);
+    } catch(e){ /* tabla puede no existir aún antes de aplicar SQL */ }
+  };
+  // Devuelve el código de parrainage de esta org, creándolo si no existe
+  const ensureReferralCode = async () => {
+    if(!orgId) return "";
+    setReferralCodeLoading(true);
+    try {
+      const existing = await sbFetch(`referral_codes?org_id=eq.${orgId}&select=code&limit=1`);
+      if(Array.isArray(existing) && existing[0]?.code){ setMyReferralCode(existing[0].code); return existing[0].code; }
+      // Genera un código único TMLY-XXXX y lo inserta
+      const code = `TMLY-${genToken().slice(0,4)}`;
+      const created = await sbFetch(`referral_codes`,"POST",{ org_id:orgId, code });
+      const row = Array.isArray(created) ? created[0] : created;
+      const finalCode = row?.code || code;
+      setMyReferralCode(finalCode);
+      return finalCode;
+    } catch(e){
+      addToast("Erreur — vérifie que la table referral_codes existe","❌",G.red);
+      return "";
+    } finally { setReferralCodeLoading(false); }
+  };
+  useEffect(()=>{
+    if(!sbReady || !orgId || role!=="admin") return;
+    loadReferrals();
+  },[sbReady, orgId, role]);
+
   // Supabase persist helpers
   const sbSave = async (table, data) => {
     if(!sbToken||!orgId) return;
@@ -3436,7 +3499,7 @@ function AppInner() {
           const r = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
-            body: JSON.stringify({ boutique: authForm.boutique || "Ma Boutique", phone: authForm.phone || "", nom: derivedNom }),
+            body: JSON.stringify({ boutique: authForm.boutique || "Ma Boutique", phone: authForm.phone || "", nom: derivedNom, refCode: (typeof localStorage!=="undefined"?(localStorage.getItem("teamly_pending_ref")||""):"") }),
           }, 20000);
           const j = await r.json().catch(()=>({}));
           if (!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
@@ -3480,7 +3543,7 @@ function AppInner() {
       const r = await fetchWithTimeout("/.netlify/functions/google-onboard", {
         method: "POST",
         headers: { "Content-Type":"application/json", "Authorization":`Bearer ${userJwt||""}` },
-        body: JSON.stringify({ boutique: authForm.boutique.trim(), phone: authForm.phone.trim(), nom }),
+        body: JSON.stringify({ boutique: authForm.boutique.trim(), phone: authForm.phone.trim(), nom, refCode: (typeof localStorage!=="undefined"?(localStorage.getItem("teamly_pending_ref")||""):"") }),
       }, 15000);
       const data = await r.json().catch(()=>({}));
       if (!r.ok || !data.ok) {
@@ -3646,7 +3709,7 @@ function AppInner() {
                     const r = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
                       method: "POST",
                       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
-                      body: JSON.stringify({ boutique: "Ma Boutique", phone: "", nom: authForm.email.split("@")[0] }),
+                      body: JSON.stringify({ boutique: "Ma Boutique", phone: "", nom: authForm.email.split("@")[0], refCode: (typeof localStorage!=="undefined"?(localStorage.getItem("teamly_pending_ref")||""):"") }),
                     }, 20000);
                     const j = await r.json().catch(()=>({}));
                     if (!r.ok || !j.ok) throw new Error(j?.error || `HTTP ${r.status}`);
@@ -3733,6 +3796,22 @@ function AppInner() {
                     style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif"}}/>
                 </div>
               ))}
+              {/* Code de parrainage (optionnel) — remise sur le 1er paiement */}
+              <div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginBottom:4,fontFamily:"sans-serif",display:"flex",alignItems:"center",gap:5}}><Gift size={12}/> Code de parrainage (optionnel)</div>
+                <input
+                  type="text"
+                  name="refCode"
+                  value={authForm.refCode||""}
+                  onChange={e=>{
+                    const v=e.target.value.toUpperCase().replace(/\s+/g,"");
+                    setAuthForm(p=>({...p,refCode:v}));
+                    try{ if(v) localStorage.setItem("teamly_pending_ref",v); else localStorage.removeItem("teamly_pending_ref"); }catch(err){}
+                  }}
+                  placeholder="Ex: TMLY-3F7K"
+                  style={{width:"100%",background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:10,padding:"11px 14px",fontSize:13,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"sans-serif",textTransform:"uppercase",letterSpacing:0.5}}/>
+                {authForm.refCode && <div style={{fontSize:10,color:"#86EFAC",marginTop:4,fontFamily:"sans-serif"}}>🎁 −{REFERRAL_DISCOUNT_PCT}% sur ton 1er abonnement</div>}
+              </div>
               {authError&&<div style={{fontSize:11,color:"#FCA5A5",fontFamily:"sans-serif"}}>{authError}</div>}
               <button onClick={handleRegister}
                 style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",marginTop:4,fontFamily:"sans-serif"}}>
@@ -4230,7 +4309,7 @@ function AppInner() {
               const br = await fetchWithTimeout("/.netlify/functions/bootstrap-org", {
                 method: "POST",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${tok}` },
-                body: JSON.stringify({ boutique, phone, nom }),
+                body: JSON.stringify({ boutique, phone, nom, refCode: (typeof localStorage!=="undefined"?(localStorage.getItem("teamly_pending_ref")||""):"") }),
               }, 20000);
               const bj = await br.json().catch(()=>({}));
               if (br.ok && bj.ok && bj.orgId) newOrgId = bj.orgId;
@@ -5224,6 +5303,103 @@ function AppInner() {
                     <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:11,background:"#F9FAFB",borderRadius:8}}>
                       Aucun code promo créé
                     </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── PARRAINAGES (gestion des commissions) ── */}
+            <div style={{background:"#FFF",borderRadius:14,boxShadow:"0 2px 8px rgba(0,0,0,0.06)",overflow:"hidden"}}>
+              <button onClick={async()=>{
+                const nv=!saReferralOpen; setSaReferralOpen(nv);
+                if(nv){
+                  setSaReferralLoading(true);
+                  try{
+                    const res = await fetch("/.netlify/functions/super-admin?view=referrals",{ headers:{"Authorization":`Bearer ${_authToken}`} });
+                    const data = await res.json();
+                    if(data && Array.isArray(data.referrals)){ setSaReferrals(data.referrals); setSaReferralTotals(data.totals||{pending:0,paid:0}); }
+                    else addToast("Erreur chargement parrainages","❌",G.red);
+                  } catch(e){ addToast("Erreur connexion","❌",G.red); }
+                  setSaReferralLoading(false);
+                }
+              }} style={{width:"100%",background:"linear-gradient(135deg,#1A3828,#0D1F14)",color:"#FFF",border:"none",padding:"14px 18px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <Gift size={18} color={G.gold}/>
+                  <div style={{textAlign:"left"}}>
+                    <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>Parrainages</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:1}}>Commissions des parrains · clique pour gérer</div>
+                  </div>
+                </div>
+                <span style={{fontSize:18,color:"rgba(255,255,255,0.7)",transform:saReferralOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▾</span>
+              </button>
+
+              {saReferralOpen && (
+                <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:10}}>
+                  {/* Totaux */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    <div style={{background:"#FEF9E7",borderRadius:10,padding:"10px 12px",borderLeft:`4px solid ${G.gold}`}}>
+                      <div style={{fontSize:10,color:"#92400E",fontWeight:700}}>À payer</div>
+                      <div style={{fontSize:18,fontWeight:800,color:G.dark}}>{fmt(saReferralTotals.pending||0)} <span style={{fontSize:11,color:G.gray}}>CFA</span></div>
+                    </div>
+                    <div style={{background:G.greenLight,borderRadius:10,padding:"10px 12px",borderLeft:`4px solid ${G.green}`}}>
+                      <div style={{fontSize:10,color:G.green,fontWeight:700}}>Déjà payé</div>
+                      <div style={{fontSize:18,fontWeight:800,color:G.dark}}>{fmt(saReferralTotals.paid||0)} <span style={{fontSize:11,color:G.gray}}>CFA</span></div>
+                    </div>
+                  </div>
+
+                  {saReferralLoading ? (
+                    <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:12}}>Chargement…</div>
+                  ) : saReferrals.length>0 ? (
+                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                      {saReferrals.map(r=>{
+                        const stColor = {pending:G.gray,converted:G.gold,paid:G.green}[r.status]||G.gray;
+                        const stLabel = {pending:"En attente",converted:"À payer",paid:"Payé"}[r.status]||r.status;
+                        return (
+                        <div key={r.id} style={{background:"#F9FAFB",borderRadius:10,padding:"10px 12px",borderLeft:`4px solid ${stColor}`}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                            <div style={{minWidth:0,flex:1}}>
+                              <div style={{fontWeight:700,fontSize:13,color:G.dark}}>{r.referrerName}<span style={{color:G.gray,fontWeight:500}}> → {r.referredOrgName}</span></div>
+                              <div style={{fontSize:10,color:G.gray,marginTop:2}}>
+                                {r.referrerAdmin||r.referrerEmail||"—"}{r.referrerPhone?` · ${r.referrerPhone}`:""}
+                              </div>
+                              <div style={{fontSize:10,color:G.gray,marginTop:1}}>{new Date(r.created_at).toLocaleDateString("fr-FR")}{r.plan?` · ${r.plan}`:""} · code {r.code}</div>
+                            </div>
+                            <div style={{textAlign:"right",flexShrink:0}}>
+                              <div style={{fontSize:14,fontWeight:800,color:G.dark}}>{r.commission_cfa?`${fmt(r.commission_cfa)}`:"—"}<span style={{fontSize:9,color:G.gray}}> CFA</span></div>
+                              <div style={{fontSize:9,fontWeight:700,color:stColor,textTransform:"uppercase",letterSpacing:0.5,marginTop:2}}>{stLabel}</div>
+                            </div>
+                          </div>
+                          {r.status==="converted" && (
+                            <button onClick={()=>{
+                              setConfirmModal({
+                                msg:`Marquer payé : ${fmt(r.commission_cfa)} CFA ?`,
+                                sub:`Parrain : ${r.referrerName}\nFilleul : ${r.referredOrgName}`,
+                                onConfirm: async()=>{
+                                  try{
+                                    const res = await fetch("/.netlify/functions/super-admin?view=referrals",{
+                                      method:"PATCH",
+                                      headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken}`},
+                                      body:JSON.stringify({referralId:r.id}),
+                                    });
+                                    const d = await res.json();
+                                    if(d.success){
+                                      setSaReferrals(prev=>prev.map(x=>x.id===r.id?{...x,status:"paid"}:x));
+                                      setSaReferralTotals(t=>({pending:Math.max(0,(t.pending||0)-(r.commission_cfa||0)),paid:(t.paid||0)+(r.commission_cfa||0)}));
+                                      addToast("Commission marquée payée ✅","✅",G.green);
+                                    } else addToast(d.error||"Erreur","❌",G.red);
+                                  } catch(e){ addToast("Erreur connexion","❌",G.red); }
+                                },
+                              });
+                            }} style={{marginTop:8,width:"100%",background:G.green,color:"#FFF",border:"none",borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                              Marquer payé
+                            </button>
+                          )}
+                        </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:12,background:"#F9FAFB",borderRadius:8}}>Aucun parrainage pour l'instant</div>
                   )}
                 </div>
               )}
@@ -7562,6 +7738,96 @@ function AppInner() {
                 <div style={{fontSize:10,color:G.gray,marginTop:3,lineHeight:1.4}}>Le client interurbain sera redirigé vers ce lien pour payer. Récupère-le depuis ton app Wave Business. Sauvegarde automatique.</div>
               </div>
             </div>
+
+            {/* ── PARRAINAGE ── */}
+            {(()=>{
+              const filleuls   = referralsList.length;
+              const converted  = referralsList.filter(r=>r.status!=="pending").length;
+              const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
+              const paidTotal  = referralsList.filter(r=>r.status==="paid").reduce((s,r)=>s+(r.commission_cfa||0),0);
+              const link = myReferralCode ? `${window.location.origin}?ref=${myReferralCode}` : "";
+              const stLabel = {pending:"En attente",converted:"À payer",paid:"Payé"};
+              const stColor = {pending:G.gray,converted:G.gold,paid:G.green};
+              return (
+              <div style={{marginBottom:18}}>
+                <button onClick={()=>{ const nv=!referralSectionOpen; setReferralSectionOpen(nv); if(nv){ if(!myReferralCode) ensureReferralCode(); loadReferrals(); } }}
+                  style={{width:"100%",background:"linear-gradient(135deg,#1A3828,#0D1F14)",color:"#FFF",border:"none",borderRadius:12,padding:"13px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                  <div style={{display:"flex",alignItems:"center",gap:9}}>
+                    <Gift size={17} color={G.gold}/>
+                    <div style={{textAlign:"left"}}>
+                      <div style={{fontWeight:800,fontSize:14}}>Parrainage</div>
+                      <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:1}}>Gagne {REFERRAL_COMMISSION_PCT}% sur chaque filleul qui s'abonne</div>
+                    </div>
+                  </div>
+                  <span style={{fontSize:18,color:"rgba(255,255,255,0.7)",transform:referralSectionOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▾</span>
+                </button>
+
+                {referralSectionOpen && (
+                  <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:12}}>
+                    {/* Code + lien */}
+                    <div style={{background:G.grayLight,borderRadius:12,padding:"14px 14px"}}>
+                      <div style={{fontSize:10,fontWeight:700,color:G.gray,letterSpacing:0.5,marginBottom:6}}>TON CODE DE PARRAINAGE</div>
+                      {referralCodeLoading && !myReferralCode ? (
+                        <div style={{fontSize:13,color:G.gray}}>Génération…</div>
+                      ) : myReferralCode ? (<>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                          <div style={{flex:1,background:"#FFF",border:`1.5px dashed ${G.green}`,borderRadius:9,padding:"10px 12px",fontWeight:800,fontSize:16,color:G.dark,letterSpacing:1}}>{myReferralCode}</div>
+                          <button onClick={()=>{ navigator.clipboard?.writeText(myReferralCode); addToast("Code copié ✓","📋",G.green); }}
+                            style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"10px 13px",fontSize:12,fontWeight:700,cursor:"pointer"}}>Copier</button>
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>{ navigator.clipboard?.writeText(link); addToast("Lien copié ✓","🔗",G.green); }}
+                            style={{flex:1,background:"#FFF",color:G.green,border:`1px solid ${G.green}`,borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><Share2 size={13}/> Copier le lien</button>
+                          <a href={`https://wa.me/?text=${encodeURIComponent("Rejoins Teamly et gère tes commandes COD facilement ! Utilise mon code "+myReferralCode+" pour −"+REFERRAL_DISCOUNT_PCT+"% sur ton 1er abonnement : "+link)}`} target="_blank" rel="noreferrer"
+                            style={{flex:1,background:"#25D366",color:"#FFF",borderRadius:9,padding:"9px 0",fontSize:12,fontWeight:700,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:5}}><MessageCircle size={13}/> Partager</a>
+                        </div>
+                      </>) : (
+                        <button onClick={ensureReferralCode} style={{background:G.green,color:"#FFF",border:"none",borderRadius:9,padding:"10px 0",fontSize:13,fontWeight:700,cursor:"pointer",width:"100%"}}>Générer mon code</button>
+                      )}
+                    </div>
+
+                    {/* KPIs */}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                      <div style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:11,padding:"11px 13px"}}>
+                        <div style={{fontSize:10,color:G.gray,fontWeight:600}}>Filleuls</div>
+                        <div style={{fontSize:20,fontWeight:800,color:G.dark}}>{filleuls}<span style={{fontSize:11,color:G.gray,fontWeight:600}}> · {converted} abonné{converted>1?"s":""}</span></div>
+                      </div>
+                      <div style={{background:"linear-gradient(135deg,#0D3D25,#1A5C38)",borderRadius:11,padding:"11px 13px"}}>
+                        <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontWeight:600}}>Solde à recevoir</div>
+                        <div style={{fontSize:20,fontWeight:800,color:G.gold}}>{fmt(pendingPay)} <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>CFA</span></div>
+                      </div>
+                    </div>
+                    {paidTotal>0 && <div style={{fontSize:11,color:G.gray,textAlign:"center"}}>Déjà reçu : <strong style={{color:G.green}}>{fmt(paidTotal)} CFA</strong></div>}
+
+                    {/* Liste filleuls */}
+                    {referralsList.length>0 ? (
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {referralsList.map(r=>(
+                          <div key={r.id} style={{background:"#FFF",border:`1px solid ${G.grayLight}`,borderRadius:10,padding:"9px 12px",borderLeft:`4px solid ${stColor[r.status]||G.gray}`,display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                            <div style={{minWidth:0,flex:1}}>
+                              <div style={{fontWeight:700,fontSize:13,color:G.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.referred_name||r.referred_email||"Filleul"}</div>
+                              <div style={{fontSize:10,color:G.gray,marginTop:1}}>{new Date(r.created_at).toLocaleDateString("fr-FR")}{r.plan?` · ${r.plan}`:""}</div>
+                            </div>
+                            <div style={{textAlign:"right",flexShrink:0}}>
+                              <div style={{fontSize:13,fontWeight:800,color:r.status==="pending"?G.gray:G.dark}}>{r.commission_cfa?`${fmt(r.commission_cfa)} CFA`:"—"}</div>
+                              <div style={{fontSize:9,fontWeight:700,color:stColor[r.status]||G.gray,textTransform:"uppercase",letterSpacing:0.5}}>{stLabel[r.status]||r.status}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{textAlign:"center",padding:14,color:G.gray,fontSize:12,background:G.grayLight,borderRadius:10}}>Aucun filleul pour l'instant — partage ton code !</div>
+                    )}
+
+                    {pendingPay>0 && (
+                      <a href={`https://wa.me/34673318387?text=${encodeURIComponent("Bonjour, je souhaite retirer mes gains de parrainage Teamly : "+fmt(pendingPay)+" CFA (code "+myReferralCode+").")}`} target="_blank" rel="noreferrer"
+                        style={{background:G.gold,color:G.dark,borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,textDecoration:"none",textAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Banknote size={15}/> Demander un retrait</a>
+                    )}
+                  </div>
+                )}
+              </div>
+              );
+            })()}
 
             {/* Plan */}
             {(()=>{
