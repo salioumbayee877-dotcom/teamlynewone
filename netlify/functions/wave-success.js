@@ -97,20 +97,34 @@ exports.handler = async (event) => {
         { headers: sbHeaders }
       );
       const refRows = await ref.json().catch(() => []);
+      const paid = Number(amount) > 0 ? Number(amount) : (PLAN_BASE_PRICE[validPlan] || 0);
+      const commission = Math.round(paid * REFERRAL_COMMISSION_PCT / 100);
+      const convertedAt = new Date().toISOString();
+
       if (Array.isArray(refRows) && refRows[0]) {
-        const paid = Number(amount) > 0 ? Number(amount) : (PLAN_BASE_PRICE[validPlan] || 0);
-        const commission = Math.round(paid * REFERRAL_COMMISSION_PCT / 100);
+        // Atribución ya creada al registrarse (vino por el enlace ?ref=)
         await fetch(`${SB_URL}/rest/v1/referrals?id=eq.${refRows[0].id}`, {
           method: "PATCH",
           headers: { ...sbHeaders, Prefer: "return=minimal" },
-          body: JSON.stringify({
-            status: "converted",
-            plan: validPlan,
-            first_payment_cfa: paid,
-            commission_cfa: commission,
-            converted_at: new Date().toISOString(),
-          }),
+          body: JSON.stringify({ status: "converted", plan: validPlan, first_payment_cfa: paid, commission_cfa: commission, converted_at: convertedAt }),
         });
+      } else if (refCode) {
+        // El filleul escribió el código a mano (no pasó por el enlace): resolver
+        // el código → parrain y crear la atribución ya convertida, si procede.
+        const code = String(refCode).toUpperCase().trim();
+        const rc = await fetch(`${SB_URL}/rest/v1/referral_codes?code=eq.${encodeURIComponent(code)}&select=org_id&limit=1`, { headers: sbHeaders });
+        const rcRows = await rc.json().catch(() => []);
+        const referrerOrgId = Array.isArray(rcRows) && rcRows[0] ? rcRows[0].org_id : null;
+        // verificar que el filleul no tenga ya una atribución (cualquier estado)
+        const any = await fetch(`${SB_URL}/rest/v1/referrals?referred_org_id=eq.${orgId}&select=id&limit=1`, { headers: sbHeaders });
+        const anyRows = await any.json().catch(() => []);
+        if (referrerOrgId && referrerOrgId !== orgId && !(Array.isArray(anyRows) && anyRows[0])) {
+          await fetch(`${SB_URL}/rest/v1/referrals`, {
+            method: "POST",
+            headers: { ...sbHeaders, Prefer: "return=minimal,resolution=ignore-duplicates" },
+            body: JSON.stringify({ code, referrer_org_id: referrerOrgId, referred_org_id: orgId, status: "converted", plan: validPlan, first_payment_cfa: paid, commission_cfa: commission, converted_at: convertedAt }),
+          });
+        }
       }
     } catch (e) { /* no bloquear pago si falla parrainage */ }
 

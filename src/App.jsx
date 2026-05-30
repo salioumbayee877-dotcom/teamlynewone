@@ -1120,6 +1120,42 @@ function AppInner() {
     const pct = Number(appliedPromo.discount_pct) || 0;
     return Math.round(price * (100 - pct) / 100);
   };
+  // Validación de código escrito a mano: promo (owner) O afiliación (parrainage).
+  // Si es de afiliación, aplica la remise filleul y guarda el ref para acreditar
+  // la comisión al parrain en el pago.
+  const [promoChecking, setPromoChecking] = useState(false);
+  const promoCodeRef = useRef("");
+  const promoCheckTimerRef = useRef(null);
+  const validateCodeRemote = async (norm) => {
+    setPromoChecking(true);
+    try {
+      const res = await fetch(`/.netlify/functions/validate-code?code=${encodeURIComponent(norm)}`,{ headers:{ "Authorization":`Bearer ${_authToken}` } });
+      const d = await res.json().catch(()=>({}));
+      if(promoCodeRef.current.toUpperCase().trim()!==norm) return; // el input cambió mientras tanto
+      if(!d.valid){ setAppliedPromo(null); setPromoApplied(false); return; }
+      if(d.type==="referral"){
+        try{ localStorage.setItem("teamly_pending_ref", d.code); }catch(e){}
+        setAppliedPromo({ code:d.code, discount_pct:d.discount_pct, _referral:true });
+      } else {
+        setAppliedPromo({ code:d.code, discount_pct:d.discount_pct });
+      }
+      setPromoApplied(true);
+    } catch(e){ /* red */ }
+    finally { setPromoChecking(false); }
+  };
+  const onPromoInput = (raw) => {
+    const v = (raw||"").toUpperCase();
+    setPromoCode(v);
+    promoCodeRef.current = v;
+    const local = checkPromoCode(v);
+    if(local){ setAppliedPromo(local); setPromoApplied(true); setPromoChecking(false); if(promoCheckTimerRef.current) clearTimeout(promoCheckTimerRef.current); return; }
+    setAppliedPromo(null); setPromoApplied(false);
+    if(promoCheckTimerRef.current) clearTimeout(promoCheckTimerRef.current);
+    const norm = v.trim();
+    if(norm.length<3){ setPromoChecking(false); return; }
+    setPromoChecking(true);
+    promoCheckTimerRef.current = setTimeout(()=>validateCodeRemote(norm), 400);
+  };
   // Parrainage: si le filleul a un code de parrainage et n'a saisi aucun code promo
   // manuel, on applique automatiquement la remise filleul (mécanique promo réutilisée).
   useEffect(()=>{
@@ -4733,14 +4769,8 @@ function AppInner() {
                         <input
                           type="text"
                           value={promoCode}
-                          onChange={e=>{
-                            const v = e.target.value.toUpperCase();
-                            setPromoCode(v);
-                            const match = checkPromoCode(v);
-                            setAppliedPromo(match);
-                            setPromoApplied(!!match);
-                          }}
-                          placeholder="Ex: LANCEMENT30"
+                          onChange={e=>onPromoInput(e.target.value)}
+                          placeholder="Ex: LANCEMENT30 ou TMLY-..."
                           style={{flex:1,background:p.highlight?"#FFF":"rgba(0,0,0,0.25)",border:`1px solid ${promoApplied?G.green:(p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)")}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none",textTransform:"uppercase",letterSpacing:0.5,color:p.highlight?G.dark:"#fff"}}/>
                         {promoApplied && (
                           <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
@@ -4748,7 +4778,7 @@ function AppInner() {
                           </div>
                         )}
                       </div>
-                      {promoCode && !promoApplied && (
+                      {promoCode && !promoApplied && !promoChecking && (
                         <div style={{fontSize:10,color:p.highlight?"#DC2626":"#FCA5A5",marginTop:4}}>Code invalide</div>
                       )}
                     </div>
@@ -8010,14 +8040,8 @@ function AppInner() {
                       <input
                         type="text"
                         value={promoCode}
-                        onChange={e=>{
-                          const v = e.target.value.toUpperCase();
-                          setPromoCode(v);
-                          const match = checkPromoCode(v);
-                          setAppliedPromo(match);
-                          setPromoApplied(!!match);
-                        }}
-                        placeholder="Ex: LANCEMENT30"
+                        onChange={e=>onPromoInput(e.target.value)}
+                        placeholder="Ex: LANCEMENT30 ou TMLY-..."
                         style={{
                           flex:1,background:"#fff",border:`1.5px solid ${promoApplied?G.green:G.grayLight}`,
                           borderRadius:7,padding:"8px 11px",fontSize:12,color:G.dark,outline:"none",
@@ -8029,7 +8053,7 @@ function AppInner() {
                         </div>
                       )}
                     </div>
-                    {promoCode && !promoApplied && (
+                    {promoCode && !promoApplied && !promoChecking && (
                       <div style={{fontSize:10,color:G.red,marginTop:5}}>Code invalide</div>
                     )}
                     {promoApplied && (
@@ -8442,14 +8466,8 @@ function AppInner() {
                             <input
                               type="text"
                               value={promoCode}
-                              onChange={e=>{
-                                const v = e.target.value.toUpperCase();
-                                setPromoCode(v);
-                                const match = checkPromoCode(v);
-                                setAppliedPromo(match);
-                                setPromoApplied(!!match);
-                              }}
-                              placeholder="Ex: LANCEMENT30"
+                              onChange={e=>onPromoInput(e.target.value)}
+                              placeholder="Ex: LANCEMENT30 ou TMLY-..."
                               style={{flex:1,background:"#FFF",border:`1px solid ${promoApplied?G.green:"#D1D5DB"}`,borderRadius:8,padding:"7px 10px",fontSize:12,outline:"none",textTransform:"uppercase",letterSpacing:0.5,color:G.dark}}/>
                             {promoApplied && (
                               <div style={{background:G.green,color:"#fff",borderRadius:8,padding:"7px 10px",fontSize:11,fontWeight:700,whiteSpace:"nowrap"}}>
@@ -8457,7 +8475,7 @@ function AppInner() {
                               </div>
                             )}
                           </div>
-                          {promoCode && !promoApplied && (
+                          {promoCode && !promoApplied && !promoChecking && (
                             <div style={{fontSize:10,color:"#DC2626",marginTop:4}}>Code invalide</div>
                           )}
                         </div>
