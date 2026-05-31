@@ -289,6 +289,13 @@ const NavIcon = ({name, size=20, color="#fff"}) => {
         <circle {...p} cx="12" cy="9" r="2.5"/>
       </svg>
     ),
+    caisse: (
+      <svg viewBox="0 0 24 24" style={s}>
+        <path {...p} d="M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+        <path {...p} d="M3 7l2.5-3h10L18 7"/>
+        <circle {...p} cx="16" cy="13" r="1.5"/>
+      </svg>
+    ),
     clients: (
       <svg viewBox="0 0 24 24" style={s}>
         <circle {...p} cx="12" cy="8" r="4"/>
@@ -916,6 +923,12 @@ function AppInner() {
     return ()=>{ vv.removeEventListener("resize", update); vv.removeEventListener("scroll", update); };
   },[]);
   const [cashRemis,setCashRemis]       = useState("");
+  // ── Caisse / rendición de efectivo (COD) ──
+  const [caisseOrders,setCaisseOrders]   = useState([]);   // pedidos entregados (all-time) p/ balance cash
+  const [cashHandovers,setCashHandovers] = useState([]);   // remises enregistrées
+  const [caisseLoading,setCaisseLoading] = useState(false);
+  const [caisseRemise,setCaisseRemise]   = useState(null); // {livreurId,name,amount,note} | null
+  const [caisseSaving,setCaisseSaving]   = useState(false);
   const [comptaExpandedProd,setComptaExpandedProd] = useState(null);
   const [comptaExportOpen,setComptaExportOpen]     = useState(false);
   const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="yesterday")return"hier";if(s==="thisweek")return"semaine";if(s==="thismonth"||s==="lastmonth")return"mois";if(s==="today")return"jour";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
@@ -2824,6 +2837,44 @@ function AppInner() {
     loadReferrals();
     loadMyReferralCode();
   },[sbReady, orgId, role]);
+
+  // ── Caisse : charge TOUS les pedidos entregados (balance cash all-time,
+  //    indépendant de la fenêtre de dates) + les remises enregistrées. ──
+  const loadCaisse = async () => {
+    if(!orgId) return;
+    setCaisseLoading(true);
+    try {
+      const [ords, handovers] = await Promise.all([
+        sbFetch(`orders?org_id=eq.${orgId}&status=eq.entregado&select=id,client,price,amount_collected,livreur_id,delivered_by,delivered_at&order=delivered_at.desc`),
+        sbFetch(`cash_handovers?org_id=eq.${orgId}&select=*&order=created_at.desc`).catch(()=>[]),
+      ]);
+      if(Array.isArray(ords)) setCaisseOrders(ords);
+      if(Array.isArray(handovers)) setCashHandovers(handovers);
+    } catch(e){ /* table cash_handovers peut ne pas exister avant le SQL */ }
+    setCaisseLoading(false);
+  };
+  useEffect(()=>{ if(tab==="caisse" && orgId && (role==="admin"||role==="closer")) loadCaisse(); },[tab, orgId, role]);
+  // Enregistre une remise d'argent d'un livreur (réduit son solde "à rendre").
+  const saveCaisseRemise = async () => {
+    if(!caisseRemise || caisseSaving) return;
+    const amount = parseInt(caisseRemise.amount)||0;
+    if(amount<=0){ addToast("Montant invalide","⚠️","#F59E0B"); return; }
+    setCaisseSaving(true);
+    try {
+      const res = await sbFetch("cash_handovers","POST",{org_id:orgId,livreur_id:caisseRemise.livreurId,amount,note:(caisseRemise.note||"").trim()||null,recorded_by:currentUser.id});
+      const row = Array.isArray(res)?res[0]:res;
+      if(row) setCashHandovers(prev=>[row,...prev]);
+      addToast(`Remise de ${fmt(amount)} CFA enregistrée ✅`,"✅",G.green);
+      setCaisseRemise(null);
+    } catch(e){ addToast("Erreur — la table cash_handovers existe-t-elle ? (lance le SQL)","❌",G.red,7000); }
+    setCaisseSaving(false);
+  };
+  const deleteCaisseHandover = (h) => {
+    setConfirmModal({msg:"Supprimer cette remise ?",sub:`${fmt(h.amount)} CFA · ${new Date(h.created_at).toLocaleDateString("fr-FR")}`,danger:true,onConfirm:async()=>{
+      try{ await sbFetch(`cash_handovers?id=eq.${h.id}`,"DELETE"); setCashHandovers(prev=>prev.filter(x=>x.id!==h.id)); addToast("Remise supprimée","🗑️","#6B7280"); }
+      catch(e){ addToast("Erreur suppression","❌",G.red); }
+    }});
+  };
   // CTA affiliation : visible uniquement si PAS bloqué, PAS encore enrôlé
   // (aucun code créé), code déjà chargé, fenêtre de snooze passée et pas fermé.
   const showAffiliateCta = !affiliateBlocked && !myReferralCode && referralLoaded && affiliateCtaVisible && !affiliateCtaDismissed;
@@ -4577,8 +4628,8 @@ function AppInner() {
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
   const tabDefBase = {
-    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Messages"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
-    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[])],
+    admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseCompta?[{k:"caisse",icon:"caisse",l:"Caisse"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Messages"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
+    closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseCompta?[{k:"caisse",icon:"caisse",l:"Caisse"}]:[])],
     livreur: [{k:"livraisons",icon:"livraisons",l:"Livraisons"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"dashboard",icon:"dashboard",l:"Dashboard"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseGPS?[{k:"position",icon:"position",l:"Localisation"}]:[])],
   };
   // Quand le trial expire → bloquer tout pour tous les rôles
@@ -6995,6 +7046,88 @@ function AppInner() {
         {/* ── COMPTA ── */}
         {dataReady&&tab==="compta"&&canSeeCompta&&<ComptaPage/>}
 
+        {/* ── CAISSE / Rendición de efectivo (COD) ── */}
+        {dataReady&&tab==="caisse"&&canSeeCompta&&(()=>{
+          const todayStr = localDateStr();
+          const amt = (o)=> (o.amount_collected!=null?Number(o.amount_collected):Number(o.price)||0);
+          const map = {};
+          const ensure = (id,name)=>{ if(!map[id]) map[id]={id,name:name||"Livreur",collected:0,today:0,handed:0,count:0}; return map[id]; };
+          teamMembers.filter(m=>m.role==="livreur").forEach(m=>ensure(m.id,m.nom));
+          caisseOrders.forEach(o=>{
+            const lid = o.delivered_by || o.livreur_id; if(!lid) return;
+            const e = ensure(lid, teamMembers.find(m=>m.id===lid)?.nom||"Ancien livreur");
+            const v = amt(o); e.collected += v; e.count += 1;
+            if(o.delivered_at && localDateStr(o.delivered_at)===todayStr) e.today += v;
+          });
+          cashHandovers.forEach(h=>{ const e=ensure(h.livreur_id, teamMembers.find(m=>m.id===h.livreur_id)?.nom||"Ancien livreur"); e.handed += Number(h.amount)||0; });
+          const rows = Object.values(map).map(r=>({...r,outstanding:r.collected-r.handed})).sort((a,b)=>b.outstanding-a.outstanding);
+          const tOut  = rows.reduce((s,r)=>s+r.outstanding,0);
+          const tColl = rows.reduce((s,r)=>s+r.collected,0);
+          const tHand = rows.reduce((s,r)=>s+r.handed,0);
+          const tToday= rows.reduce((s,r)=>s+r.today,0);
+          return (
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* En-tête : total à rendre */}
+              <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:"#fff"}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:700,letterSpacing:1,display:"inline-flex",alignItems:"center",gap:6}}><NavIcon name="caisse" size={14} color={G.gold}/> CAISSE — TOTAL À RENDRE</div>
+                <div style={{fontSize:32,fontWeight:800,color:G.gold,marginTop:4}}>{fmt(tOut)} <span style={{fontSize:15}}>CFA</span></div>
+                <div style={{display:"flex",gap:18,marginTop:10,flexWrap:"wrap"}}>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Encaissé (total)</div><div style={{fontSize:14,fontWeight:700}}>{fmt(tColl)} CFA</div></div>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Rendu (total)</div><div style={{fontSize:14,fontWeight:700}}>{fmt(tHand)} CFA</div></div>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Encaissé aujourd'hui</div><div style={{fontSize:14,fontWeight:700,color:G.gold}}>{fmt(tToday)} CFA</div></div>
+                </div>
+              </div>
+
+              {caisseLoading && <div style={{textAlign:"center",color:G.gray,fontSize:13,padding:12}}>Chargement…</div>}
+
+              {/* Par livreur */}
+              {rows.length===0 && !caisseLoading ? (
+                <div style={{background:G.white,borderRadius:14,padding:24,textAlign:"center",color:G.gray,fontSize:13}}>Aucun livreur pour le moment.</div>
+              ) : rows.map(r=>(
+                <div key={r.id} style={{background:G.white,borderRadius:14,padding:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {r.name}</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>{r.count} livraison{r.count>1?"s":""} · aujourd'hui {fmt(r.today)} CFA</div>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <div style={{fontSize:10,color:G.gray}}>À rendre</div>
+                      <div style={{fontSize:20,fontWeight:800,color:r.outstanding>0?G.red:G.green}}>{fmt(r.outstanding)} CFA</div>
+                    </div>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:G.gray}}>
+                    <span>Encaissé: <strong style={{color:G.dark}}>{fmt(r.collected)} CFA</strong></span>
+                    <span>Rendu: <strong style={{color:G.green}}>{fmt(r.handed)} CFA</strong></span>
+                  </div>
+                  <button onClick={()=>setCaisseRemise({livreurId:r.id,name:r.name,amount:String(r.outstanding>0?r.outstanding:""),note:""})}
+                    style={{width:"100%",marginTop:10,background:r.outstanding>0?G.green:G.grayLight,color:r.outstanding>0?"#fff":G.gray,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                    + Enregistrer une remise
+                  </button>
+                </div>
+              ))}
+
+              {/* Historique des remises */}
+              <div style={{background:G.white,borderRadius:14,padding:14}}>
+                <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}>🧾 HISTORIQUE DES REMISES</span></ST>
+                {cashHandovers.length===0 ? (
+                  <div style={{fontSize:12,color:G.gray,textAlign:"center",padding:"10px 0",fontStyle:"italic"}}>Aucune remise enregistrée</div>
+                ) : cashHandovers.slice(0,50).map(h=>{
+                  const name = teamMembers.find(m=>m.id===h.livreur_id)?.nom || "Ancien livreur";
+                  return (
+                    <div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
+                      <div style={{minWidth:0}}>
+                        <div style={{fontSize:13,fontWeight:600,color:G.dark}}>🏍️ {name} · <span style={{color:G.green,fontWeight:800}}>{fmt(h.amount)} CFA</span></div>
+                        <div style={{fontSize:11,color:G.gray}}>{new Date(h.created_at).toLocaleString("fr-FR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}{h.note?` · ${h.note}`:""}</div>
+                      </div>
+                      <button onClick={()=>deleteCaisseHandover(h)} style={{background:"none",border:"none",color:G.red,fontSize:12,cursor:"pointer",flexShrink:0,padding:"4px 6px"}}>Suppr.</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── STOCK ── */}
         {dataReady&&tab==="stock"&&(role==="admin"||role==="closer")&&<StockPage/>}
 
@@ -9293,6 +9426,26 @@ function AppInner() {
       })()}
 
       {/* ── MODAL: Confirmation ── */}
+      {/* ── Modal : enregistrer une remise (Caisse) ── */}
+      {caisseRemise&&(
+        <div onClick={()=>!caisseSaving&&setCaisseRemise(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.55)",zIndex:480,display:"flex",alignItems:isDesktop?"center":"flex-end",justifyContent:"center"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:G.white,borderRadius:isDesktop?20:"20px 20px 0 0",padding:22,width:"100%",maxWidth:420,margin:"0 auto"}}>
+            <div style={{fontWeight:800,fontSize:16,color:G.green,marginBottom:2}}>Remise d'argent</div>
+            <div style={{fontSize:13,color:G.gray,marginBottom:16}}>🏍️ {caisseRemise.name}</div>
+            <div style={{fontSize:11,color:G.gray,marginBottom:4}}>Montant rendu (CFA)</div>
+            <input type="number" min="0" autoFocus value={caisseRemise.amount} onChange={e=>setCaisseRemise(p=>({...p,amount:e.target.value}))} placeholder="0"
+              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:10,padding:"12px 14px",fontSize:18,fontWeight:700,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+            <div style={{fontSize:11,color:G.gray,marginBottom:4}}>Note (optionnel)</div>
+            <input type="text" value={caisseRemise.note} onChange={e=>setCaisseRemise(p=>({...p,note:e.target.value}))} placeholder="ex: espèces, Wave…"
+              style={{width:"100%",border:`1.5px solid ${G.grayLight}`,borderRadius:10,padding:"10px 14px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:16}}/>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setCaisseRemise(null)} disabled={caisseSaving} style={{flex:1,background:G.grayLight,color:G.dark,border:"none",borderRadius:12,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer"}}>Annuler</button>
+              <button onClick={saveCaisseRemise} disabled={caisseSaving} style={{flex:2,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontWeight:800,fontSize:14,cursor:"pointer",opacity:caisseSaving?0.6:1}}>{caisseSaving?"…":"Enregistrer la remise"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmModal&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
           <div style={{background:G.white,borderRadius:20,padding:28,maxWidth:320,width:"100%",textAlign:"center"}}>
