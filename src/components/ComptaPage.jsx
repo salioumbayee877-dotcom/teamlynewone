@@ -15,7 +15,7 @@ export const ComptaPage = () => {
   const {
     G, fmt, pct, FRAIS_LIV, TODAY, sbFetch,
     _COMPTA_FILTERS_DEFAULT,
-    orgId, setSettings,
+    orgId, setSettings, patchOrgSettings,
     products, teamMembers, mainRegion, otherRegions, settings,
     comptaFilters, comptaFiltersOpen, comptaPeriodMode, comptaShortcut,
     dateFrom, dateTo, comptaExpandedProd, comptaCostEdit, comptaExportOpen,
@@ -40,16 +40,14 @@ export const ComptaPage = () => {
       echouees: livraisonsEchouees || {},
       cashRemis: cashRemis || "",
     };
-    const newSettings = { ...settings, compta_inputs };
-    try {
-      await sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: newSettings });
-      setSettings(newSettings);
+    const ok = await patchOrgSettings({ compta_inputs });
+    if (ok) {
       try {
         localStorage.setItem("teamly_ad_spend", JSON.stringify(adSpend));
         localStorage.setItem("teamly_echecs",   JSON.stringify(livraisonsEchouees));
       } catch(e) {}
       addToast("Saisies enregistrées ✅","✅","#16a34a");
-    } catch(e) {
+    } else {
       addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");
     }
     setSavingCompta(false);

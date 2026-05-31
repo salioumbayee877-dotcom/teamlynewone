@@ -2538,9 +2538,7 @@ function AppInner() {
     // First admin interaction with zones flips zones_configured → webhooks
     // stop using defaults 2500/4000 and start using real configured zones.
     if (!settings?.zones_configured) {
-      const newSettings = { ...(settings||{}), zones_configured: true };
-      setSettings(newSettings);
-      sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: newSettings }).catch(()=>{});
+      patchOrgSettings({ zones_configured: true });
     }
     const timer = setTimeout(() => {
       fetch("/.netlify/functions/resync-pending-orders", {
@@ -4124,7 +4122,7 @@ function AppInner() {
                       <div style={{fontSize:12,color:G.white,fontFamily:"sans-serif",fontWeight:600,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Voir la Comptabilité</div>
                       <div style={{fontSize:10,color:"rgba(255,255,255,0.45)",fontFamily:"sans-serif",marginTop:2,display:"flex",alignItems:"center",gap:4}}>{isGratuit?<><Lock size={10}/> Plan Basic requis</>:"Revenus, bénéfices, CA par produit"}</div>
                     </div>
-                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                    <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}patchOrgSettings({closerCompta:v}).then(ok=>{if(ok){addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}else{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}});}}
                       style={{background:isGratuit?"rgba(255,255,255,0.1)":settings.closerCompta?"#22C55E":"rgba(255,255,255,0.15)",border:"none",borderRadius:20,width:46,height:26,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                       <div style={{position:"absolute",top:3,left:(!isGratuit&&settings.closerCompta)?22:3,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.3)"}}/>
                     </button>
@@ -4582,9 +4580,7 @@ function AppInner() {
     setZoneBannersDismissed(true);
     setTab("frais");
     if (!settings?.fraisWarningDismissed && orgId) {
-      const newSettings = { ...(settings||{}), fraisWarningDismissed: true };
-      setSettings(newSettings);
-      sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: newSettings }).catch(()=>{});
+      patchOrgSettings({ fraisWarningDismissed: true });
     }
   };
 
@@ -4637,6 +4633,29 @@ function AppInner() {
 
   // Context value for extracted components (OCard, etc.). Listed exhaustively
   // so consumers don't need to receive a long prop list.
+  // ── Persistance robuste de organizations.settings ───────────────────
+  // Avant : chaque écran réécrivait TOUT le blob `settings` local. Depuis un
+  // 2ᵉ appareil dont le `settings` local était périmé (ex. lien Wave configuré
+  // ailleurs), n'importe quelle sauvegarde (compta, zones, avis…) écrasait les
+  // clés inconnues → le lien Wave "ne restait pas fixe". On lit donc TOUJOURS
+  // le settings à jour en base, on fusionne uniquement le changement, puis on
+  // réécrit. Les clés posées sur un autre appareil sont préservées.
+  const patchOrgSettings = async (partial, opts={}) => {
+    if (!orgId) return false;
+    const tok = opts.token || _authToken;
+    try {
+      const rows = await sbFetch(`organizations?id=eq.${orgId}&select=settings`, "GET", null, tok);
+      const dbSettings = (Array.isArray(rows) && rows[0] && rows[0].settings) ? rows[0].settings : {};
+      const merged = { ...dbSettings, ...partial };
+      await sbFetch(`organizations?id=eq.${orgId}`, "PATCH", { settings: merged }, tok);
+      setSettings(s => ({ ...s, ...partial }));
+      return true;
+    } catch (e) {
+      console.error("patchOrgSettings:", e && e.message);
+      return false;
+    }
+  };
+
   const appCtx = {
     // module-level constants/helpers (re-exposed so child files don't import them)
     G, fmt, pct, STATUS, parseProd, FRAIS_LIV, TODAY, ST, Tbl, sbFetch, fmtCity,
@@ -4666,7 +4685,7 @@ function AppInner() {
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
     setAdSpend, setLivraisonsEchouees, setCashRemis,
-    setMainRegion, setOtherRegions, setSettings, setConfirmModal,
+    setMainRegion, setOtherRegions, setSettings, patchOrgSettings, setConfirmModal,
     setClientCat, setClientDate, setClientLoading, setShowClientDetail, setShowPlanModal,
     setFraisConfigTab, setFraisMainNameEdit, setFraisEditCity, setFraisNewMain, setFraisNewOther,
     setFraisTableauSearch, setFraisTableauFilter, setFraisTestCity,
@@ -7958,15 +7977,11 @@ function AppInner() {
                     setSettings(s=>({...s,wave_payment_link:v}));
                     if(!orgId) return;
                     if(waveSaveTimerRef.current) clearTimeout(waveSaveTimerRef.current);
-                    waveSaveTimerRef.current = setTimeout(()=>{
+                    waveSaveTimerRef.current = setTimeout(async ()=>{
                       const link = (v||"").trim();
-                      setSettings(curr=>{
-                        const merged = {...(curr||{}), wave_payment_link: link};
-                        sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:merged},_authToken)
-                          .then(()=>{ if(link) addToast("Lien Wave sauvegardé ✓","💾",G.green); })
-                          .catch(err=>{ console.error("wave_payment_link save:",err?.message); addToast("Erreur sauvegarde lien Wave","❌",G.red); });
-                        return merged;
-                      });
+                      const ok = await patchOrgSettings({ wave_payment_link: link });
+                      if(ok){ if(link) addToast("Lien Wave sauvegardé ✓","💾",G.green); }
+                      else addToast("Erreur sauvegarde lien Wave","❌",G.red);
                     }, 500);
                   }}
                   placeholder="https://pay.wave.com/m/M_xxxxx/c/sn/"
@@ -8117,7 +8132,7 @@ function AppInner() {
                   <div style={{fontSize:13,fontWeight:700,color:G.dark,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Accès à la comptabilité</div>
                   <div style={{fontSize:11,color:G.gray,marginTop:1,display:"flex",alignItems:"center",gap:4}}>{isGratuit?<><Lock size={11}/> Plan Basic requis</>:"Revenus, bénéfices, statistiques"}</div>
                 </div>
-                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}patchOrgSettings({closerCompta:v}).then(ok=>{if(ok){addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}else{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}});}}
                   style={{background:isGratuit?"#E5E7EB":settings.closerCompta?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                   <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                 </button>
@@ -8140,16 +8155,13 @@ function AppInner() {
                 <button onClick={()=>{
                   const v = !(settings.reviewsEnabled !== false);
                   setSettings(s=>({...s, reviewsEnabled:v}));
-                  sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...(settings||{}), reviewsEnabled:v}}, _authToken).then(res=>{
-                    if(!res||(Array.isArray(res)&&res.length===0)){
+                  patchOrgSettings({ reviewsEnabled: v }).then(ok=>{
+                    if(ok){
+                      addToast(v?"✅ Avis activés":"Avis désactivés","✅",v?G.green:"#6B7280");
+                    } else {
                       setSettings(s=>({...s, reviewsEnabled:!v}));
                       addToast("Erreur de sauvegarde","❌","#DC2626");
-                    } else {
-                      addToast(v?"✅ Avis activés":"Avis désactivés","✅",v?G.green:"#6B7280");
                     }
-                  }).catch(()=>{
-                    setSettings(s=>({...s, reviewsEnabled:!v}));
-                    addToast("Erreur — réessaie","❌","#DC2626");
                   });
                 }}
                   style={{background:(settings.reviewsEnabled!==false)?G.green:"#E5E7EB",border:"none",borderRadius:20,width:44,height:24,cursor:"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
@@ -8213,9 +8225,10 @@ function AppInner() {
                 addToast(`Erreur boutique: ${(e.message||"sauvegarde impossible").slice(0,80)}`,"❌",G.red,8000);
                 return;
               }
-              try {
-                await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...(settings||{}),closerCompta:settings.closerCompta,baseZone:settings.baseZone||"sn_dakar",defaultDeliveryPrice:settings.defaultDeliveryPrice||3500,wave_payment_link:(settings.wave_payment_link||"").trim()}},_authToken);
-              } catch(e) { /* settings JSONB write is non-critical */ }
+              // NB : wave_payment_link n'est PAS écrit ici — il a sa propre
+              // sauvegarde auto (debounce). L'écrire depuis le blob local
+              // l'effacerait si cet appareil ne l'a jamais chargé.
+              await patchOrgSettings({ closerCompta:settings.closerCompta, baseZone:settings.baseZone||"sn_dakar", defaultDeliveryPrice:settings.defaultDeliveryPrice||3500 });
               try{
                 localStorage.setItem("teamly_nom",settings.nom);
                 localStorage.setItem(`teamly_boutique_${orgId}`,settings.boutique||"");
@@ -8355,7 +8368,7 @@ function AppInner() {
                     <div style={{fontSize:13,fontWeight:600,color:G.dark}}>Accès à la comptabilité</div>
                     <div style={{fontSize:10,color:isGratuit?G.gold:G.gray}}>{isGratuit?"🔒 Plan Basic requis":"Revenus, marges et statistiques"}</div>
                   </div>
-                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{closerCompta:v}},_authToken).then(res=>{if(!res||(Array.isArray(res)&&res.length===0)){setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}else{addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}}).catch(()=>{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — réessaie","❌","#DC2626");});}}
+                  <button onClick={()=>{if(isGratuit){setShowPlanModal(true);return;}const v=!settings.closerCompta;setSettings(s=>({...s,closerCompta:v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(v));}catch(e){}patchOrgSettings({closerCompta:v}).then(ok=>{if(ok){addToast(v?"✅ Closer peut voir la Compta (il doit actualiser son app)":"Accès Compta retiré","✅",v?G.green:"#6B7280");}else{setSettings(s=>({...s,closerCompta:!v}));try{localStorage.setItem(`teamly_cc_${orgId}`,String(!v));}catch(e){}addToast("Erreur de sauvegarde — vérifie les règles Supabase","❌","#DC2626");}});}}
                     style={{background:isGratuit?"#E5E7EB":settings.closerCompta?"#22C55E":G.grayLight,border:"none",borderRadius:20,width:44,height:24,cursor:isGratuit?"not-allowed":"pointer",position:"relative",flexShrink:0,transition:"background 0.2s"}}>
                     <div style={{position:"absolute",top:2,left:(!isGratuit&&settings.closerCompta)?22:2,width:20,height:20,background:G.white,borderRadius:"50%",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
                   </button>

@@ -14,7 +14,7 @@ export const FraisPage = () => {
     role, settings, orgId, mainRegion, otherRegions,
     fraisConfigTab, fraisMainNameEdit, fraisEditCity, fraisNewMain, fraisNewOther,
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,
-    setMainRegion, setOtherRegions, setSettings, setConfirmModal,
+    setMainRegion, setOtherRegions, setSettings, patchOrgSettings, setConfirmModal,
     setFraisConfigTab, setFraisMainNameEdit, setFraisEditCity, setFraisNewMain, setFraisNewOther,
     setFraisTableauSearch, setFraisTableauFilter, setFraisTestCity,
     addToast,
@@ -282,11 +282,9 @@ export const FraisPage = () => {
                 const scheduleSave = (patch) => {
                   if(window.__regionalSaveT) clearTimeout(window.__regionalSaveT);
                   window.__regionalSaveT = setTimeout(async()=>{
-                    setSettings(s=>({...s,...patch}));
-                    try {
-                      await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{settings:{...settings,...patch}});
-                      addToast("✅ Tarifs régionaux mis à jour","✅",G.green);
-                    } catch(e){ addToast("❌ Erreur — réessayez","❌",G.red); }
+                    const ok = await patchOrgSettings(patch);
+                    if(ok) addToast("✅ Tarifs régionaux mis à jour","✅",G.green);
+                    else addToast("❌ Erreur — réessayez","❌",G.red);
                   }, 500);
                 };
                 return (
