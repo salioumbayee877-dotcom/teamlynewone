@@ -864,6 +864,9 @@ function AppInner() {
   const [mainRegion,   setMainRegion]   = useState(null);
   const [otherRegions, setOtherRegions] = useState([]);
   const [zoneBannersDismissed, setZoneBannersDismissed] = useState(false);
+  // Pedidos "unmatched_zone" ya acusados (el banner aparece una vez por pedido ;
+  // un NUEVO pedido sin tarifa réactive la notification). Persisté par org.
+  const [ackUnmatchedIds, setAckUnmatchedIds] = useState(()=>new Set());
   const [emailBannerDismissed, setEmailBannerDismissed] = useState(()=>{ try{return localStorage.getItem("teamly_email_banner_dismissed")==="1";}catch(e){return false;} });
   const [fraisConfigTab,    setFraisConfigTab]    = useState("config");
   const [fraisTestCity,     setFraisTestCity]     = useState("");
@@ -1792,6 +1795,12 @@ function AppInner() {
     try { localStorage.setItem("teamly_dash_date", dashDate); } catch(e){}
     if(loadMainRef.current) loadMainRef.current();
   },[dashDate]);
+
+  // Charge les pedidos déjà acusados (banner "Nouvelle zone détectée") par org.
+  useEffect(()=>{
+    if(!orgId) return;
+    try { const a=JSON.parse(localStorage.getItem(`teamly_ack_unmatched_${orgId}`)||"[]"); setAckUnmatchedIds(new Set(a)); } catch(e){}
+  },[orgId]);
 
   // ── Restore session from localStorage on startup ───────────────────────
   useEffect(()=>{
@@ -4626,6 +4635,24 @@ function AppInner() {
     }
   };
 
+  // "Ajouter ces zones →" : acuse les pedidos affichés (banner une fois par
+  // pedido, réapparaît pour un NOUVEAU pedido non reconnu), ouvre Frais sur
+  // l'onglet config, préremplit la ville et scrolle vers le formulaire d'ajout.
+  const handleAddZonesFromBanner = (unmatchedOrders, prefillCity) => {
+    if (orgId && unmatchedOrders && unmatchedOrders.length) {
+      setAckUnmatchedIds(prev => {
+        const next = new Set(prev);
+        unmatchedOrders.forEach(o => next.add(o.id));
+        try { localStorage.setItem(`teamly_ack_unmatched_${orgId}`, JSON.stringify([...next])); } catch(e){}
+        return next;
+      });
+    }
+    if (prefillCity) setFraisNewOther(p=>({ ...p, city: prefillCity }));
+    setFraisConfigTab("config");
+    setTab("frais");
+    setTimeout(()=>{ try{ document.getElementById("frais-add-other-city")?.scrollIntoView({behavior:"smooth",block:"center"}); }catch(e){} }, 350);
+  };
+
   const livreurAlerts = [
     ...myLiv.filter(o=>o.status==="colis_pris").map(o=>({type:"recuperer",msg:`📦 ${o.client}`,sub:`Prêt à livrer — ${fmt(o.price)} CFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:G.green,bg:G.greenLight,icon:"📦"})),
     ...myLiv.filter(o=>o.status==="en_camino").map(o=>({type:"pedido",msg:`🚀 ${o.client}`,sub:`En route — ${fmt(o.price)} CFA`,address:o.address,phone:o.phone,price:o.price,product:o.product,id:o.id,color:"#0284C7",bg:"#EFF6FF",icon:"🚀"})),
@@ -5854,12 +5881,14 @@ function AppInner() {
 
             {/* ── Sync zones banners (admin only) ── */}
             {(()=>{
-              if (zoneBannersDismissed) return null;
-              const awaiting  = orders.filter(o=>o.sync_status==="awaiting_zone_config");
+              // 'awaiting' = aucune zone configurée (dismiss de session via le bouton).
+              const awaiting  = zoneBannersDismissed ? [] : orders.filter(o=>o.sync_status==="awaiting_zone_config");
               // Only count unmatched orders with an actionable city — empty / "-" / "—" / whitespace
               // can never be matched against a zone, so banner-them is useless and creates a permanent banner.
               const hasUsefulCity = c => { const t=(c||"").trim(); return t.length>0 && !/^[-—\s]+$/.test(t); };
-              const unmatched = orders.filter(o=>o.sync_status==="unmatched_zone" && hasUsefulCity(o.unmatched_city));
+              // 'unmatched' apparaît une fois par pedido : on exclut les pedidos déjà
+              // acusados. Un NOUVEAU pedido non reconnu (id inédit) réactive le banner.
+              const unmatched = orders.filter(o=>o.sync_status==="unmatched_zone" && hasUsefulCity(o.unmatched_city) && !ackUnmatchedIds.has(o.id));
               if (awaiting.length===0 && unmatched.length===0) return null;
               const cityCounts = {};
               unmatched.forEach(o=>{ const c=(o.unmatched_city||"").trim(); if(c) cityCounts[c]=(cityCounts[c]||0)+1; });
@@ -5889,7 +5918,7 @@ function AppInner() {
                         </ul>
                         <div style={{fontSize:12,color:"#6B7280",lineHeight:1.5,marginTop:8}}>Ajoutez ces zones pour calculer automatiquement leurs frais.</div>
                       </div>
-                      <button onClick={()=>openFraisAndDismiss()} style={{alignSelf:"flex-start",background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+                      <button onClick={()=>handleAddZonesFromBanner(unmatched, cities[0]?.[0])} style={{alignSelf:"flex-start",background:G.gold,color:"#fff",border:"none",borderRadius:8,padding:"10px 16px",fontSize:12,fontWeight:700,cursor:"pointer"}}>
                         Ajouter ces zones →
                       </button>
                     </div>

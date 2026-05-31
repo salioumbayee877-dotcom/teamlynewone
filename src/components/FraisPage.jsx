@@ -419,7 +419,7 @@ export const FraisPage = () => {
                 {otherRegions.length===0&&<div style={{fontSize:12,color:G.gray,textAlign:"center",padding:"12px 0",fontStyle:"italic"}}>Aucune ville hors zone configurée</div>}
               </div>
               {/* Add new other city */}
-              <div style={{background:"#F0F9FF",borderRadius:10,padding:"10px 12px",border:"1px solid #BAE6FD"}}>
+              <div id="frais-add-other-city" style={{background:"#F0F9FF",borderRadius:10,padding:"10px 12px",border:"1px solid #BAE6FD"}}>
                 <div style={{fontSize:11,fontWeight:700,color:"#0369A1",marginBottom:8}}>+ Ajouter une ville hors zone</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:6}}>
                   <CityAutocomplete value={fraisNewOther.city} onChange={v=>setFraisNewOther(p=>({...p,city:v}))} placeholder="Ville (ex: Thiès)"/>
