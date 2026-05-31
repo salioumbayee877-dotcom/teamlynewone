@@ -1195,6 +1195,11 @@ function AppInner() {
   const [editCodeSaving, setEditCodeSaving] = useState(false);
   const [editCodeErr, setEditCodeErr]       = useState("");
   const [affiliateBlocked, setAffiliateBlocked] = useState(false); // influencer ya pagado: oculta afiliación
+  const [referralLoaded, setReferralLoaded] = useState(false);    // true une fois le code chargé (évite le flash)
+  // CTA affiliation : visible seulement si la fenêtre de snooze est passée
+  // (≈1×/15j → 2×/mois). Snapshot au montage pour éviter tout flicker.
+  const [affiliateCtaVisible] = useState(()=>{ try{ return Date.now() >= (parseInt(localStorage.getItem("teamly_affiliate_snooze_until")||"0")||0); }catch(e){ return true; } });
+  const [affiliateCtaDismissed, setAffiliateCtaDismissed] = useState(false); // × fermé pour la session
   const [saReferrals, setSaReferrals]       = useState([]);      // vista owner
   const [saReferralTotals, setSaReferralTotals] = useState({ pending:0, paid:0 });
   const [saReferralOpen, setSaReferralOpen] = useState(false);
@@ -2812,12 +2817,23 @@ function AppInner() {
       const d = await res.json().catch(()=>({}));
       if(res.ok){ if(d.code) setMyReferralCode(d.code); setAffiliateBlocked(!!d.blocked); }
     } catch(e){ /* función puede no existir aún */ }
+    finally { setReferralLoaded(true); }
   };
   useEffect(()=>{
     if(!sbReady || !orgId || role!=="admin") return;
     loadReferrals();
     loadMyReferralCode();
   },[sbReady, orgId, role]);
+  // CTA affiliation : visible uniquement si PAS bloqué, PAS encore enrôlé
+  // (aucun code créé), code déjà chargé, fenêtre de snooze passée et pas fermé.
+  const showAffiliateCta = !affiliateBlocked && !myReferralCode && referralLoaded && affiliateCtaVisible && !affiliateCtaDismissed;
+  // Dès qu'on l'affiche à un non-enrôlé → reprogramme la prochaine apparition
+  // ~15 j plus tard (≈2×/mois). Une fois un code créé, elle ne revient jamais.
+  useEffect(()=>{
+    if(showAffiliateCta){
+      try{ localStorage.setItem("teamly_affiliate_snooze_until", String(Date.now()+15*24*60*60*1000)); }catch(e){}
+    }
+  },[showAffiliateCta]);
   // Abre la sección Affiliation. Si aún no hay código, la página muestra el
   // input para elegir un código personalizado (la inscripción = crear el código).
   const openParrainage = async () => {
@@ -5854,30 +5870,28 @@ function AppInner() {
               </div>
             </div>
 
-            {/* ── CTA Programme d'affiliation ── */}
-            {!affiliateBlocked&&(()=>{
-              const enrolled = !!myReferralCode;
-              const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
-              return (
+            {/* ── CTA Programme d'affiliation (non-enrôlés, ≈2×/mois, jamais après création du code) ── */}
+            {showAffiliateCta&&(
               <div style={{background:"linear-gradient(135deg,#1A3828,#0D1F14)",borderRadius:16,padding:"16px 18px",display:"flex",alignItems:"center",gap:14}}>
                 <div style={{width:42,height:42,borderRadius:12,background:"rgba(240,165,0,0.18)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                   <Gift size={22} color={G.gold}/>
                 </div>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>{enrolled?"Programme d'affiliation":"Deviens affilié Teamly"}</div>
+                  <div style={{fontWeight:800,fontSize:14,color:"#FFF"}}>Deviens affilié Teamly</div>
                   <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",marginTop:2,lineHeight:1.4}}>
-                    {enrolled
-                      ? (pendingPay>0 ? <>Solde à recevoir : <strong style={{color:G.gold}}>{fmt(pendingPay)} CFA</strong></> : <>Partage ton code et gagne {REFERRAL_COMMISSION_PCT}% par filleul</>)
-                      : <>Gagne <strong style={{color:G.gold}}>{REFERRAL_COMMISSION_PCT}%</strong> sur chaque boutique que tu parraines</>}
+                    Gagne <strong style={{color:G.gold}}>{REFERRAL_COMMISSION_PCT}%</strong> sur chaque boutique que tu parraines
                   </div>
                 </div>
                 <button onClick={openParrainage}
                   style={{background:G.gold,color:G.dark,border:"none",borderRadius:10,padding:"10px 16px",fontSize:12,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
-                  {enrolled?"Voir →":"Rejoindre →"}
+                  Rejoindre →
+                </button>
+                <button onClick={()=>setAffiliateCtaDismissed(true)} title="Masquer" aria-label="Masquer"
+                  style={{background:"none",border:"none",color:"rgba(255,255,255,0.45)",fontSize:18,lineHeight:1,cursor:"pointer",padding:"0 2px",flexShrink:0}}>
+                  ×
                 </button>
               </div>
-              );
-            })()}
+            )}
 
             {/* ── Sync zones banners (admin only) ── */}
             {(()=>{
