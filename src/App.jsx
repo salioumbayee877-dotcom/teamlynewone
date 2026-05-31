@@ -5959,36 +5959,6 @@ function AppInner() {
               </div>
             </div>
 
-            {/* CA par produit — visuel */}
-            {calcProd.filter(x=>x.ca>0).length>0&&(
-              <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><Coins size={13}/> CA PAR PRODUIT</span></ST>
-                {calcProd.filter(x=>x.ca>0).sort((a,b)=>b.ca-a.ca).map(({prod,ca,nLiv,ben},i)=>{
-                  const maxCA = Math.max(...calcProd.map(x=>x.ca),1);
-                  const pctBar = Math.round(ca/maxCA*100);
-                  return (
-                    <div key={i} style={{marginBottom:10}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                        <span style={{fontSize:12,fontWeight:600,color:G.dark}}>{prod.name}</span>
-                        <div style={{textAlign:"right"}}>
-                          <span style={{fontSize:12,fontWeight:700,color:G.green}}>{fmt(ca)} CFA</span>
-                          <span style={{fontSize:10,color:G.gray,marginLeft:6}}>({nLiv} livrées)</span>
-                        </div>
-                      </div>
-                      <div style={{background:G.grayLight,borderRadius:4,height:8}}>
-                        <div style={{background:G.green,borderRadius:4,height:8,width:`${pctBar}%`,transition:"width 0.5s"}}/>
-                      </div>
-                      <div style={{fontSize:10,color:ben>=0?G.greenMid:G.red,marginTop:2}}>Bénéfice: {fmt(ben)} CFA</div>
-                    </div>
-                  );
-                })}
-                <div style={{background:G.greenLight,borderRadius:10,padding:"8px 12px",marginTop:6,display:"flex",justifyContent:"space-between"}}>
-                  <span style={{fontSize:12,fontWeight:700,color:G.green}}>CA Total</span>
-                  <span style={{fontSize:14,fontWeight:700,color:G.green}}>{fmt(tCA)} CFA</span>
-                </div>
-              </div>
-            )}
-
             {/* Actions rapides */}
             <div style={{background:G.white,borderRadius:14,padding:14}}>
               <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><Zap size={13}/> ACTIONS RAPIDES</span></ST>
