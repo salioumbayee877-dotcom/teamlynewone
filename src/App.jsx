@@ -1014,6 +1014,9 @@ function AppInner() {
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
   const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"all";}catch(e){return "all";}});
   const filterDateRef = useRef(filterDate);
+  // Filtre de date PROPRE au dashboard — indépendant de Commandes à traiter.
+  const [dashDate, setDashDate] = useState(()=>{try{return localStorage.getItem("teamly_dash_date")||"all";}catch(e){return "all";}});
+  const dashDateRef = useRef(dashDate);
   // Refs for compta date range so loadMain can fetch a wide-enough server-side
   // window to satisfy BOTH the commandes filterDate AND the compta period —
   // otherwise picking 'Aujourd'hui' in commandes would starve compta of older
@@ -1783,6 +1786,13 @@ function AppInner() {
     if(loadMainRef.current) loadMainRef.current();
   },[filterDate]);
 
+  // Filtre du dashboard → persiste + re-fetch (la fenêtre serveur englobe sa plage)
+  useEffect(()=>{
+    dashDateRef.current = dashDate;
+    try { localStorage.setItem("teamly_dash_date", dashDate); } catch(e){}
+    if(loadMainRef.current) loadMainRef.current();
+  },[dashDate]);
+
   // ── Restore session from localStorage on startup ───────────────────────
   useEffect(()=>{
     // ── Detect Supabase email confirmation callback ──────────────────────
@@ -2204,14 +2214,30 @@ function AppInner() {
       let kStart=null, kEnd=null;
       if(comptaFromRef.current) { kStart = new Date(comptaFromRef.current+"T00:00:00.000Z"); }
       if(comptaToRef.current)   { kEnd   = new Date(comptaToRef.current  +"T23:59:59.999Z"); }
-      // Final range: widest envelope so both tabs have all the data they need.
-      // If 'all' is selected in commandes (cStart=null), the server returns
-      // everything — that's already the widest possible window.
-      if(!cStart && !kStart) return "";
-      if(!dateKey || dateKey==="all") return ""; // 'Tout' wins → full history
+      // Compute the dashboard filter range (its own date filter, indépendant).
+      const dashKey = dashDateRef.current || "all";
+      let dStart=null, dEnd=null;
+      if(dashKey==="today") {
+        dStart=new Date(now); dStart.setHours(0,0,0,0);
+        dEnd=new Date(now);   dEnd.setHours(23,59,59,999);
+      } else if(dashKey==="yesterday") {
+        dStart=new Date(now); dStart.setDate(dStart.getDate()-1); dStart.setHours(0,0,0,0);
+        dEnd=new Date(now);   dEnd.setDate(dEnd.getDate()-1);     dEnd.setHours(23,59,59,999);
+      } else if(dashKey==="week") {
+        dStart=new Date(now); dStart.setDate(dStart.getDate()-((dStart.getDay()+6)%7)); dStart.setHours(0,0,0,0);
+        dEnd=new Date(now);   dEnd.setHours(23,59,59,999);
+      }
+      // Final range: widest envelope so toutes les vues ont leurs données.
+      // Si 'Tout' est choisi dans commandes OU dans le dashboard, on récupère
+      // tout l'historique (fenêtre la plus large possible).
+      if(!cStart && !kStart && !dStart) return "";
+      if(!dateKey || dateKey==="all") return ""; // 'Tout' commandes → full history
+      if(dashKey==="all") return "";             // 'Tout' dashboard → full history
       let start = cStart, end = cEnd;
       if(kStart && (!start || kStart<start)) start = kStart;
       if(kEnd   && (!end   || kEnd>end))     end   = kEnd;
+      if(dStart && (!start || dStart<start)) start = dStart;
+      if(dEnd   && (!end   || dEnd>end))     end   = dEnd;
       if(!start||!end) return "";
       console.log("[TEAMLY] Filter range (commandes∪compta):", start.toISOString(), "→", end.toISOString());
       return `&created_at=gte.${encodeURIComponent(start.toISOString())}&created_at=lte.${encodeURIComponent(end.toISOString())}`;
@@ -3263,12 +3289,28 @@ function AppInner() {
     setSelectedMsgId(null);
   };
 
-  // ── stats ──
-  const livres  = orders.filter(o=>o.status==="entregado").length;
-  const rejetes = orders.filter(o=>o.status==="rechazado").length;
-  const enRoute = orders.filter(o=>o.status==="en_camino").length;
-  const revenus = orders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
-  const taux    = orders.length>0?Math.round(livres/orders.length*100):0;
+  // ── stats (dashboard) ──
+  // dashOrders = orders filtrées par le filtre PROPRE du dashboard (dashDate),
+  // totalement indépendant du filtre de "Commandes à traiter".
+  const dashOrders = (()=>{
+    if(dashDate==="all") return orders;
+    const now=new Date(); let s=null,e=null;
+    if(dashDate==="today"){ s=new Date(now);s.setHours(0,0,0,0); e=new Date(now);e.setHours(23,59,59,999); }
+    else if(dashDate==="yesterday"){ s=new Date(now);s.setDate(s.getDate()-1);s.setHours(0,0,0,0); e=new Date(now);e.setDate(e.getDate()-1);e.setHours(23,59,59,999); }
+    else if(dashDate==="week"){ s=new Date(now);s.setDate(s.getDate()-((s.getDay()+6)%7));s.setHours(0,0,0,0); e=new Date(now);e.setHours(23,59,59,999); }
+    if(!s) return orders;
+    return orders.filter(o=>{ const t=o.created_at?new Date(o.created_at):null; return t && t>=s && t<=e; });
+  })();
+  const dashTotal = dashOrders.length;
+  const livres  = dashOrders.filter(o=>o.status==="entregado").length;
+  const rejetes = dashOrders.filter(o=>o.status==="rechazado").length;
+  const enRoute = dashOrders.filter(o=>o.status==="en_camino").length;
+  const revenus = dashOrders.filter(o=>o.status==="entregado").reduce((a,o)=>a+o.price,0);
+  const taux    = dashTotal>0?Math.round(livres/dashTotal*100):0;
+  // Note du dashboard — scoped à dashDate (le modal d'avis reste global).
+  const dashRated   = dashOrders.filter(o=>o.rating);
+  const dashAvgRating = dashRated.length>0 ? (dashRated.reduce((s,o)=>s+(o.rating||0),0)/dashRated.length) : 0;
+  // ratedOrders = TOUS les avis (utilisé par le modal d'avis), indépendant du filtre.
   const ratedOrders = orders.filter(o=>o.rating);
   const avgRating = ratedOrders.length>0
     ? (ratedOrders.reduce((s,o)=>s+(o.rating||0),0) / ratedOrders.length)
@@ -3278,7 +3320,7 @@ function AppInner() {
 
   // ── compta par produit ──
   const calcProd = products.map(prod=>{
-    const op      = orders.filter(o=>o.product?.startsWith(prod.name));
+    const op      = dashOrders.filter(o=>o.product?.startsWith(prod.name));
     const nLiv    = op.filter(o=>o.status==="entregado").length;
     const nRej    = op.filter(o=>o.status==="rechazado").length;
     const ca      = nLiv*prod.price;
@@ -5856,13 +5898,27 @@ function AppInner() {
               );
             })()}
 
+            {/* Filtre de date — PROPRE au dashboard (indépendant de Commandes à traiter) */}
+            <div style={{background:G.white,borderRadius:14,padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,fontWeight:700,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12}/> Période</span>
+              {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>{
+                const active=dashDate===d.k;
+                return (
+                  <button key={d.k} onClick={()=>setDashDate(d.k)}
+                    style={{background:active?G.green:G.grayLight,color:active?G.white:G.dark,border:"none",borderRadius:20,padding:"6px 13px",fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"background 0.15s"}}>
+                    {d.l}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* KPIs */}
             <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(5,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
-              <SC icon={<Package size={18}/>} label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
+              <SC icon={<Package size={18}/>} label="Total commandes" value={dashTotal} onClick={()=>setTab("commandes")}/>
               <SC icon={<Check size={18}/>} label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
               <SC icon={<X size={18}/>} label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
               <SC icon={<Bike size={18}/>} label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
-              <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${ratedOrders.length})`} value={ratedOrders.length>0?avgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
+              <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${dashRated.length})`} value={dashRated.length>0?dashAvgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
             </div>
 
             {/* Aperçu du jour */}
@@ -5961,7 +6017,7 @@ function AppInner() {
           return (
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
             <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(4,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
-              <SC icon={<Package size={18}/>} label="Total commandes" value={orders.length} onClick={()=>setTab("commandes")}/>
+              <SC icon={<Package size={18}/>} label="Total commandes" value={dashTotal} onClick={()=>setTab("commandes")}/>
               <SC icon={<Check size={18}/>}   label="Livrées"  value={livres}  color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
               <SC icon={<X size={18}/>}       label="Rejetées" value={rejetes} color={G.red}   bg="#FEE2E2"      onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
               <SC icon={<Bike size={18}/>}    label="En route" value={enRoute} color={G.blue}  bg="#EFF6FF"      onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
