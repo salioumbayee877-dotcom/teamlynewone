@@ -5905,6 +5905,29 @@ function AppInner() {
         {dataReady&&tab==="dashboard"&&role==="admin"&&(
           <div style={{display:"flex",flexDirection:"column",gap:12}}>
 
+            {/* Filtre de date — PROPRE au dashboard (indépendant de Commandes à traiter) */}
+            <div style={{background:G.white,borderRadius:14,padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:11,fontWeight:700,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12}/> Période</span>
+              {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>{
+                const active=dashDate===d.k;
+                return (
+                  <button key={d.k} onClick={()=>setDashDate(d.k)}
+                    style={{background:active?G.green:G.grayLight,color:active?G.white:G.dark,border:"none",borderRadius:20,padding:"6px 13px",fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"background 0.15s"}}>
+                    {d.l}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* KPIs */}
+            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(5,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
+              <SC icon={<Package size={18}/>} label="Total commandes" value={dashTotal} onClick={()=>setTab("commandes")}/>
+              <SC icon={<Check size={18}/>} label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
+              <SC icon={<X size={18}/>} label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
+              <SC icon={<Bike size={18}/>} label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
+              <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${dashRated.length})`} value={dashRated.length>0?dashAvgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
+            </div>
+
             {/* Salutation */}
             <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:G.white}}>
               <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Bonjour, {settings.nom} 👋</div>
@@ -5991,29 +6014,6 @@ function AppInner() {
                 </>
               );
             })()}
-
-            {/* Filtre de date — PROPRE au dashboard (indépendant de Commandes à traiter) */}
-            <div style={{background:G.white,borderRadius:14,padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-              <span style={{fontSize:11,fontWeight:700,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12}/> Période</span>
-              {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>{
-                const active=dashDate===d.k;
-                return (
-                  <button key={d.k} onClick={()=>setDashDate(d.k)}
-                    style={{background:active?G.green:G.grayLight,color:active?G.white:G.dark,border:"none",borderRadius:20,padding:"6px 13px",fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"background 0.15s"}}>
-                    {d.l}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* KPIs */}
-            <div style={{display:"grid",gridTemplateColumns:isDesktop?"repeat(5,1fr)":"1fr 1fr",gap:isDesktop?12:8}}>
-              <SC icon={<Package size={18}/>} label="Total commandes" value={dashTotal} onClick={()=>setTab("commandes")}/>
-              <SC icon={<Check size={18}/>} label="Livrées" value={livres} color={G.green} bg={G.greenLight} onClick={()=>{setFilterStatus("entregado");setTab("commandes");}}/>
-              <SC icon={<X size={18}/>} label="Rejetées" value={rejetes} color={G.red} bg="#FEE2E2" onClick={()=>{setFilterStatus("rechazado");setTab("commandes");}}/>
-              <SC icon={<Bike size={18}/>} label="En route" value={enRoute} color={G.blue} bg="#EFF6FF" onClick={()=>{setFilterStatus("livraison");setTab("commandes");}}/>
-              <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${dashRated.length})`} value={dashRated.length>0?dashAvgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
-            </div>
 
             {/* Aperçu du jour */}
             {(()=>{
