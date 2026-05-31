@@ -5928,6 +5928,33 @@ function AppInner() {
               <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${dashRated.length})`} value={dashRated.length>0?dashAvgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
             </div>
 
+            {/* Aperçu du jour */}
+            {(()=>{
+              const todayStr = new Date().toISOString().slice(0,10);
+              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
+              const bars = [
+                {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
+                {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
+                {label:"Livré",    count:tod.filter(o=>o.status==="entregado").length,                                                         color:"#4ADE80"},
+                {label:"Rejeté",   count:tod.filter(o=>o.status==="rechazado").length,                                                         color:G.red},
+              ];
+              const maxB = Math.max(...bars.map(b=>b.count),1);
+              return (
+                <div style={{background:G.white,borderRadius:14,padding:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Aperçu du jour</div>
+                  <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
+                    {bars.map((b,i)=>(
+                      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:b.count>0?b.color:G.gray}}>{b.count}</span>
+                        <div style={{width:"100%",background:b.count>0?b.color:G.grayLight,borderRadius:6,height:b.count>0?`${Math.max(b.count/maxB*100,6)}px`:"2px",transition:"height 0.4s"}}/>
+                        <span style={{fontSize:9,color:G.gray,textAlign:"center",lineHeight:1.2}}>{b.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Salutation */}
             <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:G.white}}>
               <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Bonjour, {settings.nom} 👋</div>
@@ -6012,33 +6039,6 @@ function AppInner() {
                     </div>
                   )}
                 </>
-              );
-            })()}
-
-            {/* Aperçu du jour */}
-            {(()=>{
-              const todayStr = new Date().toISOString().slice(0,10);
-              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
-              const bars = [
-                {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
-                {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
-                {label:"Livré",    count:tod.filter(o=>o.status==="entregado").length,                                                         color:"#4ADE80"},
-                {label:"Rejeté",   count:tod.filter(o=>o.status==="rechazado").length,                                                         color:G.red},
-              ];
-              const maxB = Math.max(...bars.map(b=>b.count),1);
-              return (
-                <div style={{background:G.white,borderRadius:14,padding:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:G.dark,marginBottom:12,display:"flex",alignItems:"center",gap:5}}><BarChart3 size={13}/> Aperçu du jour</div>
-                  <div style={{display:"flex",alignItems:"flex-end",gap:8,height:140}}>
-                    {bars.map((b,i)=>(
-                      <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4,height:"100%",justifyContent:"flex-end"}}>
-                        <span style={{fontSize:11,fontWeight:700,color:b.count>0?b.color:G.gray}}>{b.count}</span>
-                        <div style={{width:"100%",background:b.count>0?b.color:G.grayLight,borderRadius:6,height:b.count>0?`${Math.max(b.count/maxB*100,6)}px`:"2px",transition:"height 0.4s"}}/>
-                        <span style={{fontSize:9,color:G.gray,textAlign:"center",lineHeight:1.2}}>{b.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               );
             })()}
 
