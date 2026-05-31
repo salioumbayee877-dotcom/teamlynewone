@@ -5928,6 +5928,22 @@ function AppInner() {
               <SC icon={<span style={{fontSize:18}}>⭐</span>} label={`Note (${dashRated.length})`} value={dashRated.length>0?dashAvgRating.toFixed(1):"—"} color="#92400E" bg="#FEF3C7" onClick={()=>setShowReviewsModal(true)}/>
             </div>
 
+            {/* Salutation */}
+            <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:G.white}}>
+              <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Bonjour, {settings.nom} 👋</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>{settings.boutique} · {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:12}}>
+                <div>
+                  <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>CA DU JOUR</div>
+                  <div style={{fontSize:30,fontWeight:700,color:G.gold,marginTop:2}}>{fmt(caJour)} <span style={{fontSize:14}}>CFA</span></div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: {fmt(tBen)} CFA</div>
+                </div>
+                <button onClick={()=>setTab("compta")} style={{background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  Voir Compta →
+                </button>
+              </div>
+            </div>
+
             {/* Aperçu du jour */}
             {(()=>{
               const todayStr = new Date().toISOString().slice(0,10);
@@ -5954,22 +5970,6 @@ function AppInner() {
                 </div>
               );
             })()}
-
-            {/* Salutation */}
-            <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:G.white}}>
-              <div style={{fontSize:13,color:"rgba(255,255,255,0.7)"}}>Bonjour, {settings.nom} 👋</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",marginTop:2}}>{settings.boutique} · {new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"})}</div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:12}}>
-                <div>
-                  <div style={{fontSize:10,color:G.gold,fontWeight:700,letterSpacing:1}}>CA DU JOUR</div>
-                  <div style={{fontSize:30,fontWeight:700,color:G.gold,marginTop:2}}>{fmt(caJour)} <span style={{fontSize:14}}>CFA</span></div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.55)",marginTop:3}}>Bénéf. total: {fmt(tBen)} CFA</div>
-                </div>
-                <button onClick={()=>setTab("compta")} style={{background:"rgba(240,165,0,0.2)",color:G.gold,border:"1px solid rgba(240,165,0,0.4)",borderRadius:9,padding:"7px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>
-                  Voir Compta →
-                </button>
-              </div>
-            </div>
 
             {/* ── CTA Programme d'affiliation (non-enrôlés, ≈2×/mois, jamais après création du code) ── */}
             {showAffiliateCta&&(
