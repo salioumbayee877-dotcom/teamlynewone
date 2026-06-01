@@ -4981,9 +4981,9 @@ function AppInner() {
           <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",fontWeight:500}}>
             <strong style={{color:"#F0A500"}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""}</strong> d'essai restants
           </div>
-          <button onClick={()=>startWavePayment(20000,"pro")} disabled={!!payLoading}
+          <button onClick={()=>setShowPlanModal(true)}
             style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,letterSpacing:0.2}}>
-            {payLoading?"...":`Passer Pro — ${fmtMoney(20000, currency)} ${cur.short}/mois`}
+            {`Passer Pro — ${fmtMoney(20000, currency)} ${cur.short}/mois`}
           </button>
         </div>
       )}
