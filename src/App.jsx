@@ -929,6 +929,7 @@ function AppInner() {
   const [caisseLoading,setCaisseLoading] = useState(false);
   const [caisseRemise,setCaisseRemise]   = useState(null); // {livreurId,name,amount,note} | null
   const [caisseSaving,setCaisseSaving]   = useState(false);
+  const [caissePeriod,setCaissePeriod]   = useState("today"); // today|yesterday|week|all
   const [comptaExpandedProd,setComptaExpandedProd] = useState(null);
   const [comptaExportOpen,setComptaExportOpen]     = useState(false);
   const [comptaPeriodMode,setComptaPeriodMode]     = useState(()=>{try{const s=JSON.parse(localStorage.getItem("teamly_compta_filter")||"{}").shortcut;if(s==="yesterday")return"hier";if(s==="thisweek")return"semaine";if(s==="thismonth"||s==="lastmonth")return"mois";if(s==="today")return"jour";if(!s)return"plage";return"jour";}catch(e){return"jour";}});
@@ -2845,7 +2846,7 @@ function AppInner() {
     setCaisseLoading(true);
     try {
       const [ords, handovers] = await Promise.all([
-        sbFetch(`orders?org_id=eq.${orgId}&status=eq.entregado&select=id,client,price,amount_collected,livreur_id,delivered_by,delivered_at&order=delivered_at.desc`),
+        sbFetch(`orders?org_id=eq.${orgId}&status=eq.entregado&select=id,client,price,amount_collected,frais_liv,livreur_id,delivered_by,delivered_at&order=delivered_at.desc`),
         sbFetch(`cash_handovers?org_id=eq.${orgId}&select=*&order=created_at.desc`).catch(()=>[]),
       ]);
       if(Array.isArray(ords)) setCaisseOrders(ords);
@@ -7048,33 +7049,61 @@ function AppInner() {
 
         {/* ── CAISSE / Rendición de efectivo (COD) ── */}
         {dataReady&&tab==="caisse"&&canSeeCompta&&(()=>{
-          const todayStr = localDateStr();
+          // Filtre par période (déplaçable) — comme le dashboard.
+          const now = new Date();
+          let pStart=null,pEnd=null;
+          if(caissePeriod==="today"){ pStart=new Date(now);pStart.setHours(0,0,0,0); pEnd=new Date(now);pEnd.setHours(23,59,59,999); }
+          else if(caissePeriod==="yesterday"){ pStart=new Date(now);pStart.setDate(pStart.getDate()-1);pStart.setHours(0,0,0,0); pEnd=new Date(now);pEnd.setDate(pEnd.getDate()-1);pEnd.setHours(23,59,59,999); }
+          else if(caissePeriod==="week"){ pStart=new Date(now);pStart.setDate(pStart.getDate()-((pStart.getDay()+6)%7));pStart.setHours(0,0,0,0); pEnd=new Date(now);pEnd.setHours(23,59,59,999); }
+          const inPeriod = (dstr)=>{ if(!pStart) return true; if(!dstr) return false; const t=new Date(dstr); return t>=pStart && t<=pEnd; };
+          const periodLabel = caissePeriod==="today"?"Aujourd'hui":caissePeriod==="yesterday"?"Hier":caissePeriod==="week"?"Cette semaine":"Tout";
+          // Montant encaissé du client (tout compris) et frais de livraison (gardés
+          // par le livreur). À rendre = encaissé − frais − déjà rendu.
           const amt = (o)=> (o.amount_collected!=null?Number(o.amount_collected):Number(o.price)||0);
+          const fee = (o)=> Number(o.frais_liv)||0;
+          const ordsP = caisseOrders.filter(o=>inPeriod(o.delivered_at));
+          const handP = cashHandovers.filter(h=>inPeriod(h.created_at));
           const map = {};
-          const ensure = (id,name)=>{ if(!map[id]) map[id]={id,name:name||"Livreur",collected:0,today:0,handed:0,count:0}; return map[id]; };
+          const ensure = (id,name)=>{ if(!map[id]) map[id]={id,name:name||"Livreur",collected:0,frais:0,handed:0,count:0}; return map[id]; };
           teamMembers.filter(m=>m.role==="livreur").forEach(m=>ensure(m.id,m.nom));
-          caisseOrders.forEach(o=>{
+          ordsP.forEach(o=>{
             const lid = o.delivered_by || o.livreur_id; if(!lid) return;
             const e = ensure(lid, teamMembers.find(m=>m.id===lid)?.nom||"Ancien livreur");
-            const v = amt(o); e.collected += v; e.count += 1;
-            if(o.delivered_at && localDateStr(o.delivered_at)===todayStr) e.today += v;
+            e.collected += amt(o); e.frais += fee(o); e.count += 1;
           });
-          cashHandovers.forEach(h=>{ const e=ensure(h.livreur_id, teamMembers.find(m=>m.id===h.livreur_id)?.nom||"Ancien livreur"); e.handed += Number(h.amount)||0; });
-          const rows = Object.values(map).map(r=>({...r,outstanding:r.collected-r.handed})).sort((a,b)=>b.outstanding-a.outstanding);
+          handP.forEach(h=>{ const e=ensure(h.livreur_id, teamMembers.find(m=>m.id===h.livreur_id)?.nom||"Ancien livreur"); e.handed += Number(h.amount)||0; });
+          const rows = Object.values(map)
+            .map(r=>({...r, toReturn:r.collected-r.frais, outstanding:(r.collected-r.frais)-r.handed}))
+            .filter(r=>r.count>0 || r.handed>0)
+            .sort((a,b)=>b.outstanding-a.outstanding);
           const tOut  = rows.reduce((s,r)=>s+r.outstanding,0);
           const tColl = rows.reduce((s,r)=>s+r.collected,0);
+          const tFee  = rows.reduce((s,r)=>s+r.frais,0);
           const tHand = rows.reduce((s,r)=>s+r.handed,0);
-          const tToday= rows.reduce((s,r)=>s+r.today,0);
           return (
             <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {/* Filtre période */}
+              <div style={{background:G.white,borderRadius:14,padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                <span style={{fontSize:11,fontWeight:700,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12}/> Jour</span>
+                {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>{
+                  const active=caissePeriod===d.k;
+                  return (
+                    <button key={d.k} onClick={()=>setCaissePeriod(d.k)}
+                      style={{background:active?G.green:G.grayLight,color:active?G.white:G.dark,border:"none",borderRadius:20,padding:"6px 13px",fontSize:12,fontWeight:active?700:500,cursor:"pointer",transition:"background 0.15s"}}>
+                      {d.l}
+                    </button>
+                  );
+                })}
+              </div>
+
               {/* En-tête : total à rendre */}
               <div style={{background:`linear-gradient(135deg,${G.green},#0D3D25)`,borderRadius:16,padding:"16px 18px",color:"#fff"}}>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:700,letterSpacing:1,display:"inline-flex",alignItems:"center",gap:6}}><NavIcon name="caisse" size={14} color={G.gold}/> CAISSE — TOTAL À RENDRE</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontWeight:700,letterSpacing:1,display:"inline-flex",alignItems:"center",gap:6}}><NavIcon name="caisse" size={14} color={G.gold}/> À RENDRE · {periodLabel}</div>
                 <div style={{fontSize:32,fontWeight:800,color:G.gold,marginTop:4}}>{fmt(tOut)} <span style={{fontSize:15}}>CFA</span></div>
                 <div style={{display:"flex",gap:18,marginTop:10,flexWrap:"wrap"}}>
-                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Encaissé (total)</div><div style={{fontSize:14,fontWeight:700}}>{fmt(tColl)} CFA</div></div>
-                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Rendu (total)</div><div style={{fontSize:14,fontWeight:700}}>{fmt(tHand)} CFA</div></div>
-                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Encaissé aujourd'hui</div><div style={{fontSize:14,fontWeight:700,color:G.gold}}>{fmt(tToday)} CFA</div></div>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Encaissé</div><div style={{fontSize:14,fontWeight:700}}>{fmt(tColl)} CFA</div></div>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Frais livraison</div><div style={{fontSize:14,fontWeight:700}}>−{fmt(tFee)} CFA</div></div>
+                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>Rendu</div><div style={{fontSize:14,fontWeight:700,color:G.gold}}>{fmt(tHand)} CFA</div></div>
                 </div>
               </div>
 
@@ -7082,21 +7111,22 @@ function AppInner() {
 
               {/* Par livreur */}
               {rows.length===0 && !caisseLoading ? (
-                <div style={{background:G.white,borderRadius:14,padding:24,textAlign:"center",color:G.gray,fontSize:13}}>Aucun livreur pour le moment.</div>
+                <div style={{background:G.white,borderRadius:14,padding:24,textAlign:"center",color:G.gray,fontSize:13}}>Aucune activité sur cette période.</div>
               ) : rows.map(r=>(
                 <div key={r.id} style={{background:G.white,borderRadius:14,padding:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
                     <div style={{minWidth:0}}>
                       <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {r.name}</div>
-                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>{r.count} livraison{r.count>1?"s":""} · aujourd'hui {fmt(r.today)} CFA</div>
+                      <div style={{fontSize:11,color:G.gray,marginTop:2}}>{r.count} livraison{r.count>1?"s":""}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
                       <div style={{fontSize:10,color:G.gray}}>À rendre</div>
                       <div style={{fontSize:20,fontWeight:800,color:r.outstanding>0?G.red:G.green}}>{fmt(r.outstanding)} CFA</div>
                     </div>
                   </div>
-                  <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:G.gray}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:G.gray,flexWrap:"wrap",gap:4}}>
                     <span>Encaissé: <strong style={{color:G.dark}}>{fmt(r.collected)} CFA</strong></span>
+                    <span>Frais: <strong style={{color:G.dark}}>−{fmt(r.frais)} CFA</strong></span>
                     <span>Rendu: <strong style={{color:G.green}}>{fmt(r.handed)} CFA</strong></span>
                   </div>
                   <button onClick={()=>setCaisseRemise({livreurId:r.id,name:r.name,amount:String(r.outstanding>0?r.outstanding:""),note:""})}
@@ -7106,12 +7136,12 @@ function AppInner() {
                 </div>
               ))}
 
-              {/* Historique des remises */}
+              {/* Historique des remises (période) */}
               <div style={{background:G.white,borderRadius:14,padding:14}}>
-                <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}>🧾 HISTORIQUE DES REMISES</span></ST>
-                {cashHandovers.length===0 ? (
-                  <div style={{fontSize:12,color:G.gray,textAlign:"center",padding:"10px 0",fontStyle:"italic"}}>Aucune remise enregistrée</div>
-                ) : cashHandovers.slice(0,50).map(h=>{
+                <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}>🧾 REMISES · {periodLabel}</span></ST>
+                {handP.length===0 ? (
+                  <div style={{fontSize:12,color:G.gray,textAlign:"center",padding:"10px 0",fontStyle:"italic"}}>Aucune remise sur cette période</div>
+                ) : handP.slice(0,50).map(h=>{
                   const name = teamMembers.find(m=>m.id===h.livreur_id)?.nom || "Ancien livreur";
                   return (
                     <div key={h.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${G.grayLight}`}}>
