@@ -120,18 +120,21 @@ export const OCard = ({ o, showPrendre = false }) => {
           <>
             {/* Stepper visuel */}
             <div style={{marginBottom:8,marginTop:8}}>
+              {/* Pedido livré & encaissé → tout le parcours passe au VERT, sans pulse. */}
               <div style={{display:"flex",alignItems:"center"}}>
                 {OFLOW.map((step,i)=>{
                   const stepOrd = OORDER.indexOf(step.keys[0]);
+                  const completed = o.status==="entregado";
                   const done = stepOrd < curOrd;
                   const active = step.keys.includes(o.status);
-                  const col = done||active ? step.color : "#E5E7EB";
+                  const col = completed ? G.green : (done||active ? step.color : "#E5E7EB");
+                  const showCheck = done || completed;
                   return (
                     <div key={i} style={{display:"flex",alignItems:"center",flex:i<OFLOW.length-1?1:0}}>
-                      <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`}}>
-                        {done?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
+                      <div className={active&&!completed?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`}}>
+                        {showCheck?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
                       </div>
-                      {i<OFLOW.length-1&&<div style={{flex:1,height:2,background:stepOrd<curOrd?step.color:"#E5E7EB"}}/>}
+                      {i<OFLOW.length-1&&<div style={{flex:1,height:2,background:completed?G.green:(stepOrd<curOrd?step.color:"#E5E7EB")}}/>}
                     </div>
                   );
                 })}
@@ -139,10 +142,11 @@ export const OCard = ({ o, showPrendre = false }) => {
               <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
                 {OFLOW.map((step,i)=>{
                   const stepOrd = OORDER.indexOf(step.keys[0]);
+                  const completed = o.status==="entregado";
                   const done = stepOrd < curOrd;
                   const active = step.keys.includes(o.status);
                   return (
-                    <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:active?step.color:done?"#9CA3AF":"#D1D5DB",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                    <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:completed?G.green:(active?step.color:done?"#9CA3AF":"#D1D5DB"),whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                       {step.label}
                     </div>
                   );
@@ -386,6 +390,8 @@ export const OCard = ({ o, showPrendre = false }) => {
             <span style={{fontSize:11,fontWeight:700,color:o.status==="rechazado"?"#DC2626":o.status==="reprogramar"?"#7C3AED":"#6B7280"}}>{st.label}</span>
           </div>
         );
+        // Commande livrée & encaissée → tout le parcours passe au VERT, sans pulse.
+        const completed = o.status==="entregado";
         return (
         <div style={{marginBottom:8,marginTop:8}}>
           <div style={{display:"flex",alignItems:"center"}}>
@@ -393,13 +399,14 @@ export const OCard = ({ o, showPrendre = false }) => {
               const stepMaxOrd = Math.max(...step.keys.map(k=>ORDER.indexOf(k)));
               const done = stepMaxOrd < curOrd;
               const active = step.keys.includes(o.status);
-              const col = done||active ? step.color : "#E5E7EB";
+              const col = completed ? G.green : (done||active ? step.color : "#E5E7EB");
+              const showCheck = done || completed;
               return (
                 <div key={i} style={{display:"flex",alignItems:"center",flex:i<FLOW.length-1?1:0}}>
-                  <div className={active?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`,boxShadow:"none",transition:"all .2s"}}>
-                    {done?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
+                  <div className={active&&!completed?"soft-pulse":undefined} style={{width:22,height:22,borderRadius:"50%",background:col,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,border:`2px solid ${col}`,boxShadow:"none",transition:"all .2s"}}>
+                    {showCheck?<Check size={12} color="#fff" strokeWidth={3}/>:<step.Ico size={11} color={active?"#fff":"#9CA3AF"} strokeWidth={2.5}/>}
                   </div>
-                  {i<FLOW.length-1&&<div style={{flex:1,height:2,background:stepMaxOrd<curOrd?step.color:"#E5E7EB",transition:"background .2s"}}/>}
+                  {i<FLOW.length-1&&<div style={{flex:1,height:2,background:completed?G.green:(stepMaxOrd<curOrd?step.color:"#E5E7EB"),transition:"background .2s"}}/>}
                 </div>
               );
             })}
@@ -410,7 +417,7 @@ export const OCard = ({ o, showPrendre = false }) => {
               const done = stepMaxOrd < curOrd;
               const active = step.keys.includes(o.status);
               return (
-                <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:active?step.color:done?"#9CA3AF":"#D1D5DB",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
+                <div key={i} style={{flex:1,textAlign:"center",fontSize:8,fontWeight:active?700:500,color:completed?G.green:(active?step.color:done?"#9CA3AF":"#D1D5DB"),whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minWidth:0}}>
                   {step.label}
                 </div>
               );
