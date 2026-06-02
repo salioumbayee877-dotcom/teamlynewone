@@ -5012,6 +5012,35 @@ function AppInner() {
                           ? `Choisir ${p.name} — ${fmtMoney(applyPromoDiscount(p.price), currency)} ${cur.short} (-${appliedPromo?.discount_pct||0}%)`
                           : `Choisir ${p.name} — ${p.priceLabel} ${cur.short}`}
                     </button>
+                    {/* ── Paiement Mobile Money (Intech) ── */}
+                    <div style={{marginTop:8}}>
+                      {intechPanel!==p.key ? (
+                        <button onClick={()=>{ setIntechPanel(p.key); setIntechPayState("idle"); }}
+                          style={{width:"100%",background:p.highlight?"#FFF":"rgba(255,255,255,0.06)",color:p.highlight?G.green:G.gold,border:`1.5px solid ${p.highlight?G.green:G.gold}`,borderRadius:11,padding:"12px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                          📲 Payer par Mobile Money
+                        </button>
+                      ) : (
+                        <div style={{border:`1px solid ${p.highlight?"#E5E7EB":"rgba(255,255,255,0.15)"}`,borderRadius:11,padding:10,background:p.highlight?"#FAFAFA":"rgba(0,0,0,0.18)"}}>
+                          <div style={{fontSize:10,color:p.highlight?G.gray:"rgba(255,255,255,0.55)",fontWeight:700,marginBottom:6,letterSpacing:0.3}}>OPÉRATEUR</div>
+                          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                            {[{c:"ORANGE_SN_API_CASH_IN",l:"Orange Money"},{c:"WAVE_SN_API_CASH_IN",l:"Wave"},{c:"FREE_SN_WALLET_CASH_IN",l:"Free Money"},{c:"EXPRESSO_SN_WALLET_CASH_IN",l:"E-Money"}].map(o=>(
+                              <button key={o.c} onClick={()=>setIntechOp(o.c)}
+                                style={{flex:"1 0 45%",background:intechOp===o.c?(p.highlight?G.green:G.gold):(p.highlight?"#FFF":"rgba(0,0,0,0.25)"),color:intechOp===o.c?(p.highlight?"#FFF":"#1a1a1a"):(p.highlight?G.dark:"#fff"),border:`1px solid ${intechOp===o.c?(p.highlight?G.green:G.gold):(p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)")}`,borderRadius:8,padding:"7px 4px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                                {o.l}
+                              </button>
+                            ))}
+                          </div>
+                          <input type="tel" value={intechPhone} onChange={e=>setIntechPhone(e.target.value)} placeholder="Numéro à débiter (ex: 77 000 00 00)"
+                            style={{width:"100%",boxSizing:"border-box",background:p.highlight?"#FFF":"rgba(0,0,0,0.25)",border:`1px solid ${p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)"}`,borderRadius:8,padding:"9px 10px",fontSize:12,marginBottom:8,outline:"none",color:p.highlight?G.dark:"#fff"}}/>
+                          <button disabled={intechPayState==="pending"} onClick={()=>startIntechPlanPayment(p.key, intechOp, intechPhone)}
+                            style={{width:"100%",background:intechPayState==="pending"?"#9CA3AF":(p.highlight?G.green:G.gold),color:p.highlight?"#FFF":"#1a1a1a",border:"none",borderRadius:9,padding:"11px 0",fontWeight:700,fontSize:13,cursor:intechPayState==="pending"?"default":"pointer"}}>
+                            {intechPayState==="pending" ? "Paiement en cours… 📲" : intechPayState==="SUCCESS" ? "Payé ✓" : `Payer ${fmtMoney(p.price, currency)} ${cur.short}`}
+                          </button>
+                          <button onClick={()=>{ setIntechPanel(null); setIntechPayState("idle"); }}
+                            style={{width:"100%",background:"none",border:"none",color:p.highlight?G.gray:"rgba(255,255,255,0.5)",fontSize:11,marginTop:6,cursor:"pointer"}}>Annuler</button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
