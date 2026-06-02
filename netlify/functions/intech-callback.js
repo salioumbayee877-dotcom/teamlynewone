@@ -6,6 +6,7 @@
 //       SHA256(`${transactionId}|${externalTransactionId}|${appKey}`)
 // AUCUNE confiance n'est accordée au payload tant que le hash n'est pas validé.
 const { verifyCallback } = require("./lib/intech");
+const { activateSubscription } = require("./lib/activatePlan");
 
 const SB_URL      = process.env.SUPABASE_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -45,7 +46,7 @@ exports.handler = async (event) => {
   try {
     // ── 2. Récupère notre ligne (et son état actuel) ────────────────────
     const cur = await fetch(
-      `${SB_URL}/rest/v1/intech_transactions?external_transaction_id=eq.${encodeURIComponent(extId)}&select=id,org_id,status,order_id,amount`,
+      `${SB_URL}/rest/v1/intech_transactions?external_transaction_id=eq.${encodeURIComponent(extId)}&select=id,org_id,status,order_id,amount,purpose,plan,promo_code,ref_code`,
       { headers: sbHeaders }
     ).then(r => r.json()).catch(() => []);
     const row = Array.isArray(cur) ? cur[0] : null;
@@ -76,15 +77,31 @@ exports.handler = async (event) => {
       }),
     });
 
-    // ── 5. Effet métier sur SUCCESS (optionnel) ─────────────────────────
-    // Si la transaction est liée à une commande, on la marque encaissée.
-    // Adaptez les colonnes à votre schéma `orders` (ici: amount_collected).
-    if (status === "SUCCESS" && row.order_id) {
-      await fetch(`${SB_URL}/rest/v1/orders?id=eq.${row.order_id}`, {
-        method: "PATCH",
-        headers: { ...sbHeaders, Prefer: "return=minimal" },
-        body: JSON.stringify({ amount_collected: row.amount, updated_at: new Date().toISOString() }),
-      }).catch(e => console.error("intech-callback: maj order échouée", e.message));
+    // ── 5. Effet métier sur SUCCESS ─────────────────────────────────────
+    if (status === "SUCCESS") {
+      if (row.purpose === "subscription") {
+        // Paiement d'abonnement → activer le plan (+ promo + parrainage).
+        try {
+          await activateSubscription({
+            orgId: row.org_id,
+            plan: row.plan,
+            promoCode: row.promo_code,
+            refCode: row.ref_code,
+            paidAmount: row.amount,
+          });
+        } catch (e) {
+          console.error("intech-callback: activation plan échouée", e.message);
+          // 500 → Intech réessaiera : on ne perd pas l'activation.
+          return { statusCode: 500, headers, body: JSON.stringify({ error: "activation failed" }) };
+        }
+      } else if (row.order_id) {
+        // Paiement lié à une commande (COD) → marquer encaissée.
+        await fetch(`${SB_URL}/rest/v1/orders?id=eq.${row.order_id}`, {
+          method: "PATCH",
+          headers: { ...sbHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify({ amount_collected: row.amount, updated_at: new Date().toISOString() }),
+        }).catch(e => console.error("intech-callback: maj order échouée", e.message));
+      }
     }
 
     // 200 obligatoire pour stopper les retries Intech.

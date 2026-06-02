@@ -1193,6 +1193,11 @@ function AppInner() {
   const [isPro,         setIsPro]         = useState(false);
   const [isOwnerOrg,    setIsOwnerOrg]    = useState(false);
   const [payLoading,    setPayLoading]    = useState(false);
+  // Paiement d'abonnement via Intech (mobile money)
+  const [intechPanel,    setIntechPanel]    = useState(null);   // planKey dont le panneau est ouvert
+  const [intechPhone,    setIntechPhone]    = useState("");
+  const [intechOp,       setIntechOp]       = useState("ORANGE_SN_API_CASH_IN");
+  const [intechPayState, setIntechPayState] = useState("idle"); // idle|pending|SUCCESS|FAILLED
   const [saClients,     setSaClients]     = useState([]);
   const [saLoading,     setSaLoading]     = useState(false);
   const [saPlanEdit,    setSaPlanEdit]    = useState({});
@@ -1571,6 +1576,49 @@ function AppInner() {
       else addToast("Erreur Wave — réessaie","❌","#DC2626");
     } catch(e){ addToast("Erreur de connexion","❌","#DC2626"); }
     finally{ setPayLoading(false); }
+  };
+
+  // Paiement d'abonnement via Intech (mobile money). Le PRIX est calculé côté
+  // serveur (intech-plan-checkout) — on n'envoie jamais le montant. Le plan est
+  // activé par le callback ; ici on sonde notre backend jusqu'au statut final.
+  const startIntechPlanPayment = async (planKey, codeService, phone) => {
+    if(!orgId || intechPayState==="pending") return;
+    if(!phone || phone.replace(/\D/g,"").length < 7){ addToast("Numéro invalide","❌","#DC2626"); return; }
+    setIntechPayState("pending");
+    try {
+      let pendingRef = null; try{ pendingRef = localStorage.getItem("teamly_pending_ref"); }catch(e){}
+      const res = await fetch("/.netlify/functions/intech-plan-checkout",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`},
+        // promoCode volontairement null : le descuento promo passe par Wave (v1).
+        body: JSON.stringify({ plan: planKey, phone: phone.replace(/\D/g,""), codeService, promoCode: null, refCode: pendingRef }),
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ addToast(data.msg||data.error||"Échec du paiement","❌","#DC2626"); setIntechPayState("FAILLED"); return; }
+      if(data.deepLinkUrl) window.open(data.deepLinkUrl, "_blank");
+      addToast(data.notificationMessage || "Confirme le paiement sur ton téléphone 📲","📲","#2563EB");
+      const extId = data.externalTransactionId;
+      const deadline = Date.now() + 180000;
+      const poll = async () => {
+        try {
+          const r = await fetch(`/.netlify/functions/intech-status?externalTransactionId=${encodeURIComponent(extId)}`,{ headers:{"Authorization":`Bearer ${_authToken||SB_KEY}`} });
+          const row = await r.json();
+          if(row?.status==="SUCCESS"){
+            setIntechPayState("SUCCESS"); setIsPro(true); setTrialDaysLeft(31);
+            setSettings(s=>({...s, plan:planKey}));
+            addToast("Paiement confirmé — plan activé 🎉","✅","#1A5C38");
+            setTimeout(()=>{ setShowPlanModal(false); setIntechPanel(null); setIntechPayState("idle"); }, 1500);
+            return;
+          }
+          if(["FAILLED","CANCELED","REFUNDED"].includes(row?.status)){
+            setIntechPayState("FAILLED"); addToast("Paiement non abouti — réessaie","❌","#DC2626"); return;
+          }
+        } catch(e){}
+        if(Date.now() < deadline) setTimeout(poll, 4000);
+        else { setIntechPayState("idle"); addToast("Délai dépassé — le statut se mettra à jour automatiquement","⚠️","#F59E0B"); }
+      };
+      setTimeout(poll, 4000);
+    } catch(e){ addToast("Erreur de connexion","❌","#DC2626"); setIntechPayState("idle"); }
   };
 
   // Handle Wave payment return (?payment=success)
@@ -8765,6 +8813,37 @@ function AppInner() {
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
                           {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(applyPromoDiscount(p.priceNum), currency)} ${cur.short}` : `Activer le plan ${p.name}`}
                         </button>
+                      )}
+                      {/* ── Paiement Mobile Money (Intech) — abonnement ── */}
+                      {!isCurrent && isPaidPlan && !isOwner && (
+                        <div style={{marginTop:8}}>
+                          {intechPanel!==p.key ? (
+                            <button onClick={()=>{ setIntechPanel(p.key); setIntechPayState("idle"); }}
+                              style={{width:"100%",background:"#FFF",color:p.color,border:`1.5px solid ${p.color}`,borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:12,cursor:"pointer"}}>
+                              📲 Payer par Mobile Money
+                            </button>
+                          ) : (
+                            <div style={{border:"1px solid #E5E7EB",borderRadius:10,padding:10,background:"#FAFAFA"}}>
+                              <div style={{fontSize:10,color:G.gray,fontWeight:700,marginBottom:6,letterSpacing:0.3}}>OPÉRATEUR</div>
+                              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                                {[{c:"ORANGE_SN_API_CASH_IN",l:"Orange Money"},{c:"WAVE_SN_API_CASH_IN",l:"Wave"},{c:"FREE_SN_WALLET_CASH_IN",l:"Free Money"},{c:"EXPRESSO_SN_WALLET_CASH_IN",l:"E-Money"}].map(o=>(
+                                  <button key={o.c} onClick={()=>setIntechOp(o.c)}
+                                    style={{flex:"1 0 45%",background:intechOp===o.c?p.color:"#FFF",color:intechOp===o.c?"#FFF":G.dark,border:`1px solid ${intechOp===o.c?p.color:"#D1D5DB"}`,borderRadius:8,padding:"7px 4px",fontSize:11,fontWeight:600,cursor:"pointer"}}>
+                                    {o.l}
+                                  </button>
+                                ))}
+                              </div>
+                              <input type="tel" value={intechPhone} onChange={e=>setIntechPhone(e.target.value)} placeholder="Numéro à débiter (ex: 77 000 00 00)"
+                                style={{width:"100%",boxSizing:"border-box",border:"1px solid #D1D5DB",borderRadius:8,padding:"8px 10px",fontSize:12,marginBottom:8,outline:"none",color:G.dark}}/>
+                              <button disabled={intechPayState==="pending"} onClick={()=>startIntechPlanPayment(p.key, intechOp, intechPhone)}
+                                style={{width:"100%",background:intechPayState==="pending"?"#9CA3AF":p.color,color:"#FFF",border:"none",borderRadius:8,padding:"10px 0",fontWeight:700,fontSize:12,cursor:intechPayState==="pending"?"default":"pointer"}}>
+                                {intechPayState==="pending" ? "Paiement en cours… 📲" : intechPayState==="SUCCESS" ? "Payé ✓" : `Payer ${fmtMoney(p.priceNum, currency)} ${cur.short}`}
+                              </button>
+                              <button onClick={()=>{ setIntechPanel(null); setIntechPayState("idle"); }}
+                                style={{width:"100%",background:"none",border:"none",color:G.gray,fontSize:11,marginTop:6,cursor:"pointer"}}>Annuler</button>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>
