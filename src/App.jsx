@@ -1029,10 +1029,10 @@ function AppInner() {
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
-  const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"all";}catch(e){return "all";}});
+  const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","month","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"month";}catch(e){return "month";}});
   const filterDateRef = useRef(filterDate);
   // Filtre de date PROPRE au dashboard — indépendant de Commandes à traiter.
-  const [dashDate, setDashDate] = useState(()=>{try{return localStorage.getItem("teamly_dash_date")||"all";}catch(e){return "all";}});
+  const [dashDate, setDashDate] = useState(()=>{try{return localStorage.getItem("teamly_dash_date")||"month";}catch(e){return "month";}});
   const dashDateRef = useRef(dashDate);
   // Refs for compta date range so loadMain can fetch a wide-enough server-side
   // window to satisfy BOTH the commandes filterDate AND the compta period —
@@ -2237,6 +2237,9 @@ function AppInner() {
       } else if(dateKey==="week") {
         cStart=new Date(now); cStart.setDate(cStart.getDate()-((cStart.getDay()+6)%7)); cStart.setHours(0,0,0,0);
         cEnd=new Date(now);   cEnd.setHours(23,59,59,999);
+      } else if(dateKey==="month") {
+        cStart=new Date(now); cStart.setDate(cStart.getDate()-30); cStart.setHours(0,0,0,0);
+        cEnd=new Date(now);   cEnd.setHours(23,59,59,999);
       }
       // Compute the compta filter range (always present once compta loaded).
       let kStart=null, kEnd=null;
@@ -2253,6 +2256,9 @@ function AppInner() {
         dEnd=new Date(now);   dEnd.setDate(dEnd.getDate()-1);     dEnd.setHours(23,59,59,999);
       } else if(dashKey==="week") {
         dStart=new Date(now); dStart.setDate(dStart.getDate()-((dStart.getDay()+6)%7)); dStart.setHours(0,0,0,0);
+        dEnd=new Date(now);   dEnd.setHours(23,59,59,999);
+      } else if(dashKey==="month") {
+        dStart=new Date(now); dStart.setDate(dStart.getDate()-30); dStart.setHours(0,0,0,0);
         dEnd=new Date(now);   dEnd.setHours(23,59,59,999);
       }
       // Final range: widest envelope so toutes les vues ont leurs données.
@@ -2463,7 +2469,10 @@ function AppInner() {
     loadMain();
     loadChat(true);
     loadNotifs();
-    const intervalMain   = setInterval(loadMain, 5000);
+    // Polling de secours (le Realtime WebSocket rafraîchit déjà les commandes
+    // en INSERT/UPDATE instantanément, cf. ws.onmessage). 30s suffit comme
+    // filet de sécurité + maj produits/stock/zones des coéquipiers.
+    const intervalMain   = setInterval(loadMain, 30000);
     const intervalNotifs = setInterval(loadNotifs, 20000);
 
     // Kick out if admin removes this user while they're active
@@ -3375,6 +3384,7 @@ function AppInner() {
     if(dashDate==="today"){ s=new Date(now);s.setHours(0,0,0,0); e=new Date(now);e.setHours(23,59,59,999); }
     else if(dashDate==="yesterday"){ s=new Date(now);s.setDate(s.getDate()-1);s.setHours(0,0,0,0); e=new Date(now);e.setDate(e.getDate()-1);e.setHours(23,59,59,999); }
     else if(dashDate==="week"){ s=new Date(now);s.setDate(s.getDate()-((s.getDay()+6)%7));s.setHours(0,0,0,0); e=new Date(now);e.setHours(23,59,59,999); }
+    else if(dashDate==="month"){ s=new Date(now);s.setDate(s.getDate()-30);s.setHours(0,0,0,0); e=new Date(now);e.setHours(23,59,59,999); }
     if(!s) return orders;
     return orders.filter(o=>{ const t=o.created_at?new Date(o.created_at):null; return t && t>=s && t<=e; });
   })();
@@ -4741,12 +4751,15 @@ function AppInner() {
   // Monday of the current week (local time)
   const _mon       = new Date(_now); _mon.setDate(_now.getDate() - ((_now.getDay()+6)%7));
   const WEEK_START = `${_mon.getFullYear()}-${_pad(_mon.getMonth()+1)}-${_pad(_mon.getDate())}`;
+  // 30 jours glissants (fenêtre par défaut de la liste + dashboard)
+  const _m30       = new Date(_now); _m30.setDate(_now.getDate()-30);
+  const MONTH_START= `${_m30.getFullYear()}-${_pad(_m30.getMonth()+1)}-${_pad(_m30.getDate())}`;
   const filteredOrders = baseOrders.filter(o=>{
     // Pedidos boutique (Shopify/Woo/YouCan sin confirmar) solo aparecen en tab Boutique
     if(o.status==="boutique") return false;
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
-    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START);
+    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START) || (filterDate==="month"&&d>=MONTH_START);
     if(role==="livreur") {
       // Pedidos hors zone principale: visibles de paiement_confirme à remis_transporteur (livreur garde la trace)
       if(o.region_type==="other") {
@@ -5952,7 +5965,7 @@ function AppInner() {
             {/* Filtre de date — PROPRE au dashboard (indépendant de Commandes à traiter) */}
             <div style={{background:G.white,borderRadius:14,padding:"10px 12px",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
               <span style={{fontSize:11,fontWeight:700,color:G.gray,display:"inline-flex",alignItems:"center",gap:4}}><Calendar size={12}/> Période</span>
-              {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"all",l:"Tout"}].map(d=>{
+              {[{k:"today",l:"Aujourd'hui"},{k:"yesterday",l:"Hier"},{k:"week",l:"Semaine"},{k:"month",l:"30 jours"},{k:"all",l:"Tout"}].map(d=>{
                 const active=dashDate===d.k;
                 return (
                   <button key={d.k} onClick={()=>setDashDate(d.k)}
@@ -6408,6 +6421,7 @@ function AppInner() {
                       {k:"today",     l:"Aujourd'hui", sub:_fmt(_fd)},
                       {k:"yesterday", l:"Hier",        sub:_fmt(_yest)},
                       {k:"week",      l:"Semaine",     sub:`dès ${_fmt(_mon)}`},
+                      {k:"month",     l:"30 jours",    sub:"30 derniers j."},
                       {k:"all",       l:"Tout",        sub:"toutes dates"},
                     ];
                     return chips.map(d=>{
