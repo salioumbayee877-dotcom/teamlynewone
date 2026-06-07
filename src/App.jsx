@@ -1919,8 +1919,9 @@ function AppInner() {
             } catch(e) { /* fallback: keep pendingOrgId, server may already have it */ }
             setOrgId(newOrgId); setSbReady(true);
             setCurrentUser({id:userId,nom,email,role:"admin"});
-            setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
-            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:null});
+            setSettings(s=>({...s,nom,whatsapp:phone,boutique,plan:"basic"}));
+            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:"basic"});
+            setIsPro(true); setTrialDaysLeft(31); // Basic offert au lancement → accès complet
             try{
               localStorage.setItem("teamly_org",newOrgId);
               localStorage.setItem("teamly_token",jwt);
@@ -3787,8 +3788,9 @@ function AppInner() {
         setOrgId(newOrgId);
         setSbReady(true);
         setCurrentUser({id:data.user.id,nom:derivedNom,email:authForm.email,role:"admin"});
-        setSettings(s=>(({...s,nom:derivedNom,whatsapp:authForm.phone,boutique:authForm.boutique})));
-        setOrg({id:newOrgId,name:authForm.boutique,whatsapp:authForm.phone,plan:null});
+        setSettings(s=>(({...s,nom:derivedNom,whatsapp:authForm.phone,boutique:authForm.boutique,plan:"basic"})));
+        setOrg({id:newOrgId,name:authForm.boutique,whatsapp:authForm.phone,plan:"basic"});
+        setIsPro(true); setTrialDaysLeft(31); // Basic offert au lancement → accès complet
         try{localStorage.setItem("teamly_org",newOrgId);localStorage.setItem("teamly_token",tok);if(data.refresh_token)localStorage.setItem("teamly_refresh_token",data.refresh_token);localStorage.setItem("teamly_email",authForm.email);localStorage.setItem("teamly_role","admin");localStorage.setItem("teamly_userId",data.user.id);localStorage.setItem("teamly_nom",derivedNom);}catch(e){}
         setAuthStep("plan"); // Move to plan AFTER org is created
       }).catch(e=>setAuthError(e.message||"Erreur inscription — email déjà utilisé ?"));
@@ -3825,8 +3827,9 @@ function AppInner() {
     }
     setOrgId(newOrgId); setSbReady(true);
     setCurrentUser({id:userId, nom, email, role:"admin", phone:authForm.phone.trim()});
-    setSettings(s=>({...s, nom, whatsapp:authForm.phone.trim(), boutique:authForm.boutique.trim()}));
-    setOrg({id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim(), plan:null});
+    setSettings(s=>({...s, nom, whatsapp:authForm.phone.trim(), boutique:authForm.boutique.trim(), plan:"basic"}));
+    setOrg({id:newOrgId, name:authForm.boutique.trim(), whatsapp:authForm.phone.trim(), plan:"basic"});
+    setIsPro(true); setTrialDaysLeft(31); // Basic offert au lancement → accès complet
     setRole("admin");
     try {
       localStorage.setItem("teamly_org", newOrgId);
@@ -3841,6 +3844,9 @@ function AppInner() {
 
   const handlePlan = (plan) => {
     setOrg(o=>({...o,plan}));
+    setSettings(s=>({...s, plan}));
+    // Basic offert au lancement → accès complet immédiat (toutes les fonctions).
+    if(["basic","pro","scale"].includes(plan)){ setIsPro(true); setTrialDaysLeft(31); }
     setAuthStep("gestion"); // New step: choose closer mode
   };
 
@@ -4586,8 +4592,9 @@ function AppInner() {
             } catch(e){ /* bootstrap may already exist — keep newOrgId */ }
             setOrgId(newOrgId); setSbReady(true);
             setCurrentUser({id:userId, nom, email, role:"admin", phone});
-            setSettings(s=>({...s,nom,whatsapp:phone,boutique}));
-            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:null});
+            setSettings(s=>({...s,nom,whatsapp:phone,boutique,plan:"basic"}));
+            setOrg({id:newOrgId,name:boutique,whatsapp:phone,plan:"basic"});
+            setIsPro(true); setTrialDaysLeft(31); // Basic offert au lancement → accès complet
             try {
               localStorage.setItem("teamly_token",tok);
               if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);

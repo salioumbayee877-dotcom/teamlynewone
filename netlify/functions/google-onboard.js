@@ -52,7 +52,8 @@ exports.handler = async (event) => {
     const orgRes = await fetch(`${SB_URL}/rest/v1/organizations`, {
       method: "POST",
       headers: sbHeaders,
-      body: JSON.stringify({ id: orgId, name: boutique, whatsapp: phone }),
+      // Plan "basic" offert au lancement : accès complet dès l'inscription.
+      body: JSON.stringify({ id: orgId, name: boutique, whatsapp: phone, plan: "basic" }),
     });
     if (!orgRes.ok) {
       const t = await orgRes.text();
