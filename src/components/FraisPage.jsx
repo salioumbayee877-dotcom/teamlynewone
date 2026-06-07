@@ -24,6 +24,20 @@ export const FraisPage = () => {
   const defaultPrice = settings.defaultDeliveryPrice||3500;
   const allNames = [...mainCities.map(c=>c.name),...otherRegions.map(r=>r.name)];
 
+  // Regroupe les villes de la zone principale par département (affichage visuel).
+  // Le département vient de la base géo ; les villes inconnues → "Autres".
+  const _DEPT_ORDER = ["Dakar","Pikine","Guediawaye","Rufisque","Keur Massar"];
+  const cityDept = (name) => SENEGAL_CITIES.find(c=>_normCity(c.city)===_normCity(name))?.department || "Autres";
+  const mainGrouped = (()=>{
+    const groups={};
+    mainCities.forEach((c,i)=>{ const d=cityDept(c.name); (groups[d]=groups[d]||[]).push({...c,idx:i}); });
+    return Object.keys(groups).sort((a,b)=>{
+      const ia=_DEPT_ORDER.indexOf(a), ib=_DEPT_ORDER.indexOf(b);
+      if(ia!==-1||ib!==-1) return (ia===-1?99:ia)-(ib===-1?99:ib);
+      return a.localeCompare(b);
+    }).map(k=>({dept:k,cities:groups[k]}));
+  })();
+
   // ── Local input state (isolated from context re-renders) ──
   // Keeps numeric inputs reactive to typing without losing focus / dropping
   // keystrokes on every appCtx rebuild. Synced from context only when the user
@@ -32,6 +46,7 @@ export const FraisPage = () => {
   const [regLocalFee, setRegLocalFee]     = useState(String(settings.regional_local_fee ?? 1500));
   const [regTransportFee, setRegTransportFee] = useState(String(settings.regional_transport_fee ?? 2000));
   const lastTypeRef = useRef(0);
+  const [openDepts, setOpenDepts] = useState({}); // départements dépliés (zone principale)
 
   useEffect(() => {
     if (Date.now() - lastTypeRef.current > 1500) {
@@ -199,8 +214,19 @@ export const FraisPage = () => {
                   );
                 })()}
               </div>
-              <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:12}}>
-                {mainCities.map((c,i)=>(
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+                {mainGrouped.map((grp,gi)=>{ const isOpen=openDepts[grp.dept]??(gi===0); return (
+                <div key={grp.dept} style={{border:"1.5px solid #BBF7D0",borderRadius:10,overflow:"hidden",background:"#fff"}}>
+                  <button onClick={()=>setOpenDepts(p=>({...p,[grp.dept]:!isOpen}))}
+                    style={{width:"100%",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:"#F0FDF4",border:"none",cursor:"pointer",textAlign:"left"}}>
+                    <div style={{fontSize:13,fontWeight:800,color:"#14532D",display:"flex",alignItems:"center",gap:6}}>
+                      <Building2 size={13}/> {grp.dept} <span style={{fontSize:11,fontWeight:600,color:G.green}}>· {grp.cities.length} ville{grp.cities.length>1?"s":""}</span>
+                    </div>
+                    <span style={{fontSize:13,color:G.green,fontWeight:700}}>{isOpen?"▾":"▸"}</span>
+                  </button>
+                  {isOpen&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:5,padding:"8px 10px"}}>
+                {grp.cities.map((c)=>{ const i=c.idx; return (
                   <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:"#fff",borderRadius:10,border:"1.5px solid #BBF7D0"}}>
                     {fraisEditCity?.isMain&&fraisEditCity?.idx===i
                       ? <div style={{display:"flex",gap:5,flex:1,flexWrap:"wrap"}}>
@@ -237,7 +263,11 @@ export const FraisPage = () => {
                         </>
                     }
                   </div>
-                ))}
+                );})}
+                  </div>
+                  )}
+                </div>
+                );})}
                 {mainCities.length===0&&<div style={{fontSize:12,color:G.gray,textAlign:"center",padding:"12px 0",fontStyle:"italic"}}>Aucune ville configurée</div>}
               </div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
