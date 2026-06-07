@@ -3723,6 +3723,14 @@ function AppInner() {
     },
   ];
 
+  // ── Lancement : seul le plan Basic est activable. Les autres plans
+  // (Gratuit, Pro, Scale) sont affichés en "Bientôt disponible" et non
+  // activables (paiement en ligne pas encore prêt). Basic est gratuit pendant
+  // le lancement : activation directe, sans paiement. À rouvrir quand le
+  // paiement sera en place.
+  const PLAN_COMING_SOON = (key) => key !== "basic";
+  const PLAN_LAUNCH_FREE = (key) => key === "basic";
+
   const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
 
   const DISPOSABLE_DOMAINS = ["mailinator.com","guerrillamail.com","tempmail.com","10minutemail.com","throwam.com","yopmail.com","sharklasers.com","guerrillamailblock.com","grr.la","guerrillamail.info","spam4.me","trashmail.com","trashmail.me","trashmail.net","fakeinbox.com","maildrop.cc","dispostable.com","mailnull.com","spamgourmet.com","getairmail.com","filzmail.com","throwam.com","mailnesia.com","meltmail.com","tempr.email","discard.email","spamspot.com","spamevade.com","deadaddress.com","spamfree24.org","mt2015.com","dingbone.com","fudgerub.com","lookugly.com","shitmail.me","tempe-mail.com","temp-mail.org","temp-mail.io"];
@@ -4175,13 +4183,19 @@ function AppInner() {
             <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:6,fontFamily:"sans-serif"}}>Choisis ton plan pour commencer</div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {PLANS.map(p=>(
-              <button key={p.key} onClick={()=>handlePlan(p.key)}
-                style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.18)",borderRadius:14,padding:"16px 18px",cursor:"pointer",textAlign:"left",width:"100%"}}
-                onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.15)"}
-                onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.08)"}>
+            {PLANS.map(p=>{
+              const soon = PLAN_COMING_SOON(p.key);
+              return (
+              <button key={p.key} onClick={soon?undefined:()=>handlePlan(p.key)} disabled={soon}
+                style={{background:"rgba(255,255,255,0.08)",border:`1px solid ${soon?"rgba(255,255,255,0.1)":"rgba(240,165,0,0.5)"}`,borderRadius:14,padding:"16px 18px",cursor:soon?"not-allowed":"pointer",textAlign:"left",width:"100%",opacity:soon?0.5:1}}
+                onMouseEnter={e=>{if(!soon)e.currentTarget.style.background="rgba(255,255,255,0.15)";}}
+                onMouseLeave={e=>{if(!soon)e.currentTarget.style.background="rgba(255,255,255,0.08)";}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                  <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>{p.name}</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <div style={{fontWeight:700,fontSize:16,color:G.gold,fontFamily:"sans-serif"}}>{p.name}</div>
+                    {soon&&<span style={{background:"rgba(255,255,255,0.15)",color:"rgba(255,255,255,0.85)",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5,fontFamily:"sans-serif"}}>BIENTÔT DISPONIBLE</span>}
+                    {!soon&&<span style={{background:G.gold,color:G.dark,borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5,fontFamily:"sans-serif"}}>GRATUIT AU LANCEMENT</span>}
+                  </div>
                   <div style={{fontWeight:700,fontSize:15,color:G.white,fontFamily:"sans-serif"}}>{p.key==="gratuit"?"0":fmtMoney(p.priceNum, currency)} <span style={{fontSize:10,opacity:0.7}}>{cur.short}/mois</span></div>
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:3}}>
@@ -4190,10 +4204,8 @@ function AppInner() {
                   ))}
                 </div>
               </button>
-            ))}
-            <div style={{textAlign:"center",marginTop:4}}>
-              <button onClick={()=>handlePlan("starter")} style={{background:"none",border:"none",color:"rgba(255,255,255,0.4)",fontSize:11,cursor:"pointer",fontFamily:"sans-serif"}}>Essayer gratuitement 14 jours →</button>
-            </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -4958,7 +4970,10 @@ function AppInner() {
                   <div style={{padding:"20px 22px"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
                       <div>
-                        <div style={{fontWeight:800,fontSize:16,color:p.highlight?G.dark:"#FFF",letterSpacing:0.3}}>{p.name}</div>
+                        <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                          <div style={{fontWeight:800,fontSize:16,color:p.highlight?G.dark:"#FFF",letterSpacing:0.3}}>{p.name}</div>
+                          {PLAN_COMING_SOON(p.key)&&<span style={{background:"#9CA3AF",color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:800,letterSpacing:0.5}}>BIENTÔT DISPONIBLE</span>}
+                        </div>
                         <div style={{fontSize:12,color:p.highlight?G.gray:"rgba(255,255,255,0.4)",marginTop:2}}>{p.members} · {p.orders}</div>
                       </div>
                       <div style={{textAlign:"right"}}>
@@ -4986,7 +5001,8 @@ function AppInner() {
                       ))}
                     </div>
 
-                    {/* Code promo — par plan, dans chaque card */}
+                    {/* Code promo — masqué pendant le lancement (Basic gratuit, autres bientôt) */}
+                    {!PLAN_COMING_SOON(p.key) && !PLAN_LAUNCH_FREE(p.key) && (
                     <div style={{marginBottom:12,padding:"8px 10px",border:`1px solid ${promoApplied?G.green:(p.highlight?"#D1D5DB":"rgba(255,255,255,0.15)")}`,borderRadius:10,background:p.highlight?"#FAFAFA":"rgba(0,0,0,0.18)"}}>
                       <div style={{fontSize:10,color:p.highlight?G.gray:"rgba(255,255,255,0.55)",fontWeight:600,marginBottom:5,letterSpacing:0.3}}>🎟 Code promo</div>
                       <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -5006,18 +5022,31 @@ function AppInner() {
                         <div style={{fontSize:10,color:p.highlight?"#DC2626":"#FCA5A5",marginTop:4}}>Code invalide</div>
                       )}
                     </div>
+                    )}
 
+                    {PLAN_COMING_SOON(p.key) ? (
+                      <button disabled
+                        style={{width:"100%",background:p.highlight?"#E5E7EB":"rgba(255,255,255,0.08)",color:p.highlight?"#9CA3AF":"rgba(255,255,255,0.4)",border:"none",borderRadius:11,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"not-allowed",letterSpacing:0.3}}>
+                        Bientôt disponible
+                      </button>
+                    ) : (
                     <button
-                      onClick={()=>startWavePayment(applyPromoDiscount(p.price), p.key)}
-                      disabled={!!payLoading}
-                      style={{width:"100%",background:payLoading===p.key?"#9CA3AF":p.highlight?G.green:"rgba(240,165,0,0.15)",color:p.highlight?"#FFF":G.gold,border:p.highlight?"none":`1px solid ${G.gold}`,borderRadius:11,padding:"13px 0",fontWeight:700,fontSize:14,cursor:payLoading?"not-allowed":"pointer",letterSpacing:0.3}}>
-                      {payLoading===p.key
-                        ? "Connexion Wave..."
-                        : promoApplied
-                          ? `Choisir ${p.name} — ${fmtMoney(applyPromoDiscount(p.price), currency)} ${cur.short} (-${appliedPromo?.discount_pct||0}%)`
-                          : `Choisir ${p.name} — ${p.priceLabel} ${cur.short}`}
+                      onClick={async()=>{
+                        try {
+                          await sbFetch(`organizations?id=eq.${orgId}`,"PATCH",{plan:p.key},_authToken);
+                          setSettings(s=>({...s, plan:p.key}));
+                          setIsPro(true); setTrialDaysLeft(31);
+                          addToast(`Plan ${p.name} activé ✅`,"✅",G.green);
+                        } catch(e) {
+                          addToast("Erreur activation — réessaie","❌","#DC2626");
+                        }
+                      }}
+                      style={{width:"100%",background:p.highlight?G.green:"rgba(240,165,0,0.15)",color:p.highlight?"#FFF":G.gold,border:p.highlight?"none":`1px solid ${G.gold}`,borderRadius:11,padding:"13px 0",fontWeight:700,fontSize:14,cursor:"pointer",letterSpacing:0.3}}>
+                      Activer le plan {p.name} — gratuit
                     </button>
-                    {/* ── Paiement Mobile Money (Intech) ── */}
+                    )}
+                    {/* ── Paiement Mobile Money (Intech) — masqué pendant le lancement ── */}
+                    {!PLAN_COMING_SOON(p.key) && !PLAN_LAUNCH_FREE(p.key) && (
                     <div style={{marginTop:8}}>
                       {intechPanel!==p.key ? (
                         <button onClick={()=>{ setIntechPanel(p.key); setIntechPayState("idle"); }}
@@ -5051,6 +5080,7 @@ function AppInner() {
                         </div>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -5083,7 +5113,7 @@ function AppInner() {
           </div>
           <button onClick={()=>setShowPlanModal(true)}
             style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:8,padding:"5px 14px",fontSize:11,fontWeight:700,cursor:"pointer",flexShrink:0,letterSpacing:0.2}}>
-            {`Passer Pro — ${fmtMoney(20000, currency)} ${cur.short}/mois`}
+            Activer Basic — gratuit
           </button>
         </div>
       )}
@@ -8377,7 +8407,7 @@ function AppInner() {
                   {curPlan.key==="starter"&&!isPro&&(
                     <div style={{background:"#FEF3C7",borderRadius:10,padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                       <span style={{fontSize:12,color:"#92400E",fontWeight:600}}>{trialDaysLeft} jour{trialDaysLeft>1?"s":""} restants</span>
-                      <button onClick={()=>setShowPlanModal(true)} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:7,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Passer Pro</button>
+                      <button onClick={()=>setShowPlanModal(true)} style={{background:"#F0A500",color:"#FFF",border:"none",borderRadius:7,padding:"4px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Activer Basic</button>
                     </div>
                   )}
 
@@ -8753,7 +8783,8 @@ function AppInner() {
                         <div>
                           <div style={{display:"flex",alignItems:"center",gap:8}}>
                             <span style={{fontWeight:800,fontSize:16,color:p.color}}>{p.name}</span>
-                            {p.tag&&<span style={{background:p.color,color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5}}>{p.tag.toUpperCase()}</span>}
+                            {p.tag&&!PLAN_COMING_SOON(p.key)&&<span style={{background:p.color,color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5}}>{p.tag.toUpperCase()}</span>}
+                            {PLAN_COMING_SOON(p.key)&&!isCurrent&&<span style={{background:"#9CA3AF",color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700,letterSpacing:0.5}}>BIENTÔT DISPONIBLE</span>}
                             {isCurrent&&<span style={{background:"#10B981",color:"#FFF",borderRadius:6,padding:"2px 7px",fontSize:9,fontWeight:700}}>ACTUEL</span>}
                           </div>
                           <div style={{fontSize:11,color:G.gray,marginTop:2}}>{p.description}</div>
@@ -8807,7 +8838,7 @@ function AppInner() {
                         </div>
                       )}
                       {/* Code promo — par plan, visible juste avant le bouton d'activation */}
-                      {!isCurrent && isPaidPlan && (
+                      {!isCurrent && isPaidPlan && !PLAN_COMING_SOON(p.key) && !PLAN_LAUNCH_FREE(p.key) && (
                         <div style={{marginTop:10,padding:"8px 10px",border:`1px solid ${promoApplied?G.green:"#E5E7EB"}`,borderRadius:10,background:promoApplied?G.greenLight:"#FAFAFA"}}>
                           <div style={{fontSize:10,color:G.gray,fontWeight:600,marginBottom:5,letterSpacing:0.3}}>🎟 Code promo</div>
                           <div style={{display:"flex",gap:6,alignItems:"center"}}>
@@ -8830,12 +8861,17 @@ function AppInner() {
                       )}
                       {/* Bouton */}
                       {!isCurrent&&(
+                        PLAN_COMING_SOON(p.key) ? (
+                          <button disabled style={{width:"100%",marginTop:10,background:"#E5E7EB",color:"#9CA3AF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"not-allowed",letterSpacing:0.2}}>
+                            Bientôt disponible
+                          </button>
+                        ) : (
                         <button onClick={async()=>{
-                          if(isPaidPlan && !isOwner){
+                          if(isPaidPlan && !isOwner && !PLAN_LAUNCH_FREE(p.key)){
                             startWavePayment(applyPromoDiscount(p.priceNum), p.key);
                             setShowPlanModal(false);
                           } else {
-                            // Mise à jour immédiate locale
+                            // Mise à jour immédiate locale (Basic gratuit au lancement)
                             setSettings(s=>({...s, plan:p.key}));
                             const paidPlans = ["basic","pro","scale"];
                             if(paidPlans.includes(p.key)) setIsPro(true);
@@ -8850,11 +8886,12 @@ function AppInner() {
                             }
                           }
                         }} style={{width:"100%",marginTop:10,background:p.color,color:"#FFF",border:"none",borderRadius:10,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",letterSpacing:0.2}}>
-                          {isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(applyPromoDiscount(p.priceNum), currency)} ${cur.short}` : `Activer le plan ${p.name}`}
+                          {PLAN_LAUNCH_FREE(p.key) ? `Activer le plan ${p.name} — gratuit` : (isPaidPlan && !isOwner ? `Passer au ${p.name} — ${fmtMoney(applyPromoDiscount(p.priceNum), currency)} ${cur.short}` : `Activer le plan ${p.name}`)}
                         </button>
+                        )
                       )}
                       {/* ── Paiement Mobile Money (Intech) — abonnement ── */}
-                      {!isCurrent && isPaidPlan && !isOwner && (
+                      {!isCurrent && isPaidPlan && !isOwner && !PLAN_COMING_SOON(p.key) && !PLAN_LAUNCH_FREE(p.key) && (
                         <div style={{marginTop:8}}>
                           {intechPanel!==p.key ? (
                             <button onClick={()=>{ setIntechPanel(p.key); setIntechPayState("idle"); }}
