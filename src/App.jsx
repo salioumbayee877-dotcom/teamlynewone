@@ -4703,6 +4703,31 @@ function AppInner() {
   const canUseCompta  = isOwner || (isPro && role!=="closer") || (role==="closer" && settings.closerCompta);
   const canUseAI      = isOwner || isPro;
   const canUseExport  = isOwner || ["pro","scale"].includes(currentPlanKey);
+
+  // ── Onboarding : état de la configuration initiale ──
+  // 1) Frais de livraison (obligatoire) 2) Produit (obligatoire pour commandes
+  // manuelles) 3) Boutique connectée (optionnel : Shopify/Woo/YouCan).
+  const fraisConfigured = settings?.zones_configured === true
+    || (mainRegion && (((mainRegion.price||0) > 0) || (mainRegion.cities||[]).length > 0))
+    || (otherRegions||[]).length > 0;
+  const hasProducts = products.some(p=>!p.archived);
+  const boutiqueConnected = orders.some(o=>["shopify","woocommerce","youcan"].includes(o.platform));
+
+  // Ouvre la création de commande manuelle — bloque tant que les frais de
+  // livraison ne sont pas configurés (sinon impossible de calculer l'envoi).
+  const openAddOrder = () => {
+    if(!fraisConfigured){
+      addToast("Configure d'abord tes frais de livraison","🚚","#F59E0B");
+      setTab("frais");
+      return;
+    }
+    if(orderLimitReached){
+      addToast(`Limite ${orderLimit} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");
+      setShowPlanModal(true);
+      return;
+    }
+    setShowAdd(true);
+  };
   const tabDefBase = {
     admin:   [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseCompta?[{k:"caisse",icon:"caisse",l:"Caisse"}]:[]),...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"chat",icon:"chat",l:"Messages"},{k:"stock",icon:"stock",l:"Produits"},{k:"frais",icon:"frais",l:"Frais livraison"}],
     closer:  [{k:"dashboard",icon:"dashboard",l:"Dashboard"},...(canUseShopify?[{k:"boutique",icon:"boutique",l:"Cmdes à confirmer"}]:[]),{k:"commandes",icon:"commandes",l:"Cmdes à traiter"},...(canUseGPS?[{k:"tracking",icon:"tracking",l:"Livreurs"}]:[]),{k:"clients",icon:"clients",l:"Clients"},{k:"stock",icon:"stock",l:"Produits"},{k:"chat",icon:"chat",l:"Équipe Chat"},{k:"equipe",icon:"equipe",l:"Équipe"},...(canUseCompta?[{k:"compta",icon:"compta",l:"Compta"}]:[]),...(canUseCompta?[{k:"caisse",icon:"caisse",l:"Caisse"}]:[])],
@@ -5258,7 +5283,7 @@ function AppInner() {
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           {(role==="admin"||role==="closer")&&tab==="commandes"&&(
             <button
-              onClick={()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); }}
+              onClick={openAddOrder}
               style={{background:orderLimitReached?"rgba(255,255,255,0.15)":G.gold,border:"none",borderRadius:10,padding:"8px 14px",cursor:orderLimitReached?"not-allowed":"pointer",fontWeight:700,fontSize:12,color:orderLimitReached?"rgba(255,255,255,0.6)":G.dark,letterSpacing:0.2,flexShrink:0}}
               title={orderLimitReached?`Limite de ${orderLimit} commandes/mois atteinte`:""}>
               {orderLimitReached?"Limite":"+ Commande"}
@@ -6052,6 +6077,42 @@ function AppInner() {
               </div>
             </div>
 
+            {/* ── Guide de démarrage — s'auto-masque quand l'essentiel est fait ── */}
+            {(!fraisConfigured || !hasProducts) && (()=>{
+              const steps = [
+                {done:fraisConfigured,   n:1, title:"Configurer les frais de livraison", sub:"Indispensable — tarifs d'envoi par ville",     cta:"Configurer", go:()=>setTab("frais"),                       optional:false},
+                {done:hasProducts,       n:2, title:"Ajouter un produit",                sub:"Obligatoire pour les commandes manuelles",     cta:"Ajouter",    go:()=>setTab("stock"),                       optional:false},
+                {done:boutiqueConnected, n:3, title:"Connecter une boutique",            sub:"Optionnel — Shopify, WooCommerce, YouCan",      cta:"Connecter",  go:()=>setTab(canUseShopify?"boutique":"frais"), optional:true},
+              ];
+              const mandatory = steps.filter(s=>!s.optional);
+              const doneCount = mandatory.filter(s=>s.done).length;
+              return (
+                <div style={{background:G.white,borderRadius:16,padding:16,border:`1.5px solid ${G.gold}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <div style={{fontSize:14,fontWeight:800,color:G.dark,display:"flex",alignItems:"center",gap:6}}>🚀 Bien démarrer sur Teamly</div>
+                    <div style={{fontSize:12,fontWeight:700,color:G.green}}>{doneCount}/{mandatory.length}</div>
+                  </div>
+                  <div style={{height:6,background:G.grayLight,borderRadius:6,overflow:"hidden",marginBottom:12}}>
+                    <div style={{height:"100%",width:`${doneCount/mandatory.length*100}%`,background:G.green,transition:"width 0.4s"}}/>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                    {steps.map((s,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",background:s.done?G.greenLight:"#F9FAFB",borderRadius:10,border:`1px solid ${s.done?"#BBF7D0":G.grayLight}`}}>
+                        <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:s.done?G.green:"#FFF",border:s.done?"none":`1.5px solid ${G.gray}`,color:s.done?"#FFF":G.gray,fontSize:12,fontWeight:700}}>
+                          {s.done?<Check size={13}/>:s.n}
+                        </div>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontSize:13,fontWeight:700,color:G.dark}}>{s.title}{s.optional&&<span style={{fontSize:10,color:G.gray,fontWeight:600}}> (optionnel)</span>}</div>
+                          <div style={{fontSize:11,color:G.gray,marginTop:1}}>{s.sub}</div>
+                        </div>
+                        {!s.done&&<button onClick={s.go} style={{flexShrink:0,background:s.optional?"#FFF":G.green,color:s.optional?G.green:"#FFF",border:s.optional?`1.5px solid ${G.green}`:"none",borderRadius:8,padding:"7px 14px",fontSize:12,fontWeight:700,cursor:"pointer"}}>{s.cta}</button>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Aperçu du jour */}
             {(()=>{
               const todayStr = new Date().toISOString().slice(0,10);
@@ -6189,7 +6250,7 @@ function AppInner() {
               <ST><span style={{display:"inline-flex",alignItems:"center",gap:5}}><Zap size={13}/> ACTIONS RAPIDES</span></ST>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
                 {[
-                  {Ico:ShoppingCart,label:orderLimitReached?"Limite atteinte":"+ Commande",action:()=>{ if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte`,"🔒","#DC2626");setShowPlanModal(true);return;} setShowAdd(true); },bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
+                  {Ico:ShoppingCart,label:orderLimitReached?"Limite atteinte":"+ Commande",action:openAddOrder,bg:orderLimitReached?"#FEE2E2":G.greenLight,color:orderLimitReached?G.red:G.green},
                   {Ico:Package,label:"+ Produit",action:()=>setShowAddProd(true),bg:"#EFF6FF",color:G.blue},
                   {Ico:User,label:"Clients",action:()=>setTab("clients"),bg:"#FFF8E7",color:G.gold},
                   {Ico:IcoMap,label:"Tracking",action:()=>setTab("tracking"),bg:"#EDE9FE",color:"#7C3AED"},
@@ -6257,7 +6318,7 @@ function AppInner() {
             </div>
 
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{setTab("commandes");setTimeout(()=>setShowAdd(true),50);}} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Plus size={14}/> Nouvelle commande</button>
+              <button onClick={()=>{ if(!fraisConfigured){addToast("Configure d'abord tes frais de livraison","🚚","#F59E0B");setTab("frais");return;} if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");setShowPlanModal(true);return;} setTab("commandes");setTimeout(()=>setShowAdd(true),50); }} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Plus size={14}/> Nouvelle commande</button>
               <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}><MessageCircle size={14}/> WhatsApp</a>
             </div>
             {pending.length>0&&(
