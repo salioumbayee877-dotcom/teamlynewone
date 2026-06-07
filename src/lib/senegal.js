@@ -63,6 +63,25 @@ export const SENEGAL_CITIES = [
   {city:"Rufisque Nord",department:"Rufisque",region:"Dakar"},{city:"Rufisque Ouest",department:"Rufisque",region:"Dakar"},
   {city:"Bargny",department:"Rufisque",region:"Dakar"},{city:"Diamniadio",department:"Rufisque",region:"Dakar"},
   {city:"Sebikotane",department:"Rufisque",region:"Dakar"},{city:"Sendou",department:"Rufisque",region:"Dakar"},
+  // DAKAR — communes additionnelles (departement de Dakar)
+  {city:"Dakar-Plateau",department:"Dakar",region:"Dakar"},{city:"Parcelles Assainies",department:"Dakar",region:"Dakar"},
+  {city:"Grand Yoff",department:"Dakar",region:"Dakar"},{city:"Patte d'Oie",department:"Dakar",region:"Dakar"},
+  {city:"Hann Bel-Air",department:"Dakar",region:"Dakar"},{city:"Camberene",department:"Dakar",region:"Dakar"},
+  {city:"Mermoz-Sacre-Coeur",department:"Dakar",region:"Dakar"},{city:"Sicap-Liberte",department:"Dakar",region:"Dakar"},
+  {city:"Dieuppeul-Derkle",department:"Dakar",region:"Dakar"},{city:"Colobane",department:"Dakar",region:"Dakar"},
+  {city:"Fass",department:"Dakar",region:"Dakar"},{city:"Gueule Tapee",department:"Dakar",region:"Dakar"},
+  {city:"Point E",department:"Dakar",region:"Dakar"},
+  // GUEDIAWAYE — communes additionnelles
+  {city:"Wakhinane Nimzatt",department:"Guediawaye",region:"Dakar"},{city:"Ndiareme Limamoulaye",department:"Guediawaye",region:"Dakar"},
+  // PIKINE — communes additionnelles
+  {city:"Pikine Sud",department:"Pikine",region:"Dakar"},{city:"Thiaroye Gare",department:"Pikine",region:"Dakar"},
+  {city:"Dalifort",department:"Pikine",region:"Dakar"},{city:"Djidah Thiaroye Kao",department:"Pikine",region:"Dakar"},
+  {city:"Guinaw Rail Nord",department:"Pikine",region:"Dakar"},{city:"Guinaw Rail Sud",department:"Pikine",region:"Dakar"},
+  // RUFISQUE — communes additionnelles
+  {city:"Bambylor",department:"Rufisque",region:"Dakar"},{city:"Yene",department:"Rufisque",region:"Dakar"},
+  {city:"Tivaouane Peulh-Niaga",department:"Rufisque",region:"Dakar"},
+  // KEUR MASSAR — communes additionnelles
+  {city:"Keur Massar Nord",department:"Keur Massar",region:"Dakar"},{city:"Keur Massar Sud",department:"Keur Massar",region:"Dakar"},
   // THIES
   {city:"Thies",department:"Thies",region:"Thies"},{city:"Thies Nord",department:"Thies",region:"Thies"},
   {city:"Thies Est",department:"Thies",region:"Thies"},{city:"Thies Ouest",department:"Thies",region:"Thies"},
