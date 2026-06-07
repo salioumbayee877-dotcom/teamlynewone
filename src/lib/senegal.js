@@ -124,25 +124,99 @@ export const SENEGAL_CITIES = [
 
 export const _findSenCity = t => SENEGAL_CITIES.find(c=>_normCity(c.city)===t);
 
+// ── Matching robuste (aligné sur netlify/functions/lib/matchDeliveryZone.js) ──
+// IMPORTANT : garder cette logique synchronisée avec le matcher serveur
+// (webhooks). Ordre : exact → alias → substring → fuzzy (tokens + fenêtres,
+// similarité ≥ 60%). Permet de reconnaître fautes de frappe, alias, et ville
+// écrite à l'intérieur de l'adresse (et non dans le champ ville).
+const _lev = (a,b) => {
+  const m=a.length, n=b.length; if(!m)return n; if(!n)return m;
+  const dp=[]; for(let i=0;i<=m;i++)dp[i]=[i]; for(let j=0;j<=n;j++)dp[0][j]=j;
+  for(let i=1;i<=m;i++)for(let j=1;j<=n;j++){ dp[i][j]=a[i-1]===b[j-1]?dp[i-1][j-1]:1+Math.min(dp[i-1][j],dp[i][j-1],dp[i-1][j-1]); }
+  return dp[m][n];
+};
+// Normalisation adresse : minuscule, sans accents, ponctuation → espace
+const _normAddr = s => (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9\s]/g," ").replace(/\s+/g," ").trim();
+// Mots vides typiques des adresses COD Sénégal (ignorés au tokenizing)
+const _STOPWORDS = new Set(["rue","avenue","av","bd","boulevard","quartier","cite","villa","appartement","appt","apt","immeuble","residence","near","pres","derriere","devant","face","au","aux","le","la","les","de","du","des","et","ou","en","chez","vers","sur","senegal","sn","dakar","region"]);
+// Tokenise + génère fenêtres de 1 et 2 mots ("grand yoff", "guediawaye nord")
+const _buildCandidates = (normStr) => {
+  const tokens = normStr.split(" ").filter(t=>t.length>=2 && !_STOPWORDS.has(t));
+  const cands = new Set([normStr]); // chaîne complète d'abord
+  for(let i=0;i<tokens.length;i++){ cands.add(tokens[i]); if(i+1<tokens.length)cands.add(tokens[i]+" "+tokens[i+1]); }
+  return [...cands];
+};
+const _fuzzyThreshold = len => len<=3?1 : len<=5?2 : Math.ceil(len*0.4);
+const _MIN_SIM = 0.6; // 60% de similarité minimale
+
+// city peut être une simple ville OU une adresse complète ("pikine rue 10").
 export const detectDeliveryZone = (city, mainZone, others, defaultPrice=3500) => {
-  const t = _normCity(city);
+  const t = _normAddr(city);
   if(!t) return {type:"unknown",price:defaultPrice};
-  // 1. Configured main zone
-  if(mainZone?.cities?.length) { for(const cs of mainZone.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"main",name:mainZone.name,cityName:name,price:price??mainZone.price??defaultPrice}; } }
-  // 2. Configured other regions
-  for(const r of (others||[])) {
+
+  // Liste plate des entrées configurées (zone principale + autres régions)
+  const entries = [];
+  if(mainZone){
+    entries.push({name:mainZone.name, _type:"main", zoneName:mainZone.name, price:mainZone.price??defaultPrice});
+    for(const cs of (mainZone.cities||[])){ const {name,price}=_parseCity(cs); entries.push({name, _type:"main", zoneName:mainZone.name, cityName:name, price:price??mainZone.price??defaultPrice}); }
+    for(const al of (mainZone.aliases||[])){ entries.push({name:al, _type:"main", zoneName:mainZone.name, price:mainZone.price??defaultPrice}); }
+  }
+  for(const r of (others||[])){
     const itb = r.interurbain_price||0;
-    if(_normCity(r.name)===t) return {type:"other",name:r.name,cityName:r.name,price:(r.price??defaultPrice)+itb,fraisLocale:r.price??defaultPrice,interurbain:itb};
-    if(r.cities?.length) { for(const cs of r.cities) { const {name,price}=_parseCity(cs); if(_normCity(name)===t) return {type:"other",name:r.name,cityName:name,price:(price??r.price??defaultPrice)+itb,fraisLocale:price??r.price??defaultPrice,interurbain:itb}; } }
+    entries.push({name:r.name, _type:"other", zoneName:r.name, price:(r.price??defaultPrice)+itb, fraisLocale:r.price??defaultPrice, interurbain:itb});
+    for(const cs of (r.cities||[])){ const {name,price}=_parseCity(cs); entries.push({name, _type:"other", zoneName:r.name, cityName:name, price:(price??r.price??defaultPrice)+itb, fraisLocale:price??r.price??defaultPrice, interurbain:itb}); }
+    for(const al of (r.aliases||[])){ entries.push({name:al, _type:"other", zoneName:r.name, price:(r.price??defaultPrice)+itb, fraisLocale:r.price??defaultPrice, interurbain:itb}); }
   }
-  // 3. Sénégal geographic database — never treat known cities as unknown
-  const sc = _findSenCity(t);
-  if(sc) {
-    const mainNorm = _normCity(mainZone?.name||"");
-    const regNorm  = _normCity(sc.region);
-    const isMain   = mainNorm && (regNorm===mainNorm || regNorm.includes(mainNorm) || mainNorm.includes(regNorm));
-    if(isMain) return {type:"main",name:sc.region,cityName:sc.city,price:mainZone?.price??defaultPrice};
-    return {type:"senegal",name:sc.region,cityName:sc.city,department:sc.department,price:defaultPrice};
+  const mk = e => e._type==="main"
+    ? {type:"main", name:e.zoneName, cityName:e.cityName||e.name, price:e.price}
+    : {type:"other", name:e.zoneName, cityName:e.cityName||e.name, price:e.price, fraisLocale:e.fraisLocale, interurbain:e.interurbain};
+
+  const cands = _buildCandidates(t);
+
+  // 1. Exact / alias
+  for(const cand of cands){ for(const e of entries){ if(_normAddr(e.name)===cand) return mk(e); } }
+
+  // 2. Substring : nom de zone présent comme mot entier dans l'adresse complète
+  let sub=null;
+  for(const e of entries){
+    const n=_normAddr(e.name); if(n.length<4)continue;
+    const re=new RegExp(`(^|\\s)${n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")}(\\s|$)`);
+    if(re.test(t) && (!sub || n.length>sub._len)) sub={...mk(e),_len:n.length};
   }
+  if(sub){ delete sub._len; return sub; }
+
+  // 3. Fuzzy ≥ 60% (tolère les fautes de frappe)
+  let best=null;
+  for(const cand of cands){ if(cand.length<3)continue;
+    for(const e of entries){ const n=_normAddr(e.name); if(n.length<3)continue;
+      const d=_lev(cand,n); if(d>_fuzzyThreshold(n.length))continue;
+      const ratio=1-d/Math.max(n.length,cand.length); if(ratio<_MIN_SIM)continue;
+      if(n[0]!==cand[0]&&ratio<0.75)continue; // anti-faux-positif si 1re lettre ≠
+      if(!best||ratio>best._r) best={...mk(e),_r:ratio};
+    }
+  }
+  if(best){ delete best._r; return best; }
+
+  // 4. Base géographique Sénégal — exact puis fuzzy (jamais "unknown" si ville connue)
+  const mainNorm=_normCity(mainZone?.name||"");
+  const asSen = sc => {
+    const regNorm=_normCity(sc.region);
+    const isMain=mainNorm&&(regNorm===mainNorm||regNorm.includes(mainNorm)||mainNorm.includes(regNorm));
+    return isMain
+      ? {type:"main",name:sc.region,cityName:sc.city,price:mainZone?.price??defaultPrice}
+      : {type:"senegal",name:sc.region,cityName:sc.city,department:sc.department,price:defaultPrice};
+  };
+  for(const cand of cands){ const sc=SENEGAL_CITIES.find(c=>_normAddr(c.city)===cand); if(sc) return asSen(sc); }
+  let scBest=null;
+  for(const cand of cands){ if(cand.length<3)continue;
+    for(const c of SENEGAL_CITIES){ const n=_normAddr(c.city); if(n.length<3)continue;
+      const d=_lev(cand,n); if(d>_fuzzyThreshold(n.length))continue;
+      const ratio=1-d/Math.max(n.length,cand.length); if(ratio<_MIN_SIM)continue;
+      if(n[0]!==cand[0]&&ratio<0.75)continue;
+      if(!scBest||ratio>scBest._r) scBest={c,_r:ratio};
+    }
+  }
+  if(scBest) return asSen(scBest.c);
+
   return {type:"unknown",price:defaultPrice};
 };

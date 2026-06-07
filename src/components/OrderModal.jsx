@@ -23,7 +23,27 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
   const finalPrice = bundleSelected ? bundleSelected.prixVente : (disc>0 ? Math.round(basePrice*(1-disc/100)) : basePrice);
   const fraisZone  = parseInt(newOrder.deliveryFee||0) || newOrder.fraisLiv || prod?.fraisLiv || FRAIS_LIV;
   const margeTotal = prod ? finalPrice - prod.cost*qty - fraisZone : 0;
-  const zoneInfo   = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions, defaultDeliveryPrice);
+  // Reconnaissance sur ville + adresse : la ville est parfois saisie dans le
+  // champ adresse, ou avec une faute de frappe / un alias.
+  const _zoneInput = `${newOrder.city||""} ${newOrder.address||""}`.trim();
+  const zoneInfo   = detectDeliveryZone(_zoneInput, mainRegion, otherRegions, defaultDeliveryPrice);
+  // Auto-remplit le frais + zone dès qu'une ville est reconnue (y compris via
+  // l'adresse), tant que l'admin n'a pas saisi un frais manuel.
+  useEffect(()=>{
+    if(newOrder.deliveryFeeOverridden) return;
+    if(zoneInfo.type==="unknown") return;
+    const autoFee = String(zoneInfo.price);
+    const OTHER = ["en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur"];
+    const MAIN  = ["confirmado","livreur_en_route","colis_pris","en_camino","chez_client"];
+    setNewOrder(p=>{
+      if(p.deliveryFeeOverridden) return p;
+      let ds = p.deliveryStatus;
+      if (zoneInfo.type==="other" && MAIN.includes(ds)) ds = "en_attente_paiement";
+      else if (zoneInfo.type!=="other" && OTHER.includes(ds)) ds = "confirmado";
+      if(p.deliveryFee===autoFee && p.deliveryZoneType===zoneInfo.type && p.deliveryZoneName===(zoneInfo.name||"") && p.deliveryStatus===ds) return p;
+      return {...p, deliveryFee:autoFee, deliveryZoneType:zoneInfo.type, deliveryZoneName:zoneInfo.name||"", deliveryStatus:ds};
+    });
+  },[_zoneInput, newOrder.deliveryFeeOverridden]); // eslint-disable-line react-hooks/exhaustive-deps
   const clientSuggestions = newOrder.phone?.length>=3
     ? [...new Map(orders.filter(o=>o.phone?.includes(newOrder.phone)||o.client?.toLowerCase().includes((newOrder.phone||"").toLowerCase())).map(o=>[o.phone,o])).values()].slice(0,3)
     : [];
@@ -86,7 +106,7 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
               mainRegion={mainRegion} otherRegions={otherRegions}
               defaultDeliveryPrice={defaultDeliveryPrice} G={G} fmt={fmt}
             />
-            {newOrder.city&&(
+            {(newOrder.city||newOrder.address)&&(
               <div style={{marginTop:5}}>
                 {zoneInfo.type==="main"   &&<span style={{background:"#DCFCE7",color:"#166534",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#16a34a" stroke="#16a34a"/> {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}
                 {zoneInfo.type==="other"  &&<span style={{background:"#DBEAFE",color:"#1E40AF",borderRadius:6,padding:"3px 9px",fontSize:11,fontWeight:700,display:"inline-flex",alignItems:"center",gap:4}}><Circle size={10} fill="#2563eb" stroke="#2563eb"/> {zoneInfo.name} · {fmt(zoneInfo.price)} CFA</span>}

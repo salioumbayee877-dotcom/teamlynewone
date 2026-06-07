@@ -3093,8 +3093,10 @@ function AppInner() {
     const _autoLivreurNom = (!newOrder.livreur && _livreurs.length===1) ? _livreurs[0].nom : newOrder.livreur;
     const closerLivId = _autoLivreurNom ? (teamMembers.find(m=>m.nom===_autoLivreurNom)?.id||null) : null;
     const deliveryStatus = newOrder.deliveryStatus;
-    // Zone de livraison : depuis la détection dynamique ou fallback WA_ZONES
-    const _dynZone = detectDeliveryZone(newOrder.city||"", mainRegion, otherRegions, settings.defaultDeliveryPrice||3500);
+    // Zone de livraison : reconnaissance robuste sur ville + adresse (la ville
+    // est parfois saisie dans le champ adresse, ou avec une faute de frappe).
+    const _zoneInput = `${newOrder.city||""} ${newOrder.address||""}`.trim();
+    const _dynZone = detectDeliveryZone(_zoneInput, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500);
     const _deliveryFee = parseInt(newOrder.deliveryFee||0) || (_dynZone.price||FRAIS_LIV);
     const _zoneType = _dynZone.type;
     const _zoneName = _dynZone.name || newOrder.deliveryZoneName || "";
