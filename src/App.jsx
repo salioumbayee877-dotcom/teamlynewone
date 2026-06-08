@@ -5474,8 +5474,9 @@ function AppInner() {
                             })()}
                           </div>
                           <div style={{textAlign:"right",flexShrink:0}}>
-                            <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(o.price).toLocaleString("fr-FR")}</div>
+                            <div style={{fontWeight:800,fontSize:17,color:"#D97706"}}>{Number(totalToPay(o)).toLocaleString("fr-FR")}</div>
                             <div style={{fontSize:10,color:G.gray}}>CFA</div>
+                            {isOtherRegion(o)&&interurbainOf(o)>0&&<div style={{fontSize:9.5,color:G.gray,marginTop:1}}>{fmt(o.price)} + {fmt(interurbainOf(o))} interurbain</div>}
                             <div style={{fontSize:10,color:G.gray,marginTop:4,background:"#FEF3C7",borderRadius:5,padding:"2px 6px",display:"inline-flex",alignItems:"center",gap:4}}><Eye size={11}/> Voir détails</div>
                           </div>
                         </div>
