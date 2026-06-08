@@ -5155,7 +5155,7 @@ function AppInner() {
       {!isDesktop&&sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:200}}/>}
 
       {/* Sidebar */}
-      <div style={{
+      <div className="tl-scroll-dark" style={{
         position:isDesktop?"sticky":"fixed",
         top:0, left:0, bottom:isDesktop?undefined:0,
         width:SIDEBAR_W,
@@ -5179,7 +5179,7 @@ function AppInner() {
         </div>
 
         {/* Nav links */}
-        <div style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
+        <div className="tl-scroll-dark" style={{flex:1,overflowY:"auto",padding:"10px 0"}}>
           {/* Super-admin link — visible uniquement pour le propriétaire */}
           {String(currentUser.email||"").toLowerCase().trim()===OWNER_EMAIL&&(
             <button onClick={()=>{setTab("superadmin");setSidebarOpen(false);}}

@@ -9,3 +9,15 @@ button:active,[role="button"]:active,a:active{opacity:0.7;transform:scale(0.98)}
   *{scrollbar-width:none;-ms-overflow-style:none}
   *::-webkit-scrollbar{display:none}
 }
+@media(min-width:900px){
+  /* Scrollbars fins et discrets au lieu de la barre par défaut du navigateur */
+  *{scrollbar-width:thin;scrollbar-color:rgba(0,0,0,0.18) transparent}
+  *::-webkit-scrollbar{width:8px;height:8px}
+  *::-webkit-scrollbar-track{background:transparent}
+  *::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.18);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+  *::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.32);background-clip:padding-box}
+  /* Sidebar foncé : pouce clair translucide */
+  .tl-scroll-dark{scrollbar-color:rgba(255,255,255,0.25) transparent}
+  .tl-scroll-dark::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.22);border:2px solid transparent;background-clip:padding-box}
+  .tl-scroll-dark::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.4);background-clip:padding-box}
+}
