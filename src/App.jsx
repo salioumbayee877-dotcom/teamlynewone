@@ -2661,7 +2661,10 @@ function AppInner() {
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${sbToken}` }
       })
         .then(r=>r.json())
-        .then(d=>{ if(d?.resynced>0) addToast(`✅ ${d.resynced} commande${d.resynced>1?"s":""} synchronisée${d.resynced>1?"s":""}`,"✅",G.green); })
+        .then(d=>{
+          const n = (d?.resynced||0) + (d?.repriced||0);
+          if(n>0){ addToast(`✅ ${n} commande${n>1?"s":""} mise${n>1?"s":""} à jour`,"✅",G.green); loadMain(); }
+        })
         .catch(()=>{});
     }, 1500);
     return () => clearTimeout(timer);

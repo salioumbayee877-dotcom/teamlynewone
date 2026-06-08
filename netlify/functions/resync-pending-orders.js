@@ -45,21 +45,21 @@ exports.handler = async (event) => {
     const others   = (await othRes.json()) || [];
     const settings = (await setRes.json())?.[0]?.settings || {};
 
-    // 2. Fetch pending orders
+    const regionTypeOf  = (zone) => zone?._type === "other" ? "other" : zone?._type === "main" ? "main" : null;
+    const paymentTypeOf = (rt)   => rt === "other" ? "prepaid" : rt === "main" ? "cod" : null;
+
+    // 2. Fetch pending orders (jamais matchés : awaiting_zone_config / unmatched_zone)
     const pendingRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=in.(awaiting_zone_config,unmatched_zone)&select=id,unmatched_city,unmatched_region,status`, { headers: sbHeaders });
     const pending    = await pendingRes.json();
-    if (!Array.isArray(pending) || pending.length === 0) {
-      return { statusCode: 200, headers, body: JSON.stringify({ ok: true, resynced: 0, total: 0 }) };
-    }
+    const pendingArr = Array.isArray(pending) ? pending : [];
 
-    // 3. Re-match each
+    // 3. Re-match each pending (jamais matché → peut devenir synced)
     let resynced = 0;
-    await Promise.all(pending.map(async (o) => {
+    await Promise.all(pendingArr.map(async (o) => {
       const result = matchDeliveryZone(o.unmatched_city || "", main, others);
       const meta   = deriveSyncStatus(result, main, others, o.unmatched_city, o.unmatched_region, settings);
       if (meta.sync_status === "synced") {
-        const regionType  = result.zone?._type === "other" ? "other" : result.zone?._type === "main" ? "main" : null;
-        const paymentType = regionType === "other" ? "prepaid" : regionType === "main" ? "cod" : null;
+        const regionType  = regionTypeOf(result.zone);
         const patch = {
           sync_status: "synced",
           frais_liv:   meta.frais_liv,
@@ -69,7 +69,7 @@ exports.handler = async (event) => {
           unmatched_city:   null,
           unmatched_region: null,
           region_type:  regionType,
-          payment_type: paymentType,
+          payment_type: paymentTypeOf(regionType),
         };
         // Boutique-imported orders stay in "boutique" until the closer confirms by phone;
         // the region-specific transition (en_attente_paiement vs pendiente) happens at confirmation.
@@ -82,7 +82,46 @@ exports.handler = async (event) => {
       }
     }));
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, resynced, total: pending.length }) };
+    // 4. Re-tarifer les commandes déjà matchées mais PAS encore en livraison
+    // (boutique / à confirmer / à traiter). Quand l'admin change le prix d'une
+    // zone, ces commandes doivent refléter le nouveau tarif. On ne touche jamais :
+    //   - une commande dont le frais a été saisi à la main (delivery_fee_overridden)
+    //   - une commande déjà en cours de livraison ou terminée (frais figé)
+    const REPRICEABLE = ["boutique", "pendiente", "confirmado", "en_attente_paiement"];
+    let repriced = 0;
+    const repRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=eq.synced&status=in.(${REPRICEABLE.join(",")})&select=id,city,frais_liv,delivery_zone_name,delivery_zone_type,region_type,payment_type,delivery_fee_overridden`, { headers: sbHeaders });
+    const repArr = await repRes.json();
+    if (Array.isArray(repArr)) {
+      await Promise.all(repArr.map(async (o) => {
+        if (o.delivery_fee_overridden === true) return;          // frais manuel → on respecte
+        const cityKey = o.city || o.delivery_zone_name || "";
+        if (!cityKey) return;
+        const result = matchDeliveryZone(cityKey, main, others);
+        if (!result || result.matchType === "fallback") return;  // ne match plus → on laisse tel quel
+        const regionType = regionTypeOf(result.zone);
+        const newFee     = result.fee;
+        const newZoneNm  = result.zone?.name || null;
+        // Rien n'a changé → pas d'écriture
+        if (Number(newFee) === Number(o.frais_liv)
+            && newZoneNm === o.delivery_zone_name
+            && regionType === o.delivery_zone_type) return;
+        const patch = {
+          frais_liv:   newFee,
+          delivery_zone_name: newZoneNm,
+          delivery_zone_type: regionType,
+          region_type:  regionType,
+          payment_type: paymentTypeOf(regionType),
+        };
+        await fetch(`${SB_URL}/rest/v1/orders?id=eq.${o.id}`, {
+          method: "PATCH",
+          headers: { ...sbHeaders, Prefer: "return=minimal" },
+          body: JSON.stringify(patch),
+        });
+        repriced++;
+      }));
+    }
+
+    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, resynced, repriced, total: pendingArr.length }) };
   } catch (e) {
     console.error("resync-pending-orders error:", e.message);
     return { statusCode: 500, headers, body: JSON.stringify({ error: "Erreur serveur" }) };
