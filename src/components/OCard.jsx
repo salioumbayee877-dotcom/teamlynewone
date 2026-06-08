@@ -17,7 +17,15 @@ export const OCard = ({ o, showPrendre = false }) => {
     setOpenModifId, setOrderDetail, setWaSentIds, setConflictDelivery, setOrders,
     setLivFinalNote, setLivFinalConfirm, setTransporterModal, setNoteModal, setNoteText, setEditOrder,
     upSt, addToast, togglePin,
+    isOtherRegion, interurbainOf, totalToPay,
   } = useAppContext();
+
+  // Montant que le client doit payer : pour les autres régions on AJOUTE le
+  // transport interurbain au prix produit (la livraison locale est déjà incluse
+  // dans le prix). Zone principale : on affiche le prix tel quel.
+  const _inter = interurbainOf(o);
+  const _total = totalToPay(o);
+  const _hasInter = isOtherRegion(o) && _inter > 0;
 
   // Match product photo by first product name (for thumbnail in card)
   const firstProdName = ((parseProd(o.product)||[])[0]?.name || "").toLowerCase();
@@ -77,7 +85,8 @@ export const OCard = ({ o, showPrendre = false }) => {
             <div style={{fontSize:11,color:"#6B7280",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{prodLine||"—"}{totalQty>1&&<span style={{marginLeft:5,background:"#FEF3C7",color:"#92400E",borderRadius:4,padding:"0 5px",fontSize:10,fontWeight:700,display:"inline-flex",alignItems:"center",gap:3}}><Gift size={10}/> {totalQty}</span>}</div>
           </div>
           <div style={{flexShrink:0,textAlign:"right"}}>
-            <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(o.price)} CFA</div>
+            <div style={{fontWeight:800,fontSize:15,color:G.green,whiteSpace:"nowrap"}}>{fmt(_total)} CFA</div>
+            {_hasInter&&<div style={{fontSize:9.5,color:"#9CA3AF",whiteSpace:"nowrap",marginTop:1}}>{fmt(o.price)} + {fmt(_inter)} interurbain</div>}
             <span style={{display:"inline-block",marginTop:3,background:st.color+"22",color:st.color,borderRadius:20,padding:"1px 8px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>{st.label}</span>
           </div>
         </div>
@@ -158,7 +167,7 @@ export const OCard = ({ o, showPrendre = false }) => {
             {isAdminOrCloser && o.status==="en_attente_paiement" && (()=>{
               const buildMsg = (token) => {
                 const suiviLine = token ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${token}` : "";
-                return `Cher(e) ${o.client} 👋\n\n✅ *Paiement bien reçu — merci !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* encaissé\n📍 Destination : ${o.address||"adresse à confirmer"}\n\n🚌 *Ton colis va voyager avec un transporteur* jusqu'à ta région. Tu pourras le suivre en direct ci-dessous.${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+                return `Cher(e) ${o.client} 👋\n\n✅ *Paiement bien reçu — merci !*\n\n📦 *${o.product}*\n💰 *${fmt(_total)} CFA* encaissé${_hasInter?` _(produit ${fmt(o.price)} + transport ${fmt(_inter)})_`:""}\n📍 Destination : ${o.address||"adresse à confirmer"}\n\n🚌 *Ton colis va voyager avec un transporteur* jusqu'à ta région. Tu pourras le suivre en direct ci-dessous.${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
               };
               const confirmAndWA = async () => {
                 upSt(o.id,"paiement_confirme");
@@ -194,7 +203,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                 }
                 if(!token){ return; }
                 const payLink = `https://www.teamlyecom.com/pay/${token}`;
-                const msg = `Bonjour ${o.client} 👋\n\n📦 Pour confirmer ta commande *${o.product}*, paie *${fmt(o.price)} CFA* via Wave en cliquant ci-dessous :\n\n💳 ${payLink}\n\n👉 Saisis exactement *${fmt(o.price)} CFA* dans Wave.\nUne fois payé, on confirme ta commande sous quelques minutes 🚀\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
+                const msg = `Bonjour ${o.client} 👋\n\n📦 Pour confirmer ta commande *${o.product}*, paie *${fmt(_total)} CFA* via Wave en cliquant ci-dessous :\n\n💳 ${payLink}\n${_hasInter?`\n_(produit ${fmt(o.price)} + transport interurbain ${fmt(_inter)})_\n`:""}\n👉 Saisis exactement *${fmt(_total)} CFA* dans Wave.\nUne fois payé, on confirme ta commande sous quelques minutes 🚀\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
                 const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank","noopener,noreferrer");
               };

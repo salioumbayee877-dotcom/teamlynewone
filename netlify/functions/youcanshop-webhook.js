@@ -178,7 +178,7 @@ exports.handler = async (event) => {
     const rawProductName = rawProduct;
 
     // ── Delivery zone matching ──────────────────────────────────────────
-    let fraisAmount = 0, matchType = "fallback", matchedZone = null, matchedCity = null;
+    let fraisAmount = 0, matchType = "fallback", matchedZone = null, matchedCity = null, interurbainFee = 0;
     let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
       const [mainRes, othRes, setRes] = await Promise.all([
@@ -194,6 +194,7 @@ exports.handler = async (event) => {
       matchType      = result.matchType;
       matchedZone    = result.zone;
       matchedCity    = result.matchedCity || null;
+      interurbainFee = result.interurbain || 0;
       syncMeta       = deriveSyncStatus(result, main, others, citySearch, provinceForMeta, settings, { isDakar: cityIsDakar || matchedZone?._type === "main" });
     } catch(e) { console.error("Zone matching error:", e.message); }
     const regionType  = matchedZone?._type === "other" ? "other" : matchedZone?._type === "main" ? "main" : null;
@@ -212,7 +213,7 @@ exports.handler = async (event) => {
     const res = await fetch(`${SB_URL}/rest/v1/orders`, {
       method: "POST",
       headers: { ...sbHeaders, Prefer: "return=representation" },
-      body: JSON.stringify({ tracking_token: require('crypto').randomUUID(), org_id:orgId, client:clientName, phone, address, city: matchedCity || matchedZone?.name || city || null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType, total_discount:totalDiscount, items_count:itemsForDb.length||1 }),
+      body: JSON.stringify({ tracking_token: require('crypto').randomUUID(), org_id:orgId, client:clientName, phone, address, city: matchedCity || matchedZone?.name || city || null, delivery_zone_name:matchedZone?.name||null, delivery_zone_type:regionType, product:finalProduct, price, status:"boutique", note, archived:false, is_bundle:totalQty>1||items.length>1, frais_liv:syncMeta.frais_liv, interurbain_fee: regionType==="other"?interurbainFee:0, livreur:autoLivreurNom, livreur_id:autoLivreurId, closer:null, closer_id:null, sync_status:syncMeta.sync_status, unmatched_city:syncMeta.unmatched_city, unmatched_region:syncMeta.unmatched_region, platform:"youcan", region_type:regionType, payment_type:paymentType, total_discount:totalDiscount, items_count:itemsForDb.length||1 }),
     });
 
     if (!res.ok) {

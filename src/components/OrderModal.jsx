@@ -262,13 +262,20 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
         {/* WhatsApp — Aperçu + Template éditable */}
         {(()=>{
           const hasData = newOrder.client||newOrder.phone||newOrder.product;
-          const previewMsg = waTemplate
+          const _pvPrice = prod ? prod.price*parseInt(newOrder.qty||1) : 0;
+          const _pvInter = zoneInfo.type==="other" ? (parseInt(zoneInfo.interurbain)||0) : 0;
+          const _pvTotal = _pvPrice + _pvInter;
+          let previewMsg = waTemplate
             .replace(/{client}/g, newOrder.client||"[Nom client]")
             .replace(/{produit}/g, newOrder.product||"[Produit]")
-            .replace(/{prix}/g, prod?(prod.price*parseInt(newOrder.qty||1)).toLocaleString("fr-FR"):"[Prix]")
+            .replace(/{prix}/g, prod?_pvPrice.toLocaleString("fr-FR"):"[Prix]")
             .replace(/{adresse}/g, newOrder.address||"[Adresse]")
             .replace(/{boutique}/g, boutique||"Teamly")
-            .replace(/{livreur}/g, newOrder.livreur||"notre livreur");
+            .replace(/{livreur}/g, newOrder.livreur||"notre livreur")
+            .replace(/{interurbain}/g, _pvInter.toLocaleString("fr-FR"))
+            .replace(/{total}/g, _pvTotal.toLocaleString("fr-FR"));
+          if(_pvInter>0 && !waTemplate.includes("{total}"))
+            previewMsg = previewMsg + `\n🚚 Transport interurbain : ${_pvInter.toLocaleString("fr-FR")} CFA\n💰 Total à payer : ${_pvTotal.toLocaleString("fr-FR")} CFA`;
           return (
             <div style={{marginBottom:12}}>
               {/* Toggle aperçu */}
@@ -293,7 +300,7 @@ export function OrderModal({products, orders, newOrder, setNewOrder, addOrder, o
 
                   {/* Variables disponibles */}
                   <div style={{fontSize:10,color:G.gray,marginBottom:8}}>
-                    Variables disponibles : <span style={{color:"#7C3AED",fontWeight:600}}>{"{client}"} {"{produit}"} {"{prix}"} {"{adresse}"} {"{boutique}"} {"{livreur}"}</span>
+                    Variables disponibles : <span style={{color:"#7C3AED",fontWeight:600}}>{"{client}"} {"{produit}"} {"{prix}"} {"{adresse}"} {"{boutique}"} {"{livreur}"} {"{interurbain}"} {"{total}"}</span>
                   </div>
 
                   {/* Éditeur de template */}

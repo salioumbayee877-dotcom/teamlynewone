@@ -404,6 +404,21 @@ const LIV_ACTIVE = new Set([
 ]);
 const LIV_FINAL  = new Set(["entregado","rechazado","remis_transporteur"]);
 
+// Bloc "transport interurbain + total" pour le message WhatsApp client.
+// Hors zone principale, le transport interurbain s'AJOUTE au prix produit
+// (la livraison locale est déjà incluse dans le prix). Retourne le total et
+// un bloc texte (vide si pas d'interurbain) à coller dans le message.
+const _waTotalBlock = (price, inter) => {
+  const i = Math.max(0, Number(inter) || 0);
+  const total = (Number(price) || 0) + i;
+  const block = i > 0
+    ? `\n🚚 Transport interurbain : ${i.toLocaleString("fr-FR")} CFA\n💰 *Total à payer : ${total.toLocaleString("fr-FR")} CFA*`
+    : "";
+  return { total, inter: i, block };
+};
+const _orderInterurbain = (o) => (o?.region_type === "other" || o?.delivery_zone_type === "other")
+  ? (Number(o?.interurbain_fee ?? o?.interurbainFee) || 0) : 0;
+
 const INIT_PRODUCTS = [
   {id:1,name:"Chaussures Nike",cost:7000, price:25000,stock:42,fraisLiv:1500,niche:"Mode & Chaussures",
    bundles:[
@@ -1301,6 +1316,9 @@ function AppInner() {
       .replace("{prix}", Number(order.price).toLocaleString("fr-FR"))
       .replace("{adresse}", order.address||"")
       .replace("{boutique}", settings.boutique||"Teamly");
+    const _tb = _waTotalBlock(order.price, _orderInterurbain(order));
+    msg = msg.replace(/{interurbain}/g, _tb.inter.toLocaleString("fr-FR")).replace(/{total}/g, _tb.total.toLocaleString("fr-FR"));
+    if(_tb.block && !waTemplate.includes("{total}")) msg = msg + _tb.block;
     // If user added {suivi} placeholder, replace it; otherwise append at the end
     if(msg.includes("{suivi}")) msg = msg.replace("{suivi}", trackingLink);
     else msg = msg + suiviLine;
@@ -2248,7 +2266,7 @@ function AppInner() {
     if(!sbReady||!orgId) return;
     console.log("[TEAMLY DEBUG][MOUNT] sbReady=true orgId="+orgId+" _authToken="+(_authToken?_authToken.slice(0,20)+"...":"NULL")+" filterDate="+filterDate+" filterStatus="+filterStatus);
 
-    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden,region_type:o.region_type,payment_type:o.payment_type}));
+    const mapOrders = (ords) => ords.map(o=>({...o,isBundle:o.is_bundle,fraisLiv:o.frais_liv,interurbainFee:o.interurbain_fee,closer_id:o.closer_id,livreur_id:o.livreur_id,deliveryZoneType:o.delivery_zone_type,deliveryZoneName:o.delivery_zone_name,deliveryFee:o.delivery_fee,deliveryFeeOverridden:o.delivery_fee_overridden,region_type:o.region_type,payment_type:o.payment_type}));
     const mapProds  = (prods) => prods.map(p=>({...p,fraisLiv:p.frais_liv,fraisLivExtra:p.frais_liv_extra,stockInitial:p.stock_initial}));
     const mapMsgs   = (msgs) => msgs.map(m=>{
       const t=m.text||"";
@@ -3107,7 +3125,10 @@ function AppInner() {
     const _zoneOverridden = newOrder.deliveryFeeOverridden || false;
     const _regionType  = _zoneType === "other" ? "other" : _zoneType === "main" ? "main" : null;
     const _paymentType = _regionType === "other" ? "prepaid" : _regionType === "main" ? "cod" : null;
-    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:_autoLivreurNom||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,region_type:_regionType,payment_type:_paymentType,created_at:new Date().toISOString()};
+    // Transport interurbain : seulement hors zone principale. La livraison locale
+    // est déjà incluse dans le prix produit, donc on ne porte que l'interurbain.
+    const _interurbain = _regionType === "other" ? (parseInt(_dynZone.interurbain)||0) : 0;
+    const order = {id:tempId,client:newOrder.client,phone:newOrder.phone,address:newOrder.address,city:newOrder.city||"",product:productLabel,price,status:deliveryStatus,livreur:_autoLivreurNom||null,livreur_id:closerLivId,closer:role==="closer"?currentUser.nom:null,closer_id:role==="closer"?currentUser.id:null,note:"",isBundle:!!bund,deliveryZoneType:_zoneType,deliveryZoneName:_zoneName,deliveryFee:_deliveryFee,deliveryFeeOverridden:_zoneOverridden,region_type:_regionType,payment_type:_paymentType,interurbainFee:_interurbain,interurbain_fee:_interurbain,created_at:new Date().toISOString()};
     setOrders(o=>[...o,order]);
     pendingOrderUpdates.current[tempId] = Date.now();
     // Auto-save unknown city with manually-entered fee for future autocomplete
@@ -3118,7 +3139,7 @@ function AppInner() {
         .catch(()=>{});
     }
     if(orgId) {
-      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||null,delivery_zone_name:order.deliveryZoneName||null,delivery_zone_type:order.deliveryZoneType||null,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,archived:false,region_type:_regionType,payment_type:_paymentType,tracking_token:(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():null})
+      sbFetch("orders","POST",{org_id:orgId,client:order.client,phone:order.phone,address:order.address,city:order.city||null,delivery_zone_name:order.deliveryZoneName||null,delivery_zone_type:order.deliveryZoneType||null,product:order.product,price:order.price,status:order.status,livreur:order.livreur||null,livreur_id:order.livreur_id||null,closer:order.closer||null,closer_id:order.closer_id||null,note:order.note||"",is_bundle:order.isBundle||false,frais_liv:_deliveryFee,interurbain_fee:_interurbain,archived:false,region_type:_regionType,payment_type:_paymentType,tracking_token:(typeof crypto!=="undefined"&&crypto.randomUUID)?crypto.randomUUID():null})
         .then(res=>{
           const saved = Array.isArray(res)?res[0]:res;
           if(saved?.id) {
@@ -3190,6 +3211,9 @@ function AppInner() {
           .replace(/{adresse}/g, newOrder.address||"")
           .replace(/{boutique}/g, settings.boutique||"Teamly")
           .replace(/{livreur}/g, _autoLivreurNom||"notre livreur");
+        const _tb = _waTotalBlock(price, _regionType==="other" ? _interurbain : 0);
+        msg = msg.replace(/{interurbain}/g, _tb.inter.toLocaleString("fr-FR")).replace(/{total}/g, _tb.total.toLocaleString("fr-FR"));
+        if(_tb.block && !waTemplate.includes("{total}")) msg = msg + _tb.block;
         if(msg.includes("{suivi}")) msg = msg.replace(/{suivi}/g, trackingLink);
         else if(trackingLink) msg = msg + suiviLine;
         return `https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`;
@@ -4802,6 +4826,13 @@ function AppInner() {
     return { fee: def, label: `${fmt(def)} F`, warning: true };
   };
 
+  // Transport interurbain porté par la commande : seulement hors zone principale.
+  // Le total que le client doit payer = prix produit + interurbain (la livraison
+  // locale est déjà incluse dans le prix produit). Zone principale → ajout = 0.
+  const isOtherRegion = (o) => o?.region_type === "other" || o?.delivery_zone_type === "other";
+  const interurbainOf = (o) => isOtherRegion(o) ? (Number(o.interurbain_fee ?? o.interurbainFee) || 0) : 0;
+  const totalToPay    = (o) => (Number(o.price) || 0) + interurbainOf(o);
+
   // Open Frais de livraison + persist the dismiss so warnings never come back
   // (banner + per-order ⚠️) until admin actually configures zones (which would
   // flip zones_configured anyway).
@@ -4942,6 +4973,7 @@ function AppInner() {
     setFraisTableauSearch, setFraisTableauFilter, setFraisTestCity,
     setTab,
     upSt, addToast, togglePin,
+    isOtherRegion, interurbainOf, totalToPay,
   };
 
   return (
@@ -9247,7 +9279,13 @@ function AppInner() {
               <button onClick={async()=>{
                 const _fl=parseFloat(editOrder.fraisLiv)||editOrder.fraisLiv;
                 const id=editOrder.id;
-                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:_fl,deliveryFee:_fl};
+                // Recalcule la région + le transport interurbain depuis la ville
+                // (éventuellement modifiée) pour que le total client reste juste.
+                const _ez=detectDeliveryZone(editOrder.city||"",mainRegion,otherRegions,settings.defaultDeliveryPrice||3500);
+                const _eRegion=(_ez.type==="other"||_ez.type==="main")?_ez.type:(editOrder.region_type||(editOrder.deliveryZoneType==="other"?"other":editOrder.deliveryZoneType==="main"?"main":null));
+                const _eInter=_eRegion==="other"?(parseInt(_ez.interurbain)||Number(editOrder.interurbain_fee ?? editOrder.interurbainFee)||0):0;
+                const _ePayment=_eRegion==="other"?"prepaid":_eRegion==="main"?"cod":null;
+                const updated={...editOrder,price:parseInt(editOrder.price)||editOrder.price,fraisLiv:_fl,deliveryFee:_fl,region_type:_eRegion,payment_type:_ePayment,interurbain_fee:_eInter,interurbainFee:_eInter};
                 const prevOrders=orders;
                 setOrders(o=>o.map(x=>x.id===id?{...x,...updated}:x));
                 setEditOrder(null);
@@ -9258,6 +9296,7 @@ function AppInner() {
                       client:updated.client,phone:updated.phone,address:updated.address,
                       city:updated.city||null,delivery_zone_name:updated.deliveryZoneName||null,delivery_zone_type:updated.deliveryZoneType||null,
                       product:updated.product,price:updated.price,frais_liv:_fl||null,
+                      region_type:_eRegion,payment_type:_ePayment,interurbain_fee:_eInter,
                       status:updated.status,livreur:updated.livreur||null,livreur_id:updated.livreur_id||null,note:updated.note||""
                     });
                     addToast("Commande mise à jour ✓","✅",G.green);
@@ -9581,8 +9620,9 @@ function AppInner() {
                           {isMulti&&<span style={{marginLeft:6,background:"#FEF3C7",color:"#92400E",borderRadius:6,padding:"1px 8px",fontSize:10,fontWeight:800}}>BUNDLE · {tot} articles</span>}
                         </div>
                         <div style={{textAlign:"right"}}>
-                          <div style={{fontSize:10,color:G.gray}}>Montant COD</div>
-                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(o.price).toLocaleString("fr-FR")} CFA</div>
+                          <div style={{fontSize:10,color:G.gray}}>{isOtherRegion(o)?"Total à payer":"Montant COD"}</div>
+                          <div style={{fontSize:20,fontWeight:800,color:G.green}}>{Number(totalToPay(o)).toLocaleString("fr-FR")} CFA</div>
+                          {isOtherRegion(o)&&interurbainOf(o)>0&&<div style={{fontSize:10,color:G.gray,marginTop:1}}>{fmt(o.price)} + {fmt(interurbainOf(o))} interurbain</div>}
                         </div>
                       </div>
                       {items.map((p,pi)=>(
@@ -9631,10 +9671,30 @@ function AppInner() {
                           <span style={{fontSize:11,fontWeight:700,color:"#5B21B6"}}>Mode de paiement : {pm}</span>
                         </div> : null;
                       })()}
+                      {isOtherRegion(o) ? (()=>{
+                        const inter = interurbainOf(o);
+                        return (<>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
+                            <span>Produit <span style={{fontSize:10,color:"#9CA3AF"}}>(livraison locale incluse)</span></span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:G.gray,marginTop:3,gap:8}}>
+                            <span>Transport interurbain</span>
+                            <span style={{display:"flex",alignItems:"center",gap:6}}>
+                              <span style={{fontWeight:600,color:z.color}}>+ {fmt(inter)} CFA</span>
+                              {inter===0&&<>
+            <span style={{color:G.gold,fontSize:11,display:"inline-flex",alignItems:"center",gap:3}}><AlertTriangle size={11}/> à config.</span>
+                                <button onClick={()=>openFraisAndDismiss()} title="Configurer le transport interurbain" style={{background:G.gold,color:"#fff",border:"none",borderRadius:6,padding:"3px 8px",fontSize:11,fontWeight:700,cursor:"pointer"}}>⚙️</button>
+                              </>}
+                            </span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",fontSize:13,fontWeight:800,marginTop:6,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
+                            <span style={{color:G.dark}}>Total à payer</span><span style={{color:G.green}}>{Number(totalToPay(o)).toLocaleString("fr-FR")} CFA</span>
+                          </div>
+                        </>);
+                      })() : (()=>{const f=fraisDisplay(o);return(<>
                       <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:G.gray,paddingTop:6,borderTop:"1px solid #E2E8F0"}}>
                         <span>Produit COD</span><span style={{fontWeight:600,color:G.dark}}>{Number(o.price).toLocaleString("fr-FR")} CFA</span>
                       </div>
-                      {(()=>{const f=fraisDisplay(o);return(<>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12,color:G.gray,marginTop:3,gap:8}}>
                         <span>Frais livraison {z.prepaid?"(prépayé)":""}</span>
                         <span style={{display:"flex",alignItems:"center",gap:6}}>
@@ -10191,6 +10251,9 @@ function AppInner() {
                   .replace(/{adresse}/g, o.address||"")
                   .replace(/{boutique}/g, settings.boutique||"Teamly")
                   .replace(/{livreur}/g,  assignSelLiv?.nom||"notre livreur");
+                const _tb = _waTotalBlock(o.price, _orderInterurbain(o));
+                msg = msg.replace(/{interurbain}/g, _tb.inter.toLocaleString("fr-FR")).replace(/{total}/g, _tb.total.toLocaleString("fr-FR"));
+                if(_tb.block && !waTemplate.includes("{total}")) msg = msg + _tb.block;
                 if(msg.includes("{suivi}")) msg = msg.replace(/{suivi}/g, trackingLink);
                 else if(trackingLink) msg = msg + suiviLine;
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank");

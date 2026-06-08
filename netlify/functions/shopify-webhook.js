@@ -113,7 +113,7 @@ exports.handler = async (event) => {
       return { statusCode: 200, headers, body: JSON.stringify({ success: true, ref: shopifyRef, skipped: true }) };
 
     // ── Delivery zone matching ────────────────────────────────────────────
-    let fraisAmount = 0, matchType = "fallback", matchedZone = null, matchedCity = null;
+    let fraisAmount = 0, matchType = "fallback", matchedZone = null, matchedCity = null, interurbainFee = 0;
     let syncMeta = { sync_status: "unmatched_zone", frais_liv: null, unmatched_city: city || null, unmatched_region: provinceForMeta };
     try {
       const [mainRes, othRes, setRes] = await Promise.all([
@@ -129,6 +129,7 @@ exports.handler = async (event) => {
       matchType      = result.matchType;
       matchedZone    = result.zone;
       matchedCity    = result.matchedCity || null;
+      interurbainFee = result.interurbain || 0;
       syncMeta       = deriveSyncStatus(result, main, others, citySearch, provinceForMeta, settings, { isDakar: cityIsDakar || matchedZone?._type === "main" });
     } catch(e) { console.error("Zone matching error:", e.message); }
 
@@ -232,6 +233,7 @@ exports.handler = async (event) => {
         note, archived: false,
         is_bundle: totalQty > 1 || lineItems.length > 1,
         frais_liv: syncMeta.frais_liv,
+        interurbain_fee: regionType === "other" ? interurbainFee : 0,
         livreur: autoLivreurNom, livreur_id: autoLivreurId, closer: null, closer_id: null,
         sync_status: syncMeta.sync_status,
         unmatched_city:   syncMeta.unmatched_city,

@@ -63,6 +63,7 @@ exports.handler = async (event) => {
         const patch = {
           sync_status: "synced",
           frais_liv:   meta.frais_liv,
+          interurbain_fee: regionType === "other" ? (result.interurbain || 0) : 0,
           city:        result.matchedCity || result.zone?.name || o.unmatched_city || null,
           delivery_zone_name: result.zone?.name || null,
           delivery_zone_type: regionType,
@@ -89,7 +90,7 @@ exports.handler = async (event) => {
     //   - une commande déjà en cours de livraison ou terminée (frais figé)
     const REPRICEABLE = ["boutique", "pendiente", "confirmado", "en_attente_paiement"];
     let repriced = 0;
-    const repRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=eq.synced&status=in.(${REPRICEABLE.join(",")})&select=id,city,frais_liv,delivery_zone_name,delivery_zone_type,region_type,payment_type,delivery_fee_overridden`, { headers: sbHeaders });
+    const repRes = await fetch(`${SB_URL}/rest/v1/orders?org_id=eq.${orgId}&sync_status=eq.synced&status=in.(${REPRICEABLE.join(",")})&select=id,city,frais_liv,interurbain_fee,delivery_zone_name,delivery_zone_type,region_type,payment_type,delivery_fee_overridden`, { headers: sbHeaders });
     const repArr = await repRes.json();
     if (Array.isArray(repArr)) {
       await Promise.all(repArr.map(async (o) => {
@@ -101,12 +102,15 @@ exports.handler = async (event) => {
         const regionType = regionTypeOf(result.zone);
         const newFee     = result.fee;
         const newZoneNm  = result.zone?.name || null;
+        const newInter   = regionType === "other" ? (result.interurbain || 0) : 0;
         // Rien n'a changé → pas d'écriture
         if (Number(newFee) === Number(o.frais_liv)
             && newZoneNm === o.delivery_zone_name
-            && regionType === o.delivery_zone_type) return;
+            && regionType === o.delivery_zone_type
+            && Number(newInter) === Number(o.interurbain_fee || 0)) return;
         const patch = {
           frais_liv:   newFee,
+          interurbain_fee: newInter,
           delivery_zone_name: newZoneNm,
           delivery_zone_type: regionType,
           region_type:  regionType,
