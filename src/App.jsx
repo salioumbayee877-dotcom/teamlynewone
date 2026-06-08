@@ -4858,9 +4858,10 @@ function AppInner() {
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
     const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START) || (filterDate==="month"&&d>=MONTH_START);
     if(role==="livreur") {
-      // Pedidos hors zone principale: visibles de paiement_confirme à remis_transporteur (livreur garde la trace)
+      // Pedidos hors zone principale: visibles de paiement_confirme jusqu'à l'état final
+      // (intermédiaires + résultats finaux), pour que le livreur garde la trace de la livraison terminée
       if(o.region_type==="other") {
-        const VISIBLE_OTHER = new Set(["paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur"]);
+        const VISIBLE_OTHER = new Set(["paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur","entregado","rechazado","no_contesta","reprogramar"]);
         if(!VISIBLE_OTHER.has(o.status)) return false;
       }
       const hasResult  = livResultFilter.length>0;
