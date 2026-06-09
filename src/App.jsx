@@ -9153,11 +9153,21 @@ function AppInner() {
               </div>
             </a>
 
-            {/* Option 2 — Copier le message */}
+            {/* Option 2 — Envoyer par SMS (numéros sans WhatsApp) */}
+            <a href={(()=>{ try{ const u=new URL(waUrl); const num=u.pathname.replace(/\D/g,""); const text=u.searchParams.get("text")||""; return `sms:${num?`+${num}`:""}?body=${encodeURIComponent(text)}`; }catch(_){ return "#"; } })()}
+              style={{display:"flex",alignItems:"center",gap:10,background:G.green,color:G.white,borderRadius:12,padding:"13px 16px",textDecoration:"none",fontWeight:700,fontSize:14,marginBottom:10}}>
+              <span style={{fontSize:22}}>✉️</span>
+              <div>
+                <div>Envoyer par SMS</div>
+                <div style={{fontSize:10,fontWeight:400,opacity:0.85}}>Pour les numéros sans WhatsApp</div>
+              </div>
+            </a>
+
+            {/* Option 3 — Copier le message */}
             <button onClick={()=>{
               const text = new URL(waUrl).searchParams.get("text")||"";
               navigator.clipboard?.writeText(decodeURIComponent(text))
-                .then(()=>alert("✅ Message copié ! Colle-le dans WhatsApp."))
+                .then(()=>alert("✅ Message copié ! Colle-le dans WhatsApp ou SMS."))
                 .catch(()=>alert("Copie manuelle:\n\n"+decodeURIComponent(new URL(waUrl).searchParams.get("text")||"")));
             }} style={{width:"100%",background:"#F0FDF4",color:G.green,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:10}}>
               📋 Copier le message
