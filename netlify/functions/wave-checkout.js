@@ -54,7 +54,9 @@ exports.handler = async (event) => {
     }
 
     const data = await res.json();
-    return { statusCode: 200, headers, body: JSON.stringify({ url: data.wave_launch_url }) };
+    // Return the session id so the client can pass it back on success, where
+    // wave-success will mandatorily verify it (SEC-4).
+    return { statusCode: 200, headers, body: JSON.stringify({ url: data.wave_launch_url, sessionId: data.id }) };
   } catch (e) {
     console.error("wave-checkout error:", e.message);
     return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };

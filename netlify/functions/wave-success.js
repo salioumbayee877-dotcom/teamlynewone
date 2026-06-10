@@ -43,21 +43,62 @@ exports.handler = async (event) => {
       return { statusCode: 403, headers, body: JSON.stringify({ error: "Réservé à l'admin de l'organisation" }) };
     }
 
-    // Verify payment with Wave API if sessionId provided (best-effort)
-    if (WAVE_API_KEY && sessionId) {
-      const check = await fetch(`https://api.wave.com/v1/checkout/sessions/${sessionId}`, {
-        headers: { "Authorization": `Bearer ${WAVE_API_KEY}` },
-      });
-      if (!check.ok) {
-        return { statusCode: 402, headers, body: JSON.stringify({ error: "Vérification paiement échouée" }) };
-      }
-      const session = await check.json();
-      if (session.payment_status !== "succeeded") {
-        return { statusCode: 402, headers, body: JSON.stringify({ error: "Paiement non confirmé" }) };
-      }
+    const validPlan = ["basic","pro","scale"].includes(plan) ? plan : "pro";
+
+    // ── SEC-4: payment verification is MANDATORY (no skip path) ───────────
+    if (!WAVE_API_KEY) {
+      console.error("wave-success: WAVE_API_KEY non configurée — activation refusée");
+      return { statusCode: 500, headers, body: JSON.stringify({ error: "Vérification paiement indisponible" }) };
+    }
+    if (!sessionId) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: "Référence de paiement manquante" }) };
     }
 
-    const validPlan = ["pro","scale"].includes(plan) ? plan : "pro";
+    const check = await fetch(`https://api.wave.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}`, {
+      headers: { "Authorization": `Bearer ${WAVE_API_KEY}` },
+    });
+    if (!check.ok) {
+      return { statusCode: 402, headers, body: JSON.stringify({ error: "Vérification paiement échouée" }) };
+    }
+    const session = await check.json();
+
+    // 1) Must be a succeeded payment.
+    if (session.payment_status !== "succeeded") {
+      return { statusCode: 402, headers, body: JSON.stringify({ error: "Paiement non confirmé" }) };
+    }
+    // 2) The session must belong to THIS org (wave-checkout sets client_reference = orgId).
+    if (session.client_reference !== orgId) {
+      console.warn("wave-success: client_reference mismatch", { sessionId, expected: orgId, got: session.client_reference });
+      return { statusCode: 403, headers, body: JSON.stringify({ error: "Ce paiement n'appartient pas à votre organisation" }) };
+    }
+    // 3) Amount paid must cover the server-side plan price (minus any legitimate discount).
+    const PLAN_BASE_PRICE = { basic: 13000, pro: 20000, scale: 36000 };
+    const basePrice = PLAN_BASE_PRICE[validPlan] || 0;
+    let discountPct = 0;
+    // Referral: filleul gets up to 30% off the first payment.
+    if (refCode || amount != null) {
+      try {
+        const ref = await fetch(`${SB_URL}/rest/v1/referrals?referred_org_id=eq.${orgId}&status=in.(pending,converted)&select=id&limit=1`, { headers: sbHeaders });
+        const refRows = await ref.json().catch(() => []);
+        if (Array.isArray(refRows) && refRows[0]) discountPct = Math.max(discountPct, 30);
+      } catch (e) { /* ignore — no discount credited */ }
+    }
+    // Promo code: use its configured discount_percentage if it exists.
+    if (promoCode) {
+      try {
+        const code = String(promoCode).toUpperCase().trim();
+        const pr = await fetch(`${SB_URL}/rest/v1/promo_codes?code=eq.${encodeURIComponent(code)}&select=discount_percentage&limit=1`, { headers: sbHeaders });
+        const rows = await pr.json().catch(() => []);
+        const pct = Array.isArray(rows) && rows[0] ? Number(rows[0].discount_percentage) || 0 : 0;
+        if (pct > 0) discountPct = Math.max(discountPct, Math.min(pct, 100));
+      } catch (e) { /* ignore — treat as no promo */ }
+    }
+    const minAmount = Math.round(basePrice * (1 - discountPct / 100));
+    const paidAmount = Number(session.amount);
+    if (!(paidAmount >= minAmount - 1)) { // -1 tolerates rounding
+      console.warn("wave-success: amount too low", { sessionId, paidAmount, minAmount, validPlan, discountPct });
+      return { statusCode: 402, headers, body: JSON.stringify({ error: "Montant payé insuffisant pour ce plan" }) };
+    }
     const expiresAt = new Date(Date.now() + 31 * 24 * 60 * 60 * 1000).toISOString();
     const res = await fetch(`${SB_URL}/rest/v1/organizations?id=eq.${orgId}`, {
       method: "PATCH",
