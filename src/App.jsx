@@ -9156,11 +9156,21 @@ function AppInner() {
               </div>
             </a>
 
-            {/* Option 2 — Copier le message */}
+            {/* Option 2 — Envoyer par SMS (numéros sans WhatsApp) */}
+            <a href={(()=>{ try{ const u=new URL(waUrl); const num=u.pathname.replace(/\D/g,""); const text=u.searchParams.get("text")||""; return `sms:${num?`+${num}`:""}?body=${encodeURIComponent(text)}`; }catch(_){ return "#"; } })()}
+              style={{display:"flex",alignItems:"center",gap:10,background:G.green,color:G.white,borderRadius:12,padding:"13px 16px",textDecoration:"none",fontWeight:700,fontSize:14,marginBottom:10}}>
+              <span style={{fontSize:22}}>✉️</span>
+              <div>
+                <div>Envoyer par SMS</div>
+                <div style={{fontSize:10,fontWeight:400,opacity:0.85}}>Pour les numéros sans WhatsApp</div>
+              </div>
+            </a>
+
+            {/* Option 3 — Copier le message */}
             <button onClick={()=>{
               const text = new URL(waUrl).searchParams.get("text")||"";
               navigator.clipboard?.writeText(decodeURIComponent(text))
-                .then(()=>alert("✅ Message copié ! Colle-le dans WhatsApp."))
+                .then(()=>alert("✅ Message copié ! Colle-le dans WhatsApp ou SMS."))
                 .catch(()=>alert("Copie manuelle:\n\n"+decodeURIComponent(new URL(waUrl).searchParams.get("text")||"")));
             }} style={{width:"100%",background:"#F0FDF4",color:G.green,border:`1.5px solid ${G.green}`,borderRadius:12,padding:"11px 0",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:10}}>
               📋 Copier le message
@@ -9240,6 +9250,31 @@ function AppInner() {
               ));
             })()}
 
+            {/* Total client (tout inclus) — dépend du type de pedido :
+                · local       → Prix COD (livraison locale déjà incluse)
+                · autre région→ Prix COD + transport interurbain de la zone */}
+            {(()=>{
+              const zT = editOrder.city
+                ? detectDeliveryZone(editOrder.city, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500)
+                : null;
+              const isOther = (zT?.type==="other") || editOrder.region_type==="other" || editOrder.deliveryZoneType==="other";
+              const basePrice = parseInt(editOrder.price)||0;
+              const inter = isOther ? (parseInt(zT?.interurbain) || Number(editOrder.interurbain_fee ?? editOrder.interurbainFee) || 0) : 0;
+              const total = basePrice + inter;
+              if(!basePrice) return null;
+              return (
+                <div style={{marginBottom:10,background:"#F0FDF4",border:`1.5px solid ${G.green}`,borderRadius:10,padding:"10px 12px"}}>
+                  <div style={{fontSize:11,color:G.gray,marginBottom:2,display:"flex",alignItems:"center",gap:4}}><Coins size={12}/> Total client (tout inclus)</div>
+                  <div style={{fontSize:18,fontWeight:800,color:G.green}}>{fmt(total)} CFA</div>
+                  <div style={{fontSize:10.5,color:G.gray,marginTop:2}}>
+                    {isOther && inter>0
+                      ? `Produit ${fmt(basePrice)} + transport interurbain ${fmt(inter)}`
+                      : "Livraison locale incluse"}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div style={{marginBottom:10}}>
               <div style={{fontSize:11,color:G.gray,marginBottom:3,display:"flex",alignItems:"center",gap:4}}><BarChart3 size={12}/> Statut</div>
               <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
@@ -9295,14 +9330,29 @@ function AppInner() {
                 setEditOrder(null);
                 if(orgId&&!String(id).startsWith("tmp_")){
                   pendingOrderUpdates.current[id]=Date.now();
+                  // Champs garantis (toujours présents) séparés des champs portés par
+                  // une migration SQL manuelle (region_type / payment_type / interurbain_fee).
+                  // Si une de ces colonnes récentes n'existe pas encore en base, le PATCH
+                  // complet échouait et le PRIX ne se sauvegardait pas. On réessaie alors
+                  // sans elles pour que le prix et les champs de base soient toujours enregistrés.
+                  const corePayload={
+                    client:updated.client,phone:updated.phone,address:updated.address,
+                    city:updated.city||null,delivery_zone_name:updated.deliveryZoneName||null,delivery_zone_type:updated.deliveryZoneType||null,
+                    product:updated.product,price:updated.price,frais_liv:_fl||null,
+                    status:updated.status,livreur:updated.livreur||null,livreur_id:updated.livreur_id||null,note:updated.note||""
+                  };
+                  const optionalPayload={region_type:_eRegion,payment_type:_ePayment,interurbain_fee:_eInter};
                   try {
-                    await sbFetch(`orders?id=eq.${id}`,"PATCH",{
-                      client:updated.client,phone:updated.phone,address:updated.address,
-                      city:updated.city||null,delivery_zone_name:updated.deliveryZoneName||null,delivery_zone_type:updated.deliveryZoneType||null,
-                      product:updated.product,price:updated.price,frais_liv:_fl||null,
-                      region_type:_eRegion,payment_type:_ePayment,interurbain_fee:_eInter,
-                      status:updated.status,livreur:updated.livreur||null,livreur_id:updated.livreur_id||null,note:updated.note||""
-                    });
+                    try {
+                      await sbFetch(`orders?id=eq.${id}`,"PATCH",{...corePayload,...optionalPayload});
+                    } catch(err){
+                      let parsed={}; try{parsed=JSON.parse(err.message);}catch(_){}
+                      const blob=`${parsed.code||""} ${parsed.message||""} ${err.message||""}`.toLowerCase();
+                      const schemaErr=blob.includes("pgrst204")||blob.includes("42703")||blob.includes("could not find")||(blob.includes("column")&&blob.includes("schema cache"));
+                      if(!schemaErr) throw err;
+                      console.warn("edit save: colonne récente absente — sauvegarde sans region_type/payment_type/interurbain_fee:",err.message);
+                      await sbFetch(`orders?id=eq.${id}`,"PATCH",corePayload);
+                    }
                     addToast("Commande mise à jour ✓","✅",G.green);
                     // Notify livreur if newly assigned or changed
                     const prevOrder = prevOrders.find(x=>x.id===id);
