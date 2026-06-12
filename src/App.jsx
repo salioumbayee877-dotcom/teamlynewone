@@ -1022,7 +1022,7 @@ function AppInner() {
     try {
       // If this is an invite link, don't show loading - show join form directly
       const params = new URLSearchParams(window.location.search);
-      if(params.get("org") && params.get("role")) return false;
+      if(params.get("invite")) return false;
       return !!localStorage.getItem("teamly_token");
     } catch(e){ return false; }
   });
@@ -1095,7 +1095,7 @@ function AppInner() {
   const [chatLoading, setChatLoading]      = useState(true);
   const [authStep, setAuthStep]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
-    if(params.get("org") && params.get("role")) return "join";
+    if(params.get("invite")) return "join";
     return "login";
   });
   const [authMode, setAuthMode]   = useState(()=>{
@@ -1108,15 +1108,13 @@ function AppInner() {
   const [googleOnboard, setGoogleOnboard] = useState(null); // {userId, email, fullName} when new Google user needs to set boutique+phone
   const [authForm, setAuthForm]   = useState(()=>{
     const params = new URLSearchParams(window.location.search);
-    const org  = params.get("org")  || "";
-    const role = params.get("role") || "";
-    const tok  = params.get("token")|| "";
+    const invite = params.get("invite") || "";
     const ref  = (params.get("ref") || "").toUpperCase().trim();
     if(ref){ try{ localStorage.setItem("teamly_pending_ref", ref); }catch(e){} }
     return {email:"",password:"",boutique:"",whatsapp:"",nom:"",phone:"",adresse:"",otp:"",
       refCode: ref || (()=>{ try{ return localStorage.getItem("teamly_pending_ref")||""; }catch(e){ return ""; } })(),
-      inviteOrg:org, inviteRole:role, inviteToken:tok,
-      inviteUrl: org ? window.location.href : ""
+      inviteToken:invite,
+      inviteUrl: invite ? window.location.href : ""
     };
   });
   const [authError, setAuthError] = useState("");
@@ -1591,7 +1589,11 @@ function AppInner() {
         body: JSON.stringify({orgId, amount: String(amount), plan: planKey}),
       });
       const data = await res.json();
-      if(data.url) window.location.href = data.url;
+      if(data.url){
+        // Persist the Wave session id so we can verify it on return (SEC-4).
+        try{ if(data.sessionId) localStorage.setItem("teamly_pending_wave_session", data.sessionId); }catch(e){}
+        window.location.href = data.url;
+      }
       else addToast("Erreur Wave — réessaie","❌","#DC2626");
     } catch(e){ addToast("Erreur de connexion","❌","#DC2626"); }
     finally{ setPayLoading(false); }
@@ -1646,7 +1648,8 @@ function AppInner() {
   useEffect(()=>{
     const params = new URLSearchParams(window.location.search);
     if(params.get("payment")==="success" && params.get("org")===orgId && orgId) {
-      const sessionId = params.get("session") || params.get("session_id") || null;
+      const sessionId = params.get("session") || params.get("session_id")
+        || (()=>{ try{ return localStorage.getItem("teamly_pending_wave_session"); }catch(e){ return null; } })();
       let pendingPromo = null, pendingRef = null, pendingAmount = null;
       try{ pendingPromo = localStorage.getItem("teamly_pending_promo"); }catch(e){}
       try{ pendingRef = localStorage.getItem("teamly_pending_ref"); }catch(e){}
@@ -1657,7 +1660,8 @@ function AppInner() {
         body: JSON.stringify({orgId, sessionId, promoCode: pendingPromo, refCode: pendingRef, amount: pendingAmount?Number(pendingAmount):undefined}),
       }).then(r=>r.json()).then(d=>{
         if(d.success){ setIsPro(true); setTrialDaysLeft(31); addToast("Paiement confirmé — Bienvenue en Pro 🎉","✅","#1A5C38"); }
-        try{ localStorage.removeItem("teamly_pending_promo"); localStorage.removeItem("teamly_pending_amount"); localStorage.removeItem("teamly_pending_ref"); }catch(e){}
+        else { addToast(d?.error||"Paiement non confirmé","⚠️","#F59E0B"); }
+        try{ localStorage.removeItem("teamly_pending_promo"); localStorage.removeItem("teamly_pending_amount"); localStorage.removeItem("teamly_pending_ref"); localStorage.removeItem("teamly_pending_wave_session"); }catch(e){}
       }).catch(()=>{});
       window.history.replaceState({},document.title,window.location.pathname);
     }
@@ -2148,7 +2152,7 @@ function AppInner() {
     try {
       // If this is an invite link, ignore any saved session
       const inviteCheck = new URLSearchParams(window.location.search);
-      if(inviteCheck.get("org") && inviteCheck.get("role")) {
+      if(inviteCheck.get("invite")) {
         setAppLoading(false);
         return; // Don't restore session - show join form
       }
@@ -3759,8 +3763,6 @@ function AppInner() {
   const PLAN_COMING_SOON = (key) => key !== "basic";
   const PLAN_LAUNCH_FREE = (key) => key === "basic";
 
-  const genToken = () => Math.random().toString(36).substring(2,10).toUpperCase();
-
   const DISPOSABLE_DOMAINS = ["mailinator.com","guerrillamail.com","tempmail.com","10minutemail.com","throwam.com","yopmail.com","sharklasers.com","guerrillamailblock.com","grr.la","guerrillamail.info","spam4.me","trashmail.com","trashmail.me","trashmail.net","fakeinbox.com","maildrop.cc","dispostable.com","mailnull.com","spamgourmet.com","getairmail.com","filzmail.com","throwam.com","mailnesia.com","meltmail.com","tempr.email","discard.email","spamspot.com","spamevade.com","deadaddress.com","spamfree24.org","mt2015.com","dingbone.com","fudgerub.com","lookugly.com","shitmail.me","tempe-mail.com","temp-mail.org","temp-mail.io"];
   const handleRegister = () => {
     if(!authForm.email||!authForm.password||!authForm.boutique||!authForm.phone) { setAuthError("Remplis tous les champs obligatoires *"); return; }
@@ -3877,17 +3879,24 @@ function AppInner() {
     setAuthStep("gestion"); // New step: choose closer mode
   };
 
-  const handleGestion = (mode) => {
+  const handleGestion = async (mode) => {
     setGestionMode(mode);
-    // orgId is the REAL UUID set after Supabase registration
-    const realOrgId = orgId || org?.id || "";
-    const closerToken  = genToken();
-    const livreurToken = genToken();
-    setInviteLink({
-      closer:  `${window.location.origin}?org=${realOrgId}&role=closer&token=${closerToken}`,
-      livreur: `${window.location.origin}?org=${realOrgId}&role=livreur&token=${livreurToken}`,
-    });
     setAuthStep("invite");
+    // Invites are now created server-side (stored, single-use, expiring).
+    // The client no longer mints its own org/role tokens.
+    const makeInvite = async (role) => {
+      try {
+        const r = await fetch("/.netlify/functions/create-invite",{
+          method:"POST",
+          headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${_authToken||""}` },
+          body:JSON.stringify({ role }),
+        });
+        const j = await r.json().catch(()=>({}));
+        return r.ok && j.ok ? j.link : "";
+      } catch(e){ return ""; }
+    };
+    const [closer, livreur] = await Promise.all([makeInvite("closer"), makeInvite("livreur")]);
+    setInviteLink({ closer, livreur });
   };
 
   // ── Login screen ──
@@ -4424,18 +4433,12 @@ function AppInner() {
             {/* Lien d'invitation */}
             <div style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.15)"}}>
               <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Send size={12}/> Lien d'invitation</div>
-              <input type="text" placeholder="teamly.app/join?org=ABC&role=closer..." value={authForm.inviteUrl||""}
+              <input type="text" placeholder="teamly.life?invite=..." value={authForm.inviteUrl||""}
                 onChange={e=>setAuthForm(p=>({...p,inviteUrl:e.target.value}))}
                 style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"9px 12px",fontSize:11,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
-              {/* Détecter le rôle depuis le lien */}
-              {(authForm.inviteRole||authForm.inviteUrl)&&(
+              {(authForm.inviteUrl||authForm.inviteToken)&&(
                 <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:12,fontFamily:"sans-serif"}}>
-                  {(authForm.inviteRole==="closer"||authForm.inviteUrl?.includes("role=closer"))
-    ?<span style={{color:"#93C5FD",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Phone size={13}/> Tu rejoins en tant que <strong>Closer</strong></span>
-                    :(authForm.inviteRole==="livreur"||authForm.inviteUrl?.includes("role=livreur"))
-    ?<span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Bike size={13}/> Tu rejoins en tant que <strong>Livreur</strong></span>
-                    :<span style={{color:"rgba(255,255,255,0.5)"}}>Lien d'invitation détecté</span>
-                  }
+                  <span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Send size={13}/> Lien d'invitation détecté — ton rôle est défini par l'Admin</span>
                 </div>
               )}
             </div>
@@ -4475,62 +4478,51 @@ function AppInner() {
               if(!authForm.password?.trim()) missing.push("Mot de passe");
               if(missing.length>0){ setAuthError("Champs manquants: "+missing.join(", ")); return; }
               if(authForm.password.length<6){setAuthError("Mot de passe trop court (6 min)");return;}
-              const url = authForm.inviteUrl||"";
-              const roleFromUrl = url.includes("role=closer")?"closer":url.includes("role=livreur")?"livreur":"livreur";
               setAuthError("");
-              // Register with Supabase
-              // Re-read URL params fresh to avoid stale state
-              const freshParams = new URLSearchParams(window.location.search);
-              const freshOrg   = freshParams.get("org")  || authForm.inviteOrg || "";
-              const freshRole  = freshParams.get("role") || authForm.inviteRole || "";
-              const detectedRole = freshRole || (url.includes("role=closer")?"closer":"livreur");
-              const detectedOrg  = freshOrg;
-              console.log("Join: detectedOrg=", detectedOrg, "detectedRole=", detectedRole);
-              // Validate it's a UUID
-              const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(detectedOrg);
-              if(!isValidUUID) { 
-                setAuthError(`Lien invalide (org="${detectedOrg}") — demande un nouveau lien à l'Admin`); 
-                return; 
-              }
-              // ── Verificar límite del plan ANTES de registrar ──────────
-              try {
-                const limitRes = await fetch(`/.netlify/functions/check-member-limit?org=${detectedOrg}`);
-                const limitData = await limitRes.json();
-                if (limitRes.ok && !limitData.ok) {
-                  setAuthError(`❌ Cette équipe a atteint sa limite (${limitData.max} membres). Demande à l'Admin de passer au plan supérieur.`);
-                  return;
-                }
-              } catch(e) { /* si falla la comprobación, dejamos continuar */ }
-              // ─────────────────────────────────────────────────────────────
+              // Extract the invite token from the pasted URL (or raw token).
+              const extractInviteToken = (raw)=>{
+                const s = (raw||"").trim();
+                if(!s) return "";
+                try { return new URL(s, window.location.origin).searchParams.get("invite") || ""; }
+                catch(e){ /* not a URL → treat as a raw token */ }
+                const m = s.match(/[?&]invite=([^&\s]+)/);
+                return m ? decodeURIComponent(m[1]) : s;
+              };
+              const inviteToken = extractInviteToken(authForm.inviteUrl) || authForm.inviteToken || "";
+              if(!inviteToken){ setAuthError("Lien d'invitation manquant — demande un lien à l'Admin"); return; }
+              // Register with Supabase, then join the org server-side. The role
+              // and org are set by the validated invite — never by the client.
               sbAuth(authForm.email, authForm.password, "register")
                 .then(async(data)=>{
                   const tok=data.access_token;
                   _authToken = tok; setSbToken(tok);
-                  // Create profile using user JWT (RLS: WITH CHECK id = auth.uid())
-                  await sbFetch("profiles","POST",{
-                    id:data.user.id,
-                    org_id:detectedOrg,
-                    nom:(authForm.nom||"").trim(),
-                    phone:(authForm.phone||"").trim(),
-                    email:(authForm.email||"").trim(),
-                    adresse:(authForm.adresse||"").trim(),
-                    role:detectedRole
+                  const r = await fetch("/.netlify/functions/join-org",{
+                    method:"POST",
+                    headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${tok}` },
+                    body:JSON.stringify({
+                      token:inviteToken,
+                      nom:(authForm.nom||"").trim(),
+                      phone:(authForm.phone||"").trim(),
+                      adresse:(authForm.adresse||"").trim(),
+                    }),
                   });
-                  // Set state
-                  setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:detectedRole});
-                  setOrgId(detectedOrg);
+                  const j = await r.json().catch(()=>({}));
+                  if(!r.ok || !j.ok) throw new Error(j?.error || "Adhésion à l'équipe échouée");
+                  const joinedRole = j.role;
+                  const joinedOrg  = j.orgId;
+                  setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:joinedRole});
+                  setOrgId(joinedOrg);
                   setSbReady(true);
-                  // Save session
                   try {
                     localStorage.setItem("teamly_token",tok);
                     if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
                     localStorage.setItem("teamly_email",authForm.email);
-                    localStorage.setItem("teamly_org",detectedOrg);
+                    localStorage.setItem("teamly_org",joinedOrg);
+                    localStorage.setItem("teamly_role",joinedRole);
                   } catch(e){}
-                  setRole(detectedRole);
-                  setTab(detectedRole==="livreur"?"livraisons":"dashboard");
+                  setRole(joinedRole);
+                  setTab(joinedRole==="livreur"?"livraisons":"dashboard");
                   if(window.history) window.history.replaceState({},"",window.location.pathname);
-                  // Force reload to ensure clean state
                   setTimeout(()=>window.location.reload(), 300);
                 })
                 .catch(e=>setAuthError(e.message||"Erreur inscription"));
@@ -7242,11 +7234,22 @@ function AppInner() {
                   )}
                   <div style={{display:"flex",gap:8}}>
                     {[{role:"closer",label:"Closer",Ico:Phone},{role:"livreur",label:"Livreur",Ico:Bike}].map(r=>(
-                      <button key={r.role} onClick={()=>{
+                      <button key={r.role} onClick={async()=>{
                         if(atLimit){ setShowPlanModal(true); return; }
-                        const token=Math.random().toString(36).substring(2,10).toUpperCase();
-                        const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;
-                        window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
+                        // Open the share window synchronously (user gesture) so it
+                        // isn't blocked; fill it in once the server returns the link.
+                        const win = window.open("", "_blank");
+                        try {
+                          const res = await fetch("/.netlify/functions/create-invite",{
+                            method:"POST",
+                            headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${_authToken||""}` },
+                            body:JSON.stringify({ role:r.role }),
+                          });
+                          const j = await res.json().catch(()=>({}));
+                          if(!res.ok || !j.ok || !j.link){ if(win) win.close(); addToast(j?.error||"Création du lien échouée"); return; }
+                          const wa = `https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`)}`;
+                          if(win) win.location.href = wa; else window.open(wa,"_blank");
+                        } catch(e){ if(win) win.close(); addToast("Erreur réseau — réessaye"); }
                       }} style={{
                         flex:1,
                         background:atLimit?"#D1D5DB":"#25D366",
@@ -8563,7 +8566,7 @@ function AppInner() {
                     </div>
                     <div style={{display:"flex",gap:6,alignItems:"center"}}>
                       <span style={{fontSize:11,color:G.gray,background:G.white,borderRadius:6,padding:"2px 8px"}}>{m.role}</span>
-                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({memberId:m.id,orgId,adminJwt:_authToken})});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Erreur");setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe ✅`,"✅",G.green);}catch(e){addToast(`Erreur: ${e.message}`,"❌",G.red);}}})}
+                      <button onClick={()=>setConfirmModal({msg:`Retirer ${m.nom} de l'équipe ?`,sub:"Le membre perdra l'accès immédiatement.",danger:true,onConfirm:async()=>{try{const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||""}`},body:JSON.stringify({memberId:m.id,adminJwt:_authToken})});const d=await r.json();if(!r.ok||!d.success)throw new Error(d.error||"Erreur");setTeamMembers(p=>p.filter(x=>x.id!==m.id));setOrgMemberCount(c=>c!==null?c-1:c);addToast(`${m.nom} retiré de l'équipe ✅`,"✅",G.green);}catch(e){addToast(`Erreur: ${e.message}`,"❌",G.red);}}})}
                         style={{background:"#FEE2E2",color:G.red,border:"none",borderRadius:8,padding:"5px 10px",fontSize:13,cursor:"pointer",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Trash2 size={14}/></button>
                     </div>
                   </div>
@@ -8848,7 +8851,7 @@ function AppInner() {
             <button onClick={async()=>{
               if(!window.confirm(`Supprimer ${memberModal.nom} de l'équipe ?`)) return;
               try {
-                const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({memberId:memberModal.id,orgId,adminJwt:_authToken})});
+                const r=await fetch("/.netlify/functions/delete-member",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||""}`},body:JSON.stringify({memberId:memberModal.id,adminJwt:_authToken})});
                 const d=await r.json();
                 if(!r.ok||!d.success) throw new Error(d.error||"Erreur serveur");
                 setTeamMembers(t=>t.filter(m=>m.id!==memberModal.id));
