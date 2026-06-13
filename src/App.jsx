@@ -188,25 +188,12 @@ const signInWithGoogle = async () => {
   }
 };
 
-// Ouvre WhatsApp pour PARTAGER un texte (l'utilisateur choisit ensuite le
-// contact), en évitant l'interstitiel wa.me « Télécharger WhatsApp » sur PC.
-// On passe par le protocole natif whatsapp:// qui ouvre directement l'app
-// (mobile + WhatsApp Desktop). Repli sur wa.me si le protocole n'est pas géré.
+// Ouvre WhatsApp pour PARTAGER un texte (l'utilisateur choisit le contact).
+// On utilise wa.me : c'est la méthode FIABLE qui ouvre l'app sur mobile (le
+// lien est intercepté par WhatsApp) et fonctionne sur desktop. Le protocole
+// whatsapp:// échouait sur certains téléphones (onglet about:blank / rien).
 const openWhatsAppShare = (text) => {
-  const t = encodeURIComponent(text || "");
-  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
-  const isMobile = /android|iphone|ipad|ipod/i.test(ua);
-  if (isMobile) { window.location.href = `whatsapp://send?text=${t}`; return; }
-  // Desktop : ouvre l'app WhatsApp Desktop ; repli wa.me après un court délai
-  // si rien ne s'est ouvert (app absente).
-  let opened = false;
-  const onBlur = () => { opened = true; };
-  window.addEventListener("blur", onBlur, { once: true });
-  window.location.href = `whatsapp://send?text=${t}`;
-  setTimeout(() => {
-    window.removeEventListener("blur", onBlur);
-    if (!opened) window.open(`https://wa.me/?text=${t}`, "_blank");
-  }, 1200);
+  window.open(`https://wa.me/?text=${encodeURIComponent(text || "")}`, "_blank");
 };
 
 const G = {
@@ -7278,19 +7265,10 @@ function AppInner() {
                           });
                           const j = await res.json().catch(()=>({}));
                           if(!res.ok || !j.ok || !j.link){ if(win) win.close(); addToast(j?.error||"Création du lien échouée"); return; }
-                          const _ua = (typeof navigator!=="undefined" && navigator.userAgent) || "";
-                          const _share = encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`);
-                          if(/android|iphone|ipad|ipod/i.test(_ua)){
-                            // Mobile : on FERME l'onglet blanc pré-ouvert (sinon il
-                            // reste sur about:blank) et on ouvre l'app via une
-                            // navigation directe — whatsapp:// ne charge pas dans un onglet.
-                            if(win) win.close();
-                            window.location.href = `whatsapp://send?text=${_share}`;
-                          } else {
-                            // Desktop : l'onglet pré-ouvert évite le blocage popup.
-                            const wa = `https://wa.me/?text=${_share}`;
-                            if(win) win.location.href = wa; else window.open(wa,"_blank");
-                          }
+                          // wa.me : fiable partout (ouvre l'app sur mobile, page sur
+                          // desktop). L'onglet pré-ouvert évite le blocage popup.
+                          const wa = `https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`)}`;
+                          if(win) win.location.href = wa; else window.open(wa,"_blank");
                         } catch(e){ if(win) win.close(); addToast("Erreur réseau — réessaye"); }
                       }} style={{
                         flex:1,
