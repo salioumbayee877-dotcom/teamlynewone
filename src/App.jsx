@@ -8642,15 +8642,12 @@ function AppInner() {
             {/* Supprimer compte admin */}
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Toutes les données (commandes, produits, équipe) seront effacées. Cette action est irréversible.",danger:true,onConfirm:async()=>{
               const doLogout=()=>{try{localStorage.clear();}catch(e){}_authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);};
+              // Suppression côté serveur (service key) : efface les données de l'org
+              // ET le compte Auth pour que l'admin ne puisse plus se reconnecter.
               try{
-                await Promise.allSettled([
-                  sbFetch(`orders?org_id=eq.${orgId}`,"DELETE"),
-                  sbFetch(`products?org_id=eq.${orgId}`,"DELETE"),
-                  sbFetch(`messages?org_id=eq.${orgId}`,"DELETE"),
-                  sbFetch(`notifications?org_id=eq.${orgId}`,"DELETE"),
-                  sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE"),
-                ]);
-              }catch(e){}
+                const res=await fetch("/.netlify/functions/delete-account",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`}});
+                if(!res.ok){ const d=await res.json().catch(()=>({})); addToast(d.error||"Suppression échouée — réessaie","❌","#DC2626",8000); return; }
+              }catch(e){ addToast("Erreur de connexion — réessaie","❌","#DC2626",8000); return; }
               doLogout();
             }})}
               style={{width:"100%",background:"#FEE2E2",color:G.red,border:"none",borderRadius:10,padding:12,fontWeight:600,fontSize:13,cursor:"pointer",marginBottom:8}}>
@@ -8772,7 +8769,12 @@ function AppInner() {
               {profileSaving?<>⏳ Sauvegarde…</>:<><Check size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Enregistrer</>}
             </button>
             <button onClick={()=>setConfirmModal({msg:"Supprimer ton compte ?",sub:"Tu perdras l'accès à Teamly définitivement.",danger:true,onConfirm:async()=>{
-              try{await sbFetch(`profiles?id=eq.${currentUser.id}`,"DELETE");}catch(e){}
+              // Suppression côté serveur (service key) : détache des commandes puis
+              // efface le compte Auth pour que la reconnexion soit impossible.
+              try{
+                const res=await fetch("/.netlify/functions/delete-account",{method:"POST",headers:{"Content-Type":"application/json","Authorization":`Bearer ${_authToken||SB_KEY}`}});
+                if(!res.ok){ const d=await res.json().catch(()=>({})); addToast(d.error||"Suppression échouée — réessaie","❌","#DC2626",8000); return; }
+              }catch(e){ addToast("Erreur de connexion — réessaie","❌","#DC2626",8000); return; }
               try{localStorage.clear();}catch(e){}
               _authToken=null;setRole(null);setSbToken(null);setOrgId(null);setSbReady(false);setOrders([]);setProducts([]);setShowSettings(false);
             }})}
