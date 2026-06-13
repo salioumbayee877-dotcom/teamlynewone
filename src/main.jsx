@@ -31,6 +31,12 @@ function Root() {
     return <TrackingView token={trackMatch[1]} />;
   }
   if (path === '/' || path === '') {
+    if (_qp.get("invite")) {
+      // Lien d'invitation (closer/livreur) sur la racine → afficher l'app
+      // (et non la landing marketing) : App lit ?invite= et ouvre le formulaire
+      // "Rejoindre une équipe". On ignore toute session locale (cf. App startup).
+      return <App />;
+    }
     if (isRecoveryCallback) {
       // Password recovery callback landed on root — route to App so the handler fires
       window.location.replace('/dashboard' + window.location.search + window.location.hash);
