@@ -10143,7 +10143,11 @@ function AppInner() {
                 Produit {currentIdx + 1} / {pItems.length}
               </div>
             )}
-            <ProductAnalysisPopup alert={alert} onDone={onDone} onSkip={onSkip} onClose={()=>setPricingPopup(null)}/>
+            {/* key par produit : force le remontage à chaque étape pour que l'état
+                interne (step/choix) se réinitialise. Sans ça, sur une commande
+                multi-produits (Shopify/YouCan), le popup restait figé sur l'écran
+                "C'est noté !" du produit précédent → bouton "à traiter" bloqué. */}
+            <ProductAnalysisPopup key={`${orderId}-${currentIdx}`} alert={alert} onDone={onDone} onSkip={onSkip} onClose={()=>setPricingPopup(null)}/>
           </>
         );
 
