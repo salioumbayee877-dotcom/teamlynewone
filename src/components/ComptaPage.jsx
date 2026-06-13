@@ -3,7 +3,7 @@ import { useAppContext } from "../context/AppContext";
 import { _parseCity } from "../lib/senegal";
 import {
   X, Check, Bike, Truck, PhoneOff, RotateCcw, MapPin, AlertTriangle,
-  Pencil, Coins, Package, Megaphone, Ban, Banknote, FileText, BarChart3,
+  Pencil, Coins, Package, Megaphone, Ban, FileText, BarChart3,
   Download, Circle,
 } from "lucide-react";
 
@@ -374,8 +374,6 @@ export const ComptaPage = () => {
 
       {/* ── Section 5: Daily inputs (Pub, Échecs, Cash livreurs) ── */}
       {(()=>{
-        const recu = parseInt(cashRemis||0);
-        const diff = comptaCA - recu;
         const _fmtDay = d => new Date(d+"T12:00:00Z").toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
         const isToday      = comptaPeriodMode==="jour" || (comptaPeriodMode==="plage" && dateFrom===TODAY && dateTo===TODAY);
         const isMultiDay   = comptaPeriodMode==="semaine" || comptaPeriodMode==="mois" || (comptaPeriodMode==="plage" && dateFrom!==dateTo);
@@ -471,23 +469,6 @@ export const ComptaPage = () => {
                 </div>
                 );
               })}
-              <div style={{padding:"12px 14px",display:"flex",alignItems:"flex-start",gap:10}}>
-                <Banknote size={15} color="#4B5563" style={{flexShrink:0,marginTop:2}}/>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:500,color:"#111827"}}>Cash livreurs</div>
-                  <div style={{fontSize:11,color:"#9CA3AF",marginTop:1}}>Total reçu en main propre</div>
-                  {cashRemis&&(
-                    <div style={{fontSize:11,marginTop:4,color:diff>0?"#dc2626":diff<0?"#d97706":"#16a34a"}}>
-                      Diff. CA: {diff===0?<><Check size={11} style={{display:"inline",verticalAlign:"-2px"}}/> En ordre</>:`${diff>0?"−":"+"}${fmt(Math.abs(diff))} F`}
-                    </div>
-                  )}
-                </div>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                  <input type="number" min="0" value={cashRemis||""} onChange={e=>setCashRemis(e.target.value)} placeholder="0" readOnly={readOnly}
-                    style={{...inputStyle,width:100}}/>
-                  {cashRemis&&<div style={{fontSize:10,color:"#9CA3AF"}}>{fmt(parseInt(cashRemis||0))} CFA</div>}
-                </div>
-              </div>
             </div>
             <button onClick={saveComptaInputs} disabled={savingCompta||readOnly}
               style={{width:"100%",background:(savingCompta||readOnly)?"#9CA3AF":G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:14,fontWeight:600,cursor:(savingCompta||readOnly)?"not-allowed":"pointer",marginTop:8,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
