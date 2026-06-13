@@ -188,6 +188,27 @@ const signInWithGoogle = async () => {
   }
 };
 
+// Ouvre WhatsApp pour PARTAGER un texte (l'utilisateur choisit ensuite le
+// contact), en évitant l'interstitiel wa.me « Télécharger WhatsApp » sur PC.
+// On passe par le protocole natif whatsapp:// qui ouvre directement l'app
+// (mobile + WhatsApp Desktop). Repli sur wa.me si le protocole n'est pas géré.
+const openWhatsAppShare = (text) => {
+  const t = encodeURIComponent(text || "");
+  const ua = (typeof navigator !== "undefined" && navigator.userAgent) || "";
+  const isMobile = /android|iphone|ipad|ipod/i.test(ua);
+  if (isMobile) { window.location.href = `whatsapp://send?text=${t}`; return; }
+  // Desktop : ouvre l'app WhatsApp Desktop ; repli wa.me après un court délai
+  // si rien ne s'est ouvert (app absente).
+  let opened = false;
+  const onBlur = () => { opened = true; };
+  window.addEventListener("blur", onBlur, { once: true });
+  window.location.href = `whatsapp://send?text=${t}`;
+  setTimeout(() => {
+    window.removeEventListener("blur", onBlur);
+    if (!opened) window.open(`https://wa.me/?text=${t}`, "_blank");
+  }, 1200);
+};
+
 const G = {
   green:"#1A5C38",greenMid:"#2E8B57",greenLight:"#E8F5EE",
   gold:"#F0A500",dark:"#1A1A1A",gray:"#6B7280",
@@ -4340,7 +4361,7 @@ function AppInner() {
                     style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
   <ClipboardList size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Copier
                   </button>
-                  <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Closer.\n\nClique ici:\n${inviteLink.closer}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
+                  <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Closer.\n\nClique ici:\n${inviteLink.closer}`;openWhatsAppShare(msg);}}
                     style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
   <Send size={13} style={{display:"inline",verticalAlign:"-2px"}}/> WhatsApp
                   </button>
@@ -4389,7 +4410,7 @@ function AppInner() {
                   style={{flex:1,background:"rgba(255,255,255,0.15)",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif"}}>
 <ClipboardList size={13} style={{display:"inline",verticalAlign:"-2px"}}/> Copier
                 </button>
-                <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Livreur.\n\nClique ici:\n${inviteLink.livreur}`;window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");}}
+                <button onClick={()=>{const msg=`Bonjour ! Je t'invite à rejoindre mon équipe sur Teamly en tant que Livreur.\n\nClique ici:\n${inviteLink.livreur}`;openWhatsAppShare(msg);}}
                   style={{flex:1,background:"#25D366",color:G.white,border:"none",borderRadius:8,padding:"8px 0",fontSize:12,cursor:"pointer",fontFamily:"sans-serif",fontWeight:600}}>
 <Send size={13} style={{display:"inline",verticalAlign:"-2px"}}/> WhatsApp
                 </button>
@@ -7257,7 +7278,11 @@ function AppInner() {
                           });
                           const j = await res.json().catch(()=>({}));
                           if(!res.ok || !j.ok || !j.link){ if(win) win.close(); addToast(j?.error||"Création du lien échouée"); return; }
-                          const wa = `https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`)}`;
+                          // Mobile → app native (whatsapp://) sans interstitiel ;
+                          // desktop → wa.me (la fenêtre pré-ouverte évite le blocage popup).
+                          const _ua = (typeof navigator!=="undefined" && navigator.userAgent) || "";
+                          const _share = encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`);
+                          const wa = /android|iphone|ipad|ipod/i.test(_ua) ? `whatsapp://send?text=${_share}` : `https://wa.me/?text=${_share}`;
                           if(win) win.location.href = wa; else window.open(wa,"_blank");
                         } catch(e){ if(win) win.close(); addToast("Erreur réseau — réessaye"); }
                       }} style={{
@@ -8595,7 +8620,7 @@ function AppInner() {
                         if(atLimit){ setShowPlanModal(true); return; }
                         const token=Math.random().toString(36).substring(2,10).toUpperCase();
                         const link=`${window.location.origin}?org=${orgId}&role=${r.role}&token=${token}`;
-                        window.open(`https://wa.me/?text=${encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`)}`,"_blank");
+                        openWhatsAppShare(`Bonjour ! Rejoins mon équipe sur Teamly:\n${link}`);
                       }}
                         style={{flex:1,background:atLimit?"#D1D5DB":"#25D366",color:atLimit?"#9CA3AF":G.white,border:"none",borderRadius:9,padding:"9px 0",fontSize:11,fontWeight:700,cursor:"pointer",opacity:atLimit?0.7:1,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}><r.Ico size={12}/> {r.label} {atLimit?<Lock size={12}/>:<Send size={12}/>}</button>
                     ))}
