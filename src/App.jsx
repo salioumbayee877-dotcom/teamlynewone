@@ -7278,12 +7278,19 @@ function AppInner() {
                           });
                           const j = await res.json().catch(()=>({}));
                           if(!res.ok || !j.ok || !j.link){ if(win) win.close(); addToast(j?.error||"Création du lien échouée"); return; }
-                          // Mobile → app native (whatsapp://) sans interstitiel ;
-                          // desktop → wa.me (la fenêtre pré-ouverte évite le blocage popup).
                           const _ua = (typeof navigator!=="undefined" && navigator.userAgent) || "";
                           const _share = encodeURIComponent(`Bonjour ! Rejoins mon équipe sur Teamly:\n${j.link}`);
-                          const wa = /android|iphone|ipad|ipod/i.test(_ua) ? `whatsapp://send?text=${_share}` : `https://wa.me/?text=${_share}`;
-                          if(win) win.location.href = wa; else window.open(wa,"_blank");
+                          if(/android|iphone|ipad|ipod/i.test(_ua)){
+                            // Mobile : on FERME l'onglet blanc pré-ouvert (sinon il
+                            // reste sur about:blank) et on ouvre l'app via une
+                            // navigation directe — whatsapp:// ne charge pas dans un onglet.
+                            if(win) win.close();
+                            window.location.href = `whatsapp://send?text=${_share}`;
+                          } else {
+                            // Desktop : l'onglet pré-ouvert évite le blocage popup.
+                            const wa = `https://wa.me/?text=${_share}`;
+                            if(win) win.location.href = wa; else window.open(wa,"_blank");
+                          }
                         } catch(e){ if(win) win.close(); addToast("Erreur réseau — réessaye"); }
                       }} style={{
                         flex:1,
