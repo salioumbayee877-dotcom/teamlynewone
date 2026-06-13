@@ -4497,53 +4497,45 @@ function AppInner() {
               };
               const inviteToken = extractInviteToken(authForm.inviteUrl) || authForm.inviteToken || "";
               if(!inviteToken){ setAuthError("Lien d'invitation manquant — demande un lien à l'Admin"); return; }
-              // Register with Supabase, then join the org server-side. The role
-              // and org are set by the validated invite — never by the client.
-              sbAuth(authForm.email, authForm.password, "register")
-                .then(async(data)=>{
-                  if(!data.access_token){
-                    // Confirmation email activée : pas de session immédiate.
-                    // On garde l'intention de join et on passe par l'OTP (comme l'admin).
-                    try { localStorage.setItem("teamly_pending_join", JSON.stringify({
-                      userId:data.user?.id, email:authForm.email,
-                      nom:(authForm.nom||"").trim(), phone:(authForm.phone||"").trim(),
-                      adresse:(authForm.adresse||"").trim(), inviteToken,
-                    })); } catch(e){}
-                    setAuthStep("verify-email");
-                    return;
-                  }
-                  const tok=data.access_token;
-                  _authToken = tok; setSbToken(tok);
-                  const r = await fetch("/.netlify/functions/join-org",{
-                    method:"POST",
-                    headers:{ "Content-Type":"application/json", "Authorization":`Bearer ${tok}` },
-                    body:JSON.stringify({
-                      token:inviteToken,
-                      nom:(authForm.nom||"").trim(),
-                      phone:(authForm.phone||"").trim(),
-                      adresse:(authForm.adresse||"").trim(),
-                    }),
-                  });
-                  const j = await r.json().catch(()=>({}));
-                  if(!r.ok || !j.ok) throw new Error(j?.error || "Adhésion à l'équipe échouée");
-                  const joinedRole = j.role;
-                  const joinedOrg  = j.orgId;
-                  setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:joinedRole});
-                  setOrgId(joinedOrg);
-                  setSbReady(true);
-                  try {
-                    localStorage.setItem("teamly_token",tok);
-                    if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
-                    localStorage.setItem("teamly_email",authForm.email);
-                    localStorage.setItem("teamly_org",joinedOrg);
-                    localStorage.setItem("teamly_role",joinedRole);
-                  } catch(e){}
-                  setRole(joinedRole);
-                  setTab(joinedRole==="livreur"?"livraisons":"dashboard");
-                  if(window.history) window.history.replaceState({},"",window.location.pathname);
-                  setTimeout(()=>window.location.reload(), 300);
-                })
-                .catch(e=>setAuthError(e.message||"Erreur inscription"));
+              // Le lien d'invitation EST la preuve d'autorisation : le compte est
+              // créé côté serveur avec email auto-confirmé (pas de code email),
+              // puis on se connecte par mot de passe. Rôle + org figés par l'invite.
+              try {
+                const r = await fetch("/.netlify/functions/signup-invite",{
+                  method:"POST",
+                  headers:{ "Content-Type":"application/json" },
+                  body:JSON.stringify({
+                    token:inviteToken,
+                    email:(authForm.email||"").trim(),
+                    password:authForm.password,
+                    nom:(authForm.nom||"").trim(),
+                    phone:(authForm.phone||"").trim(),
+                    adresse:(authForm.adresse||"").trim(),
+                  }),
+                });
+                const j = await r.json().catch(()=>({}));
+                if(!r.ok || !j.ok){ setAuthError(j?.error || "Inscription échouée"); return; }
+                const joinedRole = j.role;
+                const joinedOrg  = j.orgId;
+                // Compte confirmé côté serveur → connexion par mot de passe pour la session.
+                const data = await sbAuth((authForm.email||"").trim(), authForm.password, "login");
+                const tok = data.access_token;
+                _authToken = tok; setSbToken(tok);
+                setCurrentUser({id:data.user.id,nom:authForm.nom,email:authForm.email,role:joinedRole,phone:authForm.phone});
+                setOrgId(joinedOrg);
+                setSbReady(true);
+                try {
+                  localStorage.setItem("teamly_token",tok);
+                  if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
+                  localStorage.setItem("teamly_email",authForm.email);
+                  localStorage.setItem("teamly_org",joinedOrg);
+                  localStorage.setItem("teamly_role",joinedRole);
+                } catch(e){}
+                setRole(joinedRole);
+                setTab(joinedRole==="livreur"?"livraisons":"dashboard");
+                if(window.history) window.history.replaceState({},"",window.location.pathname);
+                setTimeout(()=>window.location.reload(), 300);
+              } catch(e){ setAuthError(e.message||"Erreur inscription"); }
             }} style={{background:G.gold,color:G.dark,border:"none",borderRadius:12,padding:"14px 0",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"sans-serif",marginTop:4}}>
               Rejoindre l'équipe →
             </button>
@@ -4572,8 +4564,7 @@ function AppInner() {
 
       {authStep==="verify-email"&&(()=>{
         const pending = (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_signup")||"null");}catch(e){return null;}})();
-        const pendingJoin = (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_join")||"null");}catch(e){return null;}})();
-        const email   = authForm.email || pendingJoin?.email || pending?.email || "";
+        const email   = authForm.email || pending?.email || "";
 
         const setBox = (i, v) => {
           const clean = (v||"").replace(/\D/g,"").slice(0,1);
@@ -4614,41 +4605,6 @@ function AppInner() {
             }
             const tok = data.access_token; _authToken = tok; setSbToken(tok);
             const userId = data.user?.id;
-            // ── Flux JOIN (closer/livreur via lien d'invitation) ──────────
-            // L'email est confirmé : on a enfin une session → on crée le profil
-            // via join-org (rôle + org fixés par l'invite, jamais par le client).
-            if(pendingJoin && pendingJoin.inviteToken){
-              try{
-                const jr = await fetch("/.netlify/functions/join-org",{
-                  method:"POST",
-                  headers:{"Content-Type":"application/json","Authorization":`Bearer ${tok}`},
-                  body:JSON.stringify({ token:pendingJoin.inviteToken, nom:pendingJoin.nom, phone:pendingJoin.phone, adresse:pendingJoin.adresse }),
-                });
-                const jj = await jr.json().catch(()=>({}));
-                if(!jr.ok || !jj.ok){ setAuthError(jj?.error||"Adhésion à l'équipe échouée"); setOtpVerifying(false); return; }
-                const joinedRole=jj.role, joinedOrg=jj.orgId;
-                setCurrentUser({id:userId, nom:pendingJoin.nom||jj.nom||email, email, role:joinedRole, phone:pendingJoin.phone});
-                setOrgId(joinedOrg); setSbReady(true);
-                try{
-                  localStorage.setItem("teamly_token",tok);
-                  if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
-                  localStorage.setItem("teamly_email",email);
-                  localStorage.setItem("teamly_org",joinedOrg);
-                  localStorage.setItem("teamly_role",joinedRole);
-                  localStorage.setItem("teamly_userId",userId||"");
-                  localStorage.setItem("teamly_nom",pendingJoin.nom||"");
-                  localStorage.removeItem("teamly_pending_join");
-                  localStorage.removeItem("teamly_pending_signup");
-                }catch(e){}
-                setRole(joinedRole);
-                setTab(joinedRole==="livreur"?"livraisons":"dashboard");
-                addToast("✅ Bienvenue dans l'équipe","✅","#1A5C38");
-                setOtpCode(["","","","","",""]); setOtpVerifying(false);
-                if(window.history) window.history.replaceState({},"",window.location.pathname);
-                setTimeout(()=>window.location.reload(), 300);
-                return;
-              }catch(e){ setAuthError("Erreur réseau, réessayez"); setOtpVerifying(false); return; }
-            }
             const nom      = pending?.nom      || authForm.nom      || "Admin";
             const phone    = pending?.phone    || authForm.phone    || "";
             const boutique = pending?.boutique || authForm.boutique || "Ma Boutique";
