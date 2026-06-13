@@ -4428,18 +4428,27 @@ function AppInner() {
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
 
-            {/* Lien d'invitation */}
-            <div style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Send size={12}/> Lien d'invitation</div>
-              <input type="text" placeholder="teamly.life?invite=..." value={authForm.inviteUrl||""}
-                onChange={e=>setAuthForm(p=>({...p,inviteUrl:e.target.value}))}
-                style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"9px 12px",fontSize:11,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
-              {(authForm.inviteUrl||authForm.inviteToken)&&(
-                <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:12,fontFamily:"sans-serif"}}>
-                  <span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Send size={13}/> Lien d'invitation détecté — ton rôle est défini par l'Admin</span>
-                </div>
-              )}
-            </div>
+            {/* Lien d'invitation — quand on arrive via le lien (?invite=… dans
+                l'URL), le token est déjà détecté : on n'affiche QUE la confirmation,
+                le membre n'a rien à coller. Le champ à coller n'apparaît qu'en
+                secours (ouverture sans lien). */}
+            {authForm.inviteToken ? (
+              <div style={{background:"rgba(110,231,183,0.12)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(110,231,183,0.3)",fontSize:12,fontFamily:"sans-serif"}}>
+                <span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Send size={13}/> Invitation détectée — ton rôle est défini par l'Admin</span>
+              </div>
+            ) : (
+              <div style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"12px 14px",border:"1px solid rgba(255,255,255,0.15)"}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"sans-serif",marginBottom:6,display:"flex",alignItems:"center",gap:5}}><Send size={12}/> Lien d'invitation</div>
+                <input type="text" placeholder="teamly.life?invite=..." value={authForm.inviteUrl||""}
+                  onChange={e=>setAuthForm(p=>({...p,inviteUrl:e.target.value}))}
+                  style={{width:"100%",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:8,padding:"9px 12px",fontSize:11,color:G.white,outline:"none",boxSizing:"border-box",fontFamily:"monospace"}}/>
+                {authForm.inviteUrl&&(
+                  <div style={{marginTop:8,background:"rgba(255,255,255,0.1)",borderRadius:8,padding:"8px 12px",fontSize:12,fontFamily:"sans-serif"}}>
+                    <span style={{color:"#6EE7B7",fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><Send size={13}/> Lien d'invitation détecté — ton rôle est défini par l'Admin</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Séparateur */}
             <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"sans-serif",fontWeight:600,letterSpacing:0.5}}>MON PROFIL</div>
@@ -4492,6 +4501,17 @@ function AppInner() {
               // and org are set by the validated invite — never by the client.
               sbAuth(authForm.email, authForm.password, "register")
                 .then(async(data)=>{
+                  if(!data.access_token){
+                    // Confirmation email activée : pas de session immédiate.
+                    // On garde l'intention de join et on passe par l'OTP (comme l'admin).
+                    try { localStorage.setItem("teamly_pending_join", JSON.stringify({
+                      userId:data.user?.id, email:authForm.email,
+                      nom:(authForm.nom||"").trim(), phone:(authForm.phone||"").trim(),
+                      adresse:(authForm.adresse||"").trim(), inviteToken,
+                    })); } catch(e){}
+                    setAuthStep("verify-email");
+                    return;
+                  }
                   const tok=data.access_token;
                   _authToken = tok; setSbToken(tok);
                   const r = await fetch("/.netlify/functions/join-org",{
@@ -4552,7 +4572,8 @@ function AppInner() {
 
       {authStep==="verify-email"&&(()=>{
         const pending = (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_signup")||"null");}catch(e){return null;}})();
-        const email   = authForm.email || pending?.email || "";
+        const pendingJoin = (()=>{try{return JSON.parse(localStorage.getItem("teamly_pending_join")||"null");}catch(e){return null;}})();
+        const email   = authForm.email || pendingJoin?.email || pending?.email || "";
 
         const setBox = (i, v) => {
           const clean = (v||"").replace(/\D/g,"").slice(0,1);
@@ -4593,6 +4614,41 @@ function AppInner() {
             }
             const tok = data.access_token; _authToken = tok; setSbToken(tok);
             const userId = data.user?.id;
+            // ── Flux JOIN (closer/livreur via lien d'invitation) ──────────
+            // L'email est confirmé : on a enfin une session → on crée le profil
+            // via join-org (rôle + org fixés par l'invite, jamais par le client).
+            if(pendingJoin && pendingJoin.inviteToken){
+              try{
+                const jr = await fetch("/.netlify/functions/join-org",{
+                  method:"POST",
+                  headers:{"Content-Type":"application/json","Authorization":`Bearer ${tok}`},
+                  body:JSON.stringify({ token:pendingJoin.inviteToken, nom:pendingJoin.nom, phone:pendingJoin.phone, adresse:pendingJoin.adresse }),
+                });
+                const jj = await jr.json().catch(()=>({}));
+                if(!jr.ok || !jj.ok){ setAuthError(jj?.error||"Adhésion à l'équipe échouée"); setOtpVerifying(false); return; }
+                const joinedRole=jj.role, joinedOrg=jj.orgId;
+                setCurrentUser({id:userId, nom:pendingJoin.nom||jj.nom||email, email, role:joinedRole, phone:pendingJoin.phone});
+                setOrgId(joinedOrg); setSbReady(true);
+                try{
+                  localStorage.setItem("teamly_token",tok);
+                  if(data.refresh_token) localStorage.setItem("teamly_refresh_token",data.refresh_token);
+                  localStorage.setItem("teamly_email",email);
+                  localStorage.setItem("teamly_org",joinedOrg);
+                  localStorage.setItem("teamly_role",joinedRole);
+                  localStorage.setItem("teamly_userId",userId||"");
+                  localStorage.setItem("teamly_nom",pendingJoin.nom||"");
+                  localStorage.removeItem("teamly_pending_join");
+                  localStorage.removeItem("teamly_pending_signup");
+                }catch(e){}
+                setRole(joinedRole);
+                setTab(joinedRole==="livreur"?"livraisons":"dashboard");
+                addToast("✅ Bienvenue dans l'équipe","✅","#1A5C38");
+                setOtpCode(["","","","","",""]); setOtpVerifying(false);
+                if(window.history) window.history.replaceState({},"",window.location.pathname);
+                setTimeout(()=>window.location.reload(), 300);
+                return;
+              }catch(e){ setAuthError("Erreur réseau, réessayez"); setOtpVerifying(false); return; }
+            }
             const nom      = pending?.nom      || authForm.nom      || "Admin";
             const phone    = pending?.phone    || authForm.phone    || "";
             const boutique = pending?.boutique || authForm.boutique || "Ma Boutique";
