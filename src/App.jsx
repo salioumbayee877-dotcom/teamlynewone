@@ -21,7 +21,7 @@ import { ComptaPage } from "./components/ComptaPage";
 import { FraisPage } from "./components/FraisPage";
 import { ClientsPage } from "./components/ClientsPage";
 import {
-  WA_ZONES, _nz, detectZone, fullAddr,
+  WA_ZONES, _nz, detectZone, fullAddr, waPhone,
   _normCity, _parseCity, SENEGAL_CITIES, _findSenCity, detectDeliveryZone,
 } from "./lib/senegal";
 // ── Supabase REST client (no SDK needed) ──────────────────────────────────
@@ -1290,8 +1290,7 @@ function AppInner() {
   // ── WhatsApp confirmation ──
   const sendWAConfirmation = async (order) => {
     if(!order?.phone) return;
-    const phone = order.phone.replace(/\D/g,"");
-    const intlPhone = phone.startsWith("221") ? phone : `221${phone}`;
+    const intlPhone = waPhone(order.phone);
     // Get or generate tracking token so the client can follow the order in real time
     let token = order.tracking_token;
     if(!token) {
@@ -3203,8 +3202,7 @@ function AppInner() {
     }
 
     if(wa) {
-      const phone = newOrder.phone.replace(/\s+/g,"").replace(/^00/,"").replace(/^\+/,"");
-      const phoneWA = phone.startsWith("221") ? phone : `221${phone}`;
+      const phoneWA = waPhone(newOrder.phone);
       const buildMsg = (token) => {
         const trackingLink = token ? `https://www.teamlyecom.com/track/${token}` : "";
         const suiviLine = trackingLink ? `\n\n🔗 Suis ta commande en direct :\n${trackingLink}` : "";
@@ -6355,7 +6353,7 @@ function AppInner() {
 
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>{ if(!fraisConfigured){addToast("Configure d'abord tes frais de livraison","🚚","#F59E0B");setTab("frais");return;} if(orderLimitReached){addToast(`Limite ${orderLimit} commandes/mois atteinte — passe au plan supérieur`,"🔒","#DC2626");setShowPlanModal(true);return;} setTab("commandes");setTimeout(()=>setShowAdd(true),50); }} style={{flex:1,background:G.green,color:"#fff",border:"none",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:6}}><Plus size={14}/> Nouvelle commande</button>
-              <a href={`https://wa.me/${(settings.phone||"").replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}><MessageCircle size={14}/> WhatsApp</a>
+              <a href={`https://wa.me/${waPhone(settings.phone)}`} target="_blank" rel="noreferrer" style={{flex:1,background:"#25D366",color:"#fff",borderRadius:12,padding:"13px 0",fontSize:13,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,textDecoration:"none"}}><MessageCircle size={14}/> WhatsApp</a>
             </div>
             {pending.length>0&&(
             <div style={{background:G.white,borderRadius:14,padding:14,boxShadow:"0 1px 6px rgba(0,0,0,0.06)"}}>
@@ -7071,7 +7069,7 @@ function AppInner() {
                         style={{background:"#FFF8E7",color:G.gold,borderRadius:10,padding:"8px 12px",fontSize:13,textDecoration:"none",fontWeight:700,border:`1px solid ${G.gold}`}}>
                         📞
                       </a>
-                      <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noreferrer"
+                      <a href={`https://wa.me/${waPhone(settings.whatsapp)}`} target="_blank" rel="noreferrer"
                         style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 12px",fontSize:13,textDecoration:"none",fontWeight:700}}>
                         💬
                       </a>
@@ -7090,8 +7088,8 @@ function AppInner() {
                       </div>
                       {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
-                          <a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
-                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
+                          <a href={`tel:+${waPhone(m.phone)}`} style={{background:G.greenLight,color:G.green,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
+                          <a href={`https://wa.me/${waPhone(m.phone)}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
                         </div>
                       )}
                     </div>
@@ -7111,8 +7109,8 @@ function AppInner() {
                       </div>
                       {m.email!==currentUser.email&&(
                         <div style={{display:"flex",gap:5}}>
-                          <a href={`tel:+221${m.phone}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
-                          <a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
+                          <a href={`tel:+${waPhone(m.phone)}`} style={{background:"#EFF6FF",color:G.blue,borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>
+                          <a href={`https://wa.me/${waPhone(m.phone)}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:10,padding:"8px 11px",fontSize:13,textDecoration:"none",fontWeight:700,display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>
                         </div>
                       )}
                     </div>
@@ -7148,8 +7146,8 @@ function AppInner() {
                         <div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>{m.email!==currentUser.email&&<><Smartphone size={11}/> {m.phone} · </>}<Mail size={11}/> {m.email}</div>
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
-                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`tel:+${waPhone(m.phone)}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/${waPhone(m.phone)}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
                         {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center"}}><Pencil size={13}/></button>}
                       </div>
                     </div>
@@ -7189,8 +7187,8 @@ function AppInner() {
                         {m.email!==currentUser.email&&<div style={{fontSize:11,color:G.gray,marginTop:2,display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}><Smartphone size={11}/> {m.phone} · <Mail size={11}/> {m.email}</div>}
                       </div>
                       <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                        {m.email!==currentUser.email&&<a href={`tel:+221${m.phone}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
-                        {m.email!==currentUser.email&&<a href={`https://wa.me/221${m.phone?.replace(/\s+/g,"")}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`tel:+${waPhone(m.phone)}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><Phone size={14}/></a>}
+                        {m.email!==currentUser.email&&<a href={`https://wa.me/${waPhone(m.phone)}`} target="_blank" rel="noreferrer" style={{background:"#25D366",color:"#FFF",borderRadius:8,padding:"5px 9px",fontSize:14,textDecoration:"none",display:"inline-flex",alignItems:"center"}}><MessageCircle size={14}/></a>}
                         {isOwner&&<button onClick={()=>setMemberModal(m)} style={{background:G.grayLight,color:G.dark,border:"none",borderRadius:8,padding:"5px 9px",fontSize:12,cursor:"pointer",fontWeight:600,display:"inline-flex",alignItems:"center"}}><Pencil size={13}/></button>}
                       </div>
                     </div>
@@ -7517,7 +7515,7 @@ function AppInner() {
                             <div style={{fontSize:10,color:G.gray,marginTop:1}}>{n.time}</div>
                           </div>
                           <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                            {n.phone&&<a href={`tel:+221${n.phone.replace(/\s+/g,"")}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 8px",fontSize:14,textDecoration:"none"}}>📞</a>}
+                            {n.phone&&<a href={`tel:+${waPhone(n.phone)}`} style={{background:G.greenLight,color:G.green,borderRadius:8,padding:"5px 8px",fontSize:14,textDecoration:"none"}}>📞</a>}
                             <button onClick={()=>setDismissedNotifs(d=>new Set([...d,n.key]))}
                               style={{background:"none",border:"none",color:"#D1D5DB",fontSize:16,cursor:"pointer",padding:"2px 6px"}}>
                               ×
@@ -9656,7 +9654,7 @@ function AppInner() {
               )}
               <div style={{marginBottom:14}}>
                 <div style={{fontWeight:800,fontSize:20,color:G.dark,marginBottom:8}}>{o.client}</div>
-                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,textDecoration:"none"}}>
+                <a href={`tel:+${waPhone(o.phone)}`} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,textDecoration:"none"}}>
                   <Smartphone size={16}/><span style={{fontSize:15,color:G.blue,fontWeight:700}}>{o.phone}</span>
                 </a>
               </div>
@@ -9773,7 +9771,7 @@ function AppInner() {
               </div>
               {o.note&&<div style={{background:"#FFF8E7",borderRadius:10,padding:"10px 12px",marginBottom:14,fontSize:13,color:G.dark,display:"flex",alignItems:"center",gap:6}}><StickyNote size={14}/> {o.note}</div>}
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+                <a href={`tel:+${waPhone(o.phone)}`}
                   style={{background:G.green,color:G.white,borderRadius:12,padding:"15px 0",fontWeight:800,fontSize:16,textDecoration:"none",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
   <Phone size={14} style={{display:"inline",verticalAlign:"-2px"}}/> Appeler le client
                 </a>
@@ -10277,12 +10275,8 @@ function AppInner() {
                   addToast("Numéro de téléphone manquant — édite la commande pour l'ajouter","⚠️","#F59E0B");
                   return;
                 }
-                // Construire le numéro international
-                let phoneWA;
-                if(digits.startsWith("00")) phoneWA = digits.slice(2);
-                else if(digits.startsWith("221")) phoneWA = digits;
-                else if(digits.startsWith("0")) phoneWA = "221" + digits.slice(1);
-                else phoneWA = "221" + digits;
+                // Construire le numéro international (indicatif 221, sans doublon)
+                const phoneWA = waPhone(o.phone);
                 // Asegurar tracking_token (fetch/PATCH si falta)
                 let token = o.tracking_token;
                 if (!token) {

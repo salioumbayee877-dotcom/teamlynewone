@@ -37,6 +37,19 @@ export const fullAddr = (o) => {
   return parts.join(", ") || "—";
 };
 
+// Normalise un numéro de téléphone en format international wa.me (sans "+"),
+// indicatif Sénégal 221 par défaut. Corrige les doublons d'indicatif
+// (ex. "221221…", "00221221…") qui empêchaient WhatsApp de s'ouvrir sur mobile.
+// Accepte : "77 123 45 67", "0771234567", "+221 77…", "00221 77…", "221 77…".
+export const waPhone = (raw, cc = "221") => {
+  let d = String(raw || "").replace(/\D/g, "");    // ne garder que les chiffres
+  if (!d) return "";
+  if (d.startsWith("00")) d = d.slice(2);          // préfixe international 00 → retiré
+  if (d.startsWith(cc)) return d;                  // déjà au bon indicatif (évite 221221…)
+  if (d.startsWith("0")) return cc + d.slice(1);   // format local 0XX… → indicatif
+  return cc + d;                                   // numéro nu → préfixer l'indicatif
+};
+
 // ── Zone de livraison configurable ─────────────────────────────────────────
 export const _normCity  = s => (s||"").trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
 export const _parseCity = s => { const idx=(s||"").lastIndexOf("|"); return idx===-1?{name:s||"",price:null}:{name:s.slice(0,idx),price:parseInt(s.slice(idx+1))||null}; };

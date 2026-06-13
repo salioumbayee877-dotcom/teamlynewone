@@ -1,6 +1,6 @@
 import React from "react";
 import { useAppContext } from "../context/AppContext";
-import { fullAddr } from "../lib/senegal";
+import { fullAddr, waPhone } from "../lib/senegal";
 import {
   Pin, Gift, Smartphone, MapPin, Bike, Check, Package, Bus, Rocket,
   Phone, Pencil, StickyNote, MessageCircle, Send, X, RotateCcw, PhoneOff,
@@ -184,7 +184,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                     if(token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
                   }catch(e){}
                 }
-                const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
+                const phoneWA = waPhone(o.phone);
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
               };
               const sendPaymentLink = async () => {
@@ -204,7 +204,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                 if(!token){ return; }
                 const payLink = `https://www.teamlyecom.com/pay/${token}`;
                 const msg = `Bonjour ${o.client} 👋\n\n📦 Pour confirmer ta commande *${o.product}*, paie *${fmt(_total)} CFA* via Wave en cliquant ci-dessous :\n\n💳 ${payLink}\n${_hasInter?`\n_(produit ${fmt(o.price)} + transport interurbain ${fmt(_inter)})_\n`:""}\n👉 Saisis exactement *${fmt(_total)} CFA* dans Wave.\nUne fois payé, on confirme ta commande sous quelques minutes 🚀\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
-                const phoneWA = `221${o.phone.replace(/\s+/g,"").replace(/^221/,"").replace(/^0/,"")}`;
+                const phoneWA = waPhone(o.phone);
                 window.open(`https://wa.me/${phoneWA}?text=${encodeURIComponent(msg)}`,"_blank","noopener,noreferrer");
               };
               return (
@@ -362,7 +362,7 @@ export const OCard = ({ o, showPrendre = false }) => {
 
             {/* Actions rapides — bas de carte */}
             <div style={{display:"flex",gap:5,marginTop:8}}>
-              <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+              <a href={`tel:+${waPhone(o.phone)}`}
                 style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
                 <Phone size={12}/> Appeler
               </a>
@@ -439,7 +439,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* WhatsApp — admin et closer */}
       {!inOtherFlow&&(role==="admin"||role==="closer")&&o.phone&&(()=>{
         const waSent = waSentIds.has(o.id);
-        const phone = `221${o.phone.replace(/\s+/g,"")}`;
+        const phone = waPhone(o.phone);
         const buildMsg = (token) => {
           const suiviLine = token ? `\n\n🔗 *Suis ta commande en direct :*\nhttps://www.teamlyecom.com/track/${token}` : "";
           return `Cher(e) ${o.client} 👋\n\n✅ *Commande confirmée !*\n\n📦 *${o.product}*\n💰 *${fmt(o.price)} CFA* (paiement à la livraison)\n📍 ${o.address||"adresse à confirmer"}\n\n📲 *Enregistrez notre numéro pour ne rater aucune promo !*\nNos meilleures offres sont publiées dans nos *statuts WhatsApp* 🔥\n\n🏍️ Le livreur vous appellera avant de passer${suiviLine}\n\nMerci 🙏 — *${settings.boutique||"Notre boutique"}*`;
@@ -550,7 +550,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                       if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
                     } catch(err) {}
                   }
-                  window.open(`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+                  window.open(`https://wa.me/${waPhone(o.phone)}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
                 };
                 return (
                   <button onClick={openWA}
@@ -595,7 +595,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                       if (token) setOrders(prev=>prev.map(x=>x.id===o.id?{...x,tracking_token:token}:x));
                     } catch(err) {}
                   }
-                  window.open(`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
+                  window.open(`https://wa.me/${waPhone(o.phone)}?text=${encodeURIComponent(buildMsg(token))}`,"_blank","noopener,noreferrer");
                 };
                 return (
                   <button onClick={openWA}
@@ -621,7 +621,7 @@ export const OCard = ({ o, showPrendre = false }) => {
               {o.phone&&(()=>{
                 const msg = `Salut ${o.client} 🚪\n\nJe suis *${currentUser.nom}*, ton livreur — *je suis à ta porte maintenant !* 📍\n\nTu peux descendre récupérer ta commande ?\n💵 N'oublie pas *${fmt(o.price)} CFA* en cash 🙏\n\nSi tu ne peux pas, réponds vite stp !`;
                 return (
-                  <a href={`https://wa.me/221${o.phone.replace(/\s+/g,"")}?text=${encodeURIComponent(msg)}`}
+                  <a href={`https://wa.me/${waPhone(o.phone)}?text=${encodeURIComponent(msg)}`}
                     target="_blank" rel="noreferrer"
                     style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,background:"#25D366",color:"#fff",borderRadius:11,padding:"13px 0",fontSize:14,fontWeight:700,textDecoration:"none",boxShadow:"0 3px 10px rgba(37,211,102,0.35)"}}>
                     <MessageCircle size={20}/> Prévenir le client — je suis là
@@ -643,7 +643,7 @@ export const OCard = ({ o, showPrendre = false }) => {
                   <RotateCcw size={18}/><span>Reporter</span>
                 </button>
               </div>
-              {o.phone&&<a href={`tel:+221${o.phone.replace(/\s+/g,"")}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"6px 0",fontSize:11,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><Phone size={12}/> Rappeler le client</a>}
+              {o.phone&&<a href={`tel:+${waPhone(o.phone)}`} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,background:"none",color:G.gray,borderRadius:8,padding:"6px 0",fontSize:11,textDecoration:"none",border:`1px solid ${G.grayLight}`}}><Phone size={12}/> Rappeler le client</a>}
             </div>
           )}
 
@@ -724,7 +724,7 @@ export const OCard = ({ o, showPrendre = false }) => {
       {/* Actions rapides — bas de carte */}
       {!inOtherFlow&&(
       <div style={{display:"flex",gap:5,marginTop:6}}>
-        <a href={`tel:+221${(o.phone||"").replace(/\s+/g,"")}`}
+        <a href={`tel:+${waPhone(o.phone)}`}
           style={{flex:1,background:"#F0F6FF",color:"#1D4ED8",borderRadius:8,padding:"8px 0",fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:4,textDecoration:"none"}}>
           <Phone size={12}/> Appeler
         </a>
