@@ -2969,9 +2969,12 @@ function AppInner() {
       catch(e){ addToast("Erreur suppression","❌",G.red); }
     }});
   };
+  // Affiliation masquée à la demande : aucun CTA, aucun accès dans le menu.
+  // (Le code de la page reste en place pour réactivation future.)
+  const AFFILIATION_ENABLED = false;
   // CTA affiliation : visible uniquement si PAS bloqué, PAS encore enrôlé
   // (aucun code créé), code déjà chargé, fenêtre de snooze passée et pas fermé.
-  const showAffiliateCta = !affiliateBlocked && !myReferralCode && referralLoaded && affiliateCtaVisible && !affiliateCtaDismissed;
+  const showAffiliateCta = AFFILIATION_ENABLED && !affiliateBlocked && !myReferralCode && referralLoaded && affiliateCtaVisible && !affiliateCtaDismissed;
   // Dès qu'on l'affiche à un non-enrôlé → reprogramme la prochaine apparition
   // ~15 j plus tard (≈2×/mois). Une fois un code créé, elle ne revient jamais.
   useEffect(()=>{
@@ -3640,6 +3643,41 @@ function AppInner() {
   const comptaFrais = comptaCalcProd.reduce((a,x)=>a+x.frais,0);
   const comptaPub   = comptaCalcProd.reduce((a,x)=>a+x.pub,0);
   const comptaMarge = comptaCA>0?comptaBen/comptaCA:0;
+  // Pedidos "en cours" : créés dans la période sélectionnée mais PAS encore
+  // terminés (ni livrés ni rejetés). Inclut pendiente/confirmado/en transit/
+  // no_contesta/reprogramar… → ce que l'admin doit confirmer ou finir.
+  // On respecte les mêmes filtres que comptaOrders SAUF le filtre de statut
+  // (qui par défaut ne garde que entregado/rechazado et masquerait tout).
+  const comptaEnCours = (()=>{
+    const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
+    const to   = dateTo   ? new Date(dateTo  +"T23:59:59.999Z") : null;
+    const cf   = comptaFilters;
+    const FINAL = new Set(["entregado","rechazado"]);
+    return orders.filter(o=>{
+      if(o.archived) return false;
+      if(FINAL.has(o.status)) return false;
+      const d = o.created_at ? new Date(o.created_at) : null;
+      if(from && (!d||d<from)) return false;
+      if(to   && (!d||d>to  )) return false;
+      if(cf.produits.length>0 && !cf.produits.some(p=>o.product?.startsWith(p))) return false;
+      if(cf.livraisonType==="locale_moto"    && o.deliveryZoneType!=="main" ) return false;
+      if(cf.livraisonType==="regionale_voiture" && o.deliveryZoneType!=="other") return false;
+      if(cf.source!=="all"){
+        const isShopify = !!(o.note?.includes("Shopify")||o.order_source==="shopify");
+        if(cf.source==="shopify" && !isShopify) return false;
+        if(cf.source==="manual"  &&  isShopify) return false;
+      }
+      if(cf.livreurs.length>0 && !cf.livreurs.includes(o.livreur||"")) return false;
+      if(cf.ville){
+        const haystack=_normCity((o.city||o.deliveryZoneName||o.address||""));
+        if(!haystack.includes(_normCity(cf.ville))) return false;
+      } else if(cf.region){
+        const haystack=_normCity((o.deliveryZoneName||o.address||""));
+        if(!haystack.includes(_normCity(cf.region))) return false;
+      }
+      return true;
+    }).length;
+  })();
 
   // ── Move card up/down within its status group ──
   const moveInGroup = (id, direction) => {
@@ -4966,7 +5004,7 @@ function AppInner() {
     adSpend, livraisonsEchouees, cashRemis,
     // compta derived
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
-    comptaPub, comptaMarge,
+    comptaPub, comptaMarge, comptaEnCours,
     // frais state
     fraisConfigTab, fraisMainNameEdit, fraisEditCity, fraisNewMain, fraisNewOther,
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,
@@ -5291,7 +5329,7 @@ function AppInner() {
 <Sparkles size={14}/> <span>Support Teamly</span>
             </button>
           )}
-          {role==="admin"&&!affiliateBlocked&&(
+          {AFFILIATION_ENABLED&&role==="admin"&&!affiliateBlocked&&(
           <button onClick={()=>{setTab("affiliation");setSidebarOpen(false);loadReferrals();loadMyReferralCode();}} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(240,165,0,0.35)",borderRadius:9,padding:"10px 14px",cursor:"pointer",textAlign:"left",color:G.gold,fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:8}}>
 <Gift size={14}/> <span>Affiliation</span>
           </button>

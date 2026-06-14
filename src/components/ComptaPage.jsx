@@ -21,7 +21,7 @@ export const ComptaPage = () => {
     dateFrom, dateTo, comptaExpandedProd, comptaCostEdit, comptaExportOpen,
     adSpend, livraisonsEchouees, cashRemis,
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
-    comptaPub, comptaMarge,
+    comptaPub, comptaMarge, comptaEnCours,
     setProducts,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
@@ -277,13 +277,19 @@ export const ComptaPage = () => {
                 {l:"Pub",         v:`${fmt(comptaPub)} CFA`},
                 {l:"Livraison",   v:`${fmt(comptaFrais)} CFA`},
                 {l:"Livrées / Rejetées", v:`${nLivrees} / ${nRejetees}`},
-              ].map(({l,v},i)=>(
+                {l:"En cours",    v:`${comptaEnCours}`, c:comptaEnCours>0?"#92400E":"#111827"},
+              ].map(({l,v,c},i)=>(
                 <div key={i}>
                   <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{l}</div>
-                  <div style={{fontSize:14,fontWeight:500,color:"#111827"}}>{v}</div>
+                  <div style={{fontSize:14,fontWeight:500,color:c||"#111827"}}>{v}</div>
                 </div>
               ))}
             </div>
+            {comptaEnCours>0&&(
+              <div style={{marginTop:12,fontSize:11,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",lineHeight:1.4}}>
+                {comptaEnCours} commande{comptaEnCours!==1?"s":""} en cours de livraison ou à confirmer — pas encore comptée{comptaEnCours!==1?"s":""} dans le bénéfice.
+              </div>
+            )}
             <div style={{marginTop:10,fontSize:11,color:"#9CA3AF",textAlign:"right"}}>
               {comptaOrders.length} commande{comptaOrders.length!==1?"s":""}
             </div>
