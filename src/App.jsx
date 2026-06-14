@@ -1068,8 +1068,13 @@ function AppInner() {
   const [showClientDetail, setShowClientDetail] = useState(null);
   const [searchQuery, setSearchQuery]   = useState("");
   const [filterStatus, setFilterStatus] = useState(()=>{try{const s=new URLSearchParams(window.location.search).get("status");if(s)return s;}catch(e){}return "all";});
-  const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","month","all"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"month";}catch(e){return "month";}});
+  const [filterDate,   setFilterDate]   = useState(()=>{try{const u=new URLSearchParams(window.location.search).get("date");if(u&&["today","yesterday","week","month","all","range"].includes(u))return u;return localStorage.getItem("teamly_filter_date")||"month";}catch(e){return "month";}});
   const filterDateRef = useRef(filterDate);
+  // Plage de dates personnalisée pour "Commandes à traiter" (filterDate==="range").
+  const [filterDateFrom, setFilterDateFrom] = useState(()=>{try{return localStorage.getItem("teamly_filter_from")||TODAY;}catch(e){return TODAY;}});
+  const [filterDateTo,   setFilterDateTo]   = useState(()=>{try{return localStorage.getItem("teamly_filter_to")||TODAY;}catch(e){return TODAY;}});
+  const filterFromRef = useRef(filterDateFrom);
+  const filterToRef   = useRef(filterDateTo);
   // Filtre de date PROPRE au dashboard — indépendant de Commandes à traiter.
   const [dashDate, setDashDate] = useState(()=>{try{return localStorage.getItem("teamly_dash_date")||"month";}catch(e){return "month";}});
   const dashDateRef = useRef(dashDate);
@@ -1904,6 +1909,14 @@ function AppInner() {
     if(loadMainRef.current) loadMainRef.current();
   },[filterDate]);
 
+  // Plage commandes → persiste les bornes + re-fetch quand on est en mode "range".
+  useEffect(()=>{
+    filterFromRef.current = filterDateFrom;
+    filterToRef.current   = filterDateTo;
+    try { localStorage.setItem("teamly_filter_from", filterDateFrom); localStorage.setItem("teamly_filter_to", filterDateTo); } catch(e){}
+    if(filterDate==="range" && loadMainRef.current) loadMainRef.current();
+  },[filterDateFrom, filterDateTo]);
+
   // Filtre du dashboard → persiste + re-fetch (la fenêtre serveur englobe sa plage)
   useEffect(()=>{
     dashDateRef.current = dashDate;
@@ -2337,6 +2350,9 @@ function AppInner() {
       } else if(dateKey==="month") {
         cStart=new Date(now); cStart.setDate(cStart.getDate()-30); cStart.setHours(0,0,0,0);
         cEnd=new Date(now);   cEnd.setHours(23,59,59,999);
+      } else if(dateKey==="range") {
+        if(filterFromRef.current) cStart=new Date(filterFromRef.current+"T00:00:00.000Z");
+        if(filterToRef.current)   cEnd  =new Date(filterToRef.current  +"T23:59:59.999Z");
       }
       // Compute the compta filter range (always present once compta loaded).
       let kStart=null, kEnd=null;
@@ -4964,7 +4980,7 @@ function AppInner() {
     if(o.status==="boutique") return false;
     const matchSearch = !searchQuery || o.client?.toLowerCase().includes(searchQuery.toLowerCase()) || o.phone?.includes(searchQuery) || o.product?.toLowerCase().includes(searchQuery.toLowerCase());
     const d = o.created_at ? (() => { const dt=new Date(o.created_at); return `${dt.getFullYear()}-${_pad(dt.getMonth()+1)}-${_pad(dt.getDate())}`; })() : "";
-    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START) || (filterDate==="month"&&d>=MONTH_START);
+    const matchDate = filterDate==="all" || (filterDate==="today"&&d===TODAY_STR) || (filterDate==="yesterday"&&d===YESTERDAY) || (filterDate==="week"&&d>=WEEK_START) || (filterDate==="month"&&d>=MONTH_START) || (filterDate==="range"&&(!filterDateFrom||d>=filterDateFrom)&&(!filterDateTo||d<=filterDateTo));
     if(role==="livreur") {
       // Pedidos hors zone principale: visibles de paiement_confirme jusqu'à l'état final
       // (intermédiaires + résultats finaux), pour que le livreur garde la trace de la livraison terminée
@@ -6719,6 +6735,7 @@ function AppInner() {
                       {k:"week",      l:"Semaine",     sub:`dès ${_fmt(_mon)}`},
                       {k:"month",     l:"30 jours",    sub:"30 derniers j."},
                       {k:"all",       l:"Tout",        sub:"toutes dates"},
+                      {k:"range",     l:"Plage",       sub:"dates précises"},
                     ];
                     return chips.map(d=>{
                       const active = filterDate===d.k;
@@ -6732,6 +6749,18 @@ function AppInner() {
                     });
                   })()}
                 </div>
+                {/* Plage : sélecteurs de dates personnalisés */}
+                {filterDate==="range"&&(
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,flexWrap:"wrap"}}>
+                    <input type="date" value={filterDateFrom} max={filterDateTo||undefined}
+                      onChange={e=>setFilterDateFrom(e.target.value)}
+                      style={{flex:"1 1 130px",minWidth:0,border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff",color:"#111827"}}/>
+                    <span style={{color:"#9CA3AF",fontSize:13,flexShrink:0}}>→</span>
+                    <input type="date" value={filterDateTo} min={filterDateFrom||undefined}
+                      onChange={e=>setFilterDateTo(e.target.value)}
+                      style={{flex:"1 1 130px",minWidth:0,border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff",color:"#111827"}}/>
+                  </div>
+                )}
 
                 {/* Statut — deux groupes pour admin/closer, liste simple pour livreur */}
                 {role!=="livreur"?(
