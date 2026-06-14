@@ -3663,11 +3663,17 @@ function AppInner() {
     }
 
     const camv  = totalUnits * (prod.cost||0);
-    // Sync con la config actual de "Frais de livraison" (delivery_main_region +
-    // delivery_other_regions). Ignora el fraisLiv guardado en el pedido para
-    // reflejar siempre la tarifa actualizada que ve el admin en settings.
+    // Frais de livraison par commande livrée :
+    //  - Zone reconnue  → tarif ACTUEL des settings (reflète les changements de zones).
+    //  - Zone NON reconnue → on garde le frais réellement enregistré sur la commande
+    //    (o.fraisLiv), pas le fallback : sinon une adresse hors zones gonfle le coût
+    //    (ex. 3000 au lieu du vrai 2500 déjà appliqué à la livraison).
     const _defPrice = settings.defaultDeliveryPrice||3500;
-    const frais = livOps.reduce((s,o)=>s+detectDeliveryZone(o.city||"", mainRegion, otherRegions, _defPrice).price,0);
+    const frais = livOps.reduce((s,o)=>{
+      const z = detectDeliveryZone(o.city||"", mainRegion, otherRegions, _defPrice);
+      const fee = z.type!=="unknown" ? z.price : (o.fraisLiv!=null ? o.fraisLiv : _defPrice);
+      return s + (Number(fee)||0);
+    },0);
     // CA = total cobrado (revenue ya incluye la livraison en o.price/line_total)
     const ca = revenue;
     const zoneBreakdown = WA_ZONES.map(z=>({
