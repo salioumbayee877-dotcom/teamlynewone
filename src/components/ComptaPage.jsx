@@ -390,6 +390,23 @@ export const ComptaPage = () => {
           : "SAISIES";
         const inputBaseStyle = {border:"0.5px solid #E5E7EB",borderRadius:8,padding:"5px 8px",fontSize:13,outline:"none",textAlign:"right",background:"#FAFAFA"};
         const inputStyle = readOnly ? {...inputBaseStyle,background:"#F3F4F6",color:"#9CA3AF",cursor:"not-allowed"} : inputBaseStyle;
+        // Les saisies Pub/Frais sont indexées PAR JOUR : { "YYYY-MM-DD": { prodId: valeur } }.
+        // On édite le jour sélectionné (dateFrom). En lecture seule (semaine/mois/plage),
+        // on affiche la somme des saisies du produit sur l'intervalle.
+        const dayKey = dateFrom || TODAY;
+        const readDaily = (store, prodId) => {
+          if (!readOnly) return store?.[dayKey]?.[prodId] ?? "";
+          let s = 0;
+          for (const [d,m] of Object.entries(store||{})) {
+            if (!m || typeof m !== "object") continue; // ignore ancien format plat
+            if (dateFrom && d < dateFrom) continue;
+            if (dateTo   && d > dateTo  ) continue;
+            s += parseFloat(m[prodId]||0)||0;
+          }
+          return s ? String(s) : "";
+        };
+        const writeDaily = (setter, prodId, val) =>
+          setter(p => ({...p, [dayKey]: {...(p[dayKey]||{}), [prodId]: val}}));
         return (
           <div>
             <div style={{fontSize:11,fontWeight:600,color:"#4B5563",letterSpacing:"0.07em",marginBottom:8,paddingLeft:2}}>{sectionTitle}</div>
@@ -414,6 +431,8 @@ export const ComptaPage = () => {
             <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",overflow:"hidden"}}>
               {comptaCalcProd.map(({prod,nLiv,nRej},idx)=>{
                 const notConfigured = !prod.cost||prod.cost===0;
+                const pubVal   = readDaily(adSpend, prod.id);
+                const fraisVal = readDaily(livraisonsEchouees, prod.id);
                 return (
                 <div key={prod.id} style={{borderBottom:idx<comptaCalcProd.length-1?"1px solid #E5E7EB":"none"}}>
                   {/* Product section header (warning state if no cost) */}
@@ -448,12 +467,12 @@ export const ComptaPage = () => {
                       <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Meta · TikTok · Google Ads · Influencer · SMS/WhatsApp</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                      <input type="number" min="0" value={adSpend[prod.id]||""}
-                        onChange={e=>setAdSpend(p=>({...p,[prod.id]:e.target.value}))}
+                      <input type="number" min="0" value={pubVal||""}
+                        onChange={e=>writeDaily(setAdSpend, prod.id, e.target.value)}
                         onBlur={()=>localStorage.setItem("teamly_ad_spend",JSON.stringify(adSpend))}
                         placeholder="0" readOnly={readOnly}
                         style={{...inputStyle,width:84}}/>
-                      {adSpend[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(adSpend[prod.id]||0))} CFA</div>}
+                      {pubVal&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(pubVal||0))} CFA</div>}
                     </div>
                   </div>
                   {/* Frais échecs input */}
@@ -464,12 +483,12 @@ export const ComptaPage = () => {
                       <div style={{fontSize:10,color:"#9CA3AF",marginTop:1}}>Échec livraison · Produit endommagé · Frais transfert (Wave/Orange Money)</div>
                     </div>
                     <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2,flexShrink:0}}>
-                      <input type="number" min="0" value={livraisonsEchouees[prod.id]||""}
-                        onChange={e=>setLivraisonsEchouees(p=>({...p,[prod.id]:e.target.value}))}
+                      <input type="number" min="0" value={fraisVal||""}
+                        onChange={e=>writeDaily(setLivraisonsEchouees, prod.id, e.target.value)}
                         onBlur={()=>localStorage.setItem("teamly_echecs",JSON.stringify(livraisonsEchouees))}
                         placeholder="0" readOnly={readOnly}
                         style={{...inputStyle,width:84}}/>
-                      {livraisonsEchouees[prod.id]&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(livraisonsEchouees[prod.id]||0))} CFA</div>}
+                      {fraisVal&&<div style={{fontSize:10,color:"#6B7280"}}>= {fmt(parseFloat(fraisVal||0))} CFA</div>}
                     </div>
                   </div>
                 </div>

@@ -249,6 +249,22 @@ function fmtMoney(cfa, currency) {
 
 const localDateStr = (dt = new Date()) => { const d = new Date(dt); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
 const TODAY = localDateStr();
+
+// Saisies Compta (Pub / Frais extra) indexées PAR JOUR : { "YYYY-MM-DD": { prodId: valeur } }.
+// Somme les saisies d'un produit sur l'intervalle [fromStr, toStr] (dates ISO, comparaison
+// lexicographique). Ignore l'ancien format plat { prodId: valeur } (valeur non-objet) pour
+// qu'un montant global hérité ne s'applique plus à toutes les dates.
+const sumDailyInput = (store, prodId, fromStr, toStr) => {
+  if (!store || typeof store !== "object") return 0;
+  let sum = 0;
+  for (const [day, perProd] of Object.entries(store)) {
+    if (!perProd || typeof perProd !== "object") continue; // skip legacy flat entry
+    if (fromStr && day < fromStr) continue;
+    if (toStr   && day > toStr  ) continue;
+    sum += parseFloat(perProd[prodId] || 0) || 0;
+  }
+  return sum;
+};
 const FRAIS_LIV = 1500;
 
 // WA_ZONES, _nz, detectZone — moved to src/lib/senegal.js
@@ -3482,6 +3498,16 @@ function AppInner() {
     if(!s) return orders;
     return orders.filter(o=>{ const t=o.created_at?new Date(o.created_at):null; return t && t>=s && t<=e; });
   })();
+  // Intervalle de dates (ISO) du dashboard — pour sommer les saisies Pub/Frais par jour.
+  const [dashFromStr,dashToStr] = (()=>{
+    if(dashDate==="all") return ["0000-01-01","9999-12-31"];
+    const now=new Date();
+    if(dashDate==="today")     return [localDateStr(now), localDateStr(now)];
+    if(dashDate==="yesterday"){ const y=new Date(now); y.setDate(y.getDate()-1); return [localDateStr(y), localDateStr(y)]; }
+    if(dashDate==="week"){ const m=new Date(now); m.setDate(m.getDate()-((m.getDay()+6)%7)); return [localDateStr(m), localDateStr(now)]; }
+    if(dashDate==="month"){ const m=new Date(now); m.setDate(m.getDate()-30); return [localDateStr(m), localDateStr(now)]; }
+    return ["0000-01-01","9999-12-31"];
+  })();
   const dashTotal = dashOrders.length;
   const livres  = dashOrders.filter(o=>o.status==="entregado").length;
   const rejetes = dashOrders.filter(o=>o.status==="rechazado").length;
@@ -3517,8 +3543,8 @@ function AppInner() {
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
     })).filter(x=>x.count>0);
-    const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
-    const pub     = parseFloat(adSpend[prod.id]||0);
+    const echouees = sumDailyInput(livraisonsEchouees, prod.id, dashFromStr, dashToStr);
+    const pub     = sumDailyInput(adSpend, prod.id, dashFromStr, dashToStr);
     const ben     = ca-camv-frais-echouees-pub;
     const marge   = ca>0?ben/ca:0;
     return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown};
@@ -3630,8 +3656,8 @@ function AppInner() {
       zone:z,
       count:livOps.filter(o=>detectZone(o.address).key===z.key).length,
     })).filter(x=>x.count>0);
-    const echouees = parseFloat(livraisonsEchouees[prod.id]||0);
-    const pub      = parseFloat(adSpend[prod.id]||0);
+    const echouees = sumDailyInput(livraisonsEchouees, prod.id, dateFrom, dateTo);
+    const pub      = sumDailyInput(adSpend, prod.id, dateFrom, dateTo);
     // Bénéfice = CA − frais livraison (reversado al livreur) − CAMV − pub − frais extra
     const ben      = ca-frais-camv-echouees-pub;
     const marge    = ca>0?ben/ca:0;
