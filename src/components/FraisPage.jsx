@@ -166,19 +166,11 @@ export const FraisPage = () => {
                   <input type="number" min="0"
                     value={dakarPrice}
                     onChange={e=>{
+                      // Pas de sauvegarde automatique : on met seulement à jour la
+                      // saisie locale. Le tarif n'est persisté qu'au clic sur
+                      // « Appliquer à toutes les villes de Dakar ».
                       lastTypeRef.current = Date.now();
-                      const raw = e.target.value;
-                      setDakarPrice(raw);
-                      if(window.__dakarSaveT) clearTimeout(window.__dakarSaveT);
-                      window.__dakarSaveT = setTimeout(async()=>{
-                        const v = parseInt(raw)||0;
-                        setMainRegion(r => r ? {...r, price:v} : {id:null, name:"Dakar", price:v, cities:[], aliases:[]});
-                        try {
-                          if(mainRegion?.id) await sbFetch(`delivery_main_region?id=eq.${mainRegion.id}`,"PATCH",{price:v});
-                          else { const res=await sbFetch("delivery_main_region","POST",{org_id:orgId,name:mainRegion?.name||"Dakar",price:v,cities:[]}); const s=Array.isArray(res)?res[0]:res; if(s) setMainRegion(s); }
-                          addToast("✅ Tarif Dakar mis à jour","✅",G.green);
-                        } catch(e){ addToast("❌ Erreur — réessayez","❌",G.red); }
-                      }, 500);
+                      setDakarPrice(e.target.value);
                     }}
                     style={{flex:1,height:44,border:"1.5px solid #86EFAC",borderRadius:10,padding:"0 12px",fontSize:16,outline:"none",fontWeight:600}}/>
                   <span style={{fontSize:14,color:G.gray,fontWeight:600}}>CFA</span>
@@ -186,7 +178,7 @@ export const FraisPage = () => {
                 {/* Bulk apply Dakar */}
                 {(()=>{
                   const cityCount = (mainRegion?.cities||[]).length;
-                  const v = parseInt(mainRegion?.price)||0;
+                  const v = parseInt(dakarPrice)||0;
                   const disabled = role!=="admin" || cityCount===0 || !v;
                   const helper = cityCount===0
                     ? "Aucune ville à mettre à jour"
