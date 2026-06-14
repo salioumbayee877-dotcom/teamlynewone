@@ -3001,9 +3001,11 @@ function AppInner() {
       catch(e){ addToast("Erreur suppression","❌",G.red); }
     }});
   };
-  // Affiliation masquée à la demande : aucun CTA, aucun accès dans le menu.
-  // (Le code de la page reste en place pour réactivation future.)
-  const AFFILIATION_ENABLED = false;
+  // Affiliation visible UNIQUEMENT pour l'owner (test/préparation) — masquée pour
+  // tous les autres utilisateurs : aucun CTA, aucun accès dans le menu. Le code et
+  // les données restent en place ; pour ouvrir à tous, remettre `true`.
+  const AFFILIATION_ENABLED = isOwnerEmail(currentUser?.email)
+    || (typeof localStorage!=="undefined" && isOwnerEmail(localStorage.getItem("teamly_email")));
   // CTA affiliation : visible uniquement si PAS bloqué, PAS encore enrôlé
   // (aucun code créé), code déjà chargé, fenêtre de snooze passée et pas fermé.
   const showAffiliateCta = AFFILIATION_ENABLED && !affiliateBlocked && !myReferralCode && referralLoaded && affiliateCtaVisible && !affiliateCtaDismissed;
@@ -5658,7 +5660,7 @@ function AppInner() {
         })()}
 
         {/* ── AFFILIATION / PARRAINAGE (page dédiée) ── */}
-        {dataReady&&tab==="affiliation"&&role==="admin"&&!affiliateBlocked&&(()=>{
+        {dataReady&&AFFILIATION_ENABLED&&tab==="affiliation"&&role==="admin"&&!affiliateBlocked&&(()=>{
           const filleuls   = referralsList.length;
           const converted  = referralsList.filter(r=>r.status!=="pending").length;
           const pendingPay = referralsList.filter(r=>r.status==="converted").reduce((s,r)=>s+(r.commission_cfa||0),0);
