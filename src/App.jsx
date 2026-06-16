@@ -3714,7 +3714,7 @@ function AppInner() {
   // no_contesta/reprogramar… → ce que l'admin doit confirmer ou finir.
   // On respecte les mêmes filtres que comptaOrders SAUF le filtre de statut
   // (qui par défaut ne garde que entregado/rechazado et masquerait tout).
-  const comptaEnCours = (()=>{
+  const comptaEnCoursList = (()=>{
     const from = dateFrom || null;
     const to   = dateTo   || null;
     const cf   = comptaFilters;
@@ -3742,8 +3742,9 @@ function AppInner() {
         if(!haystack.includes(_normCity(cf.region))) return false;
       }
       return true;
-    }).length;
+    });
   })();
+  const comptaEnCours = comptaEnCoursList.length;
 
   // ── Move card up/down within its status group ──
   const moveInGroup = (id, direction) => {
@@ -5081,7 +5082,7 @@ function AppInner() {
     adSpend, livraisonsEchouees, cashRemis,
     // compta derived
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
-    comptaPub, comptaMarge, comptaEnCours,
+    comptaPub, comptaMarge, comptaEnCours, comptaEnCoursList,
     // frais state
     fraisConfigTab, fraisMainNameEdit, fraisEditCity, fraisNewMain, fraisNewOther,
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,

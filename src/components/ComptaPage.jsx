@@ -21,7 +21,7 @@ export const ComptaPage = () => {
     dateFrom, dateTo, comptaExpandedProd, comptaCostEdit, comptaExportOpen,
     adSpend, livraisonsEchouees, cashRemis,
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
-    comptaPub, comptaMarge, comptaEnCours,
+    comptaPub, comptaMarge, comptaEnCours, comptaEnCoursList, STATUS,
     setProducts,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
@@ -290,7 +290,27 @@ export const ComptaPage = () => {
             </div>
             {comptaEnCours>0&&(
               <div style={{marginTop:12,fontSize:11,color:"#92400E",background:"#FFFBEB",borderRadius:8,padding:"8px 10px",lineHeight:1.4}}>
-                {comptaEnCours} commande{comptaEnCours!==1?"s":""} en cours de livraison ou à confirmer — pas encore comptée{comptaEnCours!==1?"s":""} dans le bénéfice.
+                <div style={{marginBottom:(comptaEnCoursList&&comptaEnCoursList.length)?6:0}}>
+                  {comptaEnCours} commande{comptaEnCours!==1?"s":""} en cours de livraison ou à confirmer sur cette période — pas encore comptée{comptaEnCours!==1?"s":""} dans le bénéfice.
+                </div>
+                {comptaEnCoursList&&comptaEnCoursList.length>0&&(
+                  <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:160,overflowY:"auto"}}>
+                    {comptaEnCoursList.map(o=>{
+                      const st = STATUS?.[o.status];
+                      return (
+                        <div key={o.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,background:"#fff",borderRadius:6,padding:"5px 8px",border:"0.5px solid #FCD34D"}}>
+                          <div style={{minWidth:0,flex:1}}>
+                            <div style={{fontSize:11,fontWeight:600,color:"#111827",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.client||"—"}</div>
+                            <div style={{fontSize:10,color:"#9CA3AF",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{o.product||""}</div>
+                          </div>
+                          <span style={{flexShrink:0,fontSize:9.5,fontWeight:600,color:st?.color||"#92400E",background:(st?.color||"#F59E0B")+"22",borderRadius:10,padding:"2px 7px",whiteSpace:"nowrap"}}>
+                            {st?.label||o.status}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
             <div style={{marginTop:10,fontSize:11,color:"#9CA3AF",textAlign:"right"}}>
