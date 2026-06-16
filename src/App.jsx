@@ -1316,6 +1316,19 @@ function AppInner() {
     addToast("Fichier Excel téléchargé ✅","📊",G.green);
   };
 
+  // Interurbain pour le message WhatsApp : recalcule depuis la zone ACTUELLE
+  // (prioritaire) avec repli sur la valeur enregistrée sur la commande — logique
+  // identique au "Total client (tout inclus)" affiché dans l'app, pour que le
+  // montant confirmé au client soit toujours le même que celui vu dans l'app
+  // (et que le transport interurbain ne disparaisse jamais).
+  const _waInterurbain = (o) => {
+    const input = `${o?.city||""} ${o?.address||""}`.trim();
+    const zT = input ? detectDeliveryZone(input, mainRegion, otherRegions, settings.defaultDeliveryPrice||3500) : null;
+    const isOther = zT?.type==="other" || o?.region_type==="other" || o?.delivery_zone_type==="other" || o?.deliveryZoneType==="other";
+    if(!isOther) return 0;
+    return (parseInt(zT?.interurbain) || Number(o?.interurbain_fee ?? o?.interurbainFee) || 0);
+  };
+
   // ── WhatsApp confirmation ──
   const sendWAConfirmation = async (order) => {
     if(!order?.phone) return;
@@ -1342,7 +1355,7 @@ function AppInner() {
       .replace("{prix}", Number(order.price).toLocaleString("fr-FR"))
       .replace("{adresse}", order.address||"")
       .replace("{boutique}", settings.boutique||"Teamly");
-    const _tb = _waTotalBlock(order.price, _orderInterurbain(order));
+    const _tb = _waTotalBlock(order.price, _waInterurbain(order));
     msg = msg.replace(/{interurbain}/g, _tb.inter.toLocaleString("fr-FR")).replace(/{total}/g, _tb.total.toLocaleString("fr-FR"));
     if(_tb.block && !waTemplate.includes("{total}")) msg = msg + _tb.block;
     // If user added {suivi} placeholder, replace it; otherwise append at the end
@@ -4928,7 +4941,9 @@ function AppInner() {
   // Le total que le client doit payer = prix produit + interurbain (la livraison
   // locale est déjà incluse dans le prix produit). Zone principale → ajout = 0.
   const isOtherRegion = (o) => o?.region_type === "other" || o?.delivery_zone_type === "other";
-  const interurbainOf = (o) => isOtherRegion(o) ? (Number(o.interurbain_fee ?? o.interurbainFee) || 0) : 0;
+  // Recalcule depuis la zone actuelle (même logique que le message WhatsApp et le
+  // "Total client tout inclus") pour que le montant affiché partout soit identique.
+  const interurbainOf = (o) => _waInterurbain(o);
   const totalToPay    = (o) => (Number(o.price) || 0) + interurbainOf(o);
 
   // Open Frais de livraison + persist the dismiss so warnings never come back
@@ -10428,7 +10443,7 @@ function AppInner() {
                   .replace(/{adresse}/g, o.address||"")
                   .replace(/{boutique}/g, settings.boutique||"Teamly")
                   .replace(/{livreur}/g,  assignSelLiv?.nom||"notre livreur");
-                const _tb = _waTotalBlock(o.price, _orderInterurbain(o));
+                const _tb = _waTotalBlock(o.price, _waInterurbain(o));
                 msg = msg.replace(/{interurbain}/g, _tb.inter.toLocaleString("fr-FR")).replace(/{total}/g, _tb.total.toLocaleString("fr-FR"));
                 if(_tb.block && !waTemplate.includes("{total}")) msg = msg + _tb.block;
                 if(msg.includes("{suivi}")) msg = msg.replace(/{suivi}/g, trackingLink);
