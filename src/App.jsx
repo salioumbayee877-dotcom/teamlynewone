@@ -3594,16 +3594,19 @@ function AppInner() {
     "en_attente_paiement","paiement_confirme","livreur_en_route","colis_en_main","en_route","remis_transporteur",
   ]);
   const comptaOrders = (()=>{
-    const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
-    const to   = dateTo   ? new Date(dateTo  +"T23:59:59.999Z") : null;
+    // Comparaison par DATE LOCALE (YYYY-MM-DD), identique à la liste des
+    // commandes — sinon des bornes UTC décalaient certains pedidos d'un jour et
+    // la Compta n'affichait pas les commandes "d'hier" pourtant visibles ailleurs.
+    const from = dateFrom || null;
+    const to   = dateTo   || null;
     const cf   = comptaFilters;
     return orders.filter(o=>{
       // Exclure les pedidos en transit (interurbain pas encore livré, etc.)
       if(COMPTA_EXCLUDED_STATUS.has(o.status)) return false;
-      // Date
-      const d = o.created_at ? new Date(o.created_at) : null;
-      if(from && (!d||d<from)) return false;
-      if(to   && (!d||d>to  )) return false;
+      // Date (locale)
+      const d = o.created_at ? localDateStr(o.created_at) : "";
+      if(from && (!d || d < from)) return false;
+      if(to   && (!d || d > to  )) return false;
       // Produit
       if(cf.produits.length>0 && !cf.produits.some(p=>o.product?.startsWith(p))) return false;
       // Statut
@@ -3712,16 +3715,16 @@ function AppInner() {
   // On respecte les mêmes filtres que comptaOrders SAUF le filtre de statut
   // (qui par défaut ne garde que entregado/rechazado et masquerait tout).
   const comptaEnCours = (()=>{
-    const from = dateFrom ? new Date(dateFrom+"T00:00:00.000Z") : null;
-    const to   = dateTo   ? new Date(dateTo  +"T23:59:59.999Z") : null;
+    const from = dateFrom || null;
+    const to   = dateTo   || null;
     const cf   = comptaFilters;
     const FINAL = new Set(["entregado","rechazado"]);
     return orders.filter(o=>{
       if(o.archived) return false;
       if(FINAL.has(o.status)) return false;
-      const d = o.created_at ? new Date(o.created_at) : null;
-      if(from && (!d||d<from)) return false;
-      if(to   && (!d||d>to  )) return false;
+      const d = o.created_at ? localDateStr(o.created_at) : "";
+      if(from && (!d || d < from)) return false;
+      if(to   && (!d || d > to  )) return false;
       if(cf.produits.length>0 && !cf.produits.some(p=>o.product?.startsWith(p))) return false;
       if(cf.livraisonType==="locale_moto"    && o.deliveryZoneType!=="main" ) return false;
       if(cf.livraisonType==="regionale_voiture" && o.deliveryZoneType!=="other") return false;

@@ -260,7 +260,9 @@ export const ComptaPage = () => {
                 : `${dateFrom||"—"} → ${dateTo||"—"}`;
         const nLivrees  = comptaOrders.filter(o=>o.status==="entregado").length;
         const nRejetees = comptaOrders.filter(o=>o.status==="rechazado").length;
-        const totalCouts= comptaCamv+comptaFrais+comptaPub+comptaCalcProd.reduce((a,x)=>a+x.echouees,0);
+        const totalExtra= comptaCalcProd.reduce((a,x)=>a+x.echouees,0);
+        const totalCouts= comptaCamv+comptaFrais+comptaPub+totalExtra;
+        const coutsDetail = `Produits ${fmt(comptaCamv)} · Livraison ${fmt(comptaFrais)} · Pub ${fmt(comptaPub)}${totalExtra>0?` · Extra ${fmt(totalExtra)}`:""}`;
         return (
           <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",padding:"16px 16px 14px"}}>
             <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{periodLabel}</div>
@@ -273,15 +275,16 @@ export const ComptaPage = () => {
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
               {[
                 {l:"CA",          v:`${fmt(comptaCA)} CFA`},
-                {l:"Coûts",       v:`${fmt(totalCouts)} CFA`},
+                {l:"Coûts",       v:`${fmt(totalCouts)} CFA`, sub:coutsDetail, full:true},
                 {l:"Pub",         v:`${fmt(comptaPub)} CFA`},
                 {l:"Livraison",   v:`${fmt(comptaFrais)} CFA`},
                 {l:"Livrées / Rejetées", v:`${nLivrees} / ${nRejetees}`},
                 {l:"En cours",    v:`${comptaEnCours}`, c:comptaEnCours>0?"#92400E":"#111827"},
-              ].map(({l,v,c},i)=>(
-                <div key={i}>
+              ].map(({l,v,c,sub,full},i)=>(
+                <div key={i} style={full?{gridColumn:"1 / -1"}:undefined}>
                   <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{l}</div>
                   <div style={{fontSize:14,fontWeight:500,color:c||"#111827"}}>{v}</div>
+                  {sub&&<div style={{fontSize:10,color:"#9CA3AF",marginTop:2,lineHeight:1.4}}>{sub}</div>}
                 </div>
               ))}
             </div>
