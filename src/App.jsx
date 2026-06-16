@@ -6285,8 +6285,10 @@ function AppInner() {
 
             {/* Aperçu du jour */}
             {(()=>{
-              const todayStr = new Date().toISOString().slice(0,10);
-              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
+              // Date LOCALE (pas UTC) pour que l'aperçu colle aux pedidos du jour
+              // affichés dans la liste — toISOString() décalait le jour selon le fuseau.
+              const _todayLocal = localDateStr();
+              const tod = orders.filter(o=>o.created_at && localDateStr(o.created_at)===_todayLocal);
               const bars = [
                 {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
                 {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
@@ -6451,8 +6453,10 @@ function AppInner() {
 
             {/* Aperçu du jour — même graphique que l'admin */}
             {(()=>{
-              const todayStr = new Date().toISOString().slice(0,10);
-              const tod = orders.filter(o=>(o.created_at||"").startsWith(todayStr));
+              // Date LOCALE (pas UTC) pour que l'aperçu colle aux pedidos du jour
+              // affichés dans la liste — toISOString() décalait le jour selon le fuseau.
+              const _todayLocal = localDateStr();
+              const tod = orders.filter(o=>o.created_at && localDateStr(o.created_at)===_todayLocal);
               const bars = [
                 {label:"Confirmé", count:tod.filter(o=>o.status==="confirmado").length,                                                        color:G.green},
                 {label:"En route", count:tod.filter(o=>["livreur_en_route","colis_pris","en_camino","chez_client"].includes(o.status)).length, color:G.blue},
