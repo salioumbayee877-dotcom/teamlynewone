@@ -5020,7 +5020,16 @@ function AppInner() {
     const LIVRAISON_STATUTS = ["livreur_en_route","colis_pris","en_camino","chez_client"];
     const matchStatus = filterStatus==="all" || (filterStatus==="livraison" ? LIVRAISON_STATUTS.includes(o.status) : o.status===filterStatus);
     const matchLivreur = filterLivreur==="all" || o.livreur===filterLivreur;
-    return matchSearch && matchStatus && matchLivreur && matchDate;
+    // Closer : les commandes encore À TRAITER (à confirmer, à relancer, à
+    // reprogrammer, ou confirmées sans livreur) restent visibles quel que soit
+    // le filtre de date — sinon le closer perd de vue son travail en cours
+    // quand il filtre par "Aujourd'hui". Les commandes terminées/en livraison
+    // respectent le filtre de date normalement.
+    const closerPending = role==="closer" && (
+      ["pendiente","no_contesta","reprogramar"].includes(o.status) ||
+      (o.status==="confirmado" && !o.livreur && !o.livreur_id)
+    );
+    return matchSearch && matchStatus && matchLivreur && (matchDate || closerPending);
   });
 
   const SIDEBAR_W = 280;
