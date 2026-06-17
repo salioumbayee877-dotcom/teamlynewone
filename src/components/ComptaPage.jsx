@@ -22,6 +22,7 @@ export const ComptaPage = () => {
     adSpend, livraisonsEchouees, cashRemis,
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
     comptaPub, comptaMarge, comptaEnCours, comptaEnCoursList, STATUS,
+    comptaFraisLocal, comptaInterurbain,
     setProducts,
     setComptaFilters, setComptaFiltersOpen, setComptaPeriodMode, setComptaShortcut,
     setDateFrom, setDateTo, setComptaExpandedProd, setComptaCostEdit, setComptaExportOpen,
@@ -261,8 +262,6 @@ export const ComptaPage = () => {
         const nLivrees  = comptaOrders.filter(o=>o.status==="entregado").length;
         const nRejetees = comptaOrders.filter(o=>o.status==="rechazado").length;
         const totalExtra= comptaCalcProd.reduce((a,x)=>a+x.echouees,0);
-        const totalCouts= comptaCamv+comptaFrais+comptaPub+totalExtra;
-        const coutsDetail = `Produits ${fmt(comptaCamv)} · Livraison ${fmt(comptaFrais)} · Pub ${fmt(comptaPub)}${totalExtra>0?` · Extra ${fmt(totalExtra)}`:""}`;
         return (
           <div style={{background:"#fff",borderRadius:12,border:"0.5px solid #E5E7EB",padding:"16px 16px 14px"}}>
             <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{periodLabel}</div>
@@ -274,12 +273,14 @@ export const ComptaPage = () => {
             <div style={{height:"0.5px",background:"#F3F4F6",margin:"0 -16px",marginBottom:14}}/>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px"}}>
               {[
-                {l:"CA",          v:`${fmt(comptaCA)} CFA`},
-                {l:"Coûts",       v:`${fmt(totalCouts)} CFA`, sub:coutsDetail, full:true},
-                {l:"Pub",         v:`${fmt(comptaPub)} CFA`},
-                {l:"Livraison",   v:`${fmt(comptaFrais)} CFA`},
-                {l:"Livrées / Rejetées", v:`${nLivrees} / ${nRejetees}`},
-                {l:"En cours",    v:`${comptaEnCours}`, c:comptaEnCours>0?"#92400E":"#111827"},
+                {l:"CA",                    v:`${fmt(comptaCA)} CFA`},
+                {l:"Coût produit",          v:`${fmt(comptaCamv)} CFA`},
+                {l:"Livraison locale",      v:`${fmt(comptaFraisLocal)} CFA`},
+                {l:"Transport interurbain", v:`${fmt(comptaInterurbain)} CFA`},
+                {l:"Pub",                   v:`${fmt(comptaPub)} CFA`},
+                ...(totalExtra>0?[{l:"Frais extra", v:`${fmt(totalExtra)} CFA`}]:[]),
+                {l:"Livrées / Rejetées",    v:`${nLivrees} / ${nRejetees}`},
+                {l:"En cours",              v:`${comptaEnCours}`, c:comptaEnCours>0?"#92400E":"#111827"},
               ].map(({l,v,c,sub,full},i)=>(
                 <div key={i} style={full?{gridColumn:"1 / -1"}:undefined}>
                   <div style={{fontSize:11,color:"#9CA3AF",marginBottom:2}}>{l}</div>

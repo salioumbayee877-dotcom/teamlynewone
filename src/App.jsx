@@ -3691,11 +3691,21 @@ function AppInner() {
     //    (o.fraisLiv), pas le fallback : sinon une adresse hors zones gonfle le coût
     //    (ex. 3000 au lieu du vrai 2500 déjà appliqué à la livraison).
     const _defPrice = settings.defaultDeliveryPrice||3500;
-    const frais = livOps.reduce((s,o)=>{
+    // On sépare la livraison LOCALE du TRANSPORT INTERURBAIN (hors zone principale)
+    // pour les afficher distinctement. frais total = local + interurbain (inchangé).
+    let fraisLocal = 0, fraisInter = 0;
+    for (const o of livOps) {
       const z = detectDeliveryZone(o.city||"", mainRegion, otherRegions, _defPrice);
-      const fee = z.type!=="unknown" ? z.price : (o.fraisLiv!=null ? o.fraisLiv : _defPrice);
-      return s + (Number(fee)||0);
-    },0);
+      if (z.type === "other") {
+        fraisLocal += Number(z.fraisLocale) || 0;
+        fraisInter += Number(z.interurbain) || 0;
+      } else if (z.type !== "unknown") {
+        fraisLocal += Number(z.price) || 0;
+      } else {
+        fraisLocal += (o.fraisLiv != null ? Number(o.fraisLiv) : _defPrice) || 0;
+      }
+    }
+    const frais = fraisLocal + fraisInter;
     // CA = total cobrado (revenue ya incluye la livraison en o.price/line_total)
     const ca = revenue;
     const zoneBreakdown = WA_ZONES.map(z=>({
@@ -3707,12 +3717,14 @@ function AppInner() {
     // Bénéfice = CA − frais livraison (reversado al livreur) − CAMV − pub − frais extra
     const ben      = ca-frais-camv-echouees-pub;
     const marge    = ca>0?ben/ca:0;
-    return {prod,nLiv,nRej,ca,camv,frais,echouees,pub,ben,marge,zoneBreakdown,totalUnits};
+    return {prod,nLiv,nRej,ca,camv,frais,fraisLocal,fraisInter,echouees,pub,ben,marge,zoneBreakdown,totalUnits};
   });
   const comptaCA    = comptaCalcProd.reduce((a,x)=>a+x.ca,0);
   const comptaBen   = comptaCalcProd.reduce((a,x)=>a+x.ben,0);
   const comptaCamv  = comptaCalcProd.reduce((a,x)=>a+x.camv,0);
   const comptaFrais = comptaCalcProd.reduce((a,x)=>a+x.frais,0);
+  const comptaFraisLocal   = comptaCalcProd.reduce((a,x)=>a+(x.fraisLocal||0),0);
+  const comptaInterurbain  = comptaCalcProd.reduce((a,x)=>a+(x.fraisInter||0),0);
   const comptaPub   = comptaCalcProd.reduce((a,x)=>a+x.pub,0);
   const comptaMarge = comptaCA>0?comptaBen/comptaCA:0;
   // Pedidos "en cours" : créés dans la période sélectionnée mais PAS encore
@@ -5088,7 +5100,7 @@ function AppInner() {
     adSpend, livraisonsEchouees, cashRemis,
     // compta derived
     comptaOrders, comptaCalcProd, comptaCA, comptaBen, comptaCamv, comptaFrais,
-    comptaPub, comptaMarge, comptaEnCours, comptaEnCoursList,
+    comptaPub, comptaMarge, comptaEnCours, comptaEnCoursList, comptaFraisLocal, comptaInterurbain,
     // frais state
     fraisConfigTab, fraisMainNameEdit, fraisEditCity, fraisNewMain, fraisNewOther,
     fraisTableauSearch, fraisTableauFilter, fraisTestCity,
