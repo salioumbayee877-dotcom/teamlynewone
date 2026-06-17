@@ -1454,6 +1454,12 @@ function AppInner() {
       if(s==="en_camino" && !target?.en_camino_at) {
         patch = {...patch, en_camino_at: new Date().toISOString()};
       }
+      // Livraison : horodate + attribue la livraison (livreur si assigné, sinon
+      // null = livraison directe). Indispensable pour que la Caisse rattache
+      // l'encaissé à la bonne période et au bon responsable.
+      if(s==="entregado" && target?.status!=="entregado") {
+        patch = {...patch, delivered_at: new Date().toISOString(), delivered_by: target?.livreur_id || null};
+      }
       sbFetch(`orders?id=eq.${id}`,"PATCH",patch).catch(e=>{
         console.error("upSt error:",e);
         setOrders(prevOrders);
@@ -7459,8 +7465,11 @@ function AppInner() {
           const ensure = (id,name)=>{ if(!map[id]) map[id]={id,name:name||"Livreur",collected:0,frais:0,handed:0,count:0}; return map[id]; };
           teamMembers.filter(m=>m.role==="livreur").forEach(m=>ensure(m.id,m.nom));
           ordsP.forEach(o=>{
-            const lid = o.delivered_by || o.livreur_id; if(!lid) return;
-            const e = ensure(lid, teamMembers.find(m=>m.id===lid)?.nom||"Ancien livreur");
+            // Pas de livreur (livraison directe par la boutique) → bucket dédié,
+            // sinon l'encaissé de ces commandes disparaissait de la Caisse.
+            const lid = o.delivered_by || o.livreur_id || "__direct__";
+            const name = lid==="__direct__" ? "Livraison directe (sans livreur)" : (teamMembers.find(m=>m.id===lid)?.nom||"Ancien livreur");
+            const e = ensure(lid, name);
             e.collected += amt(o); e.frais += fee(o); e.count += 1;
           });
           handP.forEach(h=>{ const e=ensure(h.livreur_id, teamMembers.find(m=>m.id===h.livreur_id)?.nom||"Ancien livreur"); e.handed += Number(h.amount)||0; });
@@ -7504,29 +7513,38 @@ function AppInner() {
               {/* Par livreur */}
               {rows.length===0 && !caisseLoading ? (
                 <div style={{background:G.white,borderRadius:14,padding:24,textAlign:"center",color:G.gray,fontSize:13}}>Aucune activité sur cette période.</div>
-              ) : rows.map(r=>(
+              ) : rows.map(r=>{
+                const isDirect = r.id==="__direct__";
+                return (
                 <div key={r.id} style={{background:G.white,borderRadius:14,padding:14}}>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
                     <div style={{minWidth:0}}>
-                      <div style={{fontWeight:700,fontSize:14,color:G.dark}}>🏍️ {r.name}</div>
+                      <div style={{fontWeight:700,fontSize:14,color:G.dark}}>{isDirect?"🏪":"🏍️"} {r.name}</div>
                       <div style={{fontSize:11,color:G.gray,marginTop:2}}>{r.count} livraison{r.count>1?"s":""}</div>
                     </div>
                     <div style={{textAlign:"right",flexShrink:0}}>
-                      <div style={{fontSize:10,color:G.gray}}>À rendre</div>
-                      <div style={{fontSize:20,fontWeight:800,color:r.outstanding>0?G.red:G.green}}>{fmt(r.outstanding)} CFA</div>
+                      <div style={{fontSize:10,color:G.gray}}>{isDirect?"Encaissé net":"À rendre"}</div>
+                      <div style={{fontSize:20,fontWeight:800,color:isDirect?G.dark:(r.outstanding>0?G.red:G.green)}}>{fmt(r.outstanding)} CFA</div>
                     </div>
                   </div>
                   <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:G.gray,flexWrap:"wrap",gap:4}}>
                     <span>Encaissé: <strong style={{color:G.dark}}>{fmt(r.collected)} CFA</strong></span>
                     <span>Frais: <strong style={{color:G.dark}}>−{fmt(r.frais)} CFA</strong></span>
-                    <span>Rendu: <strong style={{color:G.green}}>{fmt(r.handed)} CFA</strong></span>
+                    {!isDirect&&<span>Rendu: <strong style={{color:G.green}}>{fmt(r.handed)} CFA</strong></span>}
                   </div>
-                  <button onClick={()=>setCaisseRemise({livreurId:r.id,name:r.name,amount:String(r.outstanding>0?r.outstanding:""),note:""})}
-                    style={{width:"100%",marginTop:10,background:r.outstanding>0?G.green:G.grayLight,color:r.outstanding>0?"#fff":G.gray,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
-                    + Enregistrer une remise
-                  </button>
+                  {isDirect ? (
+                    <div style={{marginTop:10,fontSize:11,color:G.gray,fontStyle:"italic",textAlign:"center"}}>
+                      Encaissé directement par la boutique — rien à remettre.
+                    </div>
+                  ) : (
+                    <button onClick={()=>setCaisseRemise({livreurId:r.id,name:r.name,amount:String(r.outstanding>0?r.outstanding:""),note:""})}
+                      style={{width:"100%",marginTop:10,background:r.outstanding>0?G.green:G.grayLight,color:r.outstanding>0?"#fff":G.gray,border:"none",borderRadius:10,padding:"10px 0",fontWeight:700,fontSize:13,cursor:"pointer"}}>
+                      + Enregistrer une remise
+                    </button>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               {/* Historique des remises (période) */}
               <div style={{background:G.white,borderRadius:14,padding:14}}>
