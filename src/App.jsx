@@ -6851,6 +6851,7 @@ function AppInner() {
                         {k:"entregado",  l:"Encaissé",  c:STATUS.entregado.color,  bg:STATUS.entregado.color+"22"},
                         {k:"rechazado",  l:"Rejeté",    c:STATUS.rechazado.color,  bg:STATUS.rechazado.color+"22"},
                         {k:"no_contesta",l:"Absent",    c:STATUS.no_contesta.color,bg:STATUS.no_contesta.color+"22"},
+                        {k:"reprogramar",l:"Reporté ⏰",c:STATUS.reprogramar.color,bg:STATUS.reprogramar.color+"22"},
                       ].map(({k,l,c,bg})=>{
                         const active = filterStatus===k;
                         return (
