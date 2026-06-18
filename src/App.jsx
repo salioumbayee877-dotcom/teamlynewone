@@ -6810,12 +6810,12 @@ function AppInner() {
                 {/* Plage : sélecteurs de dates personnalisés */}
                 {filterDate==="range"&&(
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12,flexWrap:"wrap"}}>
-                    <input type="date" value={filterDateFrom} max={filterDateTo||undefined}
-                      onChange={e=>setFilterDateFrom(e.target.value)}
+                    <input type="date" value={filterDateFrom}
+                      onChange={e=>{const v=e.target.value;setFilterDateFrom(v);if(v&&filterDateTo&&v>filterDateTo)setFilterDateTo(v);}}
                       style={{flex:"1 1 130px",minWidth:0,border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff",color:"#111827"}}/>
                     <span style={{color:"#9CA3AF",fontSize:13,flexShrink:0}}>→</span>
-                    <input type="date" value={filterDateTo} min={filterDateFrom||undefined}
-                      onChange={e=>setFilterDateTo(e.target.value)}
+                    <input type="date" value={filterDateTo}
+                      onChange={e=>{const v=e.target.value;setFilterDateTo(v);if(v&&filterDateFrom&&v<filterDateFrom)setFilterDateFrom(v);}}
                       style={{flex:"1 1 130px",minWidth:0,border:"1px solid #E5E7EB",borderRadius:8,padding:"8px 10px",fontSize:13,outline:"none",background:"#fff",color:"#111827"}}/>
                   </div>
                 )}
